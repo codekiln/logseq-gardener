@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Lerna-specific logs
+lerna-debug.log
+
+# Build outputs
+dist/
+build/
+lib/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-error.log
+pnpm-debug.log
+*.log
+
+# Coverage
+coverage/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
