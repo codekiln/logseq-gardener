@@ -1,0 +1,26 @@
+{
+  "name": "logseq-patch-manager",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "bin": {
+    "lpm": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/cli.js",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "Logseq"
+  ],
+  "author": "https://github.com/codekiln",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "An experimental CLI tool for managing Logseq Knowledge Garden Patches.",
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "eslint": "^9.17.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

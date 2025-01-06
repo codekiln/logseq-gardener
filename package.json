@@ -1,0 +1,14 @@
+{
+  "name": "logseq-gardener",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "bootstrap": "lerna bootstrap",
+    "build": "lerna run build",
+    "lint": "lerna run lint",
+    "start": "lerna run start"
+  },
+  "devDependencies": {
+    "lerna": "^8.1.9"
+  }
+}
