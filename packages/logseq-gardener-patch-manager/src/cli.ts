@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-// Shebang above is helpful so it can run as an executable on Unix-like systems
-
 const HELP_MESSAGE = `
 Logseq Gardener Patch Manager (lgpm) v0.1.0
 
