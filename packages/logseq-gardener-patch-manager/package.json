@@ -1,9 +1,9 @@
 {
-  "name": "logseq-patch-manager",
+  "name": "logseq-gardener-patch-manager",
   "version": "1.0.0",
   "main": "dist/index.js",
   "bin": {
-    "lpm": "dist/cli.js"
+    "lgpm": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
