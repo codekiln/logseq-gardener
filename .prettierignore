@@ -1,0 +1,8 @@
+# Ignore relevant files in fixtures, sometimes they are intentonally malformed
+**/__fixtures__/**/*.json
+**/__fixtures__/**/*.md
+
+dist
+tmp
+/.nx/cache
+/.nx/workspace-data
