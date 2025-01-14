@@ -1,0 +1,48 @@
+{
+    "name": "lgpm",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "packages/lgpm/src",
+    "projectType": "application",
+    "tags": [],
+    "targets": {
+      "build": {
+        "dependsOn": ["compile"],
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "packages/lgpm/dist",
+          "parallel": false,
+          "commands": ["rm -rf package.json"]
+        }
+      },
+      "compile": {
+        "executor": "@nx/esbuild:esbuild",
+        "outputs": ["{options.outputPath}"],
+        "options": {
+          "outputPath": "packages/lgpm/dist",
+          "main": "packages/lgpm/src/index.ts",
+          "tsConfig": "packages/lgpm/tsconfig.lib.json",
+          "assets": [
+            {
+              "input": "packages/lgpm/src",
+              "glob": "cli.js",
+              "output": "."
+            }
+          ],
+          "platform": "node",
+          "format": ["cjs"]
+        }
+      },
+      "lint": {
+        "executor": "@nx/eslint:lint",
+        "outputs": ["{options.outputFile}"]
+      },
+      "test": {
+        "executor": "@nx/jest:jest",
+        "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+        "options": {
+          "jestConfig": "packages/lgpm/jest.config.ts"
+        }
+      }
+    }
+  }
+  
