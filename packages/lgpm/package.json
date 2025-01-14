@@ -1,5 +1,5 @@
 {
-  "name": "logseq-gardener-patch-manager",
+  "name": "lgpm",
   "version": "1.0.0",
   "main": "dist/index.js",
   "bin": {
@@ -14,7 +14,7 @@
     "Logseq"
   ],
   "author": "https://github.com/codekiln",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "description": "An experimental CLI tool for managing Logseq Knowledge Garden Patches.",
   "devDependencies": {
