@@ -1,6 +1,10 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "targetDefaults": {
+    "lint": {
+      "inputs": ["default", "{workspaceRoot}/.eslintrc.json", "{workspaceRoot}/.eslintignore"],
+      "cache": true
+    },
     "build": {
       "dependsOn": [
         "^build"
@@ -10,8 +14,8 @@
       ],
       "cache": true
     },
-    "lint": {
-      "inputs": ["default", "{workspaceRoot}/.eslintrc.json", "{workspaceRoot}/.eslintignore"],
+    "compile": {
+      "inputs": ["production", "^production"],
       "cache": true
     }
   },
