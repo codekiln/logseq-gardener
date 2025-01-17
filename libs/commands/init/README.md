@@ -1,12 +1,30 @@
 - # `lgpm init`
-	-
-	  > Create or update an existing "Root Garden" environment for Logseq Patch Manager  
+	- > Create or update an existing "Root Garden" environment for Logseq Patch Manager  
+	- ## Prerequisites
+		- **`lgpm`** is currently designed to work **in conjunction with [Lerna](https://lerna.js.org/)**. If you do not have a Lerna-based monorepo set up, please run `lerna init` first.
+		- A typical setup flow might look like this:
+			-
+			  ```sh
+			  # 1. Create an empty directory for your garden
+			  mkdir ./logseq-garden
+			  cd ./logseq-garden
+
+			  # 2. Initialize Lerna (preview changes with --dry-run)
+			  npx lerna init --dry-run
+
+			  # 3. If everything looks good, remove --dry-run to finalize:
+			  npx lerna init
+
+			  # 4. Run lgpm init to prepare the root garden structure
+			  npx lgpm init
+			  ```
+		- In this workflow, `lgpm init` will add itself as a devDependency in `package.json` (if not already present) and ensure a `"postinstall": "lgpm sync"` script is set up.
 	- ## Usage
 		-
 		  ```sh
 		  $ lgpm init
 		  ```
-		- `lgpm init` sets up the **root** of your Logseq Garden so you can manage “Garden Patches” (sub-graphs). It creates minimal files and directories to help you start organizing patches. You do **not** need a Git or Lerna-based monorepo for basic usage—`lgpm` works with or without it.
+		- `lgpm init` sets up the **root** of your Logseq Garden so you can manage “Garden Patches” (sub-graphs). It creates minimal files and directories to help you start organizing patches, intended to be used inside a Lerna-based environment.
 		- When `lgpm init` is run, it will:
 			- 1. **Create a `patches/` directory (if none exists)**
 				- This directory houses each Garden Patch’s Logseq files.
@@ -19,7 +37,7 @@
 		- ### Minimal Example
 			-
 			  ```sh
-			  # In a directory where you want to manage your garden patches:
+			  # In a directory where you've already run lerna init:
 			  $ lgpm init
 			  lgpm info Creating patches/ directory
 			  lgpm info Creating or updating logseq-gardener-config.toml
@@ -42,21 +60,18 @@
 					  lgpm map python onto work
 					  ```
 			- 3. **(Optional) Run `npm install`** (or your preferred package manager’s install command)
-				- If you plan to use Node-based workflow for automation:
-					- This triggers your `"postinstall": "lgpm sync"` script and copies any necessary files into the appropriate patch directories.
-				- If you aren’t using Node at all, you can still invoke `lgpm sync` directly whenever you need to.
+				- This triggers your `"postinstall": "lgpm sync"` script and copies any necessary files into the appropriate patch directories.
 		- ### Frequently Asked Questions
 			- #### Do I need to use Git in the Logseq Garden **Root** to use `lgpm`?
-				- No. Advanced users may choose to do this, but it's not a supported configuration by default.
+				- Not required. Advanced users may choose to version-control the entire garden, but it's optional.
 			- #### Do I need to use Git in the Logseq Garden **Patches** to use `lgpm`?
-				- That's the recommended and assumed configuration. This enables
-					- a safer use of `lgpm`, since you can go back in time and get the previous revision
-					- sharing sub-graphs with others on GitHub
-				- Using `lgpm` without having a `git` repository for each of the Garden Patches is an unsupported setup, however, that doesn't mean that it can't be done. For example, you may have a Garden Patch that's only on one machine, and you may choose not to use git for that one patch, but that's not a setup that `lgpm` will test.
-			- #### Does `lgpm init` create a a Git repo or `.gitignore` in the Logseq Garden Root?
-				- No, but you should run `lgpm init`, which does by default.
-				- If you choose to version-control your whole garden, you can run `git init` or clone an existing repo on your own. However, `lgpm init` itself stays out of Git configuration for the Garden Root.
+				- That’s the recommended and assumed configuration. This enables:
+					- A safer use of `lgpm`, since you can revert to previous commits.
+					- Sharing sub-graphs (patches) with others on GitHub.
+				- If you choose not to version-control a patch, `lgpm` may still work, but that’s not an officially tested setup.
+			- #### Does `lgpm init` create a Git repo or `.gitignore` in the Logseq Garden Root?
+				- No. If you choose to version-control your whole garden, you can run `git init` (or clone an existing repo) on your own. However, `lgpm init` itself stays out of Git configuration for the Garden Root.
 			- #### Can I skip installing dependencies after `lgpm init`?
-				- Yes. `lgpm init` does not automatically run any installs. If you want to utilize the `"postinstall"` hook or maintain Node dependencies, run `npm install` (or your preferred package manager’s install command) yourself.
+				- Yes. `lgpm init` does not automatically run any installs. If you want to utilize the `"postinstall"` hook, run `npm install` or your preferred install command yourself.
 			- #### Does `lgpm init` prompt me for advanced configuration?
 				- Not yet. The current version is non-interactive and creates only what’s necessary to get started. Additional prompts or interactive fields may appear in later versions.
