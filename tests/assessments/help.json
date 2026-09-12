@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "request_id": "sha256:aeaaf99ecaecd1c9a3ba311d9045808272e45607753a8d782a10c11ec6514521",
+  "check": "clilint/help/useful-example",
+  "evidence_digest": "sha256:25a6c2cde351585ffe4f2b8302d727f97ec3f470d0bfbfaeb945fcb5a4fff0c1",
+  "skill": {
+    "name": "assess-cli-help",
+    "version": "1.0.0"
+  },
+  "score": 4.0,
+  "messages": [],
+  "explanation": "The captured help names the intended garden users and clearly identifies the available foundation features. It gives concrete outline and section invocations and explains that they list headings and retrieve behavior with permissions. Version reporting is also explained. These are usable examples of the commands currently available.",
+  "assessor": "Codex"
+}

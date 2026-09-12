@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Check README web links (requires network)"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+python3 scripts/docs.py --remote

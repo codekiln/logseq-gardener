@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Run all Rust tests"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+cargo test --locked --all-targets --all-features
+python3 -m unittest check-bundles/codekiln-help/test_checker.py

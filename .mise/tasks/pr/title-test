@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#MISE description="Test Conventional Emoji pull request title validation"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+valid_titles=(
+  "✨ feat(package): add local extensions"
+  "🩹 fix: reject stale assessments"
+  "📝 docs: update installation"
+  "🧪 test: cover malformed packages"
+  "👷 ci: run release checks"
+  "🎨 style: apply formatting"
+  "♻️ refactor: simplify reports"
+  "🔥 refactor(core): remove Python runtime"
+  "⚡️ perf: reduce startup time"
+  "🔧 build: update Rust toolchain"
+  "🔧 chore: pin development tools"
+  "🔖 release: prepare v0.0.2"
+  "📦 chore: update metadata"
+  "🔄 revert: restore package parsing"
+  "✨ feat!: change the package format"
+)
+
+for title in "${valid_titles[@]}"; do
+  mise run pr:title "$title" >/dev/null
+done
+
+invalid_titles=(
+  "✨ fix: mismatched emoji"
+  "feat: missing emoji"
+  "✨ feat missing colon"
+  "✨ feat:    "
+  "🎉 party: unsupported type"
+)
+
+for title in "${invalid_titles[@]}"; do
+  if mise run pr:title "$title" >/dev/null 2>&1; then
+    echo "expected title validation to fail: $title" >&2
+    exit 1
+  fi
+done
+
+mismatch="$(mise run pr:title "✨ fix: mismatched emoji" 2>&1 || true)"
+[[ "$mismatch" == *"accepted emoji for 'fix': 🩹"* ]] || {
+  echo "mismatch diagnostic did not include the accepted pairing" >&2
+  exit 1
+}
+
+echo "Conventional Emoji title tests passed"
