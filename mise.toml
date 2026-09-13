@@ -14,4 +14,3 @@ node = "24.14.0"
 "cargo:https://github.com/codekiln/clilint" = { version = "rev:200e92a5d76420e8c47fd9e623da704b355dbc7d", locked = true, crate = "clilint", bin = "clilint", install_env = { RUSTUP_TOOLCHAIN = "1.97.0" } }
 release-plz = "0.3.159"
 cargo-dist = "0.32.0"
-

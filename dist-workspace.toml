@@ -18,4 +18,4 @@ pr-run-mode = "upload"
 # Run the repository's Rust and project checks before any release build can publish.
 plan-jobs = ["./release-checks"]
 
-include = ["THIRD_PARTY_NOTICES.md", "licenses", "docs/dependencies.md"]
+include = ["THIRD_PARTY_NOTICES.md", "licenses", "docs", "CONTRIBUTING.md"]

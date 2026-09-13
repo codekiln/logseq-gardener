@@ -45,11 +45,11 @@ and use `#USAGE` metadata for arguments and flags.
 Many CLI tools that are relevant to this project are likely installed locally; use `ghq list --full-path | rg <item>` to find where. Feel free to update the git references on any of them.
 
 ### example command lines to emulate or analyze
-- `gh` 
+- `gh`
 - `mise` and `usage` (rg for `jdx` for all of Jeff Dickey's CLIs)
 - `ripgrep`
 - `rulesync`
 
 ### guidelines and standards relevant to ghq
 - `agentskills`
-- `cli-guidelines` 
+- `cli-guidelines`
