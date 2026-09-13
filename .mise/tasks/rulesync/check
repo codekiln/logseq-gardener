@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Verify existing generated instructions and fresh RuleSync output"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+if [[ -f AGENTS.md ]]; then
+  rulesync generate --check
+fi
+rulesync generate
+rulesync generate --check

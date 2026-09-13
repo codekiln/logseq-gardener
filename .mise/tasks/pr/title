@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#MISE description="Validate a Conventional Emoji pull request title"
+#USAGE arg "<title>" help="Pull request title to validate"
+set -euo pipefail
+
+title="${usage_title:?pull request title is required}"
+pattern='^([^[:space:]]+)[[:space:]]+([a-z]+)(\([a-z0-9._/-]+\))?(!)?:[[:space:]]+(.+)$'
+
+if [[ ! "$title" =~ $pattern ]]; then
+  echo "invalid pull request title: expected <emoji> <type>[optional scope][!]: <description>" >&2
+  exit 1
+fi
+
+emoji="${BASH_REMATCH[1]}"
+type="${BASH_REMATCH[2]}"
+breaking="${BASH_REMATCH[4]}"
+description="${BASH_REMATCH[5]}"
+
+if [[ ! "$description" =~ [^[:space:]] ]]; then
+  echo "invalid pull request title: description must not be empty" >&2
+  exit 1
+fi
+
+valid=false
+accepted=""
+case "$type" in
+  feat)     accepted="✨"; [[ "$emoji" == "✨" ]] && valid=true ;;
+  fix)      accepted="🩹"; [[ "$emoji" == "🩹" ]] && valid=true ;;
+  docs)     accepted="📝"; [[ "$emoji" == "📝" ]] && valid=true ;;
+  test)     accepted="🧪"; [[ "$emoji" == "🧪" ]] && valid=true ;;
+  ci)       accepted="👷"; [[ "$emoji" == "👷" ]] && valid=true ;;
+  style)    accepted="🎨"; [[ "$emoji" == "🎨" ]] && valid=true ;;
+  refactor) accepted="♻️ or 🔥"; [[ "$emoji" == "♻️" || "$emoji" == "🔥" ]] && valid=true ;;
+  perf)     accepted="⚡ or ⚡️"; [[ "$emoji" == "⚡" || "$emoji" == "⚡️" ]] && valid=true ;;
+  build)    accepted="🔧"; [[ "$emoji" == "🔧" ]] && valid=true ;;
+  chore)    accepted="🔧, 🔖, or 📦"; [[ "$emoji" == "🔧" || "$emoji" == "🔖" || "$emoji" == "📦" ]] && valid=true ;;
+  revert)   accepted="🔄"; [[ "$emoji" == "🔄" ]] && valid=true ;;
+  release)  accepted="🔖"; [[ "$emoji" == "🔖" ]] && valid=true ;;
+  *)
+    echo "invalid pull request title: unsupported type '$type'" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "$valid" != true ]]; then
+  echo "invalid emoji/type pairing: '$emoji $type'; accepted emoji for '$type': $accepted" >&2
+  exit 1
+fi
+
+impact="none"
+case "$type" in
+  feat) impact="feature" ;;
+  fix|perf|revert) impact="fix" ;;
+esac
+[[ "$breaking" == "!" ]] && impact="breaking"
+
+echo "valid Conventional Emoji title ($impact): $title"

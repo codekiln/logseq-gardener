@@ -1,0 +1,17 @@
+# Worked example: docs/codekiln-help.md follows this Check through its Checker
+# CLI, fixtures, and report output.
+format_version = 1
+extends = "clilint"
+
+[check_bundle]
+name = "codekiln-help"
+version = "0.1.0"
+
+[[checks]]
+id = "codekiln-help/help/hierarchical"
+title = "Help is navigable at every command path"
+evaluation_method = "mechanistic"
+
+[checks.checker]
+type = "cli"
+command = ["python3", "{bundle}/checker.py"]

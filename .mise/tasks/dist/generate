@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Regenerate the cargo-dist GitHub Actions workflow"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+dist generate

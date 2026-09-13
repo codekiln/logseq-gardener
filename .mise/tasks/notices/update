@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Refresh locked dependency metadata and upstream license texts"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+python3 scripts/notices.py

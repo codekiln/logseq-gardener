@@ -1,0 +1,27 @@
+[workspace]
+git_only = true
+publish = false
+git_release_enable = false
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+release_always = false
+semver_check = false
+pr_branch_prefix = "release-plz-"
+pr_name = "🔖 release: prepare v{{ version }}"
+features_always_increment_minor = false
+custom_major_increment_regex = '^.+ (?:feat|fix|docs|test|ci|style|refactor|perf|build|chore|revert)(?:\([^)]*\))?!:'
+custom_minor_increment_regex = '^.+ (?:feat|fix|docs|test|ci|style|refactor|perf|build|chore|revert)(?:\([^)]*\))?!:'
+release_commits = '^(?:✨ feat|🩹 fix|.+ (?:feat|fix|docs|test|ci|style|refactor|perf|build|chore|revert)(?:\([^)]*\))?!:)'
+
+[changelog]
+protect_breaking_commits = true
+commit_preprocessors = [
+  { pattern = '^(?:✨|🩹|📝|🧪|👷|🎨|♻️?|🔥|⚡️?|🔧|🔖|📦|🔄) +', replace = "" },
+]
+commit_parsers = [
+  { message = '^feat', group = "Added" },
+  { message = '^fix', group = "Fixed" },
+  { message = '^perf', group = "Performance" },
+  { message = '^(?:docs|test|ci|style|refactor|build|chore|revert)', skip = true },
+  { message = '^.*', group = "Changed" },
+]

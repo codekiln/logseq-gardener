@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Build optimized release binaries"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+cargo build --locked --release --all-features
