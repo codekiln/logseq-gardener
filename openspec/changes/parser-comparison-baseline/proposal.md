@@ -1,6 +1,6 @@
 ## Why
 
-Logseq Gardener needs a parser choice before it can read gardens, but the current comparison plan has no runnable cases or recorded reference output. A small baseline using the parser version in the locally checked-out Logseq source will give later candidates the same inputs and a result they can reproduce.
+Logseq Gardener needs a parser choice before it can read gardens. The [parser comparison plan](https://github.com/codekiln/logseq-gardener/blob/85eaa574062cbe8b8d816b30ec1718e3bb350986/openspec/changes/project-foundation/parser-comparison.md) calls for shared cases and recorded results, which this baseline begins to provide using the parser version in the locally checked-out Logseq source.
 
 ## What Changes
 

@@ -1,6 +1,6 @@
 ## Context
 
-The merged parser plan names `lsdoc`, official `mldoc`, Logseq's graph parser, and graph-validator, but it contains no executable comparison data. The local `logseq/logseq` checkout at `63b76c5` declares `mldoc` `^1.5.9` in `deps/graph-parser/package.json`. Its graph-parser tests provide examples for a small, shareable synthetic corpus. The separate candidate repositories are not present in `ghq`.
+The [parser comparison plan](https://github.com/codekiln/logseq-gardener/blob/85eaa574062cbe8b8d816b30ec1718e3bb350986/openspec/changes/project-foundation/parser-comparison.md) proposes testing `lsdoc`, `mldoc`, Logseq's graph parser, and graph-validator, but has no runnable cases or recorded reference results. The local `logseq/logseq` checkout at `63b76c5` declares `mldoc` `^1.5.9` in `deps/graph-parser/package.json`. Its graph-parser tests provide examples for a small, shareable synthetic corpus. The separate candidate repositories are not present in `ghq`.
 
 ## Goals / Non-Goals
 
