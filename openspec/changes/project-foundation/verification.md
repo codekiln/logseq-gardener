@@ -23,6 +23,7 @@ The `project-foundation` change has separate SDK and CLI packages, with the main
 - `mise run docs:check` ran every README shell command and verified local documentation links. `mise run docs:links` received HTTP 200 for every README web link.
 - `mise run dist:check` validated the configured native archives and their included notices and licenses.
 - `mise run release:impact-test` fails on the first workspace fixture for the unpublished SDK resolution described above. The earlier single-package release checks do not verify the current workspace.
+- A lower-powered codekiln-review round on [0d2e57b identifying the private workspace release blocker](https://github.com/codekiln/logseq-gardener/commit/0d2e57b) found no new actionable file findings. A separate title finding was addressed by renaming the pull request to “✨ feat: add the lsg CLI and Rust SDK.”
 - `dist build --artifacts local --target aarch64-apple-darwin` produced a native archive. Its SHA-256 matched its checksum file; the extracted binary returned the expected version JSON. The archive contains license text, dependency notices, and documentation with valid local links.
 - `git diff main --check` passed. Git attributes preserve upstream license files' final blank lines verbatim.
 
