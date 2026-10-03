@@ -1,0 +1,8 @@
+{
+  "name": "logseq-gardener-mldoc-baseline",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mldoc": "1.5.9"
+  }
+}

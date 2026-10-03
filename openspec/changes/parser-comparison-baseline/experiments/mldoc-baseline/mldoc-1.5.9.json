@@ -1,0 +1,970 @@
+{
+  "schema": 1,
+  "parser": {
+    "package": "mldoc",
+    "version": "1.5.9"
+  },
+  "config": {
+    "toc": false,
+    "parse_outline_only": false,
+    "heading_number": false,
+    "keep_line_break": true,
+    "format": "Markdown",
+    "heading_to_list": false
+  },
+  "files": {
+    "journals/2026_10_03.md": {
+      "sha256": "38cd52cf4cbddde38b71770f406d32db88f3b5ceb9e132c9ee99aed05f8f8d55",
+      "ast": [
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "Review "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Alias Source"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Alias Source]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  " and "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Target Page"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Target Page]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  "."
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "Review__and_-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 0,
+            "end_pos": 47
+          }
+        ]
+      ],
+      "references": [
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Alias Source"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Alias Source]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Target Page"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Target Page]]",
+            "metadata": ""
+          }
+        ]
+      ]
+    },
+    "pages/Alias Source.md": {
+      "sha256": "04b87ab2303bf4c8438426ad8d1c4ea6f8013b759f0dc22708af21e15bdcf2cf",
+      "ast": [
+        [
+          [
+            "Property_Drawer",
+            [
+              [
+                "alias",
+                "[[Other Name]], [[Second Name]]",
+                [
+                  [
+                    "Link",
+                    {
+                      "url": [
+                        "Page_ref",
+                        "Other Name"
+                      ],
+                      "label": [
+                        [
+                          "Plain",
+                          ""
+                        ]
+                      ],
+                      "full_text": "[[Other Name]]",
+                      "metadata": ""
+                    }
+                  ],
+                  [
+                    "Link",
+                    {
+                      "url": [
+                        "Page_ref",
+                        "Second Name"
+                      ],
+                      "label": [
+                        [
+                          "Plain",
+                          ""
+                        ]
+                      ],
+                      "full_text": "[[Second Name]]",
+                      "metadata": ""
+                    }
+                  ]
+                ]
+              ],
+              [
+                "tags",
+                "[[Research]], comparison",
+                [
+                  [
+                    "Link",
+                    {
+                      "url": [
+                        "Page_ref",
+                        "Research"
+                      ],
+                      "label": [
+                        [
+                          "Plain",
+                          ""
+                        ]
+                      ],
+                      "full_text": "[[Research]]",
+                      "metadata": ""
+                    }
+                  ]
+                ]
+              ]
+            ]
+          ],
+          {
+            "start_pos": 0,
+            "end_pos": 72
+          }
+        ],
+        [
+          [
+            "Paragraph",
+            [
+              [
+                "Break_Line"
+              ]
+            ]
+          ],
+          {
+            "start_pos": 72,
+            "end_pos": 73
+          }
+        ],
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "See "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Target Page"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Target Page]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  " and "
+                ],
+                [
+                  "Tag",
+                  [
+                    [
+                      "Plain",
+                      "Research"
+                    ]
+                  ]
+                ],
+                [
+                  "Plain",
+                  "."
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "See__and_-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 73,
+            "end_pos": 110
+          }
+        ],
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "A nested link to "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Names/Nested"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Names/Nested]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  "."
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "A_nested_link_to_-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 110,
+            "end_pos": 147
+          }
+        ]
+      ],
+      "references": [
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Other Name"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Other Name]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Second Name"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Second Name]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Research"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Research]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Target Page"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Target Page]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Tag",
+          [
+            [
+              "Plain",
+              "Research"
+            ]
+          ]
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Names/Nested"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Names/Nested]]",
+            "metadata": ""
+          }
+        ]
+      ]
+    },
+    "pages/Code Fence.md": {
+      "sha256": "90b9521a81f2e3e2243f938b7a86619f1a736176dd01fc433c339b884910efcf",
+      "ast": [
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "This is a real "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Target Page"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Target Page]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  " reference."
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "This_is_a_real__reference-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 0,
+            "end_pos": 44
+          }
+        ],
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "The following text only looks like a reference:"
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "The_following_text_only_looks_like_a_reference-3a-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 44,
+            "end_pos": 94
+          }
+        ],
+        [
+          [
+            "Src",
+            {
+              "lines": [
+                "  [[Not A Page]]",
+                "\n",
+                "  #not-a-tag",
+                "\n"
+              ],
+              "language": "markdown",
+              "pos_meta": {
+                "start_pos": 108,
+                "end_pos": 140
+              }
+            }
+          ],
+          {
+            "start_pos": 94,
+            "end_pos": 144
+          }
+        ]
+      ],
+      "references": [
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Target Page"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Target Page]]",
+            "metadata": ""
+          }
+        ]
+      ]
+    },
+    "pages/Media.md": {
+      "sha256": "64fd818b9aa20115d9d0b09b55a42995e6a85e0cd88c9eb0991429de9270ce3e",
+      "ast": [
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Search",
+                      "../assets/sketch.png"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        "Sketch"
+                      ]
+                    ],
+                    "full_text": "![Sketch](../assets/sketch.png)",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  " accompanies "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Target Page"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Target Page]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  "."
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "Sketch_accompanies_-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 0,
+            "end_pos": 63
+          }
+        ],
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Macro",
+                  {
+                    "name": "embed",
+                    "arguments": [
+                      "[[Alias Source]]"
+                    ]
+                  }
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 63,
+            "end_pos": 92
+          }
+        ]
+      ],
+      "references": [
+        [
+          "Link",
+          {
+            "url": [
+              "Search",
+              "../assets/sketch.png"
+            ],
+            "label": [
+              [
+                "Plain",
+                "Sketch"
+              ]
+            ],
+            "full_text": "![Sketch](../assets/sketch.png)",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Target Page"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Target Page]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Alias Source"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Alias Source]]",
+            "metadata": ""
+          }
+        ]
+      ]
+    },
+    "pages/Names___Nested.md": {
+      "sha256": "b37c490129909083fd94054930f18ccca3f1e1f1221d2e5dbd7636198de37a1b",
+      "ast": [
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "The filename encodes a namespace. The text refers to "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Names/Nested"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Names/Nested]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  " and "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Target Page"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Target Page]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  "."
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "The_filename_encodes_a_namespace-2e-_The_text_refers_to__and_-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 0,
+            "end_pos": 93
+          }
+        ]
+      ],
+      "references": [
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Names/Nested"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Names/Nested]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Target Page"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Target Page]]",
+            "metadata": ""
+          }
+        ]
+      ]
+    },
+    "pages/Target Page.md": {
+      "sha256": "1f9e7beb97e787765382588db9606fdfbd752495fd5f315e3b3c6eba062c76fa",
+      "ast": [
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "Parent block"
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "Parent_block",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 0,
+            "end_pos": 15
+          }
+        ],
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "Child block links to "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Page_ref",
+                      "Alias Source"
+                    ],
+                    "label": [
+                      [
+                        "Plain",
+                        ""
+                      ]
+                    ],
+                    "full_text": "[[Alias Source]]",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  "."
+                ]
+              ],
+              "tags": [],
+              "level": 3,
+              "anchor": "Child_block_links_to_-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 15,
+            "end_pos": 58
+          }
+        ],
+        [
+          [
+            "Property_Drawer",
+            [
+              [
+                "id",
+                "123e4567-e89b-12d3-a456-426614174000",
+                []
+              ]
+            ]
+          ],
+          {
+            "start_pos": 58,
+            "end_pos": 104
+          }
+        ],
+        [
+          [
+            "Heading",
+            {
+              "title": [
+                [
+                  "Plain",
+                  "Another block refers to "
+                ],
+                [
+                  "Link",
+                  {
+                    "url": [
+                      "Block_ref",
+                      "123e4567-e89b-12d3-a456-426614174000"
+                    ],
+                    "label": [],
+                    "full_text": "((123e4567-e89b-12d3-a456-426614174000))",
+                    "metadata": ""
+                  }
+                ],
+                [
+                  "Plain",
+                  "."
+                ]
+              ],
+              "tags": [],
+              "level": 1,
+              "anchor": "Another_block_refers_to_-2e-",
+              "meta": {
+                "timestamps": [],
+                "properties": []
+              },
+              "unordered": true,
+              "size": null
+            }
+          ],
+          {
+            "start_pos": 104,
+            "end_pos": 172
+          }
+        ]
+      ],
+      "references": [
+        [
+          "Link",
+          {
+            "url": [
+              "Page_ref",
+              "Alias Source"
+            ],
+            "label": [
+              [
+                "Plain",
+                ""
+              ]
+            ],
+            "full_text": "[[Alias Source]]",
+            "metadata": ""
+          }
+        ],
+        [
+          "Link",
+          {
+            "url": [
+              "Block_ref",
+              "123e4567-e89b-12d3-a456-426614174000"
+            ],
+            "label": [],
+            "full_text": "((123e4567-e89b-12d3-a456-426614174000))",
+            "metadata": ""
+          }
+        ]
+      ]
+    }
+  }
+}

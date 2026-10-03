@@ -8,6 +8,7 @@ mise run test
 mise run pr:title-test
 mise run build:release
 mise run openspec:validate
+mise run parser:baseline-check
 mise run openspec:check-skill-versions
 mise run rulesync:check
 mise run notices:check
