@@ -6,7 +6,7 @@ The merged parser plan names `lsdoc`, official `mldoc`, Logseq's graph parser, a
 
 **Goals:** Check in a compact fixture garden, pin the Logseq-used `mldoc` package for this experiment, and record reproducible raw AST and reference output. A future parser adapter can consume exactly the same Markdown files.
 
-**Non-Goals:** Select the SDK parser, compare Logseq graph relationships, check text-preserving writes, and implement read-only garden commands. Those are the next parts of issue #3 and issue #4.
+**Non-Goals:** Select the SDK parser, compare Logseq graph relationships, check text-preserving writes, and implement read-only garden commands. We will compare parsers and text-preserving writes under [Issue #3 Compare Logseq parsers before adding garden operations](https://github.com/codekiln/logseq-gardener/issues/3), then add the first read-only garden command through the SDK under [Issue #4 Add the first read-only garden command through the SDK](https://github.com/codekiln/logseq-gardener/issues/4).
 
 ## Decisions
 
@@ -18,7 +18,7 @@ The merged parser plan names `lsdoc`, official `mldoc`, Logseq's graph parser, a
 
 ## Risks / Trade-offs
 
-- `mldoc` output alone can look compatible while Logseq's graph parser interprets relationships differently → label it a syntax baseline and leave issue #3 open.
+- `mldoc` output alone can look compatible while Logseq's graph parser interprets relationships differently → label it a syntax baseline and track graph compatibility under [Issue #3 Compare Logseq parsers before adding garden operations](https://github.com/codekiln/logseq-gardener/issues/3).
 - npm and Node behavior can change → pin the package and lockfile, use the Node version in `mise.toml`, and compare committed output.
 - Raw AST snapshots can be noisy → keep fixtures short and require a deliberate update command when the parser version or inputs change.
 
@@ -34,4 +34,4 @@ Keep the fixtures, runner, and results together under this change's named `exper
 
 ## Open Questions
 
-None for this first reference result. Issue #3 tracks the parser choice and the remaining comparisons.
+None for this reference result. [Issue #3 Compare Logseq parsers before adding garden operations](https://github.com/codekiln/logseq-gardener/issues/3) tracks the parser choice and the remaining comparisons.

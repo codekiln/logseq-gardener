@@ -7,7 +7,7 @@ Logseq Gardener needs a parser choice before it can read gardens, but the curren
 - Add a compact Markdown fixture garden covering page references, aliases, nested blocks, namespaces, tags, and text that resembles references inside code.
 - Record the official `mldoc` 1.5.9 parse and reference output for those fixtures with a repeatable runner.
 - Run the baseline check through `mise run ci` in GitHub Actions.
-- Document the source revision, commands, and limits of this first comparison step. Keep parser selection and garden commands in issue #3 and issue #4.
+- Document the source revision, commands, and limits of this comparison step. We will choose a parser under [Issue #3 Compare Logseq parsers before adding garden operations](https://github.com/codekiln/logseq-gardener/issues/3), then add the first read-only garden command through the SDK under [Issue #4 Add the first read-only garden command through the SDK](https://github.com/codekiln/logseq-gardener/issues/4).
 
 ## Capabilities
 

@@ -6,8 +6,8 @@ The parser comparison experiment SHALL include a checked-in Markdown fixture gar
 
 #### Scenario: Reproduce the baseline
 
-- **WHEN** a contributor installs the pinned experiment dependencies and runs the documented check
-- **THEN** the command checks each fixture against the committed `mldoc` output and fails if the output or fixture bytes differ
+- **WHEN** a contributor runs the documented mise check
+- **THEN** the command compares each fixture and parser result with the saved version and fails when either changes
 
 #### Scenario: Review the comparison scope
 

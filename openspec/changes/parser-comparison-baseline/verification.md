@@ -5,4 +5,4 @@
 - `mise run ci` passes with the parser baseline check included.
 - Strict OpenSpec change validation and main spec validation pass.
 
-This verifies a syntax reference baseline only. It does not compare `lsdoc`, run Logseq's graph-parser or graph-validator, or establish graph behavior and text-preserving writes. Issue #3 remains open for those results and a parser decision.
+This verifies a syntax reference baseline only. It does not compare `lsdoc`, run Logseq's graph-parser or graph-validator, or establish graph behavior and text-preserving writes. [Issue #3 Compare Logseq parsers before adding garden operations](https://github.com/codekiln/logseq-gardener/issues/3) tracks those results and the parser decision.
