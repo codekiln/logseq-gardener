@@ -1,0 +1,37 @@
+## Context
+
+The merged parser plan names `lsdoc`, official `mldoc`, Logseq's graph parser, and graph-validator, but it contains no executable comparison data. The local `logseq/logseq` checkout at `63b76c5` declares `mldoc` `^1.5.9` in `deps/graph-parser/package.json`. Its graph-parser tests provide examples for a small, shareable synthetic corpus. The separate candidate repositories are not present in `ghq`.
+
+## Goals / Non-Goals
+
+**Goals:** Check in a compact fixture garden, pin the Logseq-used `mldoc` package for this experiment, and record reproducible raw AST and reference output. A future parser adapter can consume exactly the same Markdown files.
+
+**Non-Goals:** Select the SDK parser, compare Logseq graph relationships, check text-preserving writes, and implement read-only garden commands. Those are the next parts of issue #3 and issue #4.
+
+## Decisions
+
+- Store the experiment under this change's `experiments/mldoc-baseline/` directory, as required by the existing comparison plan. Use synthetic cases shaped by local Logseq tests, rather than copying whole user notes or upstream fixtures.
+- Pin `mldoc` 1.5.9 in an isolated npm package and commit its lockfile. Logseq's local graph-parser accepts this version; keeping it out of the Rust workspace avoids a production dependency.
+- Save `parseJson` and `getReferences` output with each source file's SHA-256. The runner compares the saved output byte for byte and has an explicit update mode. Raw output preserves details that a later comparison might need; the fixture set stays small enough for review.
+- Run the experiment through a mise task in aggregate CI. Installing the lockfile in that task ensures CI checks the same parser version as local runs.
+- Record source revisions and the limits of this baseline in the experiment README. Logseq graph relationships and text-preserving writes need separate evidence before parser adoption.
+
+## Risks / Trade-offs
+
+- `mldoc` output alone can look compatible while Logseq's graph parser interprets relationships differently → label it a syntax baseline and leave issue #3 open.
+- npm and Node behavior can change → pin the package and lockfile, use a documented minimum Node version, and compare committed output.
+- Raw AST snapshots can be noisy → keep fixtures short and require a deliberate update command when the parser version or inputs change.
+
+## Resolved Questions
+
+### 1 - Which `mldoc` version should produce the reference output?
+
+Pin 1.5.9. The locally checked-out Logseq graph-parser accepts `^1.5.9`, and the exact npm archive is recorded in the lockfile.
+
+### 2 - Where should the comparison files live?
+
+Keep the fixtures, runner, and results together under this change's named `experiments/mldoc-baseline/` directory so they remain with the OpenSpec record.
+
+## Open Questions
+
+None for this first reference result. Issue #3 tracks the parser choice and the remaining comparisons.

@@ -1,0 +1,2 @@
+- ![Sketch](../assets/sketch.png) accompanies [[Target Page]].
+- {{embed [[Alias Source]]}}
