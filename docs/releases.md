@@ -65,4 +65,4 @@ Before 1.0, features and fixes increment the patch version; breaking changes inc
 
 ## Distribution materials
 
-Cargo-dist builds Apple silicon and Intel macOS, x86-64 Linux, and x86-64 Windows archives and SHA-256 checksums. Archives include the project license, third-party notices, dependency licenses, and dependency inventory. Follow [licensing](licensing.md) to prepare exact dependency sources and retain the generated build configuration with each release.
+Cargo-dist builds Apple silicon and Intel macOS, x86-64 Linux, and x86-64 Windows archives and SHA-256 checksums. Archives include the project license, third-party notices, the combined dependency license file, and the dependency inventory. Follow [licensing](licensing.md) to prepare exact dependency sources and retain the generated build configuration with each release.
