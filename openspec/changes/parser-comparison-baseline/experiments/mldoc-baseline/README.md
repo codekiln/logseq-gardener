@@ -8,16 +8,15 @@ Logseq's checked-out `LICENSE.md` is AGPLv3 with an additional permission. The i
 
 ## Run
 
-From this directory with Node 20 or newer:
+From the repository root:
 
 ```sh
-npm ci
-npm test
+mise run parser:baseline-check
 ```
 
-From the repository root, `mise run parser:baseline-check` installs the locked experiment dependencies and checks the snapshot. The aggregate `mise run ci` task runs that same check.
+The task uses Node 24.14.0 from `mise.toml`, installs the locked experiment dependencies, and checks the snapshot. GitHub Actions runs the same check through `mise run ci`.
 
-`compare.mjs` reads every Markdown file under `fixtures/garden`, calls `mldoc`'s `parseJson` and `getReferences` with the same Markdown configuration used by Logseq's wrapper, and compares the result with `mldoc-1.5.9.json`. The snapshot contains each file's SHA-256, raw syntax tree, and raw reference output. A changed input or parser result fails the check. After an intentional fixture or version change, run `npm run update` and review the JSON diff.
+`compare.mjs` reads every Markdown file under `fixtures/garden`, calls `mldoc`'s `parseJson` and `getReferences` with the same Markdown configuration used by Logseq's wrapper, and compares the result with `mldoc-1.5.9.json`. The snapshot contains each file's SHA-256, raw syntax tree, and raw reference output. A changed input or parser result fails the check. After an intentional fixture or version change, run `mise run parser:baseline-update` from the repository root and review the JSON diff.
 
 ## What this does not establish
 

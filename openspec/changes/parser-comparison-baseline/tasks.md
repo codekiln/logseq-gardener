@@ -13,4 +13,4 @@
 
 - [x] 3.1 Run the experiment check and strict OpenSpec validation.
 - [x] 3.2 Document the remaining candidate-parser, graph, and text-preservation work for issue #3.
-- [x] 3.3 Run the baseline check in aggregate CI and verify the full local task.
+- [x] 3.3 Run the baseline check through `mise run ci` in GitHub Actions and verify the full local task.

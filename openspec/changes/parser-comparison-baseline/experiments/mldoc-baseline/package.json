@@ -2,14 +2,7 @@
   "name": "logseq-gardener-mldoc-baseline",
   "private": true,
   "type": "module",
-  "scripts": {
-    "test": "node compare.mjs",
-    "update": "node compare.mjs --update"
-  },
   "dependencies": {
     "mldoc": "1.5.9"
-  },
-  "engines": {
-    "node": ">=20"
   }
 }

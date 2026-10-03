@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-#MISE description="Check the mldoc parser comparison baseline"
+#MISE description="Update the mldoc parser comparison baseline"
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root/openspec/changes/parser-comparison-baseline/experiments/mldoc-baseline"
 npm ci --ignore-scripts --no-audit --no-fund
-node compare.mjs
+node compare.mjs --update

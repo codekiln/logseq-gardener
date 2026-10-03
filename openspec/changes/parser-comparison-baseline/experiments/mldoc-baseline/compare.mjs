@@ -71,7 +71,7 @@ if (update) {
     const expectedFiles = JSON.parse(expected).files;
     const changed = [...new Set([...Object.keys(expectedFiles), ...Object.keys(files)])]
       .filter((name) => JSON.stringify(expectedFiles[name]) !== JSON.stringify(files[name]));
-    console.error(`mldoc baseline differs${changed.length ? `: ${changed.join(", ")}` : " in metadata"}. Run npm run update and review the diff.`);
+    console.error(`mldoc baseline differs${changed.length ? `: ${changed.join(", ")}` : " in metadata"}. Run mise run parser:baseline-update from the repository root and review the diff.`);
     process.exitCode = 1;
   } else {
     console.log(`mldoc baseline matches ${Object.keys(files).length} fixtures.`);

@@ -6,7 +6,7 @@ Logseq Gardener needs a parser choice before it can read gardens, but the curren
 
 - Add a compact Markdown fixture garden covering page references, aliases, nested blocks, namespaces, tags, and text that resembles references inside code.
 - Record the official `mldoc` 1.5.9 parse and reference output for those fixtures with a repeatable runner.
-- Run the baseline check in aggregate CI.
+- Run the baseline check through `mise run ci` in GitHub Actions.
 - Document the source revision, commands, and limits of this first comparison step. Keep parser selection and garden commands in issue #3 and issue #4.
 
 ## Capabilities
@@ -21,7 +21,7 @@ None.
 
 ## Impact
 
-The change adds files under the comparison experiment, one mise check task, and an aggregate CI step, and updates the parser-boundary planning requirement. It does not change the SDK, CLI, production dependencies, or existing gardens.
+The change adds files under the comparison experiment, mise tasks to check and update its results, and a check in `mise run ci`. It updates the parser-boundary planning requirement. It does not change the SDK, CLI, production dependencies, or existing gardens.
 
 ## Citations
 
