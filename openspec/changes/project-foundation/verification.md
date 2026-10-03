@@ -6,7 +6,7 @@ The `project-foundation` change has separate SDK and CLI packages, with the main
 
 | Area | Implementation | Verification |
 | --- | --- | --- |
-| Repository workflow | Root mise configuration and lockfile, Rust toolchain, executable tasks, RuleSync source | Formatting, Clippy, tests, generated-file checks, and OpenSpec skill version checks pass; aggregate CI stops at release impact testing |
+| Repository workflow | Root mise configuration and lockfile, Rust toolchain, executable tasks, RuleSync source | Local and GitHub aggregate CI pass |
 | Public CLI and SDK | CLI modules and `crates/logseq-gardener-sdk/` | CLI integration tests, SDK documentation test, an external SDK consumer, and all pinned Clilint checks at score 4 |
 | Licensing | AGPLv3, third-party notices, locked dependency inventory and license text | Notice consistency check and native archive inspection |
 | Parser boundary | `docs/architecture.md` | Comparison prerequisites reviewed; no parser or graph dependency introduced |
@@ -23,9 +23,8 @@ The `project-foundation` change has separate SDK and CLI packages, with the main
 - `mise run docs:check` ran every README shell command and verified local documentation links. `mise run docs:links` received HTTP 200 for every README web link.
 - `mise run dist:check` validated the configured native archives and their included notices and licenses.
 - `mise run release:impact-test` verifies feature, fix, breaking, and documentation-only changes before and after 1.0, including changes in the SDK package. Each temporary workspace commits a Cargo.lock before testing a release.
-- A lower-powered codekiln-review round on [0d2e57b identifying the private workspace release blocker](https://github.com/codekiln/logseq-gardener/commit/0d2e57b) found no new actionable file findings. A separate title finding was addressed by renaming the pull request to “✨ feat: add the lsg CLI and Rust SDK.”
 - `dist build --artifacts local --target aarch64-apple-darwin` produced a native archive. Its SHA-256 matched its checksum file; the extracted binary returned the expected version JSON. The archive contains license text, dependency notices, and documentation with valid local links.
-- `git diff main --check` passed. Git attributes preserve upstream license files' final blank lines verbatim.
+- `git diff main --check` passed.
 
 ## README purpose assessment
 
