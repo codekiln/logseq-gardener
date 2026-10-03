@@ -1,0 +1,12 @@
+[package]
+name = "logseq-gardener-sdk"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+description = "Rust API for Logseq Gardener"
+license = "AGPL-3.0-only"
+repository = "https://github.com/codekiln/logseq-gardener"
+publish = false
+
+[package.metadata.dist]
+dist = false

@@ -4,18 +4,18 @@ People and coding agents need a dependable terminal interface to Logseq Markdown
 
 ## What Changes
 
-- Introduce one Rust binary crate producing `lsg`, with version reporting and offline hierarchical help.
+- Introduce a reusable Rust SDK package and a CLI package producing `lsg`, with version reporting and offline hierarchical help.
 - Provide versioned JSON, documented exits, noninteractive behavior, and clean output streams.
 - Add AGPLv3 licensing, dependency notices, pinned mise tools, shared CI tasks, OpenSpec, and RuleSync source.
-- Explain the current foundation and first use in a reader-focused README and focused guides.
+- Explain what the CLI currently does and how to try it in the README and focused guides.
 - Add pinned Clilint global and hierarchical-help checks, Conventional Emoji title validation, release-plz preparation, and cargo-dist distribution checks.
-- Record the parser comparison prerequisites while keeping Markdown authoritative.
+- Record the parser comparison prerequisites while treating the saved Markdown notes as the original data.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `project-workflow`: Reproducible tools, executable tasks, generated instructions, and one binary crate.
+- `project-workflow`: Reproducible tools, executable tasks, generated instructions, and separate SDK and CLI packages.
 - `cli-contract`: Offline help navigation, version reporting, output formats, and exit behavior.
 - `repository-readme`: Purpose, maturity, installation, support, and verified first use.
 - `licensing`: AGPLv3 distribution and dependency notice maintenance.
@@ -28,7 +28,7 @@ None.
 
 ## Impact
 
-This creates the initial repository implementation and CI configuration. Runtime dependencies support argument parsing and JSON serialization. Clilint supplies the development conformance checks. Garden files remain authoritative; this milestone's commands inspect only embedded documentation and version metadata.
+This creates the initial repository implementation and CI configuration. Runtime dependencies support argument parsing and JSON serialization. Clilint supplies the development conformance checks. Garden files hold the original notes; this milestone's commands inspect only embedded documentation and version metadata.
 
 ## Citations
 

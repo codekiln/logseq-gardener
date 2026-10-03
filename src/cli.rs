@@ -11,8 +11,7 @@ pub enum Format {
 }
 
 #[derive(Parser)]
-#[command(name = "lsg",
-    color = clap::ColorChoice::Never, disable_help_flag = true, disable_help_subcommand = true)]
+#[command(name = "lsg", disable_help_flag = true, disable_help_subcommand = true)]
 struct Cli {
     #[arg(long, global = true, value_enum, default_value = "human")]
     format: Format,
@@ -97,7 +96,8 @@ fn version(format: Format) -> Result<String, String> {
         Format::Json => format!(
             "{}\n",
             json!({"format_version": 1, "command_path": ["version"],
-                "program": "lsg", "version": env!("CARGO_PKG_VERSION")})
+                "program": "lsg", "version": env!("CARGO_PKG_VERSION"),
+                "sdk_version": logseq_gardener_sdk::VERSION})
         ),
     })
 }

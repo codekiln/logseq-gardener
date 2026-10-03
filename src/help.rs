@@ -18,10 +18,10 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
         Section { level: 1, title: "Purpose", section: "purpose", content: if version {
             "Report the installed Logseq Gardener version. Use this when reporting a bug or identifying a build.".into()
         } else {
-            "Logseq Gardener provides a terminal interface for people and coding agents working with Logseq Markdown gardens. This foundation offers offline help and version reporting. Garden queries will follow the parser comparison.".into()
+            "Logseq Gardener provides a terminal interface for people and coding agents working with Logseq Markdown gardens. This version provides offline help and version reporting. Garden queries will follow the parser comparison.".into()
         }},
         Section { level: 2, title: "Usage", section: "usage", content: format!(
-            "Usage: {command}{}\n       {command} help [outline | section <section> [--recursive]]\n       {command} --help\n\nOptions:\n  -h, --help          Show this documentation\n  -V, --version       Report the installed version\n  --format human|json Select output format (default: human)\n  --programmatic     Add guidance for scripts and agents\n  --no-input         Complete without prompts (also the default)\n\nOutline options: --level N or --max-level N (1 through 6).\nSection option: --recursive includes descendant sections.",
+            "Usage: {command}{}\n       {command} help [outline | section <section> [--recursive]]\n       {command} --help\n\nOptions:\n  -h, --help          Show this documentation\n  -V, --version       Report the installed version\n  --format human|json Select output format (default: human)\n  --programmatic     Add guidance for scripts and agents\n  --no-input         Explicit noninteractive mode (the default)\n\nOutline options: --level N or --max-level N (1 through 6).\nSection option: --recursive includes descendant sections.",
             if version { " [--format human|json]" } else { " [version]" }
         )},
         Section { level: 2, title: "Commands", section: "commands", content: if version {
@@ -29,14 +29,14 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
         } else {
             "version  Report the installed version.\n\nUse lsg version help for version documentation. Use lsg help outline to discover headings and lsg help section <section> to read a section.".into()
         }},
-        Section { level: 2, title: "Behavior", section: "behavior", content: "These commands read embedded documentation and version metadata. They work offline, never read standard input, and finish without prompts or a pager. They do not read or modify garden files, create caches, or access the network.".into() },
-        Section { level: 3, title: "Permissions", section: "permissions", content: "Permission to execute lsg is sufficient. No garden access or account credentials are required.".into() },
+        Section { level: 2, title: "Behavior", section: "behavior", content: "Help displays documentation included in lsg; version reports the installed build. Both work offline and finish without prompts, a pager, or reading standard input. They leave garden files unchanged.".into() },
+        Section { level: 3, title: "Permissions", section: "permissions", content: "You only need permission to run lsg.".into() },
         Section { level: 2, title: "Examples", section: "examples", content: if version {
             "lsg version --format json\n\nReturns the program name and installed version in one JSON document, for use in a bug report or script.".into()
         } else {
             "lsg help outline\n\nLists the available documentation headings. Copy a section identifier into:\n\nlsg help section behavior --recursive\n\nPrints command behavior and its permissions section. To identify your installation, run lsg version.".into()
         }},
-        Section { level: 2, title: "Output and exits", section: "output", content: "Results go to stdout. JSON uses format_version 1 and command_path. Diagnostics go to stderr; invalid commands leave stdout empty. Exit 0 means success (including a closed downstream pipe), 2 means invalid arguments or an unknown section, and 1 means output could not be written. Redirected output contains no terminal control sequences.".into() },
+        Section { level: 2, title: "Output and exits", section: "output", content: "Results go to stdout and diagnostics go to stderr. JSON responses include format_version 1 and command_path. Invalid commands leave stdout empty. Exit 0 means success (including a closed downstream pipe), 2 means invalid arguments or an unknown section, and 1 means output could not be written. Redirected output contains no terminal control sequences.".into() },
     ];
     if programmatic {
         sections.push(Section { level: 2, title: "Programmatic use", section: "programmatic", content: format!(

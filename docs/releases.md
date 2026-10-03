@@ -1,8 +1,8 @@
 # Automated releases
 
-Merging an ordinary pull request is the final recurring release action. The pull request title determines release impact, release-plz prepares and tags the version, and dist publishes the checksummed binaries.
+Merging a pull request starts release preparation when automation is enabled. The pull request title determines release impact, release-plz prepares and tags the version, and dist publishes the checksummed binaries.
 
-The foundation includes release automation; publication remains disabled until the maintainer configures the App and sets the repository Actions variable `RELEASE_ENABLED=true`. No release credentials are stored in this repository.
+Release preparation remains disabled until the maintainer configures the App and sets the repository Actions variable `RELEASE_ENABLED=true`. No release credentials are stored in this repository. The pinned release-plz version also cannot prepare a release for this unpublished SDK and CLI workspace: it tries to resolve the SDK on crates.io while inspecting an older tag. Keep release preparation disabled until a version containing [the upstream fix](https://github.com/release-plz/release-plz/pull/3039) is available and the workspace release tests pass.
 
 ## One-time GitHub setup
 
@@ -58,6 +58,8 @@ If preparation fails, rerun the failed `Prepare release` workflow after correcti
 If a required check fails, the release pull request remains open and no tag is created. If a dist build or pre-publish check fails, its tag remains in Git history but the workflow does not complete a GitHub Release. Fix the failure and rerun the failed release workflow; do not replace or move an existing version tag.
 
 ## Version policy
+
+The CLI and SDK use a shared release version. Release-plz updates both package versions; the CLI package creates the shared tag. The CLI uses the SDK from this workspace. Neither package is published to crates.io.
 
 Before 1.0, features and fixes increment the patch version; breaking changes increment the minor version. From 1.0, features increment minor, fixes increment patch, and breaking changes increment major. Documentation-only changes do not trigger a release. The release impact test executes the pinned release-plz against temporary repositories for each case.
 

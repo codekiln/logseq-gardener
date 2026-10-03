@@ -1,6 +1,6 @@
 ## Context
 
-The project starts in a new Git repository. Clilint at commit `200e92a5d76420e8c47fd9e623da704b355dbc7d` supplies the working repository model. The foundation must be useful to contributors and expose a dependable public interface before graph implementation begins.
+The project starts in a new Git repository. Clilint at commit `200e92a5d76420e8c47fd9e623da704b355dbc7d` supplies the working repository model. The initial CLI and workflow must be useful to contributors and expose a dependable public interface before garden operations are implemented.
 
 ## Goals / Non-Goals
 
@@ -10,7 +10,7 @@ The project starts in a new Git repository. Clilint at commit `200e92a5d76420e8c
 
 ## Decisions
 
-Use one binary crate with internal `cli`, `help`, and `output` modules. Clap validates arguments; an embedded document model supplies both human and JSON help. A generic parser trait would force decisions about an untested AST, so document the future boundary and preserve room for `lsdoc` without adding a runtime parser dependency.
+Use a Cargo workspace with a reusable `logseq-gardener-sdk` library and the `logseq-gardener` CLI package that builds `lsg`. The CLI owns argument validation, help, serialization, and output streams. The SDK currently exposes its version and will own garden operations after parser selection. This separation lets Rust applications use the SDK without installing the CLI. A parser-specific API would require decisions about untested parser output, so the garden API remains pending the comparison.
 
 Expose the root and `version` command. Treat `help`, `help outline`, and `help section` as documentation operations at each command path, rather than recursively advertising help as another product command. The same document supplies `help`, `--help`, and `-h`. Heading identifiers remain stable and section retrieval can include descendants. JSON responses include `format_version: 1` and command identity. Invalid arguments return 2 with a diagnostic on stderr; output failures return 1; a closed downstream pipe is successful early termination.
 
@@ -27,7 +27,7 @@ Reuse Clilint's executable task and release patterns. The root mise configuratio
 
 ## Migration Plan
 
-Build and review the foundation on a feature branch. Merge after CI passes. Configure the release App before enabling automated preparation. Reverting the foundation affects only the new project; help and version commands never access garden files.
+Build and review the SDK and CLI on a feature branch. Merge after CI passes. Configure the release App before enabling automated preparation. Reverting this change affects only the new project; help and version commands never access garden files.
 
 ## Resolved Questions
 
@@ -43,6 +43,10 @@ Use AGPL-3.0-only and the executable name `lsg`.
 
 Users can read offline documentation and version metadata. Garden operations follow the recorded parser comparison.
 
+### 4 - Can other Rust applications use the SDK without the CLI?
+
+Yes. The PR review requested a separate SDK package consumed by the CLI, replacing the initial single-package layout. Both packages share a release version; only the CLI package creates the release tag.
+
 ## Open Questions
 
-None for foundation implementation. Release activation requires the maintainer's GitHub App credentials, as documented in the release guide.
+None for this implementation. Release activation requires the maintainer's GitHub App credentials, as documented in the release guide.

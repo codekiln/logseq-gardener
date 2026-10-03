@@ -4,14 +4,19 @@ Define reproducible development tasks and generated agent instructions.
 
 ## Requirements
 
-### Requirement: One Rust executable
+### Requirement: Separate SDK and CLI packages
 
-The project SHALL build one binary crate named logseq-gardener with executable lsg and internal modules.
+The project SHALL provide a reusable logseq-gardener-sdk library package and a logseq-gardener CLI package that consumes it and builds the lsg executable.
 
 #### Scenario: Inspect build targets
 
 - **WHEN** a contributor runs cargo metadata and the release build
-- **THEN** the metadata identifies one binary target named lsg and the build produces that executable
+- **THEN** the metadata identifies the SDK library and the CLI dependency on it, and the build produces lsg
+
+#### Scenario: Use the SDK from Rust
+
+- **WHEN** a Rust application depends on logseq-gardener-sdk without the CLI package
+- **THEN** it can compile against the SDK and read its version without pulling in command-line parsing dependencies
 
 ### Requirement: Pinned shared workflow
 

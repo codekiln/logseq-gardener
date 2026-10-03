@@ -25,3 +25,12 @@ commit_parsers = [
   { message = '^(?:docs|test|ci|style|refactor|build|chore|revert)', skip = true },
   { message = '^.*', group = "Changed" },
 ]
+
+[[package]]
+name = "logseq-gardener"
+version_group = "logseq-gardener"
+
+[[package]]
+name = "logseq-gardener-sdk"
+version_group = "logseq-gardener"
+git_tag_enable = false

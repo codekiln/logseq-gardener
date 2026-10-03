@@ -5,7 +5,7 @@
 
 ## 2. Public CLI
 
-- [x] 2.1 Implement one binary crate with help, outline, section, version, JSON, and output handling.
+- [x] 2.1 Implement the SDK and CLI packages with help, outline, section, version, JSON, and output handling.
 - [x] 2.2 Test help traversal, argument failures, stream separation, closed input, and broken pipes.
 - [x] 2.3 Run pinned Clilint global and hierarchical-help checks with a reviewed help assessment.
 
@@ -26,3 +26,10 @@
 - [x] 5.2 Run every README command, check links, and assess README purpose and style.
 - [x] 5.3 Run aggregate mise CI, strict OpenSpec validation, RuleSync verification, and git diff --check.
 - [x] 5.4 Record verification results and release activation prerequisites for review.
+
+## 6. PR review revisions
+
+- [x] 6.1 Separate the SDK and CLI packages and verify an independent SDK consumer.
+- [x] 6.2 Explain each dependency and verify the generated inventory.
+- [ ] 6.3 Revise all authored prose and obtain a lower-powered agent review.
+- [ ] 6.4 Verify workspace release versioning, CLI conformance, documentation, and aggregate CI.

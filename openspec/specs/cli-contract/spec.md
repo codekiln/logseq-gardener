@@ -38,4 +38,4 @@ lsg SHALL report its Cargo version through version, --version, and -V and suppor
 #### Scenario: Identify installation
 
 - **WHEN** a caller runs lsg version --format json
-- **THEN** the response includes format_version 1, command_path [version], program lsg, and the package version
+- **THEN** the response includes format_version 1, command_path [version], program lsg, the CLI package version, and sdk_version identifying the linked SDK

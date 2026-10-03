@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "crates/logseq-gardener-sdk"]
+resolver = "3"
+
 [package]
 name = "logseq-gardener"
 version = "0.0.0"
@@ -12,8 +16,13 @@ name = "lsg"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
+# Reusable Rust API; the CLI reports the SDK version alongside its own.
+logseq-gardener-sdk = { path = "crates/logseq-gardener-sdk", version = "0.0.0" }
+# Validate arguments and provide usage errors. Terminal styling is not needed.
+clap = { version = "4.5", default-features = false, features = ["derive", "std", "help", "usage", "error-context", "suggestions"] }
+# Serialize the help document's sections.
 serde = { version = "1", features = ["derive"] }
+# Encode help and version responses as JSON.
 serde_json = "1"
 
 [profile.dist]

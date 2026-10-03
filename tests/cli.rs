@@ -106,6 +106,7 @@ fn version_aliases_and_clean_output() {
     let result = json(&["version", "--format", "json"]);
     assert_eq!(result["version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(result["program"], "lsg");
+    assert_eq!(result["sdk_version"], logseq_gardener_sdk::VERSION);
     for args in [
         vec![],
         vec!["help"],

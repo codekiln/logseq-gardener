@@ -3,4 +3,4 @@
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
 
-cargo build --locked --release --all-features
+cargo build --locked --workspace --release --all-features
