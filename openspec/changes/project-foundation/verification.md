@@ -52,6 +52,6 @@ Uncertainty: None beyond the installation timing described above.
 
 ## Release activation and remaining work
 
-Automated release preparation requires a maintainer-installed GitHub App, its repository secrets, required-check and squash-merge settings, and `RELEASE_ENABLED=true`. It also requires a release-plz version containing [the upstream fix for unpublished workspaces](https://github.com/release-plz/release-plz/pull/3039), followed by passing workspace version-impact tests. The pinned 0.3.159 release cannot resolve the SDK when it packages an older CLI tag. No release has been published. Linux and other native target results are provided by the pull request's GitHub Actions checks.
+Automated release preparation requires a maintainer-installed GitHub App, its repository secrets, required-check and squash-merge settings, and `RELEASE_ENABLED=true`. It also requires a release-plz version containing [the draft fix for private workspaces in PR #3049](https://github.com/release-plz/release-plz/pull/3049), followed by passing workspace version-impact tests. The pinned 0.3.159 release cannot resolve the SDK when it packages an older CLI tag. The `--registry-manifest-path` option and Cargo's `--no-verify` packaging still fail on this fixture. No release has been published. Linux and other native target results are provided by the pull request's GitHub Actions checks.
 
 The next implementation milestone is the parser comparison, followed by read-only garden commands. LSP, publishing, mutation, merge-driver behavior, and cache architecture remain future work.
