@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: Markdown and comparison prerequisites
+### Requirement: Compare parsers before adding garden commands
 
-Saved Logseq Markdown files SHALL remain the source of the notes. The OpenSpec plan SHALL require a named comparison experiment before parser adoption or garden operations, with lsdoc as the Rust candidate, official mldoc as syntax reference, and Logseq OG graph-parser and graph-validator as graph compatibility references.
+The OpenSpec plan SHALL require a named comparison experiment before parser adoption or garden operations, with lsdoc as the Rust candidate, official mldoc as syntax reference, and Logseq OG graph-parser and graph-validator as graph compatibility references.
 
 #### Scenario: Review next parser change
 
