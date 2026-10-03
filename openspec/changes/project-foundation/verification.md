@@ -2,7 +2,7 @@
 
 ## Implementation
 
-The `project-foundation` change has separate SDK and CLI packages, with the main specs synchronized. Release versioning remains unverified because the pinned release-plz version cannot package an older unpublished workspace tag; the change remains open for pull-request review.
+The `project-foundation` change has separate SDK and CLI packages, with the main specs synchronized. The pinned release-plz version handles the unpublished SDK workspace, and the local aggregate checks pass. The change remains open for pull-request review.
 
 | Area | Implementation | Verification |
 | --- | --- | --- |
@@ -10,19 +10,19 @@ The `project-foundation` change has separate SDK and CLI packages, with the main
 | Public CLI and SDK | CLI modules and `crates/logseq-gardener-sdk/` | CLI integration tests, SDK documentation test, an external SDK consumer, and all pinned Clilint checks at score 4 |
 | Licensing | AGPLv3, third-party notices, locked dependency inventory and license text | Notice consistency check and native archive inspection |
 | Parser boundary | `docs/architecture.md` | Comparison prerequisites reviewed; no parser or graph dependency introduced |
-| Releases | Title validation, release-plz configurations, generated cargo-dist workflow | Title tests pass; workspace version-impact tests currently fail because release-plz tries to find the local SDK on crates.io |
+| Releases | Title validation, release-plz configurations, generated cargo-dist workflow | Title, workspace version-impact, and distribution configuration tests pass |
 | Documentation | README and focused guides | Every README shell example executed; local and README web links checked; assessments below |
 
 ## Executed checks
 
-- The initial pull-request Linux aggregate CI run passed before the SDK and CLI were separated. The current `mise run ci` passes through documentation and Clilint, then fails at `release:impact-test` because release-plz tries to resolve the unpublished SDK on crates.io.
+- `mise run ci` passes with release-plz 0.3.169, including formatting, Clippy, Rust tests, documentation, notices, Clilint, release impact, and distribution configuration checks.
 - `mise run clilint:check` passed the complete global bundle and hierarchical-help bundle after refreshing the help-quality assessment from captured evidence.
 - A separate temporary Rust application compiled against the SDK path and reported its version; its dependency tree contained the SDK without Clap or Serde.
 - `mise exec -- openspec validate --all --strict` passed the change and main specifications.
 - `mise run rulesync:check` verified existing generated output, regeneration, and a second consistency check. All OpenSpec source skills match CLI 1.6.0.
 - `mise run docs:check` ran every README shell command and verified local documentation links. `mise run docs:links` received HTTP 200 for every README web link.
 - `mise run dist:check` validated the configured native archives and their included notices and licenses.
-- `mise run release:impact-test` fails on the first workspace fixture for the unpublished SDK resolution described above. The earlier single-package release checks do not verify the current workspace.
+- `mise run release:impact-test` verifies feature, fix, breaking, and documentation-only changes before and after 1.0, including changes in the SDK package. Each temporary workspace commits a Cargo.lock before testing a release.
 - A lower-powered codekiln-review round on [0d2e57b identifying the private workspace release blocker](https://github.com/codekiln/logseq-gardener/commit/0d2e57b) found no new actionable file findings. A separate title finding was addressed by renaming the pull request to “✨ feat: add the lsg CLI and Rust SDK.”
 - `dist build --artifacts local --target aarch64-apple-darwin` produced a native archive. Its SHA-256 matched its checksum file; the extracted binary returned the expected version JSON. The archive contains license text, dependency notices, and documentation with valid local links.
 - `git diff main --check` passed. Git attributes preserve upstream license files' final blank lines verbatim.
@@ -53,6 +53,6 @@ Uncertainty: None beyond the installation timing described above.
 
 ## Release activation and remaining work
 
-Automated release preparation requires a maintainer-installed GitHub App, its repository secrets, required-check and squash-merge settings, and `RELEASE_ENABLED=true`. It also requires a release-plz version containing [the draft fix for private workspaces in PR #3049](https://github.com/release-plz/release-plz/pull/3049), followed by passing workspace version-impact tests. The pinned 0.3.159 release cannot resolve the SDK when it packages an older CLI tag. The `--registry-manifest-path` option and Cargo's `--no-verify` packaging still fail on this fixture. No release has been published. Linux and other native target results are provided by the pull request's GitHub Actions checks.
+Automated release preparation requires a maintainer-installed GitHub App, its repository secrets, required-check and squash-merge settings, and `RELEASE_ENABLED=true`. The project pins release-plz 0.3.169, which includes [Git-only workspace reconstruction](https://github.com/release-plz/release-plz/releases/tag/release-plz-v0.3.168) and passes the local workspace release tests. No release has been published. Linux and other native target results are provided by the pull request's GitHub Actions checks.
 
 The next implementation milestone is the parser comparison, followed by read-only garden commands. LSP, publishing, mutation, merge-driver behavior, and cache architecture remain future work.

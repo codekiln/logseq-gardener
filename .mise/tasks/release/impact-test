@@ -30,6 +30,7 @@ run_case() {
     git config user.name "Release Impact Test"
     git config user.email "release-impact@example.invalid"
     git remote add origin https://github.com/codekiln/logseq-gardener
+    cargo generate-lockfile --offline
     git add .
     git commit -qm "initial fixture"
     git tag "v$current"

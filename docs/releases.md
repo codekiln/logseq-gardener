@@ -2,7 +2,7 @@
 
 Merging a pull request starts release preparation when automation is enabled. The pull request title determines release impact, release-plz prepares and tags the version, and dist publishes the checksummed binaries.
 
-Release preparation remains disabled until the maintainer configures the App and sets the repository Actions variable `RELEASE_ENABLED=true`. No release credentials are stored in this repository. The pinned release-plz version also cannot prepare a release for this unpublished SDK and CLI workspace: it tries to resolve the SDK on crates.io while inspecting an older tag. [Upstream PR #3049](https://github.com/release-plz/release-plz/pull/3049) addresses private workspaces but is still a draft. Keep release preparation disabled until a release-plz version with that fix is available and the workspace release tests pass.
+Release preparation remains disabled until the maintainer configures the App and sets the repository Actions variable `RELEASE_ENABLED=true`. No release credentials are stored in this repository.
 
 ## One-time GitHub setup
 
