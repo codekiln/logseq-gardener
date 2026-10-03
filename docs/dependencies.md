@@ -1,0 +1,5 @@
+# Dependencies
+
+The CLI depends on Clap to parse arguments and report usage errors. It uses Serde to serialize help sections and serde_json to produce JSON help and version responses. The CLI also depends on the local `logseq-gardener-sdk` package to report the version of the SDK it contains. The SDK has no runtime dependencies yet.
+
+Those are the project's direct dependencies. Cargo.lock records the packages they bring in, including packages used only on some platforms. To trace why a locked package is present, run `cargo tree -i <package>` from the repository root. For the exact versions, sources, checksums, and declared licenses used in distribution, see the [dependency source inventory](dependency-sources.json). The [licensing guide](licensing.md) explains how the inventory and license files are maintained.

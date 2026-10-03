@@ -1,0 +1,56 @@
+name: Prepare release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-preparation
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: vars.RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: app-token
+        name: Create release app token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
+        with:
+          version: 2026.9.5
+
+      - name: Create a tag after a release pull request merges
+        env:
+          GIT_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: mise run release:publish
+
+      - id: prepare
+        name: Create or update the release pull request
+        env:
+          GIT_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          output=$(mise run release:prepare)
+          echo "$output"
+          pr_number=$(jq -r '.prs[0].number // empty' <<< "$output")
+          echo "pr-number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Enable squash auto-merge for the release pull request
+        if: steps.prepare.outputs.pr-number != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh pr merge "${{ steps.prepare.outputs.pr-number }}" --auto --squash --delete-branch

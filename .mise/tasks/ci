@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#MISE description="Run the same foundation checks locally and in CI"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+mise run format
+mise run lint
+mise run test
+mise run pr:title-test
+mise run build:release
+mise run openspec:validate
+mise run openspec:check-skill-versions
+mise run rulesync:check
+mise run notices:check
+mise run docs:check
+mise run clilint:check
+mise run release:check

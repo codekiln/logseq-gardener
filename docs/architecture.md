@@ -1,0 +1,21 @@
+# Architecture
+
+Logseq Gardener separates the Rust API from the command-line interface. Other Rust applications can depend on `logseq-gardener-sdk` without installing `lsg`.
+
+## Packages and modules
+
+| Component | Responsibility |
+| --- | --- |
+| `logseq-gardener-sdk` in `crates/logseq-gardener-sdk/` | The reusable Rust API. It currently exposes the SDK version; garden operations are not implemented yet. |
+| `logseq-gardener` at the repository root | The CLI package, which builds `lsg` and depends on the SDK. |
+| `src/cli.rs` | Validates arguments and dispatches help and version requests. |
+| `src/help.rs` | Holds the help document and selects its sections for text or JSON output. |
+| `src/output.rs` | Writes results and diagnostics to their respective output streams and handles write failures. |
+
+The CLI handles terminal input and output. Garden operations will belong in the SDK so the CLI and other Rust applications can call the same code.
+
+## Garden files and parsing
+
+Markdown files hold the garden's notes. Any future index must be rebuildable from those files. An editing command should be able to change a note without reformatting unrelated text.
+
+The parser has not been selected. `lsdoc` is the Rust candidate; official `mldoc` provides the syntax reference, and Logseq OG's graph parser and graph-validator provide references for relationships between notes. Compatibility testing is still needed before defining the SDK's garden types and operations.

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/config-schema.json",
+
+  // AgentSkills covers tools that implement the shared skill format. Claude Code
+  // needs its own generated copy, and Codex needs a generated AGENTS.md.
+  "targets": ["agentsskills", "claudecode", "codexcli"],
+  "features": ["rules", "skills"],
+
+  // Keep every generated file inside this repository and remove stale output.
+  "outputRoots": ["."],
+  "global": false,
+  "delete": true,
+  "gitignoreTargetsOnly": true,
+  "verbose": false,
+  "silent": false,
+}

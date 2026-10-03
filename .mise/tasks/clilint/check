@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#MISE description="Check lsg against pinned global and hierarchical-help standards"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+clilint check ./target/release/lsg \
+  --check-bundle ./check-bundles/codekiln-help/clilint.toml \
+  --assessment ./tests/assessments/help.json \
+  --format json > target/clilint-report.json
+python3 - <<'PY'
+import json
+report = json.load(open('target/clilint-report.json'))
+# Require every check to complete at the standard's full score.
+results = report['checks']
+for result in results:
+    if result.get('outcome') != 'result' or result.get('result', {}).get('score') != 4.0:
+        raise SystemExit(f"CLI conformance failed: {result}")
+print(f'Clilint: {len(results)} checks passed at score 4')
+PY

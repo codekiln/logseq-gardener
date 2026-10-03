@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run every README command and check local documentation links"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+python3 scripts/docs.py

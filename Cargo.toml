@@ -1,0 +1,30 @@
+[workspace]
+members = [".", "crates/logseq-gardener-sdk"]
+resolver = "3"
+
+[package]
+name = "logseq-gardener"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+description = "A command-line tool for Logseq Markdown gardens"
+license = "AGPL-3.0-only"
+repository = "https://github.com/codekiln/logseq-gardener"
+
+[[bin]]
+name = "lsg"
+path = "src/main.rs"
+
+[dependencies]
+# Reusable Rust API; the CLI reports the SDK version alongside its own.
+logseq-gardener-sdk = { path = "crates/logseq-gardener-sdk", version = "0.0.0" }
+# Validate arguments and provide usage errors. Terminal styling is not needed.
+clap = { version = "4.5", default-features = false, features = ["derive", "std", "help", "usage", "error-context", "suggestions"] }
+# Serialize the help document's sections.
+serde = { version = "1", features = ["derive"] }
+# Encode help and version responses as JSON.
+serde_json = "1"
+
+[profile.dist]
+inherits = "release"
+lto = "thin"

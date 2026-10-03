@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Verify locked dependency notices match reviewed files"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+python3 scripts/notices.py --check

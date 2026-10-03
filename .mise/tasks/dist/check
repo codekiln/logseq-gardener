@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Check cargo-dist configuration, workflow, targets, and artifacts"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+dist generate --check
+dist plan

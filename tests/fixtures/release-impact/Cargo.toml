@@ -1,0 +1,11 @@
+[package]
+name = "logseq-gardener"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+members = ["sdk"]
+
+[dependencies]
+logseq-gardener-sdk = { path = "sdk", version = "0.0.0" }

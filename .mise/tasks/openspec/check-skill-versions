@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#MISE description="Check OpenSpec skill versions against the managed CLI"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+cli_version="$(openspec --version 2>&1)"
+cli_version="${cli_version##* }"
+skill_count=0
+failed=0
+
+while IFS= read -r -d '' skill; do
+  skill_count=$((skill_count + 1))
+  generated_by="$(sed -n 's/^[[:space:]]*generatedBy:[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$skill")"
+
+  if [[ -z "$generated_by" ]]; then
+    echo "$skill: missing generatedBy metadata" >&2
+    failed=1
+  elif [[ "$generated_by" != "$cli_version" ]]; then
+    echo "$skill: generatedBy $generated_by does not match OpenSpec $cli_version" >&2
+    failed=1
+  fi
+done < <(find .rulesync/skills -mindepth 2 -maxdepth 2 -path '*/openspec-*/SKILL.md' -print0)
+
+if [[ "$skill_count" -eq 0 ]]; then
+  echo ".rulesync/skills: no OpenSpec source skills found" >&2
+  exit 1
+fi
+
+if [[ "$failed" -ne 0 ]]; then
+  exit 1
+fi
+
+echo "All $skill_count OpenSpec source skills match CLI $cli_version"

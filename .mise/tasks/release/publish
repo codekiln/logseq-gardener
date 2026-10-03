@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Tag the version prepared by a merged release pull request"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+config=$(mise run release:config)
+release-plz release --config "$config" --output json
