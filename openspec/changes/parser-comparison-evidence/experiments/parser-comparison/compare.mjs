@@ -13,7 +13,7 @@ function walk(dir) {
   return readdirSync(dir, {withFileTypes:true}).flatMap(e => e.isDirectory() ? walk(path.join(dir,e.name)) : e.name.endsWith('.md') ? [path.join(dir,e.name)] : []).sort();
 }
 const extra = path.join(root,'fixtures');
-const corpus = [ ...walk(garden).map(file => ({id:path.relative(garden,file),input:readFileSync(file,'utf8')})), ...walk(extra).map(file => ({id:path.relative(extra,file),input:readFileSync(file,'utf8')})) ].sort((a,b) => a.id.localeCompare(b.id,'en')); 
+const corpus = [ ...walk(garden).map(file => ({id:path.relative(garden,file),input:readFileSync(file,'utf8')})), ...walk(extra).map(file => ({id:path.relative(extra,file),input:readFileSync(file,'utf8')})) ].sort((a,b) => a.id.localeCompare(b.id,'en'));
 mkdirSync('node_modules/results', {recursive:true});
 writeFileSync('node_modules/results/corpus.json',JSON.stringify(corpus));
 execFileSync(path.join(lsdoc,'target/release/lsdoc-parse'), ['node_modules/results/corpus.json','node_modules/results/lsdoc.json'],{stdio:'inherit'});

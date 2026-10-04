@@ -16,7 +16,7 @@ From the gardener repository root:
 mise run parser:comparison-check
 ```
 
-The task installs the locked npm dependencies, extracts pinned source into ignored `node_modules/sources/`, builds lsdoc, and compares [fixtures.json](fixtures.json). Source archives leave each checkout unchanged. A missing repository or revision fails setup; the task never clones or fetches. 
+The task installs the locked npm dependencies, extracts pinned source into ignored `node_modules/sources/`, builds lsdoc, and compares [fixtures.json](fixtures.json). Source archives leave each checkout unchanged. A missing repository or revision fails setup; the task never clones or fetches.
 
 The runner reuses the [mldoc baseline fixtures](../../../parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden) and adds [focused graph cases](fixtures/pages) for title overrides, shared aliases, publication properties, queries, and missing UUID references. Each syntax comparison uses a fresh mldoc process. The graph parser receives the files in a fixed order through `parse-graph`'s `:files` option. The snapshot includes both default filename interpretation and `:file/name-format :triple-lowbar`.
 
