@@ -26,7 +26,7 @@ Run available public gardens locally. Save reproducible minimized disagreements 
 
 ### 1 - Which validator supports Markdown gardens?
 
-Use the first parent of the database migration merge, then check its pinned file parser. The default branch validates database graphs.
+We will run [graph-validator’s file-garden version](https://github.com/logseq/graph-validator/tree/69ebd330bd744a9f0d0b97a87b01382f1c115b84) with the Logseq 0.9.8 parser it depends on. [The pinned source versions](experiments/parser-comparison/sources.json) identify both revisions. The current graph-validator branch validates database gardens.
 
 ### 2 - What does syntax agreement establish?
 
