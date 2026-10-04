@@ -1,0 +1,9 @@
+[package]
+name = "gardener-outline-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[workspace]
+[dependencies]
+lsdoc = { path = "../node_modules/sources/lsdoc" }
+serde_json = "1"
