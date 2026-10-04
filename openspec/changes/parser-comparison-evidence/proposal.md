@@ -1,6 +1,6 @@
 ## Why
 
-[Issue #3 Compare Logseq parsers](https://github.com/codekiln/logseq-gardener/issues/3) needs runnable evidence before the SDK can interpret garden notes. The existing mldoc baseline supplies shared inputs but leaves syntax differences and graph relationships untested.
+We need to know whether lsdoc reads our notes the way Logseq does before using it in logseq-gardener. We will compare both parsers on the same notes and check how Logseq links and nests those notes, as requested in [Issue #3 Compare Logseq parsers](https://github.com/codekiln/logseq-gardener/issues/3).
 
 ## What Changes
 
@@ -17,7 +17,7 @@ None.
 
 ### Modified Capabilities
 
-- `parser-boundary`: Require reproducible candidate syntax and graph relationship evidence, including classified differences and limits of the tested corpus.
+- Extend the [parser selection requirements](../../specs/parser-boundary/spec.md) to require repeatable comparisons of note structure, references, and page relationships, with an explanation of disagreements and the limits of the tested notes.
 
 ## Impact
 

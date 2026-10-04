@@ -45,6 +45,6 @@ The public-garden reports measure parser-reported parse time, excluding process 
 
 ## Adoption work
 
-A read-only SDK adapter should own retained source text, file metadata, and parser-neutral syntax access. A graph layer should interpret configured names, titles, aliases, namespaces, journals, properties, UUIDs, and fileless targets. CLI output should consume SDK results rather than repeat those rules.
+The Rust SDK should retain each note's original text and file information, and provide parsed note structure to callers. A separate SDK module should apply Logseq's rules for page names, titles, aliases, namespaces, journals, properties, UUID references, and names with no note file. The command-line tool should use those SDK results.
 
 The observed Markdown difference calls for a rendering-policy decision rather than a syntax repair for a reference-only command. The Org report needs a runner fix. No other parser repair is indicated by these runs. Broader semantic compatibility still requires comparison of the proposed SDK graph against the relationship snapshots, current Logseq OG coverage, Pengx's publishing corpus, and separate editing tests before writes.

@@ -1,6 +1,6 @@
 ## Context
 
-The merged mldoc baseline contains synthetic fixtures and raw syntax output. The candidate lsdoc repository supplies a normalized differential harness. graph-validator's default branch now targets database graphs; its file-compatible predecessor pins Logseq 0.9.8.
+We will compare lsdoc with Logseq's mldoc parser on the same notes. The [existing mldoc experiment](../parser-comparison-baseline/experiments/mldoc-baseline/README.md) supplies the shared test notes. [lsdoc's comparison tools](https://github.com/martinkoutecky/lsdoc/tree/32e63ef095c711d6d9947257bf5fd07d540fa59d/harness) compare note structure and references after removing output details that differ between parsers. We will check page links and nesting with the older graph-validator version that still supports Markdown gardens; that version depends on Logseq 0.9.8.
 
 ## Goals / Non-Goals
 
