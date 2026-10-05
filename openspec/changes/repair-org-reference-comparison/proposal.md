@@ -20,7 +20,7 @@ None.
 
 ## Impact
 
-Changes the isolated parser comparison experiment and its mise check. The SDK and CLI retain their current behavior. Current Logseq OG and Pengx's publishing garden remain separate pending comparisons under Issue #3.
+The experiment setup script repairs the extracted lsdoc comparison runner, and the mise check tests that runner. The SDK and CLI retain their current behavior. Current Logseq OG and Pengx's publishing garden remain separate pending comparisons under Issue #3.
 
 ## Citations
 
