@@ -1,0 +1,11 @@
+[package]
+name = "gardener-outline-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[workspace]
+[dependencies]
+# Exercise source ranges through the pinned lsdoc public API.
+lsdoc = { path = "../node_modules/sources/lsdoc" }
+# Read test inputs and write the source-preservation results as JSON.
+serde_json = "1"

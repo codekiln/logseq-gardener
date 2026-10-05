@@ -1,0 +1,8 @@
+{
+  "repo": "github.com/codekiln/logseq-encode-garden",
+  "revision": "b0d7588268d89bf300489c825589cbfc567dce54",
+  "license": "No repository-wide license found; source remains in the local archive",
+  "files": 6893,
+  "sha256": "c8b483110b87b0d18c5f3fc9f4097ab4db3858309e2362e26640dfebd9d9751b",
+  "selection": "Tracked Markdown and Org files under pages/ and journals/; immutable git archive; upstream 8 MiB limit"
+}

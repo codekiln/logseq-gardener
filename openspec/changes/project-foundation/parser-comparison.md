@@ -16,3 +16,7 @@ Place each comparative prototype in `openspec/changes/<change>/experiments/<expe
 Compare the public encode garden, the official Logseq documentation garden, and focused examples of ambiguous names and references. Pengx's public garden adds examples of notes with embedded media and published pages. Resolve available checkouts through ghq.
 
 Use `lsdoc`'s comparison tooling for syntax checks. Generate expected garden relationships with Logseq's graph parser through graph-validator. Record disagreements with examples that a reviewer can inspect. If `lsdoc` needs extensive repairs, compare the work required with using official `mldoc` directly.
+
+## Recorded evidence
+
+The [candidate and graph comparison](../parser-comparison-evidence/experiments/parser-comparison/findings.md) records lsdoc/mldoc syntax results on pinned Encode Garden and Logseq docs revisions, file-parser relationships, graph-validator outcomes, source-preservation checks, and performance. The [experiment guide](../parser-comparison-evidence/experiments/parser-comparison/README.md) provides runnable commands. Current Logseq OG and Pengx's publishing corpus remain to be tested before adoption.

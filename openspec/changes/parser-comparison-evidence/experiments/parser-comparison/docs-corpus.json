@@ -1,0 +1,8 @@
+{
+  "repo": "github.com/logseq/docs",
+  "revision": "08f855f24d66e4509b7ea808554c13b4649e6ee1",
+  "license": "MIT",
+  "files": 333,
+  "sha256": "bc9c015c2842d57e2a1bf9522b620f064d01ec900825c2bbe760e067674c051c",
+  "selection": "Tracked Markdown and Org files under pages/ and journals/; immutable git archive; upstream 8 MiB limit"
+}

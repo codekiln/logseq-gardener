@@ -1,0 +1,5 @@
+{
+  "lsdoc": {"repo":"github.com/martinkoutecky/lsdoc","revision":"32e63ef095c711d6d9947257bf5fd07d540fa59d","license":"AGPL-3.0-only"},
+  "logseq": {"repo":"github.com/logseq/logseq","revision":"82cf4d3c65acbf230a3170640fe271dd74095067","license":"AGPL-3.0 with additional permission","paths":["deps/graph-parser","deps/db","deps/common"]},
+  "validator": {"repo":"github.com/logseq/graph-validator","revision":"69ebd330bd744a9f0d0b97a87b01382f1c115b84","license":"MIT"}
+}

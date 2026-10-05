@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Check pinned parser syntax, graph relationships, and source ranges"
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)/openspec/changes/parser-comparison-evidence/experiments/parser-comparison"
+npm ci --ignore-scripts --no-audit --no-fund
+node setup.mjs
+node compare.mjs
