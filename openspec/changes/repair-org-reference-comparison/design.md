@@ -18,7 +18,7 @@ Keep the tested lsdoc revision fixed and replace the missing format argument in 
 
 Run the actual comparison program on a small synthetic garden containing an Org search link and a Markdown page link. Check the runner's comparison summary for equal reference results and successful parsing. A direct call to the extractor cannot test whether the worker supplies its format argument.
 
-### Keep deterministic checks separate from measured reports
+### Check parsing and links independently of timing measurements
 
 The small runner check should assert comparison outcomes while allowing timing and temporary paths to vary. Regenerate the docs report using the existing pinned corpus; reviewers can inspect remaining disagreements and the corpus identity.
 

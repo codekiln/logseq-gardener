@@ -4,7 +4,7 @@ The Logseq docs comparison reports false disagreements for Org page links becaus
 
 ## What Changes
 
-- Apply a checked, documented format-argument repair to the archived lsdoc comparison runner.
+- Change the extracted lsdoc comparison program so mldoc receives each note’s Markdown or Org format when reading page links. Stop setup if the expected call has changed.
 - Exercise the actual runner with a small Org garden so a missing format argument fails a regression check.
 - Regenerate the pinned Logseq docs report and update the findings to describe the corrected results.
 
@@ -16,7 +16,7 @@ None.
 
 ### Modified Capabilities
 
-- `parser-boundary`: Require format-aware public-garden reference comparisons and a runner regression check.
+- The [parser comparison requirements](specs/parser-boundary/spec.md) now require the comparison worker to read links using each note’s format and a test that exercises that worker.
 
 ## Impact
 
