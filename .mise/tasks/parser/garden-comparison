@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #MISE description="Compare parsers on a pinned public garden"
-#USAGE arg "<garden>" help="Corpus name in corpora.json" choices="docs encode"
+#USAGE arg "<garden>" help="Corpus name in corpora.json" {
+#USAGE   choices "docs" "encode"
+#USAGE }
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)/openspec/changes/parser-comparison-evidence/experiments/parser-comparison"
 npm ci --ignore-scripts --no-audit --no-fund
