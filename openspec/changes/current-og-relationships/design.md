@@ -16,7 +16,7 @@ Use the exact mldoc version declared by current OG for both parser runs. That ve
 
 ### Compare graph relationships directly
 
-Run a shared page/block projection through each parser in fresh processes. The historical validator remains part of the existing saved evidence; this experiment compares graph relationships directly. Reusing the validator against a different parser would mix its historical assumptions into the current-OG comparison.
+Each parser runs in a fresh process, and the comparison checks the same page names, file locations, aliases, properties, hierarchy, and references. The historical validator remains part of the existing saved evidence; this experiment compares graph relationships directly. Reusing the validator against a different parser would mix its historical assumptions into the current-OG comparison.
 
 ### Compare page identities, references, and hierarchy
 

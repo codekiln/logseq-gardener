@@ -26,12 +26,12 @@ const corpus = [baseline, path.join(evidence, 'fixtures')].flatMap(dir => walk(d
 const inputs = corpus.map(({ id, input }) => ({ file: id, sha256: createHash('sha256').update(input).digest('hex') }));
 mkdirSync('node_modules/results', { recursive: true });
 writeFileSync('node_modules/results/corpus.json', JSON.stringify(corpus));
-function canonical(value) {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])]));
+function sortObjectKeys(value) {
+  if (Array.isArray(value)) return value.map(sortObjectKeys);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(k => [k, sortObjectKeys(value[k])]));
   return value;
 }
-function equal(a, b) { return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b)); }
+function equal(a, b) { return JSON.stringify(sortObjectKeys(a)) === JSON.stringify(sortObjectKeys(b)); }
 const prior = JSON.parse(readFileSync(path.join(evidence, 'fixtures.json')));
 const configurations = [];
 for (const [name, config, priorKey] of [
@@ -62,7 +62,7 @@ for (const [name, config, priorKey] of [
     historicalMatchesPriorSnapshot: equal(historicalPriorFields, { pages: prior[priorKey].pages, blocks: prior[priorKey].blocks }),
     ...graphs });
 }
-const result = JSON.stringify(canonical({ sources, runtime, inputs, configurations }), null, 2) + '\n';
+const result = JSON.stringify(sortObjectKeys({ sources, runtime, inputs, configurations }), null, 2) + '\n';
 if (process.argv[2] === '--update') {
   writeFileSync('relationships.json', result);
   console.log('Updated current and historical relationship evidence.');
