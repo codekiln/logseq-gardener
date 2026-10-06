@@ -1,6 +1,6 @@
 ## Context
 
-The comparison tested lsdoc 0.5.8 at revision `32e63ef095c711d6d9947257bf5fd07d540fa59d`. Gardener and that candidate both declare AGPL-3.0-only. Gardener already generates notices from its own Cargo lockfile; the candidate has a separate locked dependency graph to inspect before adoption.
+The comparison runner tested [lsdoc 0.5.8 at the pinned revision](https://github.com/martinkoutecky/lsdoc/tree/32e63ef095c711d6d9947257bf5fd07d540fa59d). Gardener and that candidate both declare AGPL-3.0-only. Gardener already generates notices from its own Cargo lockfile; the candidate has a separate locked dependency graph to inspect before adoption.
 
 ## Goals / Non-Goals
 
@@ -20,7 +20,7 @@ Save the upstream license and attribution texts alongside the inventory. Preserv
 
 ### Keep the adoption decision tied to compatibility evidence
 
-The guide will explain the source and notice work for adopting the candidate. The final parser decision remains under Issue #3, including the outstanding public corpus comparison. Runtime mldoc and Logseq implementations remain research references with their own documented licenses.
+The guide will explain the source and notice work for adopting the candidate. The maintainer will decide whether to adopt lsdoc after reviewing the remaining Pengx corpus comparison under [Issue #3 — Parser compatibility decision](https://github.com/codekiln/logseq-gardener/issues/3). Runtime mldoc and Logseq implementations remain research references with their own documented licenses.
 
 ## Risks / Trade-offs
 

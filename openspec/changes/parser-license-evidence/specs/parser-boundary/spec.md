@@ -2,7 +2,7 @@
 
 ### Requirement: Reproducible Rust candidate license evidence
 
-The parser comparison SHALL record the tested Rust candidate's exact revision, locked dependency identities and checksums, declared licenses, and actual license and attribution files. A local check SHALL detect changes to the saved inventory or license texts and SHALL leave the upstream source checkout unchanged. Adoption guidance SHALL distinguish candidate evidence from the SDK's resulting dependency inventory and name the remaining compatibility work.
+The local license audit SHALL save the tested Rust candidate's revision, locked dependency identities and checksums, declared licenses, and supplied license and attribution files. A local check SHALL detect changes to the saved inventory or license texts and SHALL leave the upstream source checkout unchanged. Adoption guidance SHALL distinguish candidate evidence from the SDK's resulting dependency inventory and name the remaining compatibility work.
 
 #### Scenario: Reproduce license evidence
 
