@@ -6,4 +6,4 @@
 ## 2. Demonstrate and document
 
 - [x] 2.1 Add a repeatable example, document the supported scope, and extract public-garden page titles without changing sources.
-- [ ] 2.2 Review the artifacts and implementation, run applicable repository checks, and record results with the next publishing step.
+- [x] 2.2 Review the artifacts and implementation, run applicable repository checks, and record results with the next publishing step.
