@@ -20,11 +20,11 @@ Expose `page_title(&GardenDocument, FilenameFormat) -> Result<String, PageTitleE
 
 Use only `parsed.blocks.first()` when it is `Block::Properties`. Property keys match without ASCII case, and the last title wins. A later drawer or bullet property retains its block meaning. Text scanning would mistake such block properties or literal code for page titles. Match Logseq's earlier `pages/contents.` special case before looking at properties, interpreting native path separators as `/`.
 
-### Preserve the observed decoding order
+### Decode filenames using Logseq’s Legacy and TripleLowbar formats
 
 Use the final filename stem, preserving directory location separately. Legacy replaces dots with slashes, then percent-decodes the whole string only when every escape and the resulting UTF-8 are valid. TripleLowbar replaces `___` with `/`, decodes each ASCII `%HH` independently, preserves invalid or non-ASCII byte escapes, and removes empty slash segments. This deliberately retains the OG behavior where `%C3%A9` remains encoded in TripleLowbar but becomes `é` in Legacy. A general URL decoder would change these names.
 
-### Reject inputs whose title this API cannot supply
+### Return errors for journals, invalid page paths, and empty titles
 
 Require a relative path of normal components beneath `pages/` with a lowercase `.md` extension and a UTF-8 stem. Return a path-bearing error for journals, malformed paths, and empty or whitespace-only titles. Empty-title rejection is SDK validation for publishing; OG accepts an empty override. Preserve all other title characters, including capitalization and boundary slashes in property values. Canonical lookup normalization belongs to the later index.
 
