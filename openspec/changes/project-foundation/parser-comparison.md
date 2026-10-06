@@ -19,4 +19,6 @@ Use `lsdoc`'s comparison tooling for syntax checks. Generate expected garden rel
 
 ## Recorded evidence
 
-The [candidate and graph comparison](../parser-comparison-evidence/experiments/parser-comparison/findings.md) records lsdoc/mldoc syntax results on pinned Encode Garden and Logseq docs revisions, file-parser relationships, graph-validator outcomes, source-preservation checks, and performance. The [experiment guide](../parser-comparison-evidence/experiments/parser-comparison/README.md) provides runnable commands. Current Logseq OG and Pengx's publishing corpus remain to be tested before adoption.
+The [candidate and graph comparison](../parser-comparison-evidence/experiments/parser-comparison/findings.md) records lsdoc/mldoc syntax results on pinned Encode Garden and Logseq docs revisions, file-parser relationships, graph-validator outcomes, source-preservation checks, and performance. The [experiment guide](../parser-comparison-evidence/experiments/parser-comparison/README.md) provides runnable commands.
+
+The [current Logseq OG comparison](../current-og-relationships/experiments/file-relationships/findings.md) reproduces the historical fixture relationships with the current file-garden parser. Pengx's publishing corpus remains to be tested before adoption.

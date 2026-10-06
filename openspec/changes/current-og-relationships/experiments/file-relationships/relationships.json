@@ -1,0 +1,2794 @@
+{
+  "configurations": [
+    {
+      "config": "{}",
+      "current": {
+        "blocks": [
+          {
+            "content": "A nested link to [[Names/Nested]].",
+            "id": "block:0",
+            "left": "block:1",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "names",
+              "names/nested"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested"
+            ]
+          },
+          {
+            "content": "See [[Target Page]] and #Research.",
+            "id": "block:1",
+            "left": "block:2",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "research",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "research",
+              "target page"
+            ]
+          },
+          {
+            "content": "alias:: [[Other Name]], [[Second Name]]\ntags:: [[Research]], comparison\n\n",
+            "id": "block:2",
+            "left": "alias source",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            },
+            "refs": [
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ]
+          },
+          {
+            "content": "A titled page shares [[Other Name]] with [[Alias Source]].",
+            "id": "block:3",
+            "left": "block:5",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "other name"
+            ]
+          },
+          {
+            "content": "Nested child refers to [[Missing Target]].",
+            "id": "block:4",
+            "left": "block:3",
+            "page": "chosen name",
+            "parent": "block:3",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "missing target",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "missing target"
+            ]
+          },
+          {
+            "content": "title:: Chosen Name\nalias:: Other Name\npublic:: true\n\n",
+            "id": "block:5",
+            "left": "chosen name",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "chosen name",
+              "other name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            },
+            "refs": [
+              "other name"
+            ]
+          },
+          {
+            "content": "The following text only looks like a reference:\n```markdown\n[[Not A Page]]\n#not-a-tag\n```",
+            "id": "block:6",
+            "left": "block:7",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "This is a real [[Target Page]] reference.",
+            "id": "block:7",
+            "left": "code fence",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))",
+            "id": "block:8",
+            "left": "block:9",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "[[Other Name]] and [[Chosen Name]] and [[Names/Nested]]",
+            "id": "block:9",
+            "left": "block:10",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "chosen name",
+              "graph cases",
+              "names",
+              "names/nested",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "chosen name",
+              "names",
+              "names/nested",
+              "other name"
+            ]
+          },
+          {
+            "content": "public:: false\n\n",
+            "id": "block:10",
+            "left": "graph cases",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": {
+              "public": false
+            },
+            "refs": []
+          },
+          {
+            "content": "{{embed ((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))}}",
+            "id": "block:11",
+            "left": "block:8",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "{{query [[Research]]}}",
+            "id": "block:12",
+            "left": "block:11",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "![Sketch](../assets/sketch.png) accompanies [[Target Page]].",
+            "id": "block:13",
+            "left": "media",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "media",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "{{embed [[Alias Source]]}}",
+            "id": "block:14",
+            "left": "block:13",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "alias source",
+              "media"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "The filename encodes a namespace. The text refers to [[Names/Nested]] and [[Target Page]].",
+            "id": "block:15",
+            "left": "names___nested",
+            "page": "names___nested",
+            "parent": "names___nested",
+            "path-refs": [
+              "names",
+              "names/nested",
+              "names___nested",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested",
+              "target page"
+            ]
+          },
+          {
+            "content": "Review [[Alias Source]] and [[Target Page]].",
+            "id": "block:16",
+            "left": "oct 3rd, 2026",
+            "page": "oct 3rd, 2026",
+            "parent": "oct 3rd, 2026",
+            "path-refs": [
+              "alias source",
+              "oct 3rd, 2026",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "target page"
+            ]
+          },
+          {
+            "content": "Another block refers to ((123e4567-e89b-12d3-a456-426614174000)).",
+            "id": "block:17",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "block:18"
+            ]
+          },
+          {
+            "content": "Child block links to [[Alias Source]].\nid:: 123e4567-e89b-12d3-a456-426614174000",
+            "id": "block:18",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "block:19",
+            "path-refs": [
+              "alias source",
+              "target page"
+            ],
+            "properties": {
+              "id": "123e4567-e89b-12d3-a456-426614174000"
+            },
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "Parent block",
+            "id": "block:19",
+            "left": "target page",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": []
+          }
+        ],
+        "pages": [
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "a",
+            "namespace": null,
+            "original-name": "A",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "namespace": null,
+            "original-name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name",
+              "second name"
+            ],
+            "file": "pages/Alias Source.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "alias source",
+            "namespace": null,
+            "original-name": "Alias Source",
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "b",
+            "namespace": null,
+            "original-name": "B",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "c",
+            "namespace": null,
+            "original-name": "C",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "canceled",
+            "namespace": null,
+            "original-name": "CANCELED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "cancelled",
+            "namespace": null,
+            "original-name": "CANCELLED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "card",
+            "namespace": null,
+            "original-name": "card",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name"
+            ],
+            "file": "pages/Title Override.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "chosen name",
+            "namespace": null,
+            "original-name": "Chosen Name",
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            }
+          },
+          {
+            "aliases": [],
+            "file": "pages/Code Fence.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "code fence",
+            "namespace": null,
+            "original-name": "Code Fence",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "comparison",
+            "namespace": null,
+            "original-name": "comparison",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "contents",
+            "namespace": null,
+            "original-name": "Contents",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "doing",
+            "namespace": null,
+            "original-name": "DOING",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "done",
+            "namespace": null,
+            "original-name": "DONE",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "favorites",
+            "namespace": null,
+            "original-name": "Favorites",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Graph Cases.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "graph cases",
+            "namespace": null,
+            "original-name": "Graph Cases",
+            "properties": {
+              "public": false
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "in-progress",
+            "namespace": null,
+            "original-name": "IN-PROGRESS",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "later",
+            "namespace": null,
+            "original-name": "LATER",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Media.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "media",
+            "namespace": null,
+            "original-name": "Media",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "missing target",
+            "namespace": null,
+            "original-name": "Missing Target",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "names",
+            "namespace": null,
+            "original-name": "Names",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "names/nested",
+            "namespace": "names",
+            "original-name": "Names/Nested",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Names___Nested.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "names___nested",
+            "namespace": null,
+            "original-name": "Names___Nested",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "now",
+            "namespace": null,
+            "original-name": "NOW",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "journals/2026_10_03.md",
+            "journal-day": 20261003,
+            "journal?": true,
+            "name": "oct 3rd, 2026",
+            "namespace": null,
+            "original-name": "Oct 3rd, 2026",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "chosen name",
+              "second name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "other name",
+            "namespace": null,
+            "original-name": "Other Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "research",
+            "namespace": null,
+            "original-name": "Research",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "other name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "second name",
+            "namespace": null,
+            "original-name": "Second Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Target Page.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "target page",
+            "namespace": null,
+            "original-name": "Target Page",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "todo",
+            "namespace": null,
+            "original-name": "TODO",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "wait",
+            "namespace": null,
+            "original-name": "WAIT",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "waiting",
+            "namespace": null,
+            "original-name": "WAITING",
+            "properties": null
+          }
+        ]
+      },
+      "equal": true,
+      "historical": {
+        "blocks": [
+          {
+            "content": "A nested link to [[Names/Nested]].",
+            "id": "block:0",
+            "left": "block:1",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "names",
+              "names/nested"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested"
+            ]
+          },
+          {
+            "content": "See [[Target Page]] and #Research.",
+            "id": "block:1",
+            "left": "block:2",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "research",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "research",
+              "target page"
+            ]
+          },
+          {
+            "content": "alias:: [[Other Name]], [[Second Name]]\ntags:: [[Research]], comparison\n\n",
+            "id": "block:2",
+            "left": "alias source",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            },
+            "refs": [
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ]
+          },
+          {
+            "content": "A titled page shares [[Other Name]] with [[Alias Source]].",
+            "id": "block:3",
+            "left": "block:5",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "other name"
+            ]
+          },
+          {
+            "content": "Nested child refers to [[Missing Target]].",
+            "id": "block:4",
+            "left": "block:3",
+            "page": "chosen name",
+            "parent": "block:3",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "missing target",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "missing target"
+            ]
+          },
+          {
+            "content": "title:: Chosen Name\nalias:: Other Name\npublic:: true\n\n",
+            "id": "block:5",
+            "left": "chosen name",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "chosen name",
+              "other name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            },
+            "refs": [
+              "other name"
+            ]
+          },
+          {
+            "content": "The following text only looks like a reference:\n```markdown\n[[Not A Page]]\n#not-a-tag\n```",
+            "id": "block:6",
+            "left": "block:7",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "This is a real [[Target Page]] reference.",
+            "id": "block:7",
+            "left": "code fence",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))",
+            "id": "block:8",
+            "left": "block:9",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "[[Other Name]] and [[Chosen Name]] and [[Names/Nested]]",
+            "id": "block:9",
+            "left": "block:10",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "chosen name",
+              "graph cases",
+              "names",
+              "names/nested",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "chosen name",
+              "names",
+              "names/nested",
+              "other name"
+            ]
+          },
+          {
+            "content": "public:: false\n\n",
+            "id": "block:10",
+            "left": "graph cases",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": {
+              "public": false
+            },
+            "refs": []
+          },
+          {
+            "content": "{{embed ((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))}}",
+            "id": "block:11",
+            "left": "block:8",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "{{query [[Research]]}}",
+            "id": "block:12",
+            "left": "block:11",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "![Sketch](../assets/sketch.png) accompanies [[Target Page]].",
+            "id": "block:13",
+            "left": "media",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "media",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "{{embed [[Alias Source]]}}",
+            "id": "block:14",
+            "left": "block:13",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "alias source",
+              "media"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "The filename encodes a namespace. The text refers to [[Names/Nested]] and [[Target Page]].",
+            "id": "block:15",
+            "left": "names___nested",
+            "page": "names___nested",
+            "parent": "names___nested",
+            "path-refs": [
+              "names",
+              "names/nested",
+              "names___nested",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested",
+              "target page"
+            ]
+          },
+          {
+            "content": "Review [[Alias Source]] and [[Target Page]].",
+            "id": "block:16",
+            "left": "oct 3rd, 2026",
+            "page": "oct 3rd, 2026",
+            "parent": "oct 3rd, 2026",
+            "path-refs": [
+              "alias source",
+              "oct 3rd, 2026",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "target page"
+            ]
+          },
+          {
+            "content": "Another block refers to ((123e4567-e89b-12d3-a456-426614174000)).",
+            "id": "block:17",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "block:18"
+            ]
+          },
+          {
+            "content": "Child block links to [[Alias Source]].\nid:: 123e4567-e89b-12d3-a456-426614174000",
+            "id": "block:18",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "block:19",
+            "path-refs": [
+              "alias source",
+              "target page"
+            ],
+            "properties": {
+              "id": "123e4567-e89b-12d3-a456-426614174000"
+            },
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "Parent block",
+            "id": "block:19",
+            "left": "target page",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": []
+          }
+        ],
+        "pages": [
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "a",
+            "namespace": null,
+            "original-name": "A",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "namespace": null,
+            "original-name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name",
+              "second name"
+            ],
+            "file": "pages/Alias Source.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "alias source",
+            "namespace": null,
+            "original-name": "Alias Source",
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "b",
+            "namespace": null,
+            "original-name": "B",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "c",
+            "namespace": null,
+            "original-name": "C",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "canceled",
+            "namespace": null,
+            "original-name": "CANCELED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "cancelled",
+            "namespace": null,
+            "original-name": "CANCELLED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "card",
+            "namespace": null,
+            "original-name": "card",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name"
+            ],
+            "file": "pages/Title Override.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "chosen name",
+            "namespace": null,
+            "original-name": "Chosen Name",
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            }
+          },
+          {
+            "aliases": [],
+            "file": "pages/Code Fence.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "code fence",
+            "namespace": null,
+            "original-name": "Code Fence",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "comparison",
+            "namespace": null,
+            "original-name": "comparison",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "contents",
+            "namespace": null,
+            "original-name": "Contents",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "doing",
+            "namespace": null,
+            "original-name": "DOING",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "done",
+            "namespace": null,
+            "original-name": "DONE",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "favorites",
+            "namespace": null,
+            "original-name": "Favorites",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Graph Cases.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "graph cases",
+            "namespace": null,
+            "original-name": "Graph Cases",
+            "properties": {
+              "public": false
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "in-progress",
+            "namespace": null,
+            "original-name": "IN-PROGRESS",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "later",
+            "namespace": null,
+            "original-name": "LATER",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Media.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "media",
+            "namespace": null,
+            "original-name": "Media",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "missing target",
+            "namespace": null,
+            "original-name": "Missing Target",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "names",
+            "namespace": null,
+            "original-name": "Names",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "names/nested",
+            "namespace": "names",
+            "original-name": "Names/Nested",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Names___Nested.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "names___nested",
+            "namespace": null,
+            "original-name": "Names___Nested",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "now",
+            "namespace": null,
+            "original-name": "NOW",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "journals/2026_10_03.md",
+            "journal-day": 20261003,
+            "journal?": true,
+            "name": "oct 3rd, 2026",
+            "namespace": null,
+            "original-name": "Oct 3rd, 2026",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "chosen name",
+              "second name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "other name",
+            "namespace": null,
+            "original-name": "Other Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "research",
+            "namespace": null,
+            "original-name": "Research",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "other name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "second name",
+            "namespace": null,
+            "original-name": "Second Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Target Page.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "target page",
+            "namespace": null,
+            "original-name": "Target Page",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "todo",
+            "namespace": null,
+            "original-name": "TODO",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "wait",
+            "namespace": null,
+            "original-name": "WAIT",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "waiting",
+            "namespace": null,
+            "original-name": "WAITING",
+            "properties": null
+          }
+        ]
+      },
+      "historicalMatchesPriorSnapshot": true,
+      "name": "default"
+    },
+    {
+      "config": "{:file/name-format :triple-lowbar}",
+      "current": {
+        "blocks": [
+          {
+            "content": "A nested link to [[Names/Nested]].",
+            "id": "block:0",
+            "left": "block:1",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "names",
+              "names/nested"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested"
+            ]
+          },
+          {
+            "content": "See [[Target Page]] and #Research.",
+            "id": "block:1",
+            "left": "block:2",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "research",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "research",
+              "target page"
+            ]
+          },
+          {
+            "content": "alias:: [[Other Name]], [[Second Name]]\ntags:: [[Research]], comparison\n\n",
+            "id": "block:2",
+            "left": "alias source",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            },
+            "refs": [
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ]
+          },
+          {
+            "content": "A titled page shares [[Other Name]] with [[Alias Source]].",
+            "id": "block:3",
+            "left": "block:5",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "other name"
+            ]
+          },
+          {
+            "content": "Nested child refers to [[Missing Target]].",
+            "id": "block:4",
+            "left": "block:3",
+            "page": "chosen name",
+            "parent": "block:3",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "missing target",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "missing target"
+            ]
+          },
+          {
+            "content": "title:: Chosen Name\nalias:: Other Name\npublic:: true\n\n",
+            "id": "block:5",
+            "left": "chosen name",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "chosen name",
+              "other name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            },
+            "refs": [
+              "other name"
+            ]
+          },
+          {
+            "content": "The following text only looks like a reference:\n```markdown\n[[Not A Page]]\n#not-a-tag\n```",
+            "id": "block:6",
+            "left": "block:7",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "This is a real [[Target Page]] reference.",
+            "id": "block:7",
+            "left": "code fence",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))",
+            "id": "block:8",
+            "left": "block:9",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "[[Other Name]] and [[Chosen Name]] and [[Names/Nested]]",
+            "id": "block:9",
+            "left": "block:10",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "chosen name",
+              "graph cases",
+              "names",
+              "names/nested",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "chosen name",
+              "names",
+              "names/nested",
+              "other name"
+            ]
+          },
+          {
+            "content": "public:: false\n\n",
+            "id": "block:10",
+            "left": "graph cases",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": {
+              "public": false
+            },
+            "refs": []
+          },
+          {
+            "content": "{{embed ((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))}}",
+            "id": "block:11",
+            "left": "block:8",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "{{query [[Research]]}}",
+            "id": "block:12",
+            "left": "block:11",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "![Sketch](../assets/sketch.png) accompanies [[Target Page]].",
+            "id": "block:13",
+            "left": "media",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "media",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "{{embed [[Alias Source]]}}",
+            "id": "block:14",
+            "left": "block:13",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "alias source",
+              "media"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "The filename encodes a namespace. The text refers to [[Names/Nested]] and [[Target Page]].",
+            "id": "block:15",
+            "left": "names/nested",
+            "page": "names/nested",
+            "parent": "names/nested",
+            "path-refs": [
+              "names",
+              "names/nested",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested",
+              "target page"
+            ]
+          },
+          {
+            "content": "Review [[Alias Source]] and [[Target Page]].",
+            "id": "block:16",
+            "left": "oct 3rd, 2026",
+            "page": "oct 3rd, 2026",
+            "parent": "oct 3rd, 2026",
+            "path-refs": [
+              "alias source",
+              "oct 3rd, 2026",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "target page"
+            ]
+          },
+          {
+            "content": "Another block refers to ((123e4567-e89b-12d3-a456-426614174000)).",
+            "id": "block:17",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "block:18"
+            ]
+          },
+          {
+            "content": "Child block links to [[Alias Source]].\nid:: 123e4567-e89b-12d3-a456-426614174000",
+            "id": "block:18",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "block:19",
+            "path-refs": [
+              "alias source",
+              "target page"
+            ],
+            "properties": {
+              "id": "123e4567-e89b-12d3-a456-426614174000"
+            },
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "Parent block",
+            "id": "block:19",
+            "left": "target page",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": []
+          }
+        ],
+        "pages": [
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "a",
+            "namespace": null,
+            "original-name": "A",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "namespace": null,
+            "original-name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name",
+              "second name"
+            ],
+            "file": "pages/Alias Source.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "alias source",
+            "namespace": null,
+            "original-name": "Alias Source",
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "b",
+            "namespace": null,
+            "original-name": "B",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "c",
+            "namespace": null,
+            "original-name": "C",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "canceled",
+            "namespace": null,
+            "original-name": "CANCELED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "cancelled",
+            "namespace": null,
+            "original-name": "CANCELLED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "card",
+            "namespace": null,
+            "original-name": "card",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name"
+            ],
+            "file": "pages/Title Override.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "chosen name",
+            "namespace": null,
+            "original-name": "Chosen Name",
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            }
+          },
+          {
+            "aliases": [],
+            "file": "pages/Code Fence.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "code fence",
+            "namespace": null,
+            "original-name": "Code Fence",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "comparison",
+            "namespace": null,
+            "original-name": "comparison",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "contents",
+            "namespace": null,
+            "original-name": "Contents",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "doing",
+            "namespace": null,
+            "original-name": "DOING",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "done",
+            "namespace": null,
+            "original-name": "DONE",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "favorites",
+            "namespace": null,
+            "original-name": "Favorites",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Graph Cases.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "graph cases",
+            "namespace": null,
+            "original-name": "Graph Cases",
+            "properties": {
+              "public": false
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "in-progress",
+            "namespace": null,
+            "original-name": "IN-PROGRESS",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "later",
+            "namespace": null,
+            "original-name": "LATER",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Media.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "media",
+            "namespace": null,
+            "original-name": "Media",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "missing target",
+            "namespace": null,
+            "original-name": "Missing Target",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "names",
+            "namespace": null,
+            "original-name": "Names",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Names___Nested.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "names/nested",
+            "namespace": "names",
+            "original-name": "Names/Nested",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "now",
+            "namespace": null,
+            "original-name": "NOW",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "journals/2026_10_03.md",
+            "journal-day": 20261003,
+            "journal?": true,
+            "name": "oct 3rd, 2026",
+            "namespace": null,
+            "original-name": "Oct 3rd, 2026",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "chosen name",
+              "second name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "other name",
+            "namespace": null,
+            "original-name": "Other Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "research",
+            "namespace": null,
+            "original-name": "Research",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "other name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "second name",
+            "namespace": null,
+            "original-name": "Second Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Target Page.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "target page",
+            "namespace": null,
+            "original-name": "Target Page",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "todo",
+            "namespace": null,
+            "original-name": "TODO",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "wait",
+            "namespace": null,
+            "original-name": "WAIT",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "waiting",
+            "namespace": null,
+            "original-name": "WAITING",
+            "properties": null
+          }
+        ]
+      },
+      "equal": true,
+      "historical": {
+        "blocks": [
+          {
+            "content": "A nested link to [[Names/Nested]].",
+            "id": "block:0",
+            "left": "block:1",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "names",
+              "names/nested"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested"
+            ]
+          },
+          {
+            "content": "See [[Target Page]] and #Research.",
+            "id": "block:1",
+            "left": "block:2",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "research",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "research",
+              "target page"
+            ]
+          },
+          {
+            "content": "alias:: [[Other Name]], [[Second Name]]\ntags:: [[Research]], comparison\n\n",
+            "id": "block:2",
+            "left": "alias source",
+            "page": "alias source",
+            "parent": "alias source",
+            "path-refs": [
+              "alias source",
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            },
+            "refs": [
+              "comparison",
+              "other name",
+              "research",
+              "second name"
+            ]
+          },
+          {
+            "content": "A titled page shares [[Other Name]] with [[Alias Source]].",
+            "id": "block:3",
+            "left": "block:5",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "other name"
+            ]
+          },
+          {
+            "content": "Nested child refers to [[Missing Target]].",
+            "id": "block:4",
+            "left": "block:3",
+            "page": "chosen name",
+            "parent": "block:3",
+            "path-refs": [
+              "alias source",
+              "chosen name",
+              "missing target",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "missing target"
+            ]
+          },
+          {
+            "content": "title:: Chosen Name\nalias:: Other Name\npublic:: true\n\n",
+            "id": "block:5",
+            "left": "chosen name",
+            "page": "chosen name",
+            "parent": "chosen name",
+            "path-refs": [
+              "chosen name",
+              "other name"
+            ],
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            },
+            "refs": [
+              "other name"
+            ]
+          },
+          {
+            "content": "The following text only looks like a reference:\n```markdown\n[[Not A Page]]\n#not-a-tag\n```",
+            "id": "block:6",
+            "left": "block:7",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "This is a real [[Target Page]] reference.",
+            "id": "block:7",
+            "left": "code fence",
+            "page": "code fence",
+            "parent": "code fence",
+            "path-refs": [
+              "code fence",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))",
+            "id": "block:8",
+            "left": "block:9",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "[[Other Name]] and [[Chosen Name]] and [[Names/Nested]]",
+            "id": "block:9",
+            "left": "block:10",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "chosen name",
+              "graph cases",
+              "names",
+              "names/nested",
+              "other name"
+            ],
+            "properties": null,
+            "refs": [
+              "chosen name",
+              "names",
+              "names/nested",
+              "other name"
+            ]
+          },
+          {
+            "content": "public:: false\n\n",
+            "id": "block:10",
+            "left": "graph cases",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": {
+              "public": false
+            },
+            "refs": []
+          },
+          {
+            "content": "{{embed ((aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee))}}",
+            "id": "block:11",
+            "left": "block:8",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": [
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+            ]
+          },
+          {
+            "content": "{{query [[Research]]}}",
+            "id": "block:12",
+            "left": "block:11",
+            "page": "graph cases",
+            "parent": "graph cases",
+            "path-refs": [
+              "graph cases"
+            ],
+            "properties": null,
+            "refs": []
+          },
+          {
+            "content": "![Sketch](../assets/sketch.png) accompanies [[Target Page]].",
+            "id": "block:13",
+            "left": "media",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "media",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "target page"
+            ]
+          },
+          {
+            "content": "{{embed [[Alias Source]]}}",
+            "id": "block:14",
+            "left": "block:13",
+            "page": "media",
+            "parent": "media",
+            "path-refs": [
+              "alias source",
+              "media"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "The filename encodes a namespace. The text refers to [[Names/Nested]] and [[Target Page]].",
+            "id": "block:15",
+            "left": "names/nested",
+            "page": "names/nested",
+            "parent": "names/nested",
+            "path-refs": [
+              "names",
+              "names/nested",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "names",
+              "names/nested",
+              "target page"
+            ]
+          },
+          {
+            "content": "Review [[Alias Source]] and [[Target Page]].",
+            "id": "block:16",
+            "left": "oct 3rd, 2026",
+            "page": "oct 3rd, 2026",
+            "parent": "oct 3rd, 2026",
+            "path-refs": [
+              "alias source",
+              "oct 3rd, 2026",
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "alias source",
+              "target page"
+            ]
+          },
+          {
+            "content": "Another block refers to ((123e4567-e89b-12d3-a456-426614174000)).",
+            "id": "block:17",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": [
+              "block:18"
+            ]
+          },
+          {
+            "content": "Child block links to [[Alias Source]].\nid:: 123e4567-e89b-12d3-a456-426614174000",
+            "id": "block:18",
+            "left": "block:19",
+            "page": "target page",
+            "parent": "block:19",
+            "path-refs": [
+              "alias source",
+              "target page"
+            ],
+            "properties": {
+              "id": "123e4567-e89b-12d3-a456-426614174000"
+            },
+            "refs": [
+              "alias source"
+            ]
+          },
+          {
+            "content": "Parent block",
+            "id": "block:19",
+            "left": "target page",
+            "page": "target page",
+            "parent": "target page",
+            "path-refs": [
+              "target page"
+            ],
+            "properties": null,
+            "refs": []
+          }
+        ],
+        "pages": [
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "a",
+            "namespace": null,
+            "original-name": "A",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "namespace": null,
+            "original-name": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name",
+              "second name"
+            ],
+            "file": "pages/Alias Source.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "alias source",
+            "namespace": null,
+            "original-name": "Alias Source",
+            "properties": {
+              "alias": [
+                "Other Name",
+                "Second Name"
+              ],
+              "tags": [
+                "Research",
+                "comparison"
+              ]
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "b",
+            "namespace": null,
+            "original-name": "B",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "c",
+            "namespace": null,
+            "original-name": "C",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "canceled",
+            "namespace": null,
+            "original-name": "CANCELED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "cancelled",
+            "namespace": null,
+            "original-name": "CANCELLED",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "card",
+            "namespace": null,
+            "original-name": "card",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "other name"
+            ],
+            "file": "pages/Title Override.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "chosen name",
+            "namespace": null,
+            "original-name": "Chosen Name",
+            "properties": {
+              "alias": [
+                "Other Name"
+              ],
+              "public": true,
+              "title": "Chosen Name"
+            }
+          },
+          {
+            "aliases": [],
+            "file": "pages/Code Fence.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "code fence",
+            "namespace": null,
+            "original-name": "Code Fence",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "comparison",
+            "namespace": null,
+            "original-name": "comparison",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "contents",
+            "namespace": null,
+            "original-name": "Contents",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "doing",
+            "namespace": null,
+            "original-name": "DOING",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "done",
+            "namespace": null,
+            "original-name": "DONE",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "favorites",
+            "namespace": null,
+            "original-name": "Favorites",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Graph Cases.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "graph cases",
+            "namespace": null,
+            "original-name": "Graph Cases",
+            "properties": {
+              "public": false
+            }
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "in-progress",
+            "namespace": null,
+            "original-name": "IN-PROGRESS",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "later",
+            "namespace": null,
+            "original-name": "LATER",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Media.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "media",
+            "namespace": null,
+            "original-name": "Media",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "missing target",
+            "namespace": null,
+            "original-name": "Missing Target",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "names",
+            "namespace": null,
+            "original-name": "Names",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Names___Nested.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "names/nested",
+            "namespace": "names",
+            "original-name": "Names/Nested",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "now",
+            "namespace": null,
+            "original-name": "NOW",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "journals/2026_10_03.md",
+            "journal-day": 20261003,
+            "journal?": true,
+            "name": "oct 3rd, 2026",
+            "namespace": null,
+            "original-name": "Oct 3rd, 2026",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "chosen name",
+              "second name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "other name",
+            "namespace": null,
+            "original-name": "Other Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "research",
+            "namespace": null,
+            "original-name": "Research",
+            "properties": null
+          },
+          {
+            "aliases": [
+              "alias source",
+              "other name"
+            ],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "second name",
+            "namespace": null,
+            "original-name": "Second Name",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": "pages/Target Page.md",
+            "journal-day": null,
+            "journal?": false,
+            "name": "target page",
+            "namespace": null,
+            "original-name": "Target Page",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "todo",
+            "namespace": null,
+            "original-name": "TODO",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "wait",
+            "namespace": null,
+            "original-name": "WAIT",
+            "properties": null
+          },
+          {
+            "aliases": [],
+            "file": null,
+            "journal-day": null,
+            "journal?": false,
+            "name": "waiting",
+            "namespace": null,
+            "original-name": "WAITING",
+            "properties": null
+          }
+        ]
+      },
+      "historicalMatchesPriorSnapshot": true,
+      "name": "triple-lowbar"
+    }
+  ],
+  "inputs": [
+    {
+      "file": "journals/2026_10_03.md",
+      "sha256": "38cd52cf4cbddde38b71770f406d32db88f3b5ceb9e132c9ee99aed05f8f8d55"
+    },
+    {
+      "file": "pages/Alias Source.md",
+      "sha256": "04b87ab2303bf4c8438426ad8d1c4ea6f8013b759f0dc22708af21e15bdcf2cf"
+    },
+    {
+      "file": "pages/Code Fence.md",
+      "sha256": "90b9521a81f2e3e2243f938b7a86619f1a736176dd01fc433c339b884910efcf"
+    },
+    {
+      "file": "pages/Graph Cases.md",
+      "sha256": "d5a7fe0b8aa265ca0b0c6c7e5d10397ccbbc22191d73323ed0dc53f413d7b73d"
+    },
+    {
+      "file": "pages/Media.md",
+      "sha256": "64fd818b9aa20115d9d0b09b55a42995e6a85e0cd88c9eb0991429de9270ce3e"
+    },
+    {
+      "file": "pages/Names___Nested.md",
+      "sha256": "b37c490129909083fd94054930f18ccca3f1e1f1221d2e5dbd7636198de37a1b"
+    },
+    {
+      "file": "pages/Target Page.md",
+      "sha256": "1f9e7beb97e787765382588db9606fdfbd752495fd5f315e3b3c6eba062c76fa"
+    },
+    {
+      "file": "pages/Title Override.md",
+      "sha256": "7adf085f22b46e20a62ac740b82d57347e5d11e7c00afb5d75c537cb3e52b6a5"
+    }
+  ],
+  "runtime": {
+    "mldoc": "1.5.7",
+    "nbb": "1.2.173"
+  },
+  "sources": {
+    "current": {
+      "branch": "version/file",
+      "license": "AGPL-3.0 with additional permission",
+      "repo": "github.com/logseq/logseq",
+      "revision": "6efedb75588763af256bc7dfd0ed5526dc91fe7c"
+    },
+    "historical": {
+      "license": "AGPL-3.0 with additional permission",
+      "repo": "github.com/logseq/logseq",
+      "revision": "82cf4d3c65acbf230a3170640fe271dd74095067",
+      "version": "0.9.8"
+    }
+  }
+}
