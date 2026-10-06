@@ -8,5 +8,9 @@ license = "AGPL-3.0-only"
 repository = "https://github.com/codekiln/logseq-gardener"
 publish = false
 
+[dependencies]
+# Read-only Markdown syntax and references; revision covered by parser comparison.
+lsdoc = { git = "https://github.com/martinkoutecky/lsdoc", rev = "32e63ef095c711d6d9947257bf5fd07d540fa59d" }
+
 [package.metadata.dist]
 dist = false

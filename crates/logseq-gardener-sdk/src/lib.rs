@@ -1,8 +1,8 @@
 //! Rust API for Logseq Gardener.
 //!
-//! This package exposes version information and a publishing namespace policy.
-//! Garden loading will follow the parser comparison, so Rust applications can
-//! use garden operations without installing the CLI.
+//! Load Logseq Markdown source through [`garden::load_garden`] without installing
+//! the CLI. The initial reader retains syntax and references; page identity and
+//! graph resolution are separate capabilities.
 //!
 //! ```
 //! assert!(!logseq_gardener_sdk::VERSION.is_empty());
@@ -13,3 +13,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Select logical page namespaces for publication.
 pub mod publishing;
+
+/// Read-only Markdown garden loading.
+pub mod garden;
+
+/// Syntax types from the pinned lsdoc parser used by the garden reader.
+pub use lsdoc::ast;

@@ -22,7 +22,7 @@ for package in sorted(metadata['packages'], key=lambda p: (p['name'], p['version
     license_id = package['license']
     if not license_id:
         raise SystemExit(f'{name}: review missing license metadata')
-    source = f'https://crates.io/crates/{name}/{version}'
+    source = package['source'] if package['source'].startswith('git+') else f'https://crates.io/crates/{name}/{version}'
     source_records.append({'package': name, 'version': version, 'source': source, 'checksum': checksums[(name, version)], 'license': license_id})
     root = Path(package['manifest_path']).parent
     files = {p for p in root.rglob('*') if p.is_file() and p.name.lower().startswith(('license', 'licence', 'copying', 'notice', 'copyright'))}
