@@ -6,7 +6,7 @@ Logseq Gardener separates the Rust API from the command-line interface. Other Ru
 
 | Component | Responsibility |
 | --- | --- |
-| `logseq-gardener-sdk` in `crates/logseq-gardener-sdk/` | The reusable Rust API. It currently exposes the SDK version; garden operations are not implemented yet. |
+| `logseq-gardener-sdk` in `crates/logseq-gardener-sdk/` | The reusable Rust API. It exposes the SDK version and a logical namespace-selection policy; garden loading is not implemented yet. |
 | `logseq-gardener` at the repository root | The CLI package, which builds `lsg` and depends on the SDK. |
 | `src/cli.rs` | Validates arguments and dispatches help and version requests. |
 | `src/help.rs` | Holds the help document and selects its sections for text or JSON output. |
@@ -21,3 +21,7 @@ Markdown files hold the garden's notes. Any future index must be rebuildable fro
 The parser has not been selected. `lsdoc` is the Rust candidate; official `mldoc` provides the syntax reference, and Logseq OG's graph parser and graph-validator provide references for relationships between notes. The [parser comparison findings](../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/findings.md) favor lsdoc for read-only Markdown parsing on the tested fixtures and public gardens. The SDK will need a separate layer for configured page names, titles, aliases, namespaces, journals, UUID references, and fileless targets. Retained source text and source ranges belong alongside parsed structure so future edits can preserve formatting.
 
 The [current Logseq OG relationship comparison](../openspec/changes/current-og-relationships/experiments/file-relationships/findings.md) reproduces the earlier fixture relationships under default and configured filename interpretation. The results preserve the recorded page lookup rules for titles, aliases, namespaces, journals, and fileless targets. Pengx's publishing corpus and the final adoption decision remain part of [Issue #3 — Finish parser compatibility comparison](https://github.com/codekiln/logseq-gardener/issues/3).
+
+## Publishing
+
+The SDK owns namespace selection so Rust publishers and the CLI can share it. [Publishing](publishing.md) describes the current static site priority, the runnable selection example, and the remaining garden-loading and rendering work.
