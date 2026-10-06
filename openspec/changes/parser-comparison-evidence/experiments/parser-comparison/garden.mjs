@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync } from 'nod
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runnerRepair } from './repair-runner.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 process.chdir(root);
 const name=process.argv[2];
@@ -26,5 +27,6 @@ if(result.status!==0) throw Error(`Garden comparison failed: ${result.status}`);
 const sources=JSON.parse(readFileSync('sources.json'));
 // The archived source has no .git; upstream otherwise reports the enclosing gardener revision.
 let text=readFileSync(report,'utf8').replace(/^lsdoc version:.*$/m,`lsdoc source revision: \`${sources.lsdoc.revision}\``).replace(/^Graph:.*$/m,`Graph: \`${corpus.repo}\` at \`${corpus.revision}\``);
+text=text.replace(/^lsdoc source revision:.*$/m,match=>`${match}\nLocal runner repair: ${runnerRepair}`);
 writeFileSync(report,text);
 writeFileSync(`${name}-corpus.json`,JSON.stringify({...corpus,files:files.length,sha256:hash.digest('hex'),selection:'Tracked Markdown and Org files under pages/ and journals/; immutable git archive; upstream 8 MiB limit'},null,2)+'\n');

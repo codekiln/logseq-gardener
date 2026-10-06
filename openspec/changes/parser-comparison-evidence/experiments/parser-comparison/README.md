@@ -18,6 +18,8 @@ mise run parser:comparison-check
 
 The task installs the locked npm dependencies, extracts pinned source into ignored `node_modules/sources/`, builds lsdoc, and compares [fixtures.json](fixtures.json). Source archives leave each checkout unchanged. A missing repository or revision fails setup; the task never clones or fetches.
 
+Setup applies [the Org reference repair](repair-runner.mjs) to the extracted public-garden runner. The repair passes the note format to mldoc reference extraction and fails if the pinned source no longer contains the expected call. The fixture task also runs [the public-garden runner check](runner-check.mjs) against a small Markdown/Org link garden. Removing the format argument makes this check fail, even though the direct extractor regression still passes.
+
 [compare.mjs](compare.mjs), run by `mise run parser:comparison-check`, compares the parsers on the [mldoc baseline test notes](../../../parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden) and [additional graph test notes](fixtures/pages). The additional notes cover title overrides, shared aliases, publication properties, queries, and missing UUID references. Each syntax comparison starts a fresh mldoc process. Logseq's graph parser receives the notes in a fixed order. The saved results include both default filename interpretation and the configuration that turns triple underscores into namespace separators.
 
 Graph output replaces generated UUIDs with deterministic labels while retaining explicit UUID targets, page names, file paths relative to the garden, parent and previous-sibling relationships, properties, aliases, and references. Built-in Logseq pages remain visible. Validator results contain assertion counts and the names of failing tests. Missing targets and the absent sketch asset intentionally cause validation failures; those outcomes are checked against the snapshot.
@@ -36,6 +38,8 @@ mise run parser:garden-comparison encode
 The matching ghq gardens must contain the recorded commits. Reports contain measurements, source-file locations, and anonymized inputs rechecked by the upstream runner. Timings and report timestamps vary between runs. The corpus hash identifies the source inputs; deterministic fixture results are checked separately.
 
 `regressions.json` contains small synthetic reproductions of the findings. The fixture check records the intentional math difference and tests Org reference extraction with the format argument supplied.
+
+Generated corpus reports identify the local runner repair alongside the pinned lsdoc revision. The corrected docs report contains no syntax/reference disagreements, crashes, or timeouts.
 
 ## Source preservation and memory
 
