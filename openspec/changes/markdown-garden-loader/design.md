@@ -1,6 +1,6 @@
 ## Context
 
-The SDK currently exposes version information. Merged experiments favor lsdoc for read-only Markdown parsing, and current Logseq OG fixture relationships have been compared. The publishing priority now requires usable garden data, while broader corpus validation remains open. [Issue #14 — Load Markdown sources](https://github.com/codekiln/logseq-gardener/issues/14) is independent of the unmerged namespace-selection PR.
+The SDK currently exposes version information. Merged experiments favor lsdoc for read-only Markdown parsing, and current Logseq OG fixture relationships have been compared. The publishing priority now requires usable garden data, while broader corpus validation remains open. Markdown loading can be implemented independently of [PR #13 — Select publishing namespaces in the SDK](https://github.com/codekiln/logseq-gardener/pull/13), which adds rules for choosing namespaces to publish.
 
 ## Goals / Non-Goals
 
@@ -12,7 +12,7 @@ The SDK currently exposes version information. Merged experiments favor lsdoc fo
 
 ### Pin the tested parser for a limited Markdown reader
 
-Use lsdoc at `32e63ef095c711d6d9947257bf5fd07d540fa59d`, the [tested revision](https://github.com/martinkoutecky/lsdoc/tree/32e63ef095c711d6d9947257bf5fd07d540fa59d). The [merged findings](../parser-comparison-evidence/experiments/parser-comparison/findings.md) support read-only Markdown syntax and reference extraction; the [current OG comparison](../current-og-relationships/experiments/file-relationships/README.md) supplies later relationship evidence. The final broad adoption decision remains in Issue #3. This change records supported reader scope without claiming complete graph compatibility. Updating the parser or using mldoc would require new integration evidence.
+Use lsdoc at `32e63ef095c711d6d9947257bf5fd07d540fa59d`, the [tested revision](https://github.com/martinkoutecky/lsdoc/tree/32e63ef095c711d6d9947257bf5fd07d540fa59d). The [merged findings](../parser-comparison-evidence/experiments/parser-comparison/findings.md) support read-only Markdown syntax and reference extraction; the [current OG comparison](../current-og-relationships/experiments/file-relationships/README.md) supplies later relationship evidence. Broader corpus validation and the final parser choice remain open under [Issue #3 — Finish parser compatibility comparison and record adoption decision](https://github.com/codekiln/logseq-gardener/issues/3). This change records supported reader scope without claiming complete graph compatibility. Updating the parser or using mldoc would require new integration evidence.
 
 ### Preserve source alongside parser structure
 
@@ -30,7 +30,7 @@ The loader performs reads only. Tests compare source before and after loading, i
 
 - Parser syntax types become part of this early SDK API → pin the revision and document the API as initial, with changes reviewed alongside parser updates.
 - Parsing supplies no normal error result for malformed Markdown → test representative source and use the parser's existing permissive Markdown behavior; do not claim strict Markdown validation.
-- Broader publishing compatibility is incomplete → demonstrate the reader on the public encode garden and retain Issue #3 for the outstanding corpus and final compatibility decision.
+- Broader publishing compatibility is incomplete → demonstrate the reader on the public encode garden; the remaining corpus comparison and final parser choice are tracked in [Issue #3 — Finish parser compatibility comparison and record adoption decision](https://github.com/codekiln/logseq-gardener/issues/3).
 - Retaining all source and parsed documents uses memory proportional to the garden → measure the actual garden before introducing persistent caching.
 
 ## Resolved Questions
