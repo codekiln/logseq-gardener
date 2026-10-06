@@ -54,7 +54,7 @@ def audit(online):
                              "repository": package["repository"], "source": entry.get("source", f"git+{REPOSITORY}#{REVISION}"),
                              "checksum": entry.get("checksum"), "licenseFiles": files})
         inventory = {"repository": REPOSITORY, "revision": REVISION, "lockfileSha256": digest(lock_bytes), "packages": packages}
-        return json.dumps(inventory, indent=2, ensure_ascii=False) + "\n", "\n".join(texts)
+        return json.dumps(inventory, indent=2, ensure_ascii=False) + "\n", "\n".join(texts).rstrip("\n") + "\n"
 
 
 def main():
