@@ -4,6 +4,8 @@ Logseq Gardener uses AGPL-3.0-only. [LICENSE](../LICENSE) contains the complete 
 
 ## Update dependencies
 
+For the parser candidate's pinned source and license evidence, see [Parser adoption](parser-adoption.md).
+
 After changing Cargo dependencies, explain the reason for a new direct dependency in Cargo.toml and the [dependency guide](dependencies.md). Run `mise run notices:update` and review the source inventory and combined license file. `mise run notices:check` rejects stale generated files. Keep Cargo.lock committed and build with `--locked`.
 
 For each new dependency or copied source, record its version or revision, upstream source, license, copyright attribution, modifications, required notices, and source-distribution obligations. A license identifier alone is not a completed review. Preserve upstream license and NOTICE text in the combined file. The current inventory includes all transitive Cargo packages, including platform-specific dependencies.
