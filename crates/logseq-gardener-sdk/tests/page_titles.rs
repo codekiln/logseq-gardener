@@ -14,8 +14,8 @@ fn document(path: &str, source: &str) -> GardenDocument {
 
 #[test]
 fn saved_logseq_fixture_titles() {
-    // Inputs from the recorded OG relationship experiment; expected original
-    // names are in current-og-relationships/.../relationships.json.
+    // Expected original names come from the saved Logseq OG results:
+    // https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/current-og-relationships/experiments/file-relationships/relationships.json
     let fixtures = [
         (
             "Title Override",

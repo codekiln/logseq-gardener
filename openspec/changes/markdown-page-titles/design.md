@@ -6,7 +6,7 @@ The [saved relationship findings](../current-og-relationships/experiments/file-r
 
 ## Goals / Non-Goals
 
-**Goals:** Supply page titles through a read-only API, reproduce the recorded filename and property behavior, and demonstrate extraction across the public garden's pages.
+**Goals:** Supply page titles through a read-only API, reproduce the recorded filename and property behavior, and demonstrate extraction across the pages in [codekiln/logseq-encode-garden](https://github.com/codekiln/logseq-encode-garden).
 
 **Non-Goals:** Load graph configuration, format journal dates, resolve aliases, and render the selected garden. These remain subsequent steps toward publishing.
 
@@ -46,7 +46,7 @@ The Logseq OG revision recorded by the saved relationship experiment defines the
 
 ### 2 - How will journals be handled?
 
-Return a clear unsupported-input error. The public garden uses `yyyy-MM-dd EEE` journal titles, so using the oracle's default date format would produce incorrect identities. Journal configuration and formatting require their own lookup task.
+Return a clear unsupported-input error. [codekiln/logseq-encode-garden](https://github.com/codekiln/logseq-encode-garden) formats journal titles as `yyyy-MM-dd EEE`. The saved Logseq OG experiment used a different default date format, so publishers need to read each graph’s journal settings before deriving journal titles. Journal configuration and formatting require their own lookup task.
 
 ## Open Questions
 

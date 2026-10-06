@@ -41,4 +41,4 @@ The API follows the Logseq OG source revision recorded in the [relationship expe
 
 ## Next publishing steps
 
-[Issue #16 — Markdown page titles](https://github.com/codekiln/logseq-gardener/issues/16) supplies a prerequisite for [Issue #4 — SDK page lookup](https://github.com/codekiln/logseq-gardener/issues/4). Lookup still needs configuration loading, aliases and collision handling, journal titles, and names without source files. [Issue #11 — Static publishing](https://github.com/codekiln/logseq-gardener/issues/11) continues with namespace selection, links and assets, and HTML output. Title extraction does not determine publication visibility.
+Publishers can use the page titles from this API when matching links to pages, as planned in [Issue #4 — SDK page lookup](https://github.com/codekiln/logseq-gardener/issues/4). Lookup still needs configuration loading, aliases and collision handling, journal titles, and names without source files. [Issue #11 — Static publishing](https://github.com/codekiln/logseq-gardener/issues/11) continues with namespace selection, links and assets, and HTML output. Title extraction does not determine publication visibility.

@@ -2,7 +2,7 @@
 
 ### Requirement: Derive page titles with an explicit filename format
 
-The SDK SHALL derive a title from a loaded Markdown page document using a caller-supplied Legacy or TripleLowbar format. It SHALL use only the final filename stem and preserve capitalization. Legacy SHALL replace dots with slashes and atomically decode valid percent-encoded UTF-8, preserving the replaced string if decoding fails. TripleLowbar SHALL replace non-overlapping triple underscores with slashes, decode each ASCII percent escape once, preserve malformed and non-ASCII escapes, and remove empty slash segments.
+The SDK SHALL derive a title from a loaded Markdown page document using a caller-supplied Legacy or TripleLowbar format. It SHALL use only the final filename stem and preserve capitalization. For Legacy filenames, the SDK SHALL replace dots with slashes, then decode percent escapes only if every escape and the resulting UTF-8 are valid. If decoding fails, it SHALL retain the string with dots replaced by slashes. TripleLowbar SHALL replace non-overlapping triple underscores with slashes, decode each ASCII percent escape once, preserve malformed and non-ASCII escapes, and remove empty slash segments.
 
 #### Scenario: Configuration changes namespace decoding
 - **WHEN** the document path is `pages/Names___Nested.md`

@@ -10,7 +10,7 @@ use crate::garden::{DocumentKind, GardenDocument};
 /// Filename conventions selected by the garden's `:file/name-format` setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilenameFormat {
-    /// Legacy filenames: dots delimit namespaces; percent decoding is atomic.
+    /// Legacy filenames: dots separate namespaces; percent escapes decode only if every escape and the resulting UTF-8 are valid.
     Legacy,
     /// Triple underscores delimit namespaces; ASCII percent escapes decode individually.
     TripleLowbar,

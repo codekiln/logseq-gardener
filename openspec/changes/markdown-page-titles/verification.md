@@ -1,6 +1,6 @@
 # Page-title validation
 
-The SDK derived titles for every page in the public garden's working snapshot on October 6, 2026. The checkout was based on commit `e12f9568693662aee21c0c61b9787a767a56d4e9` and included user changes, so this result describes the local snapshot rather than that commit alone.
+The SDK derived titles for every page in the local [codekiln/logseq-encode-garden](https://github.com/codekiln/logseq-encode-garden) checkout on October 6, 2026. The checkout was based on commit `e12f9568693662aee21c0c61b9787a767a56d4e9` and included user changes, so this result describes the local snapshot rather than that commit alone.
 
 ```sh
 mise exec -- cargo run -p logseq-gardener-sdk --example page_titles -- /path/to/logseq-encode-garden triple-lowbar

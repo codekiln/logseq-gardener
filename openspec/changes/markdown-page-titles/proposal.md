@@ -7,7 +7,7 @@ Rust publishers need page titles to select garden namespaces and assign pages to
 - Derive a page title through the SDK with an explicit legacy or triple-lowbar filename format.
 - Follow leading page-property title overrides, filename decoding, and the Contents special case from the Logseq OG source covered by the saved relationship experiment.
 - Return explicit errors for journals, invalid page paths, and empty titles.
-- Test recorded fixture titles and decoding edge cases, and demonstrate the API on the public garden.
+- Test recorded fixture titles and decoding edge cases, and demonstrate the API on [codekiln/logseq-encode-garden](https://github.com/codekiln/logseq-encode-garden).
 
 ## Capabilities
 
