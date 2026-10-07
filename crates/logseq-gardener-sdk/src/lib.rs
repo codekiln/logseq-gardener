@@ -19,3 +19,6 @@ pub mod garden;
 
 /// Syntax types from the pinned lsdoc parser used by the garden reader.
 pub use lsdoc::ast;
+
+/// Display titles for loaded Markdown page documents.
+pub mod page_titles;
