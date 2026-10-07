@@ -47,6 +47,4 @@ The complete `mise run ci` workflow passed after the final rendering changes, in
 
 [The reviewer](https://github.com/codekiln/logseq-gardener/pull/19#pullrequestreview-5437438079) reproduced an email fallback defect: a reader had to reconstruct an address from the parser's fields. [3fc198b — Preserve email addresses in published fallbacks](https://github.com/codekiln/logseq-gardener/commit/3fc198b611db4d4f24113517ccc5204b46351305) preserves the address and adds a publication regression test. That test failed before the fix and passed afterward; the full `mise run ci` workflow passed after the correction.
 
-The reviewer also requested explicit behavior for pages without a `public` property, plain descriptions of unresolved page names, and linked dependency and source-revision references. The writer applied those changes, replied with the resolving commit, and resolved the review threads.
-
 [Issue #20 — Expose local selected-namespace publishing through lsg](https://github.com/codekiln/logseq-gardener/issues/20) is the next unblocked trial task. The command will reuse this SDK publisher, with CLI error/help tests and another real-garden demonstration. Graph lookup for richer references remains planned in [Issue #4 — Add read-only page lookup through the SDK](https://github.com/codekiln/logseq-gardener/issues/4).
