@@ -10,7 +10,7 @@ mise exec -- cargo run --bin lsg -- publish \
   --output /tmp/logseq-workshop-site \
   --filename-format triple-lowbar \
   --include AI/ES/25/ws --exclude AI/ES/25/ws/3 --format json
-python3 -m http.server 8000 --directory /tmp/logseq-workshop-site
+python3 -m http.server 8000 --bind 127.0.0.1 --directory /tmp/logseq-workshop-site
 ```
 
 Choose a fresh output directory. From the index, open “What I Learned at the AI Engineer Summit Workshops 2025” and follow the reference below “Person/Mike Christensen.” Exclusion controls target pages and IDs; text already written inside selected pages remains selected content.
