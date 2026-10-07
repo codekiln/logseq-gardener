@@ -20,6 +20,13 @@ and reviewing artifacts.
 When archiving an OpenSpec change, always run the spec-sync workflow before moving the
 change into the archive. Do not offer archive without syncing as a routine option.
 
+For each OpenSpec implementation PR, create or reuse an actual GitHub cleanup sub-issue
+under its implementation issue. Record the source PR and exact change name. After the
+implementation merges into main, follow `docs/openspec-cleanup.md` from a fresh main
+worktree: verify completion, sync every delta capability inline, verify the resulting
+requirements, archive, validate, and submit a separate follow-up PR. Keep the cleanup
+child open until the follow-up PR merges.
+
 Project-level AI configuration is generated from `.rulesync/`. Edit the RuleSync source,
 then run `rulesync generate`; do not hand-edit generated tool files.
 
