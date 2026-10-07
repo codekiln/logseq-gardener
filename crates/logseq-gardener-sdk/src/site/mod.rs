@@ -140,8 +140,9 @@ fn html_document(title: &str, body: &str) -> String {
 ///
 /// Each selected title has a deterministic route and selected-title page links.
 /// Files containing parsed `public:: false` are withheld in full. Journals are
-/// counted and skipped. Aliases, block references, embeds, queries, and remote
-/// images receive fallbacks and diagnostics. Supported local assets are copied
+/// counted and skipped. Unique explicit outline UUID references link to selected
+/// targets. Aliases, unavailable references, embeds, and queries receive fallbacks
+/// and diagnostics. Supported local assets are copied
 /// only when requested by rendered content. Existing output is never replaced.
 ///
 /// The caller chooses the graph's filename format and namespace policy. Input
@@ -192,6 +193,20 @@ pub fn publish_site(
         }
         selected.push((title, route, document));
     }
+    let mut targets = BTreeMap::new();
+    for (_, route, document) in &selected {
+        for (id, start, label) in render::outline_targets(&document.parsed.blocks) {
+            let target = render::BlockTarget {
+                route: route.clone(),
+                start,
+                label,
+            };
+            targets
+                .entry(id)
+                .and_modify(|value| *value = None)
+                .or_insert(Some(target));
+        }
+    }
     // Only selected source reaches the renderer and may request asset contents.
     let mut copied: BTreeMap<String, (PathBuf, Vec<u8>)> = BTreeMap::new();
     let mut documents = BTreeMap::new();
@@ -215,7 +230,7 @@ pub fn publish_site(
             }
             Ok(route)
         };
-        let rendered = render::render_document(document, &pages, &mut asset);
+        let rendered = render::render_document(document, &pages, &targets, &route, &mut asset);
         for message in rendered.diagnostics {
             report.diagnostics.push(SiteDiagnostic {
                 source: document.relative_path.clone(),

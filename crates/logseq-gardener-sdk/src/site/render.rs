@@ -54,15 +54,128 @@ pub(super) fn has_private_properties(blocks: &[Block]) -> bool {
     private(blocks, 0)
 }
 
+/// Only published outlines supply labels and destinations.
+#[derive(Clone)]
+pub(super) struct BlockTarget {
+    pub route: String,
+    pub start: usize,
+    pub label: String,
+}
+
+pub(super) fn uuid(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.len() != 36
+        || !value.bytes().enumerate().all(|(i, c)| {
+            if matches!(i, 8 | 13 | 18 | 23) {
+                c == b'-'
+            } else {
+                c.is_ascii_hexdigit()
+            }
+        })
+    {
+        return None;
+    }
+    Some(value.to_ascii_lowercase())
+}
+
+pub(super) fn outline_targets(blocks: &[Block]) -> Vec<(String, usize, String)> {
+    fn visit(blocks: &[Block], result: &mut Vec<(String, usize, String)>, depth: usize) {
+        if depth > MAX_DEPTH {
+            return;
+        }
+        for (i, block) in blocks.iter().enumerate() {
+            if let Block::Bullet {
+                inline,
+                span: Some(span),
+                ..
+            } = block
+                && let Some(Block::Properties { props, .. }) = blocks.get(i + 1)
+            {
+                let property = ["custom-id", "custom_id", "id"]
+                    .into_iter()
+                    .find_map(|key| {
+                        props
+                            .iter()
+                            .rev()
+                            .find(|p| p.0.trim().eq_ignore_ascii_case(key))
+                    });
+                if let Some(id) = property.and_then(|p| uuid(&p.1)) {
+                    let label = block_label(inline, 0)
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    let mut label = label.chars().take(160).collect::<String>();
+                    if label.chars().count() == 160 {
+                        label.push('…');
+                    }
+                    result.push((id, span.0, label));
+                }
+            }
+            match block {
+                Block::Quote { children, .. } | Block::Custom { children, .. } => {
+                    visit(children, result, depth + 1)
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut result = Vec::new();
+    visit(blocks, &mut result, 0);
+    result
+}
+
+fn block_label(nodes: &[Inline], depth: usize) -> String {
+    if depth > MAX_DEPTH {
+        return "[nesting limit reached]".into();
+    }
+    let mut text = String::new();
+    for node in nodes {
+        match node {
+            Inline::Plain { text: value, .. }
+            | Inline::Code { text: value, .. }
+            | Inline::Verbatim { text: value, .. } => text.push_str(value),
+            Inline::Emphasis { children, .. }
+            | Inline::Subscript { children, .. }
+            | Inline::Superscript { children, .. }
+            | Inline::Tag { children, .. } => text.push_str(&block_label(children, depth + 1)),
+            Inline::Link { url, label, .. } => {
+                if !label.is_empty() {
+                    text.push_str(&block_label(label, depth + 1));
+                } else if let Url::PageRef { v } = url {
+                    text.push_str(v);
+                } else {
+                    text.push_str("[reference]");
+                }
+            }
+            _ => text.push_str("[unsupported content]"),
+        }
+    }
+    text
+}
+
 pub(super) fn render_document(
     document: &GardenDocument,
     pages: &BTreeMap<String, String>,
+    targets: &BTreeMap<String, Option<BlockTarget>>,
+    route: &str,
     asset: &mut dyn FnMut(&str) -> Result<String, String>,
 ) -> Rendered {
+    let anchors = outline_targets(&document.parsed.blocks)
+        .into_iter()
+        .filter_map(|(id, start, _)| {
+            targets
+                .get(&id)
+                .and_then(Option::as_ref)
+                .filter(|target| target.route == route && target.start == start)
+                .map(|_| (start, id))
+        })
+        .collect();
     let mut renderer = Renderer {
         html: String::new(),
         diagnostics: Vec::new(),
         pages,
+        targets,
+        anchors,
         asset,
     };
     renderer.blocks(&document.parsed.blocks, 0);
@@ -76,6 +189,8 @@ struct Renderer<'a> {
     html: String,
     diagnostics: Vec<String>,
     pages: &'a BTreeMap<String, String>,
+    targets: &'a BTreeMap<String, Option<BlockTarget>>,
+    anchors: BTreeMap<usize, String>,
     asset: &'a mut dyn FnMut(&str) -> Result<String, String>,
 }
 
@@ -108,6 +223,7 @@ impl Renderer<'_> {
                 marker,
                 priority,
                 htags,
+                span,
                 ..
             } = block
             {
@@ -123,6 +239,10 @@ impl Renderer<'_> {
                 } else {
                     self.diagnostic("Outline nesting limit reached; rendered as sibling");
                     self.html.push_str("</li><li>");
+                }
+                if let Some(id) = span.as_ref().and_then(|span| self.anchors.get(&span.0)) {
+                    self.html
+                        .push_str(&format!("<span id=\"block-{id}\"></span>"));
                 }
                 self.heading_content(
                     *size,
@@ -459,8 +579,30 @@ impl Renderer<'_> {
             return;
         }
         if let Url::BlockRef { v } = url {
-            self.diagnostic(format!("Unsupported block reference: {v}"));
-            self.label(label, &format!("(({v}))"), depth);
+            if !image
+                && let Some(target) = uuid(v).and_then(|id| {
+                    self.targets
+                        .get(&id)
+                        .and_then(Option::as_ref)
+                        .map(|target| (id, target))
+                })
+            {
+                let (id, target) = target;
+                self.html.push_str(&format!(
+                    "<a href=\"{}#block-{id}\">",
+                    escape(&target.route)
+                ));
+                let fallback = if target.label.is_empty() {
+                    format!("(({v}))")
+                } else {
+                    target.label.clone()
+                };
+                self.label(label, &fallback, depth);
+                self.html.push_str("</a>");
+            } else {
+                self.diagnostic(format!("Unavailable or ambiguous block reference: {v}"));
+                self.label(label, &format!("(({v}))"), depth);
+            }
             return;
         }
         let destination = match url {
@@ -576,6 +718,13 @@ mod tests {
     use super::*;
     use crate::garden::DocumentKind;
 
+    fn render_document(
+        document: &GardenDocument,
+        pages: &BTreeMap<String, String>,
+        asset: &mut dyn FnMut(&str) -> Result<String, String>,
+    ) -> Rendered {
+        super::render_document(document, pages, &BTreeMap::new(), "p-test.html", asset)
+    }
     fn document(source: &str) -> GardenDocument {
         GardenDocument {
             relative_path: "pages/Notes___Start.md".into(),

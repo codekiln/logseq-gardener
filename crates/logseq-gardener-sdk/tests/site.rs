@@ -431,3 +431,108 @@ fn rejects_asset_file_and_directory_symlinks() {
             .all(|contents| !String::from_utf8_lossy(contents).contains("SYMLINK_ASSET_SENTINEL"))
     );
 }
+
+#[test]
+fn block_links_resolve_selected_nested_ids_without_exposing_other_targets() {
+    let fixture = Fixture::new();
+    let id = "67da7fc2-1c1f-46e9-84b0-dee824e45395";
+    let duplicate = "12345678-1234-1234-1234-123456789abc";
+    let excluded = "22345678-1234-1234-1234-123456789abc";
+    let private = "32345678-1234-1234-1234-123456789abc";
+    let root = "42345678-1234-1234-1234-123456789abc";
+    fixture.write("garden/pages/Notes___Start.md", format!(
+        "- Reference (({}))\n- Duplicate (({duplicate}))\n- Hidden (({excluded})) (({private}))\n- Root (({root}))\n- Invalid ((not-a-uuid))\n", id.to_uppercase()));
+    fixture.write("garden/pages/Notes___Target.md", format!(
+        "id:: {root}\n- Parent\n  - Nested **target** & <unsafe> [[Notes/Other]]\n    id:: {id}\n  - Duplicate one\n    id:: {duplicate}\n- Malformed\n  id:: not-a-uuid\n"));
+    fixture.write(
+        "garden/pages/Notes___Duplicate.md",
+        format!("- Duplicate two\n  id:: {}\n", duplicate.to_uppercase()),
+    );
+    fixture.write(
+        "garden/pages/Notes___Excluded.md",
+        format!("- EXCLUDED SECRET ![x](../assets/private.png)\n  id:: {excluded}\n"),
+    );
+    fixture.write(
+        "garden/pages/Notes___Private.md",
+        format!("public:: false\n- PRIVATE SECRET\n  id:: {private}\n"),
+    );
+    fixture.write("garden/assets/private.png", b"SECRET ASSET");
+    let before = files(&fixture.garden());
+    let selection = NamespaceSelection::new(&["Notes"], &["Notes/Excluded"]).unwrap();
+    let report = publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &selection,
+    )
+    .unwrap();
+    let start = html(&fixture.output(), "Notes/Start");
+    let target = html(&fixture.output(), "Notes/Target");
+    assert!(
+        start.contains(&format!("href=\"{}#block-{id}\"", route("Notes/Target"))),
+        "{start}"
+    );
+    assert!(target.contains(&format!("id=\"block-{id}\"")), "{target}");
+    assert!(
+        start.contains("Nested target &amp; &lt;unsafe&gt; Notes/Other"),
+        "{start}"
+    );
+    for unavailable in [duplicate, excluded, private, root] {
+        assert!(!start.contains(&format!("#block-{unavailable}")));
+        assert!(start.contains(&format!("(({unavailable}))")));
+    }
+    for contents in files(&fixture.output()).values() {
+        let text = String::from_utf8_lossy(contents);
+        for sentinel in [
+            "EXCLUDED SECRET",
+            "PRIVATE SECRET",
+            "SECRET ASSET",
+            "private.png",
+            "id=\"block-not-a-uuid\"",
+        ] {
+            assert!(!text.contains(sentinel), "leaked {sentinel}");
+        }
+        assert!(!text.contains(&format!("id=\"block-{duplicate}\"")));
+        assert!(!text.contains(&format!("id=\"block-{root}\"")));
+    }
+    assert_eq!(report.assets, 0);
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .filter(|d| d.message.contains("block reference"))
+            .count()
+            >= 4
+    );
+    assert_eq!(before, files(&fixture.garden()));
+}
+
+#[test]
+fn block_reference_labels_are_bounded_plain_text_and_ids_follow_property_precedence() {
+    let fixture = Fixture::new();
+    let id = "12345678-1234-1234-1234-123456789abc";
+    fixture.write(
+        "garden/pages/Notes___Start.md",
+        format!("- (({id}))\n- [My label]((({id})))\n"),
+    );
+    fixture.write(
+        "garden/pages/Notes___Target.md",
+        format!(
+            "- {} {{}} {{{{embed [[Notes/Hidden]]}}}}\n  id:: invalid\n  custom-id:: {id}\n",
+            "a".repeat(220)
+        ),
+    );
+    let report = publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
+    )
+    .unwrap();
+    let start = html(&fixture.output(), "Notes/Start");
+    assert!(start.contains(&format!("{}…</a>", "a".repeat(160))));
+    assert!(!start.contains("Notes/Hidden"));
+    assert!(start.contains("My label</a>"), "{start}");
+    assert!(html(&fixture.output(), "Notes/Target").contains(&format!("id=\"block-{id}\"")));
+    assert_eq!(report.assets, 0);
+}

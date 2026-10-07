@@ -26,7 +26,7 @@ A page without a `public` property is published when its title matches the names
 
 Page references resolve by selected display title using Unicode lowercase comparison. Ambiguous selected names fail generation before output is created. Aliases, Logseq's additional name normalization, and Markdown links to page filenames require later lookup work. Missing and excluded destinations retain labels from the selected source with a local diagnostic.
 
-Block references, embeds, and queries remain visible as fallbacks with diagnostics. The publisher does not expand referenced content. This makes the initial exclusion boundary testable while [Issue #4 — SDK page lookup](https://github.com/codekiln/logseq-gardener/issues/4) continues toward complete graph resolution.
+References to unique explicit UUID IDs on published Markdown outline items link to the target note. The default link label is a short plain-text excerpt of the selected target; an explicit source label takes precedence. This is navigation: the target’s children, references, and assets are not inserted into the referring page. Missing, excluded, private, duplicate, invalid, and unsupported targets remain literal with diagnostics. IDs in root page properties are not outline targets. Embeds and queries retain their literal fallbacks.
 
 ## Rendering and assets
 
