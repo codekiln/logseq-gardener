@@ -11,4 +11,4 @@
 
 ## 3. Handoff
 
-- [ ] 3.1 Open the feature PR and file its dependent OpenSpec sync/archive cleanup sub-issue.
+- [x] 3.1 Open the feature PR and file its dependent OpenSpec sync/archive cleanup sub-issue.
