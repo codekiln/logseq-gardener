@@ -407,6 +407,39 @@ impl Renderer<'_> {
             self.html.push_str("</span>");
         }
     }
+    fn media(&mut self, route: &str, label: &[Inline], fallback: &str, depth: usize) -> bool {
+        let path = route.split(['?', '#']).next().unwrap_or(route);
+        let path = if let Some((_, remainder)) = path.split_once("://") {
+            remainder.split_once('/').map_or("", |(_, path)| path)
+        } else {
+            path
+        };
+        let audio = is_audio(path);
+        if !audio && !is_raster_image(path) {
+            return false;
+        }
+        let name = if label.is_empty() {
+            fallback.to_owned()
+        } else {
+            let (text, unsupported) = plain_label(label, depth);
+            if unsupported {
+                self.diagnostic("Unsupported media label syntax; rendered placeholder");
+            }
+            text
+        };
+        let name = escape(&name);
+        let route = escape(route);
+        if audio {
+            self.html.push_str(&format!(
+                "<audio controls preload=\"none\" aria-label=\"{name}\" src=\"{route}\">{name}</audio> <a href=\"{route}\" download>{name}</a>"
+            ));
+        } else {
+            self.html
+                .push_str(&format!("<img src=\"{route}\" alt=\"{name}\">"));
+        }
+        true
+    }
+
     fn link(&mut self, url: &Url, label: &[Inline], image: bool, depth: usize) {
         if let Url::PageRef { v } = url {
             if image {
@@ -434,7 +467,12 @@ impl Renderer<'_> {
         let scheme = lower.split_once(':').map(|(scheme, _)| scheme);
         let allowed = matches!(scheme, Some("http" | "https" | "mailto"))
             && !destination.chars().any(char::is_control);
-        if allowed && !image {
+        if image && is_https_media_url(&destination) {
+            if !self.media(&destination, label, &destination, depth) {
+                self.diagnostic(format!("Unsupported remote media: {destination}"));
+                self.label(label, &destination, depth);
+            }
+        } else if allowed && !image {
             self.html
                 .push_str(&format!("<a href=\"{}\">", escape(&destination)));
             self.label(label, &destination, depth);
@@ -444,25 +482,10 @@ impl Renderer<'_> {
             self.label(label, &destination, depth);
         } else {
             match (self.asset)(&destination) {
-                Ok(route) if image && is_raster_image(&route) => {
-                    // Keep alt text plain and source-authored syntax escaped. No rendering
-                    // of its nested nodes (which might request additional hidden assets).
-                    let alt = if label.is_empty() {
-                        destination.clone()
-                    } else {
-                        let (text, unsupported) = plain_label(label, depth);
-                        if unsupported {
-                            self.diagnostic("Unsupported image label syntax; rendered placeholder");
-                        }
-                        text
-                    };
-                    self.html.push_str(&format!(
-                        "<img src=\"{}\" alt=\"{}\">",
-                        escape(&route),
-                        escape(&alt)
-                    ));
-                }
                 Ok(route) => {
+                    if image && self.media(&route, label, &destination, depth) {
+                        return;
+                    }
                     if image {
                         self.diagnostic(format!("Non-image asset requested with image syntax; rendered as link: {destination}"));
                     }
@@ -478,6 +501,29 @@ impl Renderer<'_> {
             }
         }
     }
+}
+
+fn is_https_media_url(destination: &str) -> bool {
+    if destination
+        .chars()
+        .any(|c| c.is_control() || c.is_whitespace() || c == '\\')
+    {
+        return false;
+    }
+    let Some((scheme, remainder)) = destination.split_once("://") else {
+        return false;
+    };
+    let authority = remainder.split(['/', '?', '#']).next().unwrap_or_default();
+    scheme.eq_ignore_ascii_case("https") && !authority.is_empty() && !authority.contains('@')
+}
+
+fn is_audio(path: &str) -> bool {
+    path.rsplit_once('.').is_some_and(|(_, extension)| {
+        matches!(
+            extension.to_ascii_lowercase().as_str(),
+            "mp3" | "wav" | "ogg"
+        )
+    })
 }
 
 fn is_raster_image(route: &str) -> bool {
@@ -582,7 +628,7 @@ mod tests {
     #[test]
     fn html_urls_and_remote_images_are_safe_literals() {
         let rendered = render(
-            "- <script>alert(1)</script> [bad](javascript:alert) [ok](https://example.com/?x=1&y=2) ![remote](https://example.com/image.png) [:script \"evil\"]\n",
+            "- <script>alert(1)</script> [bad](javascript:alert) [ok](https://example.com/?x=1&y=2) ![remote](https://example.com/image.svg) [:script \"evil\"]\n",
         );
         assert!(!rendered.html.contains("<script"));
         assert!(!rendered.html.contains("href=\"javascript:"));
@@ -602,7 +648,7 @@ mod tests {
         let mut requested = Vec::new();
         let rendered = render_document(
             &document(
-                "- ![photo](../assets/photo.png) {{embed [[Other]]}} ![remote](https://example.com/remote.png)\n",
+                "- ![photo](../assets/photo.png) {{embed [[Other]]}} ![remote](http://example.com/remote.png)\n",
             ),
             &BTreeMap::new(),
             &mut |url| {
@@ -619,7 +665,7 @@ mod tests {
     }
 
     #[test]
-    fn nonimage_assets_in_image_syntax_remain_usable_links() {
+    fn audio_assets_in_image_syntax_have_controls_and_other_files_keep_links() {
         let mut requested = Vec::new();
         let rendered = render_document(
             &document(
@@ -648,7 +694,7 @@ mod tests {
         assert!(
             rendered
                 .html
-                .contains("<a href=\"assets/copied.mp3\">Song</a>")
+                .contains("<audio controls preload=\"none\" aria-label=\"Song\" src=\"assets/copied.mp3\">Song</audio> <a href=\"assets/copied.mp3\" download>Song</a>")
         );
         assert!(
             rendered
@@ -661,7 +707,7 @@ mod tests {
                 .iter()
                 .filter(|d| d.contains("Non-image asset"))
                 .count(),
-            3
+            2
         );
     }
 
@@ -705,6 +751,68 @@ mod tests {
                 .iter()
                 .any(|d| d.contains("deeply nested"))
         );
+    }
+
+    #[test]
+    fn https_media_has_plain_labels_and_never_requests_local_assets() {
+        let rendered = render_document(
+            &document(
+                "- ![Song & \"live\"](https://media.example/song.MP3?x=1&y=2#start) ![Artwork](https://media.example/art.gif) [Download](https://media.example/song.mp3)\n",
+            ),
+            &BTreeMap::new(),
+            &mut |_| panic!("remote media must not request local assets"),
+        );
+        assert!(rendered.html.contains(
+            "<audio controls preload=\"none\" aria-label=\"Song &amp; &quot;live&quot;\""
+        ));
+        assert!(
+            rendered
+                .html
+                .contains("src=\"https://media.example/song.MP3?x=1&amp;y=2#start\"")
+        );
+        assert!(
+            rendered
+                .html
+                .contains("<img src=\"https://media.example/art.gif\" alt=\"Artwork\">")
+        );
+        assert!(
+            rendered
+                .html
+                .contains("<a href=\"https://media.example/song.mp3\">Download</a>")
+        );
+        assert!(
+            rendered.diagnostics.is_empty(),
+            "{:?}",
+            rendered.diagnostics
+        );
+    }
+
+    #[test]
+    fn malformed_and_unsupported_remote_media_keeps_labels() {
+        for url in [
+            "http://media.example/song.mp3",
+            "javascript:evil.mp3",
+            "https:///song.mp3",
+            "https://user@media.example/song.mp3",
+            "https://media.example/song.svg",
+            "https://song.mp3",
+            "https://media.example/so\\ng.mp3",
+            "https://media.example/song.mp3\u{7f}",
+        ] {
+            let rendered = render_document(
+                &document(&format!("- ![Recording]({url})\n")),
+                &BTreeMap::new(),
+                &mut |_| Err("unsupported".into()),
+            );
+            assert!(
+                !rendered.html.contains("<audio"),
+                "{url}: {}",
+                rendered.html
+            );
+            assert!(!rendered.html.contains("<img"), "{url}: {}", rendered.html);
+            assert!(rendered.html.contains("Recording"), "{url}");
+            assert!(!rendered.diagnostics.is_empty(), "{url}");
+        }
     }
 
     #[test]

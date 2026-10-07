@@ -328,3 +328,62 @@ fn unicode_control_paths_produce_valid_json_without_terminal_controls() {
         assert!(output.join("index.html").exists());
     }
 }
+
+#[test]
+fn selected_media_renders_without_leaking_private_or_excluded_recordings() {
+    let f = Fixture::new();
+    f.write("pages/Podcast___Episode.md", "- ![Local recording](../assets/song.mp3)\n- ![Remote recording](https://media.example/selected.mp3)\n- ![Artwork](https://media.example/selected.gif)\n- [Plain download](https://media.example/download.mp3)\n- ![Wave recording](../assets/song.wav) ![Ogg recording](../assets/song.ogg)\n");
+    f.write("pages/Podcast___Private___Hidden.md", "- EXCLUDED_MEDIA_TEXT\n- ![excluded](../assets/excluded.mp3)\n- ![remote](https://media.example/EXCLUDED_MEDIA_URL.mp3)\n");
+    f.write("pages/Podcast___Withheld.md", "public:: false\n- WITHHELD_MEDIA_TEXT\n- ![private](../assets/private.ogg)\n- ![remote](https://media.example/PRIVATE_MEDIA_URL.gif)\n");
+    f.write("assets/song.mp3", "SELECTED_MP3");
+    f.write("assets/song.wav", "SELECTED_WAV");
+    f.write("assets/song.ogg", "SELECTED_OGG");
+    f.write("assets/excluded.mp3", "EXCLUDED_MEDIA_FILE");
+    f.write("assets/private.ogg", "PRIVATE_MEDIA_FILE");
+    let before = files(&f.0.join("garden"));
+    let out = f.0.join("site");
+    let response = f.publish(
+        &out,
+        &[
+            "--include",
+            "Podcast",
+            "--exclude",
+            "Podcast/Private",
+            "--format",
+            "json",
+        ],
+    );
+    assert!(response.status.success(), "{:?}", response);
+    let report: serde_json::Value = serde_json::from_slice(&response.stdout).unwrap();
+    assert_eq!(report["pages"], 1);
+    assert_eq!(report["assets"], 3);
+    assert_eq!(report["withheld_pages"], 1);
+    let generated = files(&out);
+    let page = generated
+        .iter()
+        .find(|(p, _)| {
+            p.extension().is_some_and(|e| e == "html") && p.file_name().unwrap() != "index.html"
+        })
+        .unwrap()
+        .1;
+    let html = String::from_utf8_lossy(page);
+    assert_eq!(html.matches("<audio controls").count(), 4);
+    assert!(html.contains("aria-label=\"Local recording\""));
+    assert!(html.contains("<img src=\"https://media.example/selected.gif\" alt=\"Artwork\">"));
+    assert!(html.contains("<a href=\"https://media.example/download.mp3\">Plain download</a>"));
+    assert!(html.contains(" download>Local recording</a>"));
+    for content in generated.values() {
+        let content = String::from_utf8_lossy(content);
+        for sentinel in [
+            "EXCLUDED_MEDIA_TEXT",
+            "EXCLUDED_MEDIA_URL",
+            "EXCLUDED_MEDIA_FILE",
+            "WITHHELD_MEDIA_TEXT",
+            "PRIVATE_MEDIA_URL",
+            "PRIVATE_MEDIA_FILE",
+        ] {
+            assert!(!content.contains(sentinel), "{sentinel}");
+        }
+    }
+    assert_eq!(files(&f.0.join("garden")), before);
+}

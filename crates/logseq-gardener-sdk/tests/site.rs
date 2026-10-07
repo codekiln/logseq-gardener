@@ -204,7 +204,7 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
             "<script>alert('SOURCE_HTML_SENTINEL')</script>\n\n",
             "- [danger](javascript:alert)\n",
             "- [safe](https://example.com/?a=1&b=2)\n",
-            "- ![remote](https://example.com/remote.png)\n",
+            "- ![remote](http://example.com/remote.png)\n",
             "- {{query (page-property public true)}}\n",
         ),
     );
@@ -243,7 +243,7 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
     }
     assert!(!page.contains("<script>"));
     assert!(!page.contains("href=\"javascript:"));
-    assert!(!page.contains("src=\"https://example.com/remote.png\""));
+    assert!(!page.contains("src=\"http://example.com/remote.png\""));
     assert!(page.contains("href=\"https://example.com/?a=1&amp;b=2\""));
     assert!(report.diagnostics.len() >= 3, "{:?}", report.diagnostics);
     assert_eq!(report.assets, 0);

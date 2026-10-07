@@ -30,11 +30,25 @@ Block references, embeds, and queries remain visible as fallbacks with diagnosti
 
 ## Rendering and assets
 
-The publisher renders outlines, headings, paragraphs, emphasis, literal code, quotes, and tables. Raw HTML and Hiccup appear as escaped literal content. Unsupported syntax receives a visible fallback and a local diagnostic. Ordinary HTTP, HTTPS, and mailto anchors remain links; remote images receive a fallback.
+The publisher renders outlines, headings, paragraphs, emphasis, literal code, quotes, and tables. Raw HTML and Hiccup appear as escaped literal content. Unsupported syntax receives a visible fallback and a local diagnostic. Ordinary HTTP, HTTPS, and mailto anchors remain links; supported HTTPS raster images render directly. The browser loads remote media when the site is viewed; generation performs no remote fetch. HTTP media and unsupported remote types receive a fallback.
 
-Local asset URLs resolve relative to their source document and must point beneath the graph's `assets/` directory. The publisher copies only assets requested by selected rendered content. It rejects symlinks, traversal outside assets, absolute URLs, query/fragment suffixes, and unsupported file types. Supported types are PNG, JPEG, GIF, WebP, AVIF, ICO, PDF, MP3, MP4, OGG, WAV, and WebM. Raster image syntax renders an image; other assets render links, including non-image files requested with image syntax.
+Local asset URLs resolve relative to their source document and must point beneath the graph's `assets/` directory. The publisher copies only assets requested by selected rendered content. It rejects symlinks, traversal outside assets, absolute URLs, query/fragment suffixes, and unsupported file types. Supported types are PNG, JPEG, GIF, WebP, AVIF, ICO, PDF, MP3, MP4, OGG, WAV, and WebM. Raster image syntax renders an image. MP3, WAV, and OGG image syntax renders labelled audio controls and a download link for both local and HTTPS recordings. Browser playback depends on the recording codec. PDF and video image syntax renders a link. Ordinary Markdown links remain links. HTTPS media uses a supported path extension before any query or fragment; URL credentials, controls, backslashes, and missing authorities receive fallbacks.
 
 Pages have deterministic fixed-length routes derived from their titles; the publisher checks for route collisions. Each page contains its own styling and uses relative routes, so it can be read from disk or served by an ordinary static file server.
+
+## Try a podcast selection
+
+Publish retained GitP sessions directly from the public garden:
+
+```sh
+mise exec -- cargo run --bin lsg -- publish \
+  --graph "$(ghq list --full-path --exact github.com/codekiln/logseq-encode-garden)" \
+  --output /private/tmp/gitp-session-preview \
+  --filename-format triple-lowbar \
+  --include GitP/A/Session --exclude GitP/A/Session/26/09/24-Thu
+```
+
+Open the generated index, then `GitP/A/Session/24/11/19-Tue`. Its artwork and recording reference HTTPS media; viewing artwork and listening require network access. The exclude selector removes the September 24 session and its asset namespace. Retained production notes remain visible unless their page is withheld; finer private-outline selection and homepage query evaluation remain future work.
 
 ## Evidence and next work
 
