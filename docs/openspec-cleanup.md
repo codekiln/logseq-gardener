@@ -26,7 +26,7 @@ Read the source PR's live state before editing specs:
 gh pr view <implementation-pr> --json state,mergedAt,mergeCommit,baseRefName,url
 ```
 
-Require `MERGED`, a merge commit, and base `main`. Fetch origin and verify that the merge commit is an ancestor of `origin/main`. For a stacked PR, wait until its implementation is merged into main. A checked task list or a closed issue alone is insufficient evidence.
+Require `MERGED` and a merge commit. Fetch origin and verify that the implementation is present on current `origin/main`. For a PR merged directly into main, confirm that its merge commit is an ancestor of `origin/main`. A stacked PR may have merged into another branch: wait for integration into main, link the integration PR, and verify the integrated commit ancestry and implementation files on main. Record the source and integration PRs in the cleanup PR so reviewers can trace how the implementation reached main. A merged badge, checked task list, or closed issue alone is insufficient evidence.
 
 Create a clean issue-named branch and worktree from current `origin/main` under the registered repository's `.worktrees/` directory. Keep open implementation worktrees available for their contributors. Record the starting main commit and source PR in the cleanup PR description.
 
@@ -55,7 +55,7 @@ Compare every delta capability again before archiving:
 - Removed requirements are absent.
 - Renamed requirements use the new name and the old name is absent.
 
-If a capability intentionally loses its last requirement, follow the selected workflow's retirement checks and remove its empty main spec. Resolve missing inputs, contradictory deltas, or failed comparisons before archival. A successful sync command or summary alone does not establish that every capability matches.
+If the delta removes every requirement in a capability, verify that the merged implementation has retired that capability and record the evidence in the cleanup PR before deleting its empty main spec. Resolve missing inputs, contradictory deltas, or failed comparisons before archival. A successful sync command or summary alone does not establish that every capability matches.
 
 A later merged implementation may supersede part of an earlier delta. Inspect the related PRs and deltas in merge order, preserve the later implemented requirements, and explain the reconciliation in the cleanup PR. Treat an unresolved contradiction as a reason to stop, rather than replacing newer requirements with older text.
 
