@@ -1,14 +1,14 @@
 {
-  "format_version": 1,
-  "request_id": "sha256:4ff7a359d73be711c723b9ffe5406a17ceb8ba8d910c982a1ba4d20393a41220",
-  "check": "clilint/help/useful-example",
-  "evidence_digest": "sha256:ad0d20f3ee3b4ca1d32f355627446a31e98897fad21f1bcff80f6b2233b69f43",
+  "request_id": "sha256:15afee007d1fbc49ffd0be7525185c8771a8ef8d163ca7d920b23214e18ac7d1",
+  "evidence_digest": "sha256:b3d4d14e1175f9c427954e58b90e5655fa9c1d011e9ef2cc1cfd5d4a5066a2c1",
   "skill": {
     "name": "assess-cli-help",
     "version": "1.0.0"
   },
+  "format_version": 1,
+  "check": "clilint/help/useful-example",
   "score": 4.0,
   "messages": [],
-  "explanation": "The captured help names the intended garden users and identifies the commands currently available. It gives concrete outline and section invocations and explains that they list headings and retrieve behavior with permissions. Version reporting is also explained. These are usable examples of the commands currently available.",
+  "explanation": "The captured root help explains the garden audience, names publishing and version reporting, and gives concrete outline and recursive-section invocations. The surrounding text explains the headings and behavior/permissions returned by those examples and directs publication users to lsg publish help. The examples teach how to discover and read the documentation offline.",
   "assessor": "Codex"
 }

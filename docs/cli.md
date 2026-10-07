@@ -2,11 +2,13 @@
 
 Run `lsg help` to read embedded documentation. Help works offline with closed standard input and without a pager or prompts. `--no-input` makes that default explicit. `lsg`, `lsg help`, `lsg --help`, and `lsg -h` show the same root document.
 
-The only command besides help is `lsg version`. Run `lsg version help`, `lsg version --help`, or `lsg version -h` to read its documentation. Root `--version` and `-V` report the same version as `lsg version`.
+Use `lsg publish` to generate selected local HTML pages; see [local publishing](local-site.md) for a copyable trial and rendering limitations. `lsg publish help`, `lsg publish --help`, and `lsg publish -h` show equivalent documentation without requiring garden arguments.
+
+Use `lsg version` to identify the build. Run `lsg version help`, `lsg version --help`, or `lsg version -h` to read its documentation. Root `--version` and `-V` report the same version as `lsg version`.
 
 ## Navigate documentation
 
-Use these forms with `lsg` or `lsg version`:
+Use these forms with `lsg`, `lsg publish`, or `lsg version`:
 
 - `help --format json` to discover immediate `child_commands`.
 - `help outline` to list ordered heading identifiers.
@@ -30,7 +32,13 @@ Outlines contain ordered `headings` with `level`, `title`, and `section`. Sectio
 | Code | Meaning |
 | --- | --- |
 | 0 | Success, including early termination when a downstream pipe closes |
-| 1 | Output could not be written |
+| 1 | Generation failed or output could not be written |
 | 2 | Invalid arguments, unknown command, or unknown section |
 
 Successful results go to stdout; diagnostics go to stderr. Invalid invocations leave stdout empty, including with `--format json`. There is no JSON success document for an error. Output contains no terminal control sequences and never depends on a TTY. Help and version never read stdin, garden files, configuration files, or network resources at runtime.
+
+## Publishing reports
+
+`lsg publish --graph PATH --output PATH --filename-format legacy|triple-lowbar` accepts repeated `--include NAMESPACE` and `--exclude NAMESPACE`. An empty include list selects nothing. Paths accept native OS arguments; JSON paths are display strings.
+
+Successful JSON has `command_path: ["publish"]`, `pages`, `assets`, `withheld_pages`, `skipped_journals`, `diagnostic_count`, `output_directory`, and `index_path`. Selected unsupported content produces a completed site and exit zero with local diagnostics on stderr. Fatal SDK errors leave stdout empty and exit one. Invalid selectors and arguments exit two.
