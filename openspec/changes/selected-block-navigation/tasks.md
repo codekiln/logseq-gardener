@@ -7,7 +7,7 @@
 
 - [x] 2.1 Cover nested IDs, case normalization, duplicate IDs, invalid IDs, root properties, excluded/private targets, labels, and source preservation.
 - [x] 2.2 Demonstrate real workshop navigation and record repeatable instructions and source preservation.
-- [ ] 2.3 Run required checks and complete an independent review.
+- [x] 2.3 Run required checks and complete an independent review.
 
 ## 3. Handoff
 
