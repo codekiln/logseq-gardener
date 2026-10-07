@@ -8,4 +8,4 @@
 
 - [x] 2.1 Generate the real GitP session selection, inspect artwork and audio controls in a browser, and verify source preservation.
 - [x] 2.2 Update the local publishing guide, record limitations and verification, and run required checks.
-- [ ] 2.3 Submit the dependency PR, create its cleanup child, and complete a fresh codekiln review.
+- [x] 2.3 Submit the dependency PR, create its cleanup child, and complete a fresh codekiln review.

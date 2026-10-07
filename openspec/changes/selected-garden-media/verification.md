@@ -4,7 +4,7 @@ The November GitP episode displays its hosted artwork and plays its hosted recor
 
 ## Real garden
 
-The source is the existing public `codekiln/logseq-encode-garden` checkout. The [November session](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/GitP___A___Session___24___11___19-Tue.md) supplies direct HTTPS media. Gitpa's [publication preparation](https://github.com/codekiln/gitpa/blob/codex/13-render-garden-proxies/scripts/prepare_site.py) demonstrates the same listener presentation from proxied session bodies; the Gitpa main Ceremony pages additionally exercise local recording links.
+The source is the existing public `codekiln/logseq-encode-garden` checkout, at [c2d4541](https://github.com/codekiln/logseq-encode-garden/commit/c2d4541309e0c6d1f9b3822ee907def37f728512) with its existing local edits preserved. The [November session](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/GitP___A___Session___24___11___19-Tue.md) supplies direct HTTPS media. Gitpa's [publication preparation](https://github.com/codekiln/gitpa/blob/codex/13-render-garden-proxies/scripts/prepare_site.py) demonstrates the same listener presentation from proxied session bodies; the Gitpa main Ceremony pages additionally exercise local recording links.
 
 ```sh
 mise exec -- cargo run --bin lsg -- publish \
