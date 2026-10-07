@@ -21,7 +21,7 @@ Selected workshop pages contain UUID references to nested notes, but the publish
 
 ## Impact
 
-The SDK site planner and renderer gain a selected-target index. CLI publishing inherits the behavior without new arguments. The local-site guide documents reference behavior. Integration depends on selected garden media PR #36; cleanup follows that publisher's base specifications.
+The SDK site planner and renderer gain a selected-target index. CLI publishing inherits the behavior without new arguments. The local-site guide documents reference behavior. This implementation builds on [PR #36 — selected garden media](https://github.com/codekiln/logseq-gardener/pull/36). After merge, the agent completing [Issue #40 — selected navigation cleanup](https://github.com/codekiln/logseq-gardener/issues/40) synchronizes this requirement after the publisher and media cleanup issues, preserving their rendering behavior.
 
 ## Citations
 

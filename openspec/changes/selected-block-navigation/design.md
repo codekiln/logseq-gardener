@@ -16,7 +16,7 @@ Build the UUID index after namespace selection and private-page withholding. Dup
 
 Associate an immediately following property group with the preceding Markdown outline item, matching the pinned parser's AST representation. Root page properties and IDs on unsupported constructs receive no outline target. Accept `id`, `custom-id`, and `custom_id`, with the parser's normalized property keys and Logseq's custom-ID precedence. Normalize UUID case for matching and fragment generation.
 
-Default labels use a bounded plain-text projection of the selected target's inline content. Rendering a label does not follow references, copy assets, or evaluate macros. Existing source labels retain precedence. Empty or unsupported target labels fall back to the UUID spelling. The anchor belongs on the owning list item so fragment navigation reveals the referenced note.
+Default labels use a bounded plain-text projection of the selected target's inline content. Rendering a label does not follow references, copy assets, or evaluate macros. Existing source labels retain precedence. The renderer uses the UUID when the selected target has no label text, and substitutes `[unsupported content]` for inline syntax it cannot convert to plain text. The anchor belongs on the owning list item so fragment navigation reveals the referenced note.
 
 ## Risks / Trade-offs
 
