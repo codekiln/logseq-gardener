@@ -1,6 +1,6 @@
 # Generate a local HTML garden
 
-Generate standalone HTML pages from selected Logseq namespaces with the Rust SDK. The output includes an index, relative page links, and supported referenced assets. Open `index.html` in a browser to read the garden.
+Generate standalone HTML pages from selected Logseq namespaces with `lsg publish`, using the shared Rust SDK. The output includes an index, relative page links, and supported referenced assets. Open `index.html` in a browser to read the garden.
 
 ## Try the public garden
 
@@ -8,8 +8,9 @@ From this repository's publishing worktree, run:
 
 ```sh
 garden_root="$(ghq list --full-path --exact github.com/codekiln/logseq-encode-garden)"
-mise exec -- cargo run -p logseq-gardener-sdk --example publish_site -- \
-  "$garden_root" /private/tmp/garden-site-preview triple-lowbar \
+mise exec -- cargo run --bin lsg -- publish \
+  --graph "$garden_root" --output /private/tmp/garden-site-preview \
+  --filename-format triple-lowbar \
   --include My/AI --exclude My/AI/Agent
 ```
 
@@ -17,7 +18,7 @@ Open `/private/tmp/garden-site-preview/index.html`. The command selects `My/AI` 
 
 Choose a fresh output directory with an existing parent outside the source garden on each run. Existing output is refused, which also prevents excluded files from a previous run remaining in the site. The publisher leaves source files unchanged. A filesystem write failure may leave partial output in the newly created directory; use a fresh destination after resolving the error.
 
-Use `triple-lowbar` when `logseq/config.edn` sets `:file/name-format :triple-lowbar`; use `legacy` for the default filename format. The command reports generated files on standard output and unsupported constructs on standard error. To keep the diagnostic report, append `2> /private/tmp/garden-site-report.txt`.
+Use `triple-lowbar` when `logseq/config.edn` sets `:file/name-format :triple-lowbar`; use `legacy` for the default filename format. The command reports publication counts and the index path on standard output and unsupported constructs on standard error. Add `--format json` for a versioned result with `pages`, `assets`, `withheld_pages`, `skipped_journals`, `diagnostic_count`, `output_directory`, and `index_path`. Completed generation with diagnostics exits zero; fatal generation failure exits one with empty stdout, and invalid arguments or selectors exit two. Run `lsg publish help` for offline command documentation. To keep the diagnostic report, append `2> /private/tmp/garden-site-report.txt`.
 
 ## Visibility and references
 
@@ -39,4 +40,4 @@ Pages have deterministic fixed-length routes derived from their titles; the publ
 
 [The local demonstration record](../openspec/changes/local-static-site/verification.md) records browser inspection, source preservation, and the fixture checks against excluded page, block, and asset content entering output. [Issue #17 — Local HTML site](https://github.com/codekiln/logseq-gardener/issues/17) tracks the initial publisher under [Issue #11 — Selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11).
 
-The next product work is to improve reference resolution and precise private-block handling, then make the demonstrated workflow available through `lsg`. Use the local diagnostic report to choose the syntax and reference gaps that matter for your garden.
+The next product work is to improve reference resolution and precise private-block handling. Use the local diagnostic report to choose the syntax and reference gaps that matter for your garden.
