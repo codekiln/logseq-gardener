@@ -4,7 +4,7 @@ Listeners need to play recordings and see artwork on a published episode page. T
 
 ## What Changes
 
-- Render local and HTTPS MP3, WAV, and OGG image syntax as audio controls with a descriptive name and download link.
+- Render local and HTTPS MP3, WAV, and OGG image syntax as audio controls with a descriptive name and a link to the recording. Local links request a download; hosted links open the recording, where download behavior depends on the source host and browser.
 - Render HTTPS raster artwork as images, using the same plain escaped labels as local artwork.
 - Keep media within selected, visible pages and preserve the local asset resolver's protections.
 - Document a real session publishing command and validate excluded media against the generated site.

@@ -428,11 +428,19 @@ impl Renderer<'_> {
             text
         };
         let name = escape(&name);
+        let remote = is_https_media_url(route);
         let route = escape(route);
         if audio {
             self.html.push_str(&format!(
-                "<audio controls preload=\"none\" aria-label=\"{name}\" src=\"{route}\">{name}</audio> <a href=\"{route}\" download>{name}</a>"
+                "<audio controls preload=\"none\" aria-label=\"{name}\" src=\"{route}\">{name}</audio> "
             ));
+            if remote {
+                self.html
+                    .push_str(&format!("<a href=\"{route}\">Open recording: {name}</a>"));
+            } else {
+                self.html
+                    .push_str(&format!("<a href=\"{route}\" download>{name}</a>"));
+            }
         } else {
             self.html
                 .push_str(&format!("<img src=\"{route}\" alt=\"{name}\">"));
@@ -770,6 +778,17 @@ mod tests {
                 .html
                 .contains("src=\"https://media.example/song.MP3?x=1&amp;y=2#start\"")
         );
+        assert!(rendered.html.contains(
+            "<a href=\"https://media.example/song.MP3?x=1&amp;y=2#start\">Open recording: Song &amp; &quot;live&quot;</a>"
+        ));
+        assert!(!rendered.html.contains(" download>"));
+        let uppercase = render("- ![Song](HTTPS://media.example/song.mp3)\n");
+        assert!(
+            uppercase
+                .html
+                .contains("<a href=\"HTTPS://media.example/song.mp3\">Open recording: Song</a>")
+        );
+        assert!(!uppercase.html.contains(" download>"));
         assert!(
             rendered
                 .html

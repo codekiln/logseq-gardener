@@ -4,7 +4,7 @@ The renderer already distinguishes selected page links, raster images, and other
 
 ## Goals / Non-Goals
 
-**Goals:** Play selected recordings, display selected artwork, preserve accessible download links, and keep source gardens and publication selection intact.
+**Goals:** Play selected recordings, display selected artwork, preserve accessible recording links, and keep source gardens and publication selection intact.
 
 **Non-Goals:** Broader embed expansion, homepage query evaluation, and graph alias lookup remain separate functional work.
 
@@ -12,7 +12,7 @@ The renderer already distinguishes selected page links, raster images, and other
 
 ### Render media through the existing link handler
 
-Use a shared plain-label helper for images and audio. MP3, WAV, and OGG image syntax produces an audio element with controls and `preload="none"`, an accessible name, and a visible download link. The local asset resolver continues to validate and copy files. Ordinary links retain their existing behavior. Browser codec support varies, so the download link remains available even when playback fails.
+The renderer extracts text from image and audio labels and escapes that text for HTML attributes. MP3, WAV, and OGG image syntax produces an audio element with controls and `preload="none"`, an accessible name, and a visible link to the recording. Local recording links request a download; HTTPS recording links say “Open recording” and omit the download attribute. The local asset resolver continues to validate and copy files. Ordinary links retain their existing behavior. Browser codec support varies, so the recording link remains available even when playback fails.
 
 ### Permit HTTPS media with supported path extensions
 
@@ -24,7 +24,7 @@ Reuse selected-document planning and private-page withholding. Media URLs in exc
 
 ## Risks / Trade-offs
 
-Remote recordings require network access when the visitor listens. Remote artwork availability and browser codec support depend on the source host and recording; the site retains descriptive text and an audio download link. An OGG container can hold different codecs, so the renderer supplies no guessed MIME codec declaration.
+Remote recordings require network access when the visitor listens. Remote artwork availability and browser codec support depend on the source host and recording; the site retains descriptive text and a link to the recording. Hosted recording links may open the recording in the browser; download behavior depends on the source host and browser. An OGG container can hold different codecs, so the renderer supplies no guessed MIME codec declaration.
 
 ## Migration Plan
 

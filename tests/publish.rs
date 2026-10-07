@@ -372,6 +372,9 @@ fn selected_media_renders_without_leaking_private_or_excluded_recordings() {
     assert!(html.contains("<img src=\"https://media.example/selected.gif\" alt=\"Artwork\">"));
     assert!(html.contains("<a href=\"https://media.example/download.mp3\">Plain download</a>"));
     assert!(html.contains(" download>Local recording</a>"));
+    assert!(html.contains(
+        "<a href=\"https://media.example/selected.mp3\">Open recording: Remote recording</a>"
+    ));
     for content in generated.values() {
         let content = String::from_utf8_lossy(content);
         for sentinel in [
