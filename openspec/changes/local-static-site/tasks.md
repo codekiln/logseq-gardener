@@ -8,4 +8,4 @@
 
 - [x] 2.1 Test selected navigation, excluded page/block sentinels, private properties, excluded assets, unsafe paths, collisions, and source/output preservation.
 - [x] 2.2 Add a repeatable Rust command and guide; generate and browser-inspect a real public-garden namespace example.
-- [ ] 2.3 Review the artifacts and implementation, run applicable repository checks, and record validation and remaining product gaps.
+- [x] 2.3 Review the artifacts and implementation, run applicable repository checks, and record validation and remaining product gaps.
