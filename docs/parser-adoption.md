@@ -12,7 +12,7 @@ The full MIT and Unicode notices must accompany relevant distributed code or dat
 
 ## Add the parser to the SDK
 
-1. Finish the remaining compatibility review and record the supported parser scope under [Issue #3 — Parser compatibility decision](https://github.com/codekiln/logseq-gardener/issues/3).
+1. Record the supported parser scope and its comparison evidence. The limited [Markdown reader](garden-loading.md) uses the tested revision for source, syntax, and references; broader graph compatibility remains under [Issue #3 — Parser compatibility decision](https://github.com/codekiln/logseq-gardener/issues/3).
 2. Pin the selected dependency revision in the SDK manifest, explain the dependency in the dependency guide, and commit Gardener's resulting Cargo.lock.
 3. Run `mise run notices:update` and inspect the resulting package inventory and license collection. Gardener's resolved versions can differ from the candidate's lockfile.
 4. Record the parser's upstream revision, attribution, and modification status in THIRD_PARTY_NOTICES.md; verify that the actual dependency's license and attribution files are preserved.
@@ -20,6 +20,6 @@ The full MIT and Unicode notices must accompany relevant distributed code or dat
 
 ## Compatibility still needed
 
-The merged [parser findings](../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/findings.md) support the candidate for read-only Markdown parsing with Logseq relationships implemented separately in the SDK. [PR #8 — Correct Org references](https://github.com/codekiln/logseq-gardener/pull/8) repairs the comparison runner. [PR #9 — Compare current Logseq OG relationships](https://github.com/codekiln/logseq-gardener/pull/9) records agreement between current and historical relationships on the shared fixtures. Both await maintainer merge.
+The merged [parser findings](../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/findings.md) support the candidate for read-only Markdown parsing with Logseq relationships implemented separately in the SDK. [PR #8 — Correct Org references](https://github.com/codekiln/logseq-gardener/pull/8) repairs the comparison runner. [PR #9 — Compare current Logseq OG relationships](https://github.com/codekiln/logseq-gardener/pull/9) records agreement between current and historical relationships on the shared fixtures. Both have merged.
 
-Pengx's publishing corpus still needs clone approval and comparison. The final adoption decision remains open until that evidence is reviewed. The existing math-rendering difference can be documented for a read-only lookup scope; formatting-preserving editing requires separate evidence. mldoc and the Logseq graph implementations remain research references with their own licenses documented in the experiments. Any future incorporation of their code needs its own source and license review.
+Pengx's publishing corpus still needs clone approval and comparison. The final broad compatibility decision remains open until that evidence is reviewed. The limited Markdown reader uses the existing evidence without claiming complete graph or publishing compatibility. The existing math-rendering difference can be documented for a read-only lookup scope; formatting-preserving editing requires separate evidence. mldoc and the Logseq graph implementations remain research references with their own licenses documented in the experiments. Any future incorporation of their code needs its own source and license review.

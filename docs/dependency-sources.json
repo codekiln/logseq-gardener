@@ -49,11 +49,46 @@
     "license": "MIT OR Apache-2.0"
   },
   {
+    "package": "lsdoc",
+    "version": "0.5.8",
+    "source": "git+https://github.com/martinkoutecky/lsdoc?rev=32e63ef095c711d6d9947257bf5fd07d540fa59d#32e63ef095c711d6d9947257bf5fd07d540fa59d",
+    "checksum": "",
+    "license": "AGPL-3.0-only"
+  },
+  {
     "package": "memchr",
     "version": "2.8.3",
     "source": "https://crates.io/crates/memchr/2.8.3",
     "checksum": "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98",
     "license": "Unlicense OR MIT"
+  },
+  {
+    "package": "phf",
+    "version": "0.11.3",
+    "source": "https://crates.io/crates/phf/0.11.3",
+    "checksum": "1fd6780a80ae0c52cc120a26a1a42c1ae51b247a253e4e06113d23d2c2edd078",
+    "license": "MIT"
+  },
+  {
+    "package": "phf_generator",
+    "version": "0.11.3",
+    "source": "https://crates.io/crates/phf_generator/0.11.3",
+    "checksum": "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d",
+    "license": "MIT"
+  },
+  {
+    "package": "phf_macros",
+    "version": "0.11.3",
+    "source": "https://crates.io/crates/phf_macros/0.11.3",
+    "checksum": "f84ac04429c13a7ff43785d75ad27569f2951ce0ffd30a3321230db2fc727216",
+    "license": "MIT"
+  },
+  {
+    "package": "phf_shared",
+    "version": "0.11.3",
+    "source": "https://crates.io/crates/phf_shared/0.11.3",
+    "checksum": "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5",
+    "license": "MIT"
   },
   {
     "package": "proc-macro2",
@@ -67,6 +102,20 @@
     "version": "1.0.47",
     "source": "https://crates.io/crates/quote/1.0.47",
     "checksum": "1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001",
+    "license": "MIT OR Apache-2.0"
+  },
+  {
+    "package": "rand",
+    "version": "0.8.8",
+    "source": "https://crates.io/crates/rand/0.8.8",
+    "checksum": "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c",
+    "license": "MIT OR Apache-2.0"
+  },
+  {
+    "package": "rand_core",
+    "version": "0.6.4",
+    "source": "https://crates.io/crates/rand_core/0.6.4",
+    "checksum": "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c",
     "license": "MIT OR Apache-2.0"
   },
   {
@@ -98,11 +147,25 @@
     "license": "MIT OR Apache-2.0"
   },
   {
+    "package": "siphasher",
+    "version": "1.0.4",
+    "source": "https://crates.io/crates/siphasher/1.0.4",
+    "checksum": "33f4fe9184a62d842c9ef383018f3306d8ba224fd9d836f56d7288308847c256",
+    "license": "MIT OR Apache-2.0"
+  },
+  {
     "package": "strsim",
     "version": "0.11.1",
     "source": "https://crates.io/crates/strsim/0.11.1",
     "checksum": "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f",
     "license": "MIT"
+  },
+  {
+    "package": "syn",
+    "version": "2.0.119",
+    "source": "https://crates.io/crates/syn/2.0.119",
+    "checksum": "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297",
+    "license": "MIT OR Apache-2.0"
   },
   {
     "package": "syn",
