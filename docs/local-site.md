@@ -22,7 +22,7 @@ Use `triple-lowbar` when `logseq/config.edn` sets `:file/name-format :triple-low
 
 ## Visibility and references
 
-A page without a `public` property is published when its title matches the namespace policy. It withholds an entire page containing any parsed `public:: false` property, including a private child in an outline. `public:: true` preserves the namespace policy. Journals are counted and skipped pending configured date naming. Deeply nested content beyond the renderer's visibility limit also withholds its page.
+A page without a `public` property is published when its title matches the namespace policy. The publisher withholds an entire page containing any parsed `public:: false` property, including a private child in an outline. `public:: true` preserves the namespace policy. Journals are counted and skipped pending configured date naming. Deeply nested content beyond the renderer's visibility limit also withholds its page.
 
 Page references resolve by selected display title using Unicode lowercase comparison. Ambiguous selected names fail generation before output is created. Aliases, Logseq's additional name normalization, and Markdown links to page filenames require later lookup work. Missing and excluded destinations retain labels from the selected source with a local diagnostic.
 
@@ -38,6 +38,6 @@ Pages have deterministic fixed-length routes derived from their titles; the publ
 
 ## Evidence and next work
 
-[The local demonstration record](../openspec/changes/local-static-site/verification.md) records browser inspection, source preservation, and the fixture checks against excluded page, block, and asset content entering output. [Issue #17 — Local HTML site](https://github.com/codekiln/logseq-gardener/issues/17) tracks the initial publisher under [Issue #11 — Selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11).
+[The CLI demonstration record](../openspec/changes/cli-static-publishing/verification.md) records browser inspection, source preservation, and the fixture checks against excluded page, block, and asset content entering output. [Issue #20 — Publish through lsg](https://github.com/codekiln/logseq-gardener/issues/20) tracks the command under [Issue #11 — Selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11).
 
 The next product work is to improve reference resolution and precise private-block handling. Use the local diagnostic report to choose the syntax and reference gaps that matter for your garden.
