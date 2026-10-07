@@ -21,7 +21,7 @@ Use `triple-lowbar` when `logseq/config.edn` sets `:file/name-format :triple-low
 
 ## Visibility and references
 
-The initial publisher uses namespace selection as publication intent. It withholds an entire page containing any parsed `public:: false` property, including a private child in an outline. `public:: true` preserves the namespace policy. Journals are counted and skipped pending configured date naming. Deeply nested content beyond the renderer's visibility limit also withholds its page.
+A page without a `public` property is published when its title matches the namespace policy. It withholds an entire page containing any parsed `public:: false` property, including a private child in an outline. `public:: true` preserves the namespace policy. Journals are counted and skipped pending configured date naming. Deeply nested content beyond the renderer's visibility limit also withholds its page.
 
 Page references resolve by selected display title using Unicode lowercase comparison. Ambiguous selected names fail generation before output is created. Aliases, Logseq's additional name normalization, and Markdown links to page filenames require later lookup work. Missing and excluded destinations retain labels from the selected source with a local diagnostic.
 

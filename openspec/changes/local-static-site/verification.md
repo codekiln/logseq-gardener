@@ -1,6 +1,6 @@
 # Local publishing demonstration
 
-The initial local workflow generated and displayed readable HTML from the current [codekiln/logseq-encode-garden](https://github.com/codekiln/logseq-encode-garden) working snapshot. The checkout was based on commit `e12f9568693662aee21c0c61b9787a767a56d4e9` with existing user changes; these results describe that snapshot rather than the commit alone.
+The initial local workflow generated and displayed readable HTML from the current [codekiln/logseq-encode-garden](https://github.com/codekiln/logseq-encode-garden) working snapshot. The checkout was based on [e12f956 docs: refresh LangSmith CLI install and auth details](https://github.com/codekiln/logseq-encode-garden/commit/e12f9568693662aee21c0c61b9787a767a56d4e9) and included existing user changes. The results describe that working snapshot.
 
 ## Namespace example
 

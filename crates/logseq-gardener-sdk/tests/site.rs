@@ -250,6 +250,30 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
 }
 
 #[test]
+fn email_fallback_preserves_the_address_and_reports_unsupported_syntax() {
+    let fixture = Fixture::new();
+    fixture.write("garden/pages/Notes___Email.md", "- <reader@example.com>\n");
+    let selection = NamespaceSelection::new(&["Notes"], &[]).unwrap();
+    let report = publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &selection,
+    )
+    .unwrap();
+    let page = html(&fixture.output(), "Notes/Email");
+    assert!(
+        page.contains("reader@example.com"),
+        "missing email address: {page}"
+    );
+    assert!(!page.contains("local_part"), "parser fields leaked: {page}");
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.source == Path::new("pages/Notes___Email.md")
+            && diagnostic.message.contains("email syntax")
+    }));
+}
+
+#[test]
 fn refuses_existing_or_source_descendant_output_without_changing_files() {
     let fixture = Fixture::new();
     fixture.write("garden/pages/Notes.md", "- Input\n");
