@@ -6,7 +6,7 @@ Logseq Gardener separates the Rust API from the command-line interface. Other Ru
 
 | Component | Responsibility |
 | --- | --- |
-| `logseq-gardener-sdk` in `crates/logseq-gardener-sdk/` | The reusable Rust API. It exposes the SDK version, a logical namespace-selection policy, a read-only Markdown loader, and configured page-title extraction. Canonical page lookup and alias resolution remain planned. |
+| `logseq-gardener-sdk` in `crates/logseq-gardener-sdk/` | The reusable Rust API. It exposes the SDK version, a logical namespace-selection policy, a read-only Markdown loader, and configured page-title extraction. It can [publish selected pages as local HTML](local-site.md). Complete page lookup and alias resolution remain planned. |
 | `logseq-gardener` at the repository root | The CLI package, which builds `lsg` and depends on the SDK. |
 | `src/cli.rs` | Validates arguments and dispatches help and version requests. |
 | `src/help.rs` | Holds the help document and selects its sections for text or JSON output. |
