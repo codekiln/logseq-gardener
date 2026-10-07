@@ -372,7 +372,16 @@ impl Renderer<'_> {
                     self.inlines(definition, depth + 1, label);
                 }
                 Inline::InlineHtml { text, .. } => self.literal("inline HTML", text),
-                Inline::Email { text, .. } => self.literal("email syntax", &text.to_string()),
+                Inline::Email { text, .. } => {
+                    if let (Some(local), Some(domain)) = (
+                        text.get("local_part").and_then(|value| value.as_str()),
+                        text.get("domain").and_then(|value| value.as_str()),
+                    ) {
+                        self.literal("email syntax", &format!("{local}@{domain}"));
+                    } else {
+                        self.literal("email syntax", "[unsupported email]");
+                    }
+                }
                 Inline::Entity { unicode, .. } => self.text(unicode),
                 Inline::Hiccup { v, .. } => self.literal("inline Hiccup", v),
             }

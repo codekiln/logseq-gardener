@@ -20,11 +20,11 @@ The output directory must be absent and its parent must exist. Resolve the paren
 
 ### Withhold files with explicit private properties
 
-Apply namespace inclusion and exclusion to display titles. Also withhold an entire file if any parsed properties block contains `public:: false`, including nested outline properties. This is a conservative initial policy: a private nested block withholds its whole page. Literal property-like text in code is ordinary content. Namespace selection supplies publication intent for pages lacking an explicit private property; `public:: true` does not override exclusions. Journals are skipped with a count because configured journal naming remains separate work.
+Apply namespace inclusion and exclusion to display titles. Also withhold an entire file if any parsed properties block contains `public:: false`, including nested outline properties. This is a conservative initial policy: a private nested block withholds its whole page. Literal property-like text in code is ordinary content. The publisher includes selected pages with no `public` property. Namespace exclusions also apply to pages marked `public:: true`. Journals are skipped with a count because configured journal naming remains separate work.
 
 ### Resolve links only against selected titles
 
-Build a destination map from selected titles using Unicode lowercase comparison. Reject duplicate selected lookup names and generated route collisions. Canonical normalization, aliases, and fileless graph identities remain under [#4 — SDK lookup](https://github.com/codekiln/logseq-gardener/issues/4). Unresolved and excluded page links retain labels from selected source and get local diagnostics. Block references and macros, including embeds and queries, receive visible placeholders and diagnostics; the publisher performs no transclusion.
+Build a destination map from selected titles using Unicode lowercase comparison. Reject duplicate selected lookup names and generated route collisions. More complete page lookup, including Unicode-normalized names, aliases, and pages without Markdown files, is planned in [Issue #4 — Add read-only page lookup through the SDK](https://github.com/codekiln/logseq-gardener/issues/4). Unresolved and excluded page links retain labels from selected source and get local diagnostics. Block references and macros, including embeds and queries, receive visible placeholders and diagnostics; the publisher performs no transclusion.
 
 ### Write standalone HTML with escaped source content
 
