@@ -4,19 +4,19 @@ Build a local static site from the public Logseq garden, read workshop notes, an
 
 ## Get the reviewed publisher
 
-The trial requires publishing integration, media rendering, block navigation and page aliases. Until these features reach `main`, use the branch for [PR #45 — selected page aliases](https://github.com/codekiln/logseq-gardener/pull/45). The alias branch includes [PR #43 — weekend trial instructions](https://github.com/codekiln/logseq-gardener/pull/43), [PR #39 — selected block navigation](https://github.com/codekiln/logseq-gardener/pull/39), [PR #36 — audio and artwork](https://github.com/codekiln/logseq-gardener/pull/36) and [PR #33 — publishing integration](https://github.com/codekiln/logseq-gardener/pull/33). Review and merge from the base upward: integration, media, navigation, trial instructions, then aliases. A GitHub merged status on the earlier publishing stack alone does not put the publisher on `main`.
+Publishing, audio and artwork, outline navigation, and selected page aliases are available on `main`. Create a separate trial checkout from current `origin/main`.
 
 From the registered `logseq-gardener` checkout, create a separate trial checkout:
 
 ```sh
 repo_root="$(ghq list --full-path --exact github.com/codekiln/logseq-gardener)"
-git -C "$repo_root" fetch origin codex/42-selected-page-aliases
-git -C "$repo_root" worktree add --detach "$repo_root/.worktrees/weekend-local-trial" FETCH_HEAD
+git -C "$repo_root" fetch origin main
+git -C "$repo_root" worktree add --detach "$repo_root/.worktrees/weekend-local-trial" origin/main
 cd "$repo_root/.worktrees/weekend-local-trial"
 mise install
 ```
 
-Choose another checkout name if `weekend-local-trial` already exists. After the dependent features reach `main`, create the checkout from an updated `origin/main`. The repository's mise configuration supplies Rust and the build tools; the trial also needs `ghq` and Python. The public garden must already be present in ghq.
+Choose another checkout name if `weekend-local-trial` already exists. The repository's mise configuration supplies Rust and the build tools; the trial also needs `ghq` and Python. The public garden must already be present in ghq.
 
 ## Build and serve
 
@@ -54,4 +54,4 @@ A page containing a parsed `public:: false` anywhere in its outline is withheld 
 
 Read the local report alongside a page where something useful is missing. Report the source page name, the syntax or reference, what the generated page shows, and what a reader should see instead. Include the namespace selection and filename format so the result can be repeated.
 
-Give product feedback through [Issue #41 — reproducible weekend trial](https://github.com/codekiln/logseq-gardener/issues/41): would you use this output for your next garden site; which missing behavior prevents that; and which feature could wait? Focus on the actual reading or listening task. [The combined trial record](../openspec/changes/selected-block-navigation/experiments/weekend-trial/verification.md) describes the checked source and output; [Issue #11 — selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11) tracks implementation priorities.
+Give product feedback through [Issue #41 — reproducible weekend trial](https://github.com/codekiln/logseq-gardener/issues/41): would you use this output for your next garden site; which missing behavior prevents that; and which feature could wait? Focus on the actual reading or listening task. [The combined trial record](../openspec/changes/archive/2026-10-08-selected-block-navigation/experiments/weekend-trial/verification.md) describes the checked source and output; [Issue #11 — selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11) tracks implementation priorities.

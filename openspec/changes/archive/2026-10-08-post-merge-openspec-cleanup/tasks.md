@@ -7,4 +7,4 @@
 ## 2. Validation
 
 - [x] 2.1 Validate OpenSpec artifacts, generated instructions, and documentation links.
-- [ ] 2.2 Review the workflow PR with codekiln-review and resolve findings.
+- [x] 2.2 Review the workflow PR with codekiln-review and resolve findings.

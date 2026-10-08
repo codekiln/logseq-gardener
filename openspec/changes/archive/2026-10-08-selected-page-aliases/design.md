@@ -1,6 +1,6 @@
 ## Context
 
-The publisher currently resolves selected titles and outline UUIDs. The workshop summary also refers to the schedule and MCP note through aliases. [Recorded OG relationships](../current-og-relationships/experiments/file-relationships/findings.md) retain competing claims for `Other Name`.
+The publisher currently resolves selected titles and outline UUIDs. The workshop summary also refers to the schedule and MCP note through aliases. [Recorded OG relationships](../../current-og-relationships/experiments/file-relationships/findings.md) retain competing claims for `Other Name`.
 
 Logseq OG extracts leading page aliases in [extract.cljc](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/extract.cljc#L65). At the comparison's pinned revision, the parser retains the last duplicate property. [text.cljs](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/text.cljs#L148) combines comma-separated plain text and parsed page references, preserving quoted values literally. [util.cljs](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/util.cljs#L134) lowercases names, removes boundary slashes, and normalizes Unicode to NFC. The `aliases` spelling is parsed as linkable metadata but does not populate page aliases.
 
