@@ -6,6 +6,8 @@ The CI task checks formatting, Clippy, tests, documentation, dependency notices,
 
 Plan changes in OpenSpec and keep requirements and verification together. Agent-specific instructions are maintained in `.rulesync/`. After editing that source, run `mise exec -- rulesync generate` and `mise run rulesync:check`.
 
+Create a cleanup sub-issue under each OpenSpec implementation issue before handing its PR over for review. After merge, follow [OpenSpec cleanup](docs/openspec-cleanup.md) to sync requirements, archive the completed change, and submit a separate follow-up PR.
+
 The [architecture guide](docs/architecture.md) explains the package responsibilities and the pending parser choice.
 
 ## CLI conformance
