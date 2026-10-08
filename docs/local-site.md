@@ -2,6 +2,8 @@
 
 Generate standalone HTML pages from selected Logseq namespaces with `lsg publish`, using the shared Rust SDK. The output includes an index, relative page links, and supported referenced assets. Open `index.html` in a browser to read the garden.
 
+For a complete checkout, build, and browser walkthrough, use the [weekend trial](weekend-trial.md).
+
 ## Try the public garden
 
 From this repository's publishing worktree, run:
