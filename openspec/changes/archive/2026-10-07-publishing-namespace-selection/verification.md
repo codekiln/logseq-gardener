@@ -9,4 +9,4 @@ Logseq
 Logseq/Frontmatter
 ```
 
-The [namespace policy](../../../crates/logseq-gardener-sdk/src/publishing.rs) and [SDK example](../../../crates/logseq-gardener-sdk/examples/select_namespaces.rs) are independently usable by a Rust caller. This verification does not establish working site generation or excluded-content safety in rendered output. The [publishing guide](../../../docs/publishing.md) records the remaining end-to-end work.
+The [namespace policy](../../../../crates/logseq-gardener-sdk/src/publishing.rs) and [SDK example](../../../../crates/logseq-gardener-sdk/examples/select_namespaces.rs) are independently usable by a Rust caller. This verification does not establish working site generation or excluded-content safety in rendered output. The [publishing guide](../../../../docs/publishing.md) records the remaining end-to-end work.

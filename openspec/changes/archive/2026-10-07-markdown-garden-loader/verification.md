@@ -17,6 +17,6 @@ Observed output:
 Loaded 6936 Markdown documents: 6448 pages, 488 journals; 38770 page references, 460 block references.
 ```
 
-The [SDK tests](../../../crates/logseq-gardener-sdk/tests/garden.rs) passed for original source preservation, parsed outlines and properties, page/block references, literal code, ordering, hidden entries, invalid roots, invalid UTF-8, unreadable notes, symlinks, and special files.
+The [SDK tests](../../../../crates/logseq-gardener-sdk/tests/garden.rs) passed for original source preservation, parsed outlines and properties, page/block references, literal code, ordering, hidden entries, invalid roots, invalid UTF-8, unreadable notes, symlinks, and special files.
 
-The [loading guide](../../../docs/garden-loading.md) describes the supported input and syntax API. These results establish a limited source reader; they do not establish logical page identity, publication filtering, rendered-site safety, or complete Logseq graph compatibility.
+The [loading guide](../../../../docs/garden-loading.md) describes the supported input and syntax API. These results establish a limited source reader; they do not establish logical page identity, publication filtering, rendered-site safety, or complete Logseq graph compatibility.

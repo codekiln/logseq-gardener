@@ -2,7 +2,7 @@
 
 The loader in [PR #15 — Markdown garden sources](https://github.com/codekiln/logseq-gardener/pull/15) supplies source paths and lsdoc syntax. Publishers need the corresponding page titles before applying the namespace selection in [PR #13 — Namespace selection](https://github.com/codekiln/logseq-gardener/pull/13).
 
-The [saved relationship findings](../current-og-relationships/experiments/file-relationships/findings.md) establish title overrides and configuration-dependent names. The associated Logseq OG revision is `6efedb75588763af256bc7dfd0ed5526dc91fe7c`; its [title extraction](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/extract.cljc#L30) and [filename decoding](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/util.cljs#L127) guide this API. A title retains capitalization; a canonical lookup key requires additional normalization.
+The [saved relationship findings](../../current-og-relationships/experiments/file-relationships/findings.md) establish title overrides and configuration-dependent names. The associated Logseq OG revision is `6efedb75588763af256bc7dfd0ed5526dc91fe7c`; its [title extraction](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/extract.cljc#L30) and [filename decoding](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/util.cljs#L127) guide this API. A title retains capitalization; a canonical lookup key requires additional normalization.
 
 ## Goals / Non-Goals
 
