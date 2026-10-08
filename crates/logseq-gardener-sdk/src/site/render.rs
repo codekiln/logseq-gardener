@@ -155,7 +155,7 @@ fn block_label(nodes: &[Inline], depth: usize) -> String {
 
 pub(super) fn render_document(
     document: &GardenDocument,
-    pages: &BTreeMap<String, String>,
+    pages: &crate::page_names::PageNameIndex<String>,
     targets: &BTreeMap<String, Option<BlockTarget>>,
     route: &str,
     asset: &mut dyn FnMut(&str) -> Result<String, String>,
@@ -188,7 +188,7 @@ pub(super) fn render_document(
 struct Renderer<'a> {
     html: String,
     diagnostics: Vec<String>,
-    pages: &'a BTreeMap<String, String>,
+    pages: &'a crate::page_names::PageNameIndex<String>,
     targets: &'a BTreeMap<String, Option<BlockTarget>>,
     anchors: BTreeMap<usize, String>,
     asset: &'a mut dyn FnMut(&str) -> Result<String, String>,
@@ -515,13 +515,19 @@ impl Renderer<'_> {
         }
     }
     fn page_link(&mut self, target: &str, label: &[Inline], depth: usize) {
-        if let Some(route) = self.pages.get(&target.to_lowercase()) {
+        let candidates = self.pages.candidates(target);
+        if let [route] = candidates {
             self.html
                 .push_str(&format!("<a href=\"{}\">", escape(route)));
             self.label(label, target, depth);
             self.html.push_str("</a>");
         } else {
-            self.diagnostic(format!("Unresolved or excluded page reference: {target}"));
+            let reason = if candidates.len() > 1 {
+                "Ambiguous selected page reference"
+            } else {
+                "Unresolved or excluded page reference"
+            };
+            self.diagnostic(format!("{reason}: {target}"));
             self.html.push_str("<span class=\"unresolved\">");
             self.label(label, target, depth);
             self.html.push_str("</span>");
@@ -723,7 +729,13 @@ mod tests {
         pages: &BTreeMap<String, String>,
         asset: &mut dyn FnMut(&str) -> Result<String, String>,
     ) -> Rendered {
-        super::render_document(document, pages, &BTreeMap::new(), "p-test.html", asset)
+        let mut names = crate::page_names::PageNameIndex::default();
+        for (title, route) in pages {
+            let mut without_aliases = document.clone();
+            without_aliases.parsed.blocks.clear();
+            names.insert(route.clone(), title, &without_aliases);
+        }
+        super::render_document(document, &names, &BTreeMap::new(), "p-test.html", asset)
     }
     fn document(source: &str) -> GardenDocument {
         GardenDocument {

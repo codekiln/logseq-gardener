@@ -536,3 +536,93 @@ fn block_reference_labels_are_bounded_plain_text_and_ids_follow_property_precede
     assert!(html(&fixture.output(), "Notes/Target").contains(&format!("id=\"block-{id}\"")));
     assert_eq!(report.assets, 0);
 }
+
+#[test]
+fn aliases_use_selected_visible_candidates_and_preserve_source() {
+    let fixture = Fixture::new();
+    fixture.write("garden/pages/Publish___Start.md", "- [[Shared]] [Source label]([[Shared]]) [[Clash]] [[PrivateOnly]] [[ExcludedOnly]] [[Nested]] [[Literal]]\n");
+    fixture.write("garden/pages/Publish___File.md", "title:: Publish/Chosen\nalias:: Shared, Shared, Clash\n\n- Selected content\n  alias:: Nested\n");
+    fixture.write(
+        "garden/pages/Publish___Clash.md",
+        "title:: Clash\n\n- A real title\n",
+    );
+    fixture.write("garden/pages/Publish___Private.md", "alias:: Shared, PrivateOnly\npublic:: false\n\n- PRIVATE_TEXT_SECRET ![secret](../assets/private.png) ![hidden](https://private.invalid/HIDDEN_PRIVATE_URL.png)\n");
+    fixture.write("garden/pages/Excluded___Secret.md", "alias:: Shared, ExcludedOnly, Publish/Invisible\n\n- EXCLUDED_TEXT_SECRET ![secret](../assets/excluded.png) ![hidden](https://excluded.invalid/HIDDEN_EXCLUDED_URL.png)\n");
+    fixture.write(
+        "garden/pages/Publish___Literal.md",
+        "alias:: `[[Literal]]`\n\n- Literal page\n",
+    );
+    fixture.write("garden/assets/private.png", "PRIVATE_ASSET_SECRET");
+    fixture.write("garden/assets/excluded.png", "EXCLUDED_ASSET_SECRET");
+    let original = files(&fixture.garden());
+    let selection = NamespaceSelection::new(&["Publish", "Clash"], &[]).unwrap();
+    let report = publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &selection,
+    )
+    .unwrap();
+    let generated = files(&fixture.output());
+    let html = fs::read_to_string(fixture.output().join(route("Publish/Start"))).unwrap();
+    assert!(html.contains(&format!("href=\"{}\">Shared</a>", route("Publish/Chosen"))));
+    assert!(html.contains(&format!(
+        "href=\"{}\">Source label</a>",
+        route("Publish/Chosen")
+    )));
+    assert!(html.contains("<span class=\"unresolved\">Clash</span>"));
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.message == "Ambiguous selected page reference: Clash")
+    );
+    for unavailable in ["PrivateOnly", "ExcludedOnly", "Nested", "Literal"] {
+        assert!(html.contains(&format!("<span class=\"unresolved\">{unavailable}</span>")));
+    }
+    assert_eq!(report.assets, 0);
+    for content in generated.values() {
+        let output = String::from_utf8_lossy(content);
+        for sentinel in [
+            "Publish/Private",
+            "Excluded/Secret",
+            "PRIVATE_TEXT_SECRET",
+            "EXCLUDED_TEXT_SECRET",
+            "PRIVATE_ASSET_SECRET",
+            "EXCLUDED_ASSET_SECRET",
+            "Publish/Invisible",
+            "HIDDEN_PRIVATE_URL",
+            "HIDDEN_EXCLUDED_URL",
+        ] {
+            assert!(!output.contains(sentinel), "output leaked {sentinel}");
+        }
+    }
+    assert_eq!(original, files(&fixture.garden()));
+    let second = fixture.0.join("site-again");
+    publish_site(
+        fixture.garden(),
+        &second,
+        FilenameFormat::TripleLowbar,
+        &selection,
+    )
+    .unwrap();
+    assert_eq!(generated, files(&second));
+}
+
+#[test]
+fn normalized_title_collision_fails_before_output() {
+    let fixture = Fixture::new();
+    fixture.write("garden/pages/A.md", "title:: Café\n\n- A\n");
+    fixture.write("garden/pages/B.md", "title:: CAFÉ\n\n- B\n");
+    let selection = NamespaceSelection::new(&["Café", "CAFÉ"], &[]).unwrap();
+    assert!(
+        publish_site(
+            fixture.garden(),
+            fixture.output(),
+            FilenameFormat::TripleLowbar,
+            &selection
+        )
+        .is_err()
+    );
+    assert!(!fixture.output().exists());
+}

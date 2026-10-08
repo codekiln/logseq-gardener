@@ -11,6 +11,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::garden::{DocumentKind, GardenLoadError, load_garden};
+use crate::page_names::{PageNameIndex, lookup_key};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
 use crate::publishing::NamespaceSelection;
 
@@ -138,10 +139,11 @@ fn html_document(title: &str, body: &str) -> String {
 
 /// Publish selected Markdown pages into an absent directory outside the garden.
 ///
-/// Each selected title has a deterministic route and selected-title page links.
+/// Each selected title has a deterministic route. Unique selected titles and aliases
+/// resolve to local page links.
 /// Files containing parsed `public:: false` are withheld in full. Journals are
 /// counted and skipped. Unique explicit outline UUID references link to selected
-/// targets. Aliases, unavailable references, embeds, and queries receive fallbacks
+/// targets. Ambiguous or unavailable references, embeds, and queries receive fallbacks
 /// and diagnostics. Supported local assets are copied
 /// only when requested by rendered content. Existing output is never replaced.
 ///
@@ -186,12 +188,16 @@ pub fn publish_site(
             continue;
         }
         let route = format!("p-{}.html", digest(&title));
-        if pages.insert(title.to_lowercase(), route.clone()).is_some()
+        if pages.insert(lookup_key(&title), route.clone()).is_some()
             || routes.insert(route.clone(), title.clone()).is_some()
         {
             return Err(SiteError::Collision { title });
         }
         selected.push((title, route, document));
+    }
+    let mut names = PageNameIndex::default();
+    for (title, route, document) in &selected {
+        names.insert(route.clone(), title, document);
     }
     let mut targets = BTreeMap::new();
     for (_, route, document) in &selected {
@@ -230,7 +236,7 @@ pub fn publish_site(
             }
             Ok(route)
         };
-        let rendered = render::render_document(document, &pages, &targets, &route, &mut asset);
+        let rendered = render::render_document(document, &names, &targets, &route, &mut asset);
         for message in rendered.diagnostics {
             report.diagnostics.push(SiteDiagnostic {
                 source: document.relative_path.clone(),
