@@ -56,6 +56,6 @@ Open the generated index, then `GitP/A/Session/24/11/19-Tue`. Its artwork and re
 
 ## Evidence and next work
 
-[The CLI demonstration record](../openspec/changes/cli-static-publishing/verification.md) records browser inspection, source preservation, and the fixture checks against excluded page, block, and asset content entering output. [Issue #20 — Publish through lsg](https://github.com/codekiln/logseq-gardener/issues/20) tracks the command under [Issue #11 — Selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11).
+[The CLI demonstration record](../openspec/changes/archive/2026-10-08-cli-static-publishing/verification.md) records browser inspection, source preservation, and the fixture checks against excluded page, block, and asset content entering output. [Issue #20 — Publish through lsg](https://github.com/codekiln/logseq-gardener/issues/20) tracks the command under [Issue #11 — Selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11).
 
 The next product work is to improve reference resolution and precise private-block handling. Use the local diagnostic report to choose the syntax and reference gaps that matter for your garden.

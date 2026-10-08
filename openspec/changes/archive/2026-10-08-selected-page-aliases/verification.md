@@ -4,7 +4,7 @@ The workshop summary's schedule and MCP headings now navigate to their selected 
 
 ## Reproduce
 
-From this branch, build and run the [weekend trial](../../../docs/weekend-trial.md). For a workshop-only check:
+From this branch, build and run the [weekend trial](../../../../docs/weekend-trial.md). For a workshop-only check:
 
 ```sh
 cargo run --bin lsg -- publish --graph "$(ghq list --full-path --exact github.com/codekiln/logseq-encode-garden)" --output /tmp/fresh-workshop-alias-site --filename-format triple-lowbar --include AI/ES/25/ws --exclude AI/ES/25/ws/3 --format json
