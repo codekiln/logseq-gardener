@@ -11,4 +11,4 @@
 ## 3. Trial and review
 
 - [x] 3.1 Demonstrate both workshop alias links in a local browser and update trial instructions with evidence.
-- [ ] 3.2 Run repository CI, create the cleanup sub-issue and reviewable PR, and complete independent review.
+- [x] 3.2 Run repository CI, create the cleanup sub-issue and reviewable PR, and complete independent review.
