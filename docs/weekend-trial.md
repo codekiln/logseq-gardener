@@ -4,13 +4,13 @@ Build a local static site from the public Logseq garden, read workshop notes, an
 
 ## Get the reviewed publisher
 
-The trial requires the publishing integration, media rendering, and block navigation changes. Until they reach `main`, use the branch for [PR #39 — selected block navigation](https://github.com/codekiln/logseq-gardener/pull/39), which includes [PR #36 — audio and artwork](https://github.com/codekiln/logseq-gardener/pull/36) and [PR #33 — publishing integration](https://github.com/codekiln/logseq-gardener/pull/33). These PRs need to merge in that order: integration, media, then navigation. A GitHub merged status on the earlier publishing stack alone does not put the publisher on `main`.
+The trial requires publishing integration, media rendering, block navigation and page aliases. Until these features reach `main`, use the branch for [PR #45 — selected page aliases](https://github.com/codekiln/logseq-gardener/pull/45). The alias branch includes [PR #43 — weekend trial instructions](https://github.com/codekiln/logseq-gardener/pull/43), [PR #39 — selected block navigation](https://github.com/codekiln/logseq-gardener/pull/39), [PR #36 — audio and artwork](https://github.com/codekiln/logseq-gardener/pull/36) and [PR #33 — publishing integration](https://github.com/codekiln/logseq-gardener/pull/33). Review and merge from the base upward: integration, media, navigation, trial instructions, then aliases. A GitHub merged status on the earlier publishing stack alone does not put the publisher on `main`.
 
 From the registered `logseq-gardener` checkout, create a separate trial checkout:
 
 ```sh
 repo_root="$(ghq list --full-path --exact github.com/codekiln/logseq-gardener)"
-git -C "$repo_root" fetch origin codex/38-selected-block-navigation
+git -C "$repo_root" fetch origin codex/42-selected-page-aliases
 git -C "$repo_root" worktree add --detach "$repo_root/.worktrees/weekend-local-trial" FETCH_HEAD
 cd "$repo_root/.worktrees/weekend-local-trial"
 mise install
