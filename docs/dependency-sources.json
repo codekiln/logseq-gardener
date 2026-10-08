@@ -175,11 +175,25 @@
     "license": "MIT OR Apache-2.0"
   },
   {
+    "package": "tinyvec",
+    "version": "1.13.3",
+    "source": "https://crates.io/crates/tinyvec/1.13.3",
+    "checksum": "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee",
+    "license": "Zlib OR Apache-2.0 OR MIT"
+  },
+  {
     "package": "unicode-ident",
     "version": "1.0.24",
     "source": "https://crates.io/crates/unicode-ident/1.0.24",
     "checksum": "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75",
     "license": "(MIT OR Apache-2.0) AND Unicode-3.0"
+  },
+  {
+    "package": "unicode-normalization",
+    "version": "0.1.25",
+    "source": "https://crates.io/crates/unicode-normalization/0.1.25",
+    "checksum": "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8",
+    "license": "MIT OR Apache-2.0"
   },
   {
     "package": "zmij",

@@ -11,6 +11,8 @@ publish = false
 [dependencies]
 # Read-only Markdown syntax and references; revision covered by parser comparison.
 lsdoc = { git = "https://github.com/martinkoutecky/lsdoc", rev = "32e63ef095c711d6d9947257bf5fd07d540fa59d" }
+# Match equivalent Unicode page names using this crate's NFC normalization.
+unicode-normalization = "0.1.24"
 
 [package.metadata.dist]
 dist = false

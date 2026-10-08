@@ -22,3 +22,9 @@ pub use lsdoc::ast;
 
 /// Display titles for loaded Markdown page documents.
 pub mod page_titles;
+
+/// Generate a selected garden as local HTML.
+pub mod site;
+
+/// Stored page names and alias candidate lookup.
+pub mod page_names;
