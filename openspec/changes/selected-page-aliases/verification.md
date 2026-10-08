@@ -14,7 +14,7 @@ The destination must be absent. Serve that destination on loopback and follow th
 
 ## Evidence
 
-The local public garden was at `8018e1e073f2495df4b252dc25eb46625d3e9bbf`. Generation produced eleven pages and copied twenty-four assets. Every emitted local page or outline link resolved: sixty-two links, including the schedule alias and both occurrences of the MCP alias. The index contained no excluded workshop destinations; the excluded workshop subtree had no output routes. Fingerprints of all source files under pages, journals, assets and logseq were identical before and after generation.
+The browser trial used [this revision of the public logseq-encode-garden](https://github.com/codekiln/logseq-encode-garden/tree/8018e1e073f2495df4b252dc25eb46625d3e9bbf). Generation produced eleven pages and copied twenty-four assets. Every emitted local page or outline link resolved: sixty-two links, including the schedule alias and both occurrences of the MCP alias. The index contained no excluded workshop destinations; the excluded workshop subtree had no output routes. Fingerprints of all source files under pages, journals, assets and logseq were identical before and after generation.
 
 SDK tests reproduce `Other Name` ambiguity from the saved OG fixtures and cover last leading properties, nested properties, comma-containing names, code and quoted literals, title overrides, Unicode normalization, alias/title collisions, source labels, deterministic output and source preservation. A selected alias shared with excluded and private pages resolved to the selected page; withheld names, text, assets and URLs remained absent from generated output. Normalized duplicate selected titles failed before output creation.
 
