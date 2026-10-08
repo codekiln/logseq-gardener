@@ -2,7 +2,7 @@
 
 The publisher currently resolves selected titles and outline UUIDs. The workshop summary also refers to the schedule and MCP note through aliases. [Recorded OG relationships](../current-og-relationships/experiments/file-relationships/findings.md) retain competing claims for `Other Name`.
 
-The local Logseq source at `6efedb75588763af256bc7dfd0ed5526dc91fe7c`, the revision recorded by the comparison, extracts page aliases from the leading `alias` property. `extract.cljc` retains the last duplicate property; `text.cljs` combines comma-separated plain text and parsed page references, with quoted values preserved literally. `util.cljs` lowercases names, removes boundary slashes, and normalizes Unicode to NFC. The `aliases` spelling is parsed as linkable metadata but does not populate page aliases.
+Logseq OG extracts leading page aliases in [extract.cljc](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/extract.cljc#L65). At the comparison's pinned revision, the parser retains the last duplicate property. [text.cljs](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/text.cljs#L148) combines comma-separated plain text and parsed page references, preserving quoted values literally. [util.cljs](https://github.com/logseq/logseq/blob/6efedb75588763af256bc7dfd0ed5526dc91fe7c/deps/graph-parser/src/logseq/graph_parser/util.cljs#L134) lowercases names, removes boundary slashes, and normalizes Unicode to NFC. The `aliases` spelling is parsed as linkable metadata but does not populate page aliases.
 
 ## Goals / Non-Goals
 
@@ -36,7 +36,7 @@ A unique candidate resolves to the page's existing HTML route. Ambiguous referen
 
 ## Migration Plan
 
-Review this change above the weekend-trial branch. After integration into main and synchronization of the publishing, media and outline-navigation requirements, the cleanup child synchronizes this delta and archives the completed change in a separate PR. Existing CLI commands continue to work.
+Review this implementation against [PR #43 — weekend publishing trial](https://github.com/codekiln/logseq-gardener/pull/43). After the implementation reaches main, the agent assigned to [Issue #44 — sync and archive selected aliases](https://github.com/codekiln/logseq-gardener/issues/44) will synchronize the alias requirements and archive the change in a separate cleanup PR. That work waits for [Issue #31 — publisher spec sync](https://github.com/codekiln/logseq-gardener/issues/31), [Issue #37 — media spec sync](https://github.com/codekiln/logseq-gardener/issues/37), and [Issue #40 — outline-navigation spec sync](https://github.com/codekiln/logseq-gardener/issues/40), because the rendering requirement includes their behavior. Existing CLI commands continue to work.
 
 ## Resolved Questions
 
