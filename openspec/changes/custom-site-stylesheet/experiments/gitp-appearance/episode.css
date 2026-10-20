@@ -1,0 +1,27 @@
+/* Local podcast presentation; system fonts keep the demo self-contained. */
+body {
+  color: #e7ece9;
+  background: #14211f;
+  font: 18px/1.65 ui-sans-serif, system-ui, sans-serif;
+  max-width: 68rem;
+  margin: 2rem auto 5rem;
+}
+a { color: #87d8c5; text-underline-offset: .2em; }
+nav { border-bottom: 1px solid #3d5650; padding-bottom: 1rem; }
+main > h1 { color: #c8b488; font-size: clamp(1.3rem, 3vw, 2rem); }
+main > ul { padding: 0; list-style: none; }
+main > ul > li > h1 { font-size: clamp(2rem, 4vw, 3.4rem); }
+h2 { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #3d5650; }
+h3 { color: #e8cd98; margin-top: 2rem; }
+li { margin: .65rem 0; }
+li:has(> img), li:has(> audio), li:has(> p > img), li:has(> p > audio) { list-style: none; }
+img { display: block; border-radius: .4rem; background: #fafafa; margin: 1rem 0; }
+audio { display: block; width: 100%; max-width: 52rem; margin: .8rem 0; }
+blockquote { border-color: #d4ad68; color: #cedbd6; }
+code, pre { color: #e7ece9; background: #243a35; }
+td, th { border-color: #526c63; }
+.unsupported { color: #e5c991; }
+@media (max-width: 600px) {
+  body { padding: 0 1rem; font-size: 16px; }
+  ul { padding-left: 1.2rem; }
+}

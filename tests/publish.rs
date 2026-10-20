@@ -390,3 +390,55 @@ fn selected_media_renders_without_leaking_private_or_excluded_recordings() {
     }
     assert_eq!(files(&f.0.join("garden")), before);
 }
+
+#[test]
+fn cli_stylesheet_is_copied_and_invalid_input_fails_without_output() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- Visible\n");
+    let css = fs::canonicalize(&f.0).unwrap().join("theme.css");
+    fs::write(&css, "body { color: purple; }\n").unwrap();
+    let output = f.0.join("styled");
+    let result = f.publish(
+        &output,
+        &[
+            "--include",
+            "Notes",
+            "--stylesheet",
+            css.to_str().unwrap(),
+            "--format",
+            "json",
+        ],
+    );
+    assert!(result.status.success(), "{result:?}");
+    let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(report["pages"], 1);
+    assert_eq!(report["assets"], 0);
+    assert_eq!(
+        fs::read(output.join("custom.css")).unwrap(),
+        fs::read(&css).unwrap()
+    );
+    for (path, contents) in files(&output) {
+        if path.extension().is_some_and(|ext| ext == "html") {
+            assert!(
+                String::from_utf8(contents)
+                    .unwrap()
+                    .contains("href=\"custom.css\"")
+            );
+        }
+    }
+    let failed_output = f.0.join("failed");
+    let result = f.publish(
+        &failed_output,
+        &["--include", "Notes", "--stylesheet", "missing.css"],
+    );
+    assert_eq!(result.status.code(), Some(1));
+    assert!(result.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("missing.css"));
+    assert!(!failed_output.exists());
+    let help = Command::new(env!("CARGO_BIN_EXE_lsg"))
+        .args(["publish", "help"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    assert!(String::from_utf8_lossy(&help.stdout).contains("--stylesheet PATH"));
+}
