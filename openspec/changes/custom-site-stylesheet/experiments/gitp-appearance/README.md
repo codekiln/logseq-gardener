@@ -4,7 +4,7 @@ This experiment checks custom CSS against real podcast chapters, waveforms, audi
 
 ## Reproduce
 
-Use a clean `codekiln/logseq-encode-garden` checkout at `0160eaba4d7849f40bc7734aaa9f737b64b67948`. The two episode pages have `public:: true` in that revision. Set `GARDEN_SOURCE` to that checkout and `SITE_OUTPUT` to a fresh directory with an existing parent outside the garden. From the renderer repository root:
+Use a clean garden checkout at [0160eaba — docs: file Claude vs ChatGPT secrets management question](https://github.com/codekiln/logseq-encode-garden/commit/0160eaba4d7849f40bc7734aaa9f737b64b67948). This revision supplies the approved October 18 and October 20 episode pages with `public:: true`, along with the manuals and presets used in the experiment. Set `GARDEN_SOURCE` to that checkout and `SITE_OUTPUT` to a fresh directory with an existing parent outside the garden. From the renderer repository root:
 
 ```sh
 mise exec -- cargo run -- publish \
