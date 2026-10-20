@@ -626,3 +626,142 @@ fn normalized_title_collision_fails_before_output() {
     );
     assert!(!fixture.output().exists());
 }
+
+#[test]
+fn stylesheet_preserves_selection_sources_and_default_output() {
+    use logseq_gardener_sdk::site::{SiteOptions, publish_site_with_options};
+    let f = Fixture::new();
+    f.write("garden/pages/Notes.md", "- Visible\n");
+    f.write(
+        "garden/pages/Notes___Private.md",
+        "public:: false\n- PRIVATE_SENTINEL\n",
+    );
+    f.write("garden/pages/Other.md", "- EXCLUDED_SENTINEL\n");
+    let css = fs::canonicalize(f.write("custom & theme.CSS", b"body {color: purple;}\n/* \xff */"))
+        .unwrap();
+    let selection = NamespaceSelection::new(&["Notes"], &[]).unwrap();
+    let before = files(&f.garden());
+    let ordinary = publish_site(
+        f.garden(),
+        f.output(),
+        FilenameFormat::TripleLowbar,
+        &selection,
+    )
+    .unwrap();
+    let defaults = f.0.join("defaults");
+    assert_eq!(
+        ordinary,
+        publish_site_with_options(
+            f.garden(),
+            &defaults,
+            FilenameFormat::TripleLowbar,
+            &selection,
+            &SiteOptions::default()
+        )
+        .unwrap()
+    );
+    assert_eq!(files(&f.output()), files(&defaults));
+    let styled = f.0.join("styled");
+    let report = publish_site_with_options(
+        f.garden(),
+        &styled,
+        FilenameFormat::TripleLowbar,
+        &selection,
+        &SiteOptions {
+            stylesheet: Some(css.clone()),
+        },
+    )
+    .unwrap();
+    assert_eq!(report, ordinary);
+    assert_eq!(
+        fs::read(styled.join("custom.css")).unwrap(),
+        fs::read(&css).unwrap()
+    );
+    for (name, contents) in files(&styled) {
+        if name.extension().is_some_and(|ext| ext == "html") {
+            let text = String::from_utf8(contents).unwrap();
+            assert!(text.contains("</style><link rel=\"stylesheet\" href=\"custom.css\">"));
+            assert!(!text.contains("PRIVATE_SENTINEL") && !text.contains("EXCLUDED_SENTINEL"));
+            assert!(!text.contains("custom &amp; theme"));
+        }
+    }
+    assert_eq!(before, files(&f.garden()));
+}
+
+#[test]
+fn stylesheet_errors_leave_destination_absent() {
+    use logseq_gardener_sdk::site::{SiteOptions, publish_site_with_options};
+    let f = Fixture::new();
+    f.write("garden/pages/Notes.md", "- Visible\n");
+    let wrong = f.write("theme.txt", "body{}");
+    let directory = f.0.join("directory.css");
+    fs::create_dir(&directory).unwrap();
+    for path in [f.0.join("missing.css"), wrong, directory] {
+        let error = publish_site_with_options(
+            f.garden(),
+            f.output(),
+            FilenameFormat::TripleLowbar,
+            &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
+            &SiteOptions {
+                stylesheet: Some(path.clone()),
+            },
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains(&path.display().to_string()));
+        assert!(!f.output().exists());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn stylesheet_rejects_symlink_files_and_parent_directories() {
+    use logseq_gardener_sdk::site::{SiteOptions, publish_site_with_options};
+    use std::os::unix::fs::symlink;
+    let f = Fixture::new();
+    f.write("garden/pages/Notes.md", "- Visible\n");
+    let css = fs::canonicalize(f.write("styles/theme.css", "body{}")).unwrap();
+    let root = fs::canonicalize(&f.0).unwrap();
+    symlink(&css, root.join("linked.css")).unwrap();
+    symlink(css.parent().unwrap(), root.join("linked")).unwrap();
+    for path in [root.join("linked.css"), root.join("linked/theme.css")] {
+        let error = publish_site_with_options(
+            f.garden(),
+            f.output(),
+            FilenameFormat::TripleLowbar,
+            &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
+            &SiteOptions {
+                stylesheet: Some(path),
+            },
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("symlink"));
+        assert!(!f.output().exists());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn unreadable_stylesheet_leaves_destination_absent() {
+    use logseq_gardener_sdk::site::{SiteOptions, publish_site_with_options};
+    use std::os::unix::fs::PermissionsExt;
+    let f = Fixture::new();
+    f.write("garden/pages/Notes.md", "- Visible\n");
+    let css = fs::canonicalize(f.write("unreadable.css", "body{}")).unwrap();
+    fs::set_permissions(&css, fs::Permissions::from_mode(0o000)).unwrap();
+    // Privileged test runners can read permissionless files.
+    if fs::read(&css).is_err() {
+        let error = publish_site_with_options(
+            f.garden(),
+            f.output(),
+            FilenameFormat::TripleLowbar,
+            &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
+            &SiteOptions {
+                stylesheet: Some(css.clone()),
+            },
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("unreadable.css"));
+        assert!(!f.output().exists());
+    }
+    fs::set_permissions(&css, fs::Permissions::from_mode(0o600)).unwrap();
+}

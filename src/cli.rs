@@ -1,6 +1,8 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use logseq_gardener_sdk::{
-    page_titles::FilenameFormat, publishing::NamespaceSelection, site::publish_site,
+    page_titles::FilenameFormat,
+    publishing::NamespaceSelection,
+    site::{SiteOptions, publish_site_with_options},
 };
 use serde_json::json;
 use std::path::PathBuf;
@@ -81,6 +83,8 @@ struct PublishArgs {
     output: Option<PathBuf>,
     #[arg(long, value_enum)]
     filename_format: Option<PublishFilenameFormat>,
+    #[arg(long)]
+    stylesheet: Option<PathBuf>,
     #[arg(long)]
     include: Vec<String>,
     #[arg(long)]
@@ -178,11 +182,19 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
     let excluded: Vec<&str> = args.exclude.iter().map(String::as_str).collect();
     let selection = NamespaceSelection::new(&included, &excluded)
         .map_err(|error| Failure::from(format!("{error}; each slash-separated segment must be nonempty, have no surrounding whitespace or control characters; use 'lsg publish help'")))?;
-    let report =
-        publish_site(&graph, &output, filename_format, &selection).map_err(|error| Failure {
-            message: format!("publication failed: {error}; use 'lsg publish help'"),
-            code: 1,
-        })?;
+    let report = publish_site_with_options(
+        &graph,
+        &output,
+        filename_format,
+        &selection,
+        &SiteOptions {
+            stylesheet: args.stylesheet,
+        },
+    )
+    .map_err(|error| Failure {
+        message: format!("publication failed: {error}; use 'lsg publish help'"),
+        code: 1,
+    })?;
     let index = output.join("index.html");
     let stdout = match format {
         Format::Human => output::clean(&format!(

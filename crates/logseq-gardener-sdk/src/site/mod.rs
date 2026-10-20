@@ -15,6 +15,15 @@ use crate::page_names::{PageNameIndex, lookup_key};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
 use crate::publishing::NamespaceSelection;
 
+/// Optional presentation settings for local publication.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SiteOptions {
+    /// Local regular `.css` file copied to `custom.css` and loaded after built-in styles.
+    /// Paths must have no symlink components. CSS resources resolve from the output root;
+    /// only this file is copied. Choose CSS whose browser resource requests you trust.
+    pub stylesheet: Option<PathBuf>,
+}
+
 /// A selected-source construct that could not be published faithfully.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SiteDiagnostic {
@@ -48,6 +57,8 @@ pub enum SiteError {
     Title(PageTitleError),
     /// The output destination is existing or unsafe.
     InvalidOutput { path: PathBuf, reason: &'static str },
+    /// A custom stylesheet has an invalid path or file type.
+    InvalidStylesheet { path: PathBuf, reason: &'static str },
     /// Selected pages have ambiguous names or colliding output routes.
     Collision { title: String },
     /// A filesystem operation failed; a write failure can leave partial new output.
@@ -59,7 +70,9 @@ impl fmt::Display for SiteError {
         match self {
             Self::Garden(error) => error.fmt(f),
             Self::Title(error) => error.fmt(f),
-            Self::InvalidOutput { path, reason } => write!(f, "{}: {reason}", path.display()),
+            Self::InvalidOutput { path, reason } | Self::InvalidStylesheet { path, reason } => {
+                write!(f, "{}: {reason}", path.display())
+            }
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
@@ -130,10 +143,47 @@ fn digest(value: &str) -> String {
     format!("{hash:016x}")
 }
 
-fn html_document(title: &str, body: &str) -> String {
+fn stylesheet_contents(path: &Path) -> Result<Vec<u8>, SiteError> {
+    let invalid = |reason| SiteError::InvalidStylesheet {
+        path: path.to_owned(),
+        reason,
+    };
+    if !path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("css"))
+    {
+        return Err(invalid("stylesheet must have a .css extension"));
+    }
+    let absolute = std::path::absolute(path).map_err(|error| io_error(path, error))?;
+    let mut current = PathBuf::new();
+    for component in absolute.components() {
+        current.push(component);
+        let metadata = fs::symlink_metadata(&current).map_err(|error| io_error(path, error))?;
+        if metadata.file_type().is_symlink() {
+            return Err(invalid("stylesheet path must have no symlink components"));
+        }
+    }
+    if !fs::symlink_metadata(path)
+        .map_err(|error| io_error(path, error))?
+        .is_file()
+    {
+        return Err(invalid("stylesheet must be a regular file"));
+    }
+    fs::read(path).map_err(|error| io_error(path, error))
+}
+
+fn html_document(title: &str, body: &str, stylesheet: Option<&str>) -> String {
     let title = render::escape(title);
+    let stylesheet = stylesheet
+        .map(|route| {
+            format!(
+                "<link rel=\"stylesheet\" href=\"{}\">",
+                render::escape(route)
+            )
+        })
+        .unwrap_or_default();
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}</style></head><body><nav><a href=\"index.html\">Garden index</a></nav><main><h1>{title}</h1>{body}</main></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}</style>{stylesheet}</head><body><nav><a href=\"index.html\">Garden index</a></nav><main><h1>{title}</h1>{body}</main></body></html>\n"
     )
 }
 
@@ -156,6 +206,27 @@ pub fn publish_site(
     format: FilenameFormat,
     selection: &NamespaceSelection,
 ) -> Result<SiteReport, SiteError> {
+    publish_site_with_options(root, output, format, selection, &SiteOptions::default())
+}
+
+/// Publish with optional custom CSS, preserving selection and destination protections.
+///
+/// Stylesheet validation and reading precede output creation. Existing callers may
+/// continue using [`publish_site`] for built-in presentation. Filesystem paths must
+/// remain stable during generation; write failures can leave partial new output.
+pub fn publish_site_with_options(
+    root: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+    format: FilenameFormat,
+    selection: &NamespaceSelection,
+    options: &SiteOptions,
+) -> Result<SiteReport, SiteError> {
+    let stylesheet = options
+        .stylesheet
+        .as_deref()
+        .map(stylesheet_contents)
+        .transpose()?;
+    let stylesheet_route = stylesheet.as_ref().map(|_| "custom.css");
     let source_root = root.as_ref();
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
@@ -243,7 +314,10 @@ pub fn publish_site(
                 message,
             });
         }
-        documents.insert(route.clone(), html_document(&title, &rendered.html));
+        documents.insert(
+            route.clone(),
+            html_document(&title, &rendered.html, stylesheet_route),
+        );
         index.push_str(&format!(
             "<li><a href=\"{}\">{}</a></li>",
             render::escape(&route),
@@ -255,11 +329,18 @@ pub fn publish_site(
     if report.pages == 0 {
         index.push_str("<p>No pages matched the publication policy.</p>");
     }
-    documents.insert("index.html".to_owned(), html_document("Garden", &index));
+    documents.insert(
+        "index.html".to_owned(),
+        html_document("Garden", &index, stylesheet_route),
+    );
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     for (route, html) in documents {
         let path = output.join(route);
         fs::write(&path, html).map_err(|error| io_error(&path, error))?;
+    }
+    if let Some(contents) = stylesheet {
+        let path = output.join("custom.css");
+        fs::write(&path, contents).map_err(|error| io_error(&path, error))?;
     }
     if !copied.is_empty() {
         let directory = output.join("assets");

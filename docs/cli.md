@@ -42,3 +42,5 @@ Successful results go to stdout; diagnostics go to stderr. Invalid invocations l
 `lsg publish --graph PATH --output PATH --filename-format legacy|triple-lowbar` accepts repeated `--include NAMESPACE` and `--exclude NAMESPACE`. An empty include list selects nothing. Paths accept native OS arguments; JSON paths are display strings.
 
 Successful JSON has `command_path: ["publish"]`, `pages`, `assets`, `withheld_pages`, `skipped_journals`, `diagnostic_count`, `output_directory`, and `index_path`. Selected unsupported content produces a completed site and exit zero with local diagnostics on stderr. Fatal SDK errors leave stdout empty and exit one. Invalid selectors and arguments exit two.
+
+The optional `publish --stylesheet PATH` selects a local CSS file loaded after built-in styles on every generated page. The file must be readable, regular, have a `.css` extension, and use a path without symlink components. Invalid stylesheet input returns one before output creation. See [Customize appearance](local-site.md#customize-appearance) for copying and browser resource behavior.

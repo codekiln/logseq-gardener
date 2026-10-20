@@ -59,3 +59,17 @@ Open the generated index, then `GitP/A/Session/24/11/19-Tue`. Its artwork and re
 [The CLI demonstration record](../openspec/changes/archive/2026-10-08-cli-static-publishing/verification.md) records browser inspection, source preservation, and the fixture checks against excluded page, block, and asset content entering output. [Issue #20 — Publish through lsg](https://github.com/codekiln/logseq-gardener/issues/20) tracks the command under [Issue #11 — Selected-namespace publishing](https://github.com/codekiln/logseq-gardener/issues/11).
 
 The next product work is to improve reference resolution and precise private-block handling. Use the local diagnostic report to choose the syntax and reference gaps that matter for your garden.
+
+## Customize appearance
+
+Supply a local CSS file to style the index and every selected page:
+
+```sh
+lsg publish --graph /path/to/garden --output /private/tmp/styled-site --filename-format triple-lowbar --include GitP/A/Session --stylesheet /path/to/theme.css
+```
+
+The publisher copies the file unchanged to `custom.css` beside the HTML files and loads it after the built-in styles. Standard CSS specificity and cascade rules apply. Omitting `--stylesheet` keeps the built-in presentation. The stylesheet does not contribute to the reported graph asset count.
+
+The path must name a readable regular file with a `.css` extension (case-insensitive) and have no symlink components. Use the physical path if a parent directory is a symlink, such as `/private/tmp` on macOS. Invalid stylesheet input fails before the output directory is created. Choose CSS you trust: the browser can request resources referenced by `url()` and `@import`. Relative resource URLs resolve from the copied stylesheet in the output root. Only the specified CSS file is copied; arrange its other resources separately.
+
+SDK callers can use `site::publish_site_with_options` with `SiteOptions { stylesheet: Some(path) }`. The existing `site::publish_site` function continues to use built-in presentation. The `publish_site` SDK example accepts the same optional `--stylesheet PATH` flag.
