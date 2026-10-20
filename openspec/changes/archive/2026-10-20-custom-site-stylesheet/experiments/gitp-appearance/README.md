@@ -17,7 +17,7 @@ mise exec -- cargo run -- publish \
   --include 'Microfreak/Preset/075 Saying Goodbye' \
   --include 'Microfreak/Preset/077 Eonz' \
   --include 'Microfreak/Preset/174 Auster' \
-  --stylesheet "$PWD/openspec/changes/custom-site-stylesheet/experiments/gitp-appearance/episode.css" \
+  --stylesheet "$PWD/openspec/changes/archive/2026-10-20-custom-site-stylesheet/experiments/gitp-appearance/episode.css" \
   --format json
 ```
 
