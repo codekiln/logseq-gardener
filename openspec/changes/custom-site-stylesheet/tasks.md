@@ -10,6 +10,6 @@
 
 ## 3. Verify and prepare review
 
-- [ ] 3.1 Export the selected GitP episode locally with sample CSS and record demonstration results under experiments.
-- [ ] 3.2 Run focused tests and required CI checks, recording results.
-- [ ] 3.3 Open the implementation PR and its linked cleanup sub-issue.
+- [x] 3.1 Export the selected GitP episode locally with sample CSS and record demonstration results under experiments.
+- [x] 3.2 Run focused tests and required CI checks, recording results.
+- [x] 3.3 Open the implementation PR and its linked cleanup sub-issue.
