@@ -1,9 +1,10 @@
 //! Generate a local HTML garden from explicitly selected Markdown pages.
 
 mod assets;
+mod hierarchy;
 mod render;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -11,7 +12,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::garden::{DocumentKind, GardenLoadError, load_garden};
-use crate::page_names::{PageNameIndex, lookup_key};
+use crate::page_names::{PageNameIndex, lookup_key, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
 use crate::publishing::NamespaceSelection;
 
@@ -38,7 +39,7 @@ pub struct SiteDiagnostic {
 /// Successful local publication, with diagnostics kept outside generated files.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SiteReport {
-    /// Number of generated page documents, excluding the index.
+    /// Selected source documents, excluding generated namespace pages and the index.
     pub pages: usize,
     /// Number of distinct copied asset files.
     pub assets: usize,
@@ -177,7 +178,13 @@ fn stylesheet_contents(path: &Path) -> Result<Vec<u8>, SiteError> {
     fs::read(path).map_err(|error| io_error(path, error))
 }
 
-fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bool) -> String {
+fn html_document(
+    title: &str,
+    body: &str,
+    breadcrumbs: &str,
+    stylesheet: Option<&str>,
+    homepage: bool,
+) -> String {
     let navigation = if homepage {
         "<a href=\"index.html\">Home</a> · <a href=\"pages.html\">All pages</a>"
     } else {
@@ -193,7 +200,7 @@ fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bo
         })
         .unwrap_or_default();
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main><h1>{title}</h1>{body}</main></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}a:focus-visible{{outline:2px solid #1855a3;outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}.namespace-breadcrumbs ol{{display:flex;flex-wrap:wrap;gap:.25rem .5rem;list-style:none;padding:0;margin:0}}.namespace-breadcrumbs li,.namespace-hierarchy li{{min-width:0;overflow-wrap:anywhere}}.namespace-breadcrumbs li+li::before{{content:\"/\";margin-right:.5rem}}.namespace-hierarchy{{margin-top:2rem}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main>{breadcrumbs}<h1>{title}</h1>{body}</main></body></html>\n"
     )
 }
 
@@ -251,16 +258,21 @@ pub fn publish_site_with_options(
     let mut pages = BTreeMap::new();
     let mut routes = BTreeMap::new();
     let mut selected = Vec::new();
+    let mut withheld_titles = BTreeSet::new();
     for document in &garden.documents {
         if document.kind == DocumentKind::Journal {
             report.skipped_journals += 1;
             continue;
         }
         let title = page_title(document, format).map_err(SiteError::Title)?;
+        let withheld = render::has_private_properties(&document.parsed.blocks);
+        if withheld {
+            withheld_titles.insert(lookup_key(&title));
+        }
         if !selection.includes(&title) {
             continue;
         }
-        if render::has_private_properties(&document.parsed.blocks) {
+        if withheld {
             report.withheld_pages += 1;
             report.diagnostics.push(SiteDiagnostic {
                 source: document.relative_path.clone(),
@@ -277,9 +289,12 @@ pub fn publish_site_with_options(
         selected.push((title, route, document));
     }
     let mut names = PageNameIndex::default();
+    let mut aliases = BTreeSet::new();
     for (title, route, document) in &selected {
         names.insert(route.clone(), title, document);
+        aliases.extend(page_aliases(document, title));
     }
+    let hierarchy = hierarchy::Hierarchy::new(&routes, &withheld_titles, &aliases)?;
     let homepage_route = options
         .homepage
         .as_deref()
@@ -346,14 +361,33 @@ pub fn publish_site_with_options(
         }
         documents.insert(
             route.clone(),
-            html_document(&title, &rendered.html, stylesheet_route, has_homepage),
+            html_document(
+                &title,
+                &(rendered.html + &hierarchy.child_links(&title)),
+                &hierarchy.breadcrumbs(&title),
+                stylesheet_route,
+                has_homepage,
+            ),
         );
+        report.pages += 1;
+    }
+    let mut entries = hierarchy.entries().collect::<Vec<_>>();
+    entries.sort_by(|left, right| left.title.cmp(&right.title));
+    for node in entries {
+        documents.entry(node.route.clone()).or_insert_with(|| {
+            html_document(
+                &node.title,
+                &hierarchy.child_links(&node.title),
+                &hierarchy.breadcrumbs(&node.title),
+                stylesheet_route,
+                has_homepage,
+            )
+        });
         index.push_str(&format!(
             "<li><a href=\"{}\">{}</a></li>",
-            render::escape(&route),
-            render::escape(&title)
+            render::escape(&node.route),
+            render::escape(&node.title)
         ));
-        report.pages += 1;
     }
     index.push_str("</ul>");
     if report.pages == 0 {
@@ -366,7 +400,7 @@ pub fn publish_site_with_options(
     };
     documents.insert(
         index_route.to_owned(),
-        html_document("Garden", &index, stylesheet_route, has_homepage),
+        html_document("Garden", &index, "", stylesheet_route, has_homepage),
     );
     if let Some(route) = homepage_route {
         documents.insert("index.html".to_owned(), documents[&route].clone());
