@@ -1,5 +1,6 @@
-//! Conservative HTML rendering: references never expand another document.
+//! Escaped HTML rendering with bounded selected-content transclusion.
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use crate::ast::{Block, Inline, ListItem, Url};
 use crate::garden::GardenDocument;
@@ -124,6 +125,51 @@ pub(super) fn outline_targets(blocks: &[Block]) -> Vec<(String, usize, String)> 
     result
 }
 
+/// The parser stores outline bullets flat; include continuations and descendants.
+fn outline_subtree(blocks: &[Block], start: usize, depth: usize) -> Option<&[Block]> {
+    if depth > MAX_DEPTH {
+        return None;
+    }
+    for (index, block) in blocks.iter().enumerate() {
+        if let Block::Bullet {
+            span: Some(span),
+            level,
+            ..
+        } = block
+            && span.0 == start
+        {
+            let end = blocks[index + 1..]
+                .iter()
+                .position(
+                    |block| matches!(block, Block::Bullet { level: next, .. } if next <= level),
+                )
+                .map_or(blocks.len(), |offset| index + 1 + offset);
+            return Some(&blocks[index..end]);
+        }
+        if let Block::Quote { children, .. } | Block::Custom { children, .. } = block
+            && let Some(found) = outline_subtree(children, start, depth + 1)
+        {
+            return Some(found);
+        }
+    }
+    None
+}
+
+/// Embedded outlines are flow content, so their ancestors cannot be phrasing-only.
+fn contains_embed(nodes: &[Inline], depth: usize) -> bool {
+    if depth > MAX_DEPTH {
+        return false;
+    }
+    nodes.iter().any(|node| match node {
+        Inline::Macro { name, .. } => name.eq_ignore_ascii_case("embed"),
+        Inline::Emphasis { children, .. }
+        | Inline::Subscript { children, .. }
+        | Inline::Superscript { children, .. }
+        | Inline::Tag { children, .. } => contains_embed(children, depth + 1),
+        _ => false,
+    })
+}
+
 fn block_label(nodes: &[Inline], depth: usize) -> String {
     if depth > MAX_DEPTH {
         return "[nesting limit reached]".into();
@@ -153,12 +199,13 @@ fn block_label(nodes: &[Inline], depth: usize) -> String {
     text
 }
 
-pub(super) fn render_document(
+pub(super) fn render_document_with_embeds(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
     targets: &BTreeMap<String, Option<BlockTarget>>,
     route: &str,
-    asset: &mut dyn FnMut(&str) -> Result<String, String>,
+    documents: &BTreeMap<String, &GardenDocument>,
+    asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
     let anchors = outline_targets(&document.parsed.blocks)
         .into_iter()
@@ -176,6 +223,12 @@ pub(super) fn render_document(
         pages,
         targets,
         anchors,
+        documents,
+        source: document.relative_path.clone(),
+        active: vec![route.to_owned()],
+        remaining_expansions: 128,
+        remaining_work: 10_000,
+        embedded: false,
         asset,
     };
     renderer.blocks(&document.parsed.blocks, 0);
@@ -191,12 +244,23 @@ struct Renderer<'a> {
     pages: &'a crate::page_names::PageNameIndex<String>,
     targets: &'a BTreeMap<String, Option<BlockTarget>>,
     anchors: BTreeMap<usize, String>,
-    asset: &'a mut dyn FnMut(&str) -> Result<String, String>,
+    documents: &'a BTreeMap<String, &'a GardenDocument>,
+    source: PathBuf,
+    active: Vec<String>,
+    remaining_expansions: usize,
+    remaining_work: usize,
+    embedded: bool,
+    asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
 }
 
 impl Renderer<'_> {
     fn diagnostic(&mut self, message: impl Into<String>) {
-        self.diagnostics.push(message.into());
+        let message = message.into();
+        self.diagnostics.push(if self.embedded {
+            format!("{}: {message}", self.source.display())
+        } else {
+            message
+        });
     }
     fn text(&mut self, text: &str) {
         self.html.push_str(&escape(text));
@@ -207,6 +271,20 @@ impl Renderer<'_> {
         self.text(text);
         self.html.push_str("</code>");
     }
+    fn consume_work(&mut self) -> bool {
+        if !self.embedded {
+            return true;
+        }
+        if self.remaining_work == 0 {
+            self.literal(
+                "embed macro total-work budget",
+                "[transclusion work limit reached]",
+            );
+            return false;
+        }
+        self.remaining_work -= 1;
+        true
+    }
     fn blocks(&mut self, blocks: &[Block], depth: usize) {
         if depth > MAX_DEPTH {
             self.literal("deeply nested content", "[nesting limit reached]");
@@ -216,6 +294,9 @@ impl Renderer<'_> {
         // empty list items for skipped indentation levels. Continuations remain in li.
         let mut levels: Vec<u32> = Vec::new();
         for block in blocks {
+            if !self.consume_work() {
+                break;
+            }
             if let Block::Bullet {
                 level,
                 size,
@@ -240,7 +321,9 @@ impl Renderer<'_> {
                     self.diagnostic("Outline nesting limit reached; rendered as sibling");
                     self.html.push_str("</li><li>");
                 }
-                if let Some(id) = span.as_ref().and_then(|span| self.anchors.get(&span.0)) {
+                if !self.embedded
+                    && let Some(id) = span.as_ref().and_then(|span| self.anchors.get(&span.0))
+                {
                     self.html
                         .push_str(&format!("<span id=\"block-{id}\"></span>"));
                 }
@@ -257,9 +340,14 @@ impl Renderer<'_> {
             match block {
                 Block::Properties { .. } | Block::Comment { .. } | Block::CommentBlock { .. } => {}
                 Block::Paragraph { inline, .. } => {
-                    self.html.push_str("<p>");
+                    let tag = if contains_embed(inline, 0) {
+                        "div"
+                    } else {
+                        "p"
+                    };
+                    self.html.push_str(&format!("<{tag}>"));
                     self.inlines(inline, depth + 1, false);
-                    self.html.push_str("</p>");
+                    self.html.push_str(&format!("</{tag}>"));
                 }
                 Block::Heading {
                     level,
@@ -347,7 +435,9 @@ impl Renderer<'_> {
         tags: &[String],
         depth: usize,
     ) {
-        let size = size.map(|size| size.clamp(1, 6));
+        let size = size
+            .filter(|_| !contains_embed(inline, 0))
+            .map(|size| size.clamp(1, 6));
         if let Some(size) = size {
             self.html.push_str(&format!("<h{size}>"));
         }
@@ -371,6 +461,9 @@ impl Renderer<'_> {
         }
         let mut previous = None;
         for item in items {
+            if !self.consume_work() {
+                break;
+            }
             let tag = if item.ordered { "ol" } else { "ul" };
             if previous != Some(tag) {
                 if let Some(previous) = previous {
@@ -407,6 +500,9 @@ impl Renderer<'_> {
             return;
         }
         for node in nodes {
+            if !self.consume_work() {
+                break;
+            }
             match node {
                 Inline::Plain { text, .. } | Inline::Target { text, .. } => self.text(text),
                 Inline::Code { text, .. } | Inline::Verbatim { text, .. } => {
@@ -416,6 +512,10 @@ impl Renderer<'_> {
                 }
                 Inline::Break { .. } | Inline::HardBreak { .. } => self.html.push_str("<br>"),
                 Inline::Emphasis { emph, children, .. } => {
+                    if !label && contains_embed(children, 0) {
+                        self.inlines(children, depth + 1, label);
+                        continue;
+                    }
                     let tag = match emph.as_str() {
                         "Bold" => "strong",
                         "Italic" => "em",
@@ -432,6 +532,10 @@ impl Renderer<'_> {
                     self.html.push_str(&format!("</{tag}>"));
                 }
                 Inline::Subscript { children, .. } | Inline::Superscript { children, .. } => {
+                    if !label && contains_embed(children, 0) {
+                        self.inlines(children, depth + 1, label);
+                        continue;
+                    }
                     let tag = if matches!(node, Inline::Subscript { .. }) {
                         "sub"
                     } else {
@@ -466,6 +570,11 @@ impl Renderer<'_> {
                 Inline::Tag { children, .. } => {
                     self.html.push('#');
                     self.inlines(children, depth + 1, label);
+                }
+                Inline::Macro { name, args, .. }
+                    if name.eq_ignore_ascii_case("embed") && !label =>
+                {
+                    self.embed(args, depth + 1);
                 }
                 Inline::Macro { name, args, .. } => self.literal(
                     "macro (including embeds and queries)",
@@ -506,6 +615,66 @@ impl Renderer<'_> {
                 Inline::Hiccup { v, .. } => self.literal("inline Hiccup", v),
             }
         }
+    }
+    fn embed(&mut self, args: &[String], depth: usize) {
+        let argument = args.join(", ");
+        let argument = argument.trim();
+        let fallback = format!("{{{{embed {argument}}}}}");
+        let resolved = if let Some(page) = argument
+            .strip_prefix("[[")
+            .and_then(|v| v.strip_suffix("]]"))
+        {
+            match self.pages.candidates(page) {
+                [route] => Some((route.clone(), None)),
+                _ => None,
+            }
+        } else if let Some(id) = argument
+            .strip_prefix("((")
+            .and_then(|v| v.strip_suffix("))"))
+            .and_then(uuid)
+        {
+            self.targets
+                .get(&id)
+                .and_then(Option::as_ref)
+                .map(|target| (target.route.clone(), Some(target.start)))
+        } else {
+            None
+        };
+        let Some((route, start)) = resolved else {
+            self.literal("embed macro target (unavailable or ambiguous)", &fallback);
+            return;
+        };
+        let Some(document) = self.documents.get(&route).copied() else {
+            self.literal("embed macro target (unavailable)", &fallback);
+            return;
+        };
+        let identity = start.map_or_else(|| route.clone(), |start| format!("{route}#{start}"));
+        if self.active.contains(&identity) || self.active.len() >= 16 || depth > MAX_DEPTH {
+            self.literal("embed macro cycle or depth limit", &fallback);
+            return;
+        }
+        if self.remaining_expansions == 0 || self.remaining_work == 0 {
+            self.literal("embed macro expansion budget", &fallback);
+            return;
+        }
+        let blocks = match start {
+            Some(start) => outline_subtree(&document.parsed.blocks, start, 0),
+            None => Some(document.parsed.blocks.as_slice()),
+        };
+        let Some(blocks) = blocks else {
+            self.literal("embed macro outline target (unavailable)", &fallback);
+            return;
+        };
+        self.remaining_expansions -= 1;
+        self.active.push(identity);
+        let previous_source = std::mem::replace(&mut self.source, document.relative_path.clone());
+        let previous_embedded = std::mem::replace(&mut self.embedded, true);
+        self.html.push_str("<section class=\"transclusion\">");
+        self.blocks(blocks, depth + 1);
+        self.html.push_str("</section>");
+        self.source = previous_source;
+        self.embedded = previous_embedded;
+        self.active.pop();
     }
     fn label(&mut self, label: &[Inline], fallback: &str, depth: usize) {
         if label.is_empty() {
@@ -637,7 +806,7 @@ impl Renderer<'_> {
             self.diagnostic(format!("Unsupported URL or remote image: {destination}"));
             self.label(label, &destination, depth);
         } else {
-            match (self.asset)(&destination) {
+            match (self.asset)(&self.source, &destination) {
                 Ok(route) => {
                     if image && self.media(&route, label, &destination, depth) {
                         return;
@@ -735,7 +904,14 @@ mod tests {
             without_aliases.parsed.blocks.clear();
             names.insert(route.clone(), title, &without_aliases);
         }
-        super::render_document(document, &names, &BTreeMap::new(), "p-test.html", asset)
+        super::render_document_with_embeds(
+            document,
+            &names,
+            &BTreeMap::new(),
+            "p-test.html",
+            &BTreeMap::new(),
+            &mut |_, url| asset(url),
+        )
     }
     fn document(source: &str) -> GardenDocument {
         GardenDocument {

@@ -442,3 +442,27 @@ fn cli_stylesheet_is_copied_and_invalid_input_fails_without_output() {
     assert!(help.status.success());
     assert!(String::from_utf8_lossy(&help.stdout).contains("--stylesheet PATH"));
 }
+
+#[test]
+fn cli_homepage_selects_alias_and_rejects_withheld_targets() {
+    let f = Fixture::new();
+    f.write("pages/Home.md", "alias:: Welcome\n- HOMEPAGE_CONTENT\n");
+    f.write("pages/Hidden.md", "public:: false\n- HIDDEN_CONTENT\n");
+    let output = f.0.join("site");
+    let result = f.publish(&output, &["--include", "Home", "--homepage", "Welcome"]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(
+        fs::read_to_string(output.join("index.html"))
+            .unwrap()
+            .contains("HOMEPAGE_CONTENT")
+    );
+    assert!(output.join("pages.html").exists());
+    let rejected = f.0.join("rejected");
+    let result = f.publish(&rejected, &["--include", "Hidden", "--homepage", "Hidden"]);
+    assert_eq!(result.status.code(), Some(1));
+    assert!(!rejected.exists());
+}

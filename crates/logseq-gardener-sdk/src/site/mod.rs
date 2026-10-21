@@ -22,6 +22,8 @@ pub struct SiteOptions {
     /// Paths must have no symlink components. CSS resources resolve from the output root;
     /// only this file is copied. Choose CSS whose browser resource requests you trust.
     pub stylesheet: Option<PathBuf>,
+    /// Unique selected page title or alias shown at index.html; page list moves to pages.html.
+    pub homepage: Option<String>,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -59,6 +61,8 @@ pub enum SiteError {
     InvalidOutput { path: PathBuf, reason: &'static str },
     /// A custom stylesheet has an invalid path or file type.
     InvalidStylesheet { path: PathBuf, reason: &'static str },
+    /// The homepage does not resolve to one selected visible page.
+    InvalidHomepage,
     /// Selected pages have ambiguous names or colliding output routes.
     Collision { title: String },
     /// A filesystem operation failed; a write failure can leave partial new output.
@@ -73,6 +77,7 @@ impl fmt::Display for SiteError {
             Self::InvalidOutput { path, reason } | Self::InvalidStylesheet { path, reason } => {
                 write!(f, "{}: {reason}", path.display())
             }
+            Self::InvalidHomepage => write!(f, "homepage must identify one selected visible page"),
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
@@ -172,7 +177,12 @@ fn stylesheet_contents(path: &Path) -> Result<Vec<u8>, SiteError> {
     fs::read(path).map_err(|error| io_error(path, error))
 }
 
-fn html_document(title: &str, body: &str, stylesheet: Option<&str>) -> String {
+fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bool) -> String {
+    let navigation = if homepage {
+        "<a href=\"index.html\">Home</a> · <a href=\"pages.html\">All pages</a>"
+    } else {
+        "<a href=\"index.html\">Garden index</a>"
+    };
     let title = render::escape(title);
     let stylesheet = stylesheet
         .map(|route| {
@@ -183,7 +193,7 @@ fn html_document(title: &str, body: &str, stylesheet: Option<&str>) -> String {
         })
         .unwrap_or_default();
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}</style>{stylesheet}</head><body><nav><a href=\"index.html\">Garden index</a></nav><main><h1>{title}</h1>{body}</main></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main><h1>{title}</h1>{body}</main></body></html>\n"
     )
 }
 
@@ -193,7 +203,7 @@ fn html_document(title: &str, body: &str, stylesheet: Option<&str>) -> String {
 /// resolve to local page links.
 /// Files containing parsed `public:: false` are withheld in full. Journals are
 /// counted and skipped. Unique explicit outline UUID references link to selected
-/// targets. Ambiguous or unavailable references, embeds, and queries receive fallbacks
+/// targets. Selected page and block embeds expand within fixed limits. Ambiguous or unavailable references, embeds, and queries receive fallbacks
 /// and diagnostics. Supported local assets are copied
 /// only when requested by rendered content. Existing output is never replaced.
 ///
@@ -270,6 +280,19 @@ pub fn publish_site_with_options(
     for (title, route, document) in &selected {
         names.insert(route.clone(), title, document);
     }
+    let homepage_route = options
+        .homepage
+        .as_deref()
+        .map(|name| match names.candidates(name) {
+            [route] => Ok(route.clone()),
+            _ => Err(SiteError::InvalidHomepage),
+        })
+        .transpose()?;
+    let has_homepage = homepage_route.is_some();
+    let selected_documents = selected
+        .iter()
+        .map(|(_, route, document)| (route.clone(), *document))
+        .collect();
     let mut targets = BTreeMap::new();
     for (_, route, document) in &selected {
         for (id, start, label) in render::outline_targets(&document.parsed.blocks) {
@@ -290,8 +313,8 @@ pub fn publish_site_with_options(
     let mut index = String::from("<ul>");
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     for (title, route, document) in selected {
-        let mut asset = |url: &str| {
-            let resolved = assets::resolve_asset(&root, &document.relative_path, url)?;
+        let mut asset = |source: &Path, url: &str| {
+            let resolved = assets::resolve_asset(&root, source, url)?;
             let path = resolved
                 .relative_path
                 .to_str()
@@ -307,7 +330,14 @@ pub fn publish_site_with_options(
             }
             Ok(route)
         };
-        let rendered = render::render_document(document, &names, &targets, &route, &mut asset);
+        let rendered = render::render_document_with_embeds(
+            document,
+            &names,
+            &targets,
+            &route,
+            &selected_documents,
+            &mut asset,
+        );
         for message in rendered.diagnostics {
             report.diagnostics.push(SiteDiagnostic {
                 source: document.relative_path.clone(),
@@ -316,7 +346,7 @@ pub fn publish_site_with_options(
         }
         documents.insert(
             route.clone(),
-            html_document(&title, &rendered.html, stylesheet_route),
+            html_document(&title, &rendered.html, stylesheet_route, has_homepage),
         );
         index.push_str(&format!(
             "<li><a href=\"{}\">{}</a></li>",
@@ -329,10 +359,18 @@ pub fn publish_site_with_options(
     if report.pages == 0 {
         index.push_str("<p>No pages matched the publication policy.</p>");
     }
+    let index_route = if has_homepage {
+        "pages.html"
+    } else {
+        "index.html"
+    };
     documents.insert(
-        "index.html".to_owned(),
-        html_document("Garden", &index, stylesheet_route),
+        index_route.to_owned(),
+        html_document("Garden", &index, stylesheet_route, has_homepage),
     );
+    if let Some(route) = homepage_route {
+        documents.insert("index.html".to_owned(), documents[&route].clone());
+    }
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     for (route, html) in documents {
         let path = output.join(route);

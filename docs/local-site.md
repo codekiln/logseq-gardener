@@ -30,7 +30,7 @@ Page references can use a selected page's title or leading aliases. When matchin
 
 Competing visible claims, including alias/title collisions, keep the source label and receive a local ambiguity diagnostic. Claims from withheld pages never enter lookup. Only the last leading `alias` property is used; comma-separated plain names and direct page references are supported. Quoted or wholly literal values retain their literal spelling; nested properties and `aliases` metadata do not supply page aliases. Routes and namespace selection retain the original logical title.
 
-References to unique explicit UUID IDs on published Markdown outline items link to the target note. The default link label is a short plain-text excerpt of the selected target; an explicit source label takes precedence. This is navigation: the target’s children, references, and assets are not inserted into the referring page. Missing, excluded, private, duplicate, invalid, and unsupported targets remain literal with diagnostics. IDs in root page properties are not outline targets. Embeds and queries retain their literal fallbacks.
+References to unique explicit UUID IDs on published Markdown outline items link to the target note. The default link label is a short plain-text excerpt of the selected target; an explicit source label takes precedence. Ordinary block references provide navigation. Page and block embed macros insert selected visible content, including block descendants, using the embedded document’s own asset paths. Expansion stops at cycles, an active expansion chain of 16, 128 expansions, or 10,000 embedded AST nodes per output document; repeated copies omit original IDs so block links continue to open the original page. Missing, excluded, private, duplicate, invalid, and unsupported targets remain literal with diagnostics. IDs in root page properties are not outline targets. Unavailable or ambiguous embeds and unsupported queries retain their literal fallbacks.
 
 ## Rendering and assets
 
@@ -73,3 +73,7 @@ The publisher copies the file unchanged to `custom.css` beside the HTML files an
 The path must name a readable regular file with a `.css` extension (case-insensitive) and have no symlink components. Use the physical path if a parent directory is a symlink, such as `/private/tmp` on macOS. Invalid stylesheet input fails before the output directory is created. Choose CSS you trust: the browser can request resources referenced by `url()` and `@import`. Relative resource URLs resolve from the copied stylesheet in the output root. Only the specified CSS file is copied; arrange its other resources separately.
 
 SDK callers can use `site::publish_site_with_options` with `SiteOptions { stylesheet: Some(path) }`. The existing `site::publish_site` function continues to use built-in presentation. The `publish_site` SDK example accepts the same optional `--stylesheet PATH` flag.
+
+## Choose a homepage
+
+Add `--homepage "Ghost in the Patch"` to render a uniquely selected visible page or alias at `index.html`. The original page route remains available and the complete page list moves to `pages.html`. Every page links to Home and All pages. An unavailable or ambiguous homepage fails before output is created. Omitting `--homepage` retains the generated page index.
