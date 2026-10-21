@@ -2,6 +2,10 @@
 
 Generate standalone HTML pages from selected Logseq namespaces with `lsg publish`, using the shared Rust SDK. The output includes an index, relative page links, and supported referenced assets. Open `index.html` in a browser to read the garden.
 
+Each page has breadcrumb links to its namespace ancestors. A **Hierarchy** section lists its children when available. Missing intermediate namespaces receive their own navigation pages, so a selected `Instruments/Synth/Preset` can be reached through `Instruments` and `Instruments/Synth` without creating those Markdown files.
+
+The complete page index includes these namespace destinations with their full logical names. The reported `pages` count continues to count selected source documents. Generated namespace pages contain navigation only: they contribute no source aliases, blocks, embeds, or homepage targets.
+
 For a complete checkout, build, and browser walkthrough, use the [weekend trial](weekend-trial.md).
 
 ## Try the public garden
@@ -25,6 +29,8 @@ Use `triple-lowbar` when `logseq/config.edn` sets `:file/name-format :triple-low
 ## Visibility and references
 
 A page without a `public` property is published when its title matches the namespace policy. The publisher withholds an entire page containing any parsed `public:: false` property, including a private child in an outline. `public:: true` preserves the namespace policy. Journals are counted and skipped pending configured date naming. Deeply nested content beyond the renderer's visibility limit also withholds its page.
+
+Hierarchy navigation uses only selected visible original titles. An ordinary unselected ancestor may have a navigation-only page, but its body, aliases, properties, and assets stay outside the publication. A stored private or visibility-withheld ancestor receives no generated destination, even when it is outside the include roots. Its name remains plain text in a visible descendant's breadcrumb, and child links cross the gap to the nearest available ancestor. A generated prefix that conflicts with a selected alias is also left unlinked. Aliases retain their existing source lookup behavior and do not create namespace branches.
 
 Page references can use a selected page's title or leading aliases. When matching names, the publisher ignores letter case, surrounding whitespace, and a slash at either end. It also normalizes equivalent Unicode spellings of accented letters using Normalization Form C (NFC). Duplicate selected titles fail generation before output is created. Alias ambiguity keeps a visible fallback and local diagnostic. Missing and excluded destinations retain labels from the selected source. Markdown links to page filenames require later lookup work.
 
