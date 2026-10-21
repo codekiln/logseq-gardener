@@ -8,7 +8,7 @@ use logseq_gardener_sdk::publishing::NamespaceSelection;
 use logseq_gardener_sdk::site::{SiteOptions, publish_site_with_options};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let usage = "usage: publish_site <garden-root> <new-output-directory> <legacy|triple-lowbar> [--include <namespace>] [--exclude <namespace>] [--stylesheet <path>] ...";
+    let usage = "usage: publish_site <garden-root> <new-output-directory> <legacy|triple-lowbar> [--include <namespace>] [--exclude <namespace>] [--stylesheet <path>] [--homepage <title>] ...";
     let mut args = env::args_os().skip(1);
     let root = PathBuf::from(args.next().ok_or(usage)?);
     let output = PathBuf::from(args.next().ok_or(usage)?);
@@ -21,6 +21,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut excluded = Vec::new();
     let mut options = SiteOptions::default();
     while let Some(flag) = args.next() {
+        if flag == "--homepage" {
+            options.homepage = Some(
+                args.next()
+                    .ok_or(usage)?
+                    .into_string()
+                    .map_err(|_| "homepage must be UTF-8")?,
+            );
+            continue;
+        }
         if flag == "--stylesheet" {
             options.stylesheet = Some(args.next().ok_or(usage)?.into());
             continue;

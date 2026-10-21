@@ -669,6 +669,7 @@ fn stylesheet_preserves_selection_sources_and_default_output() {
         &selection,
         &SiteOptions {
             stylesheet: Some(css.clone()),
+            ..SiteOptions::default()
         },
     )
     .unwrap();
@@ -704,6 +705,7 @@ fn stylesheet_errors_leave_destination_absent() {
             &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
             &SiteOptions {
                 stylesheet: Some(path.clone()),
+                ..SiteOptions::default()
             },
         )
         .unwrap_err();
@@ -731,6 +733,7 @@ fn stylesheet_rejects_symlink_files_and_parent_directories() {
             &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
             &SiteOptions {
                 stylesheet: Some(path),
+                ..SiteOptions::default()
             },
         )
         .unwrap_err();
@@ -757,6 +760,7 @@ fn unreadable_stylesheet_leaves_destination_absent() {
             &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
             &SiteOptions {
                 stylesheet: Some(css.clone()),
+                ..SiteOptions::default()
             },
         )
         .unwrap_err();

@@ -86,6 +86,8 @@ struct PublishArgs {
     #[arg(long)]
     stylesheet: Option<PathBuf>,
     #[arg(long)]
+    homepage: Option<String>,
+    #[arg(long)]
     include: Vec<String>,
     #[arg(long)]
     exclude: Vec<String>,
@@ -189,6 +191,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
         &selection,
         &SiteOptions {
             stylesheet: args.stylesheet,
+            homepage: args.homepage,
         },
     )
     .map_err(|error| Failure {
