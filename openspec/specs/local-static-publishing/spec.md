@@ -22,7 +22,7 @@ The SDK SHALL combine loaded Markdown, explicit filename interpretation, and the
 
 ### Requirement: Render supported syntax and report unsupported references
 
-The publisher SHALL render outlines, headings, paragraphs, inline emphasis, literal code, quotes, tables, selected-page links, and supported local asset links. It SHALL render local and HTTPS MP3, WAV, and OGG image syntax as audio controls with a plain escaped accessible label and a link to the recording. Local recording links SHALL request a download. Hosted recording links SHALL say “Open recording” and omit the download attribute; download behavior depends on the source host and browser. It SHALL render HTTPS raster image syntax as images, including PNG, JPEG, GIF, WebP, AVIF, and ICO. HTTPS media URLs SHALL have an authority, a supported path extension, and no control characters. Generation SHALL perform no remote fetch; the browser requests remote media when viewing the site. Ordinary Markdown media links SHALL remain links. It SHALL escape source HTML and attributes. It SHALL link only to selected generated page destinations; unique selected-page aliases SHALL resolve to their existing routes, while ambiguous or unresolved page links SHALL keep selected-source labels and receive local diagnostics. Unavailable block references, macros, unsupported remote media, Hiccup, and unsupported syntax SHALL produce visible fallback content and local diagnostics. It SHALL link unique explicit outline UUID references only to generated selected targets, with bounded escaped plain target labels when source labels are absent. It SHALL perform no query evaluation or transclusion.
+The publisher SHALL render outlines, headings, paragraphs, inline emphasis, literal code, quotes, tables, selected-page links, and supported local asset links. It SHALL render local and HTTPS MP3, WAV, and OGG image syntax as audio controls with a plain escaped accessible label and a link to the recording. Local recording links SHALL request a download. Hosted recording links SHALL say “Open recording” and omit the download attribute; download behavior depends on the source host and browser. It SHALL render HTTPS raster image syntax as images, including PNG, JPEG, GIF, WebP, AVIF, and ICO. HTTPS media URLs SHALL have an authority, a supported path extension, and no control characters. Generation SHALL perform no remote fetch; the browser requests remote media when viewing the site. Ordinary Markdown media links SHALL remain links. It SHALL escape source HTML and attributes. It SHALL link only to selected generated page destinations; unique selected-page aliases SHALL resolve to their existing routes, while ambiguous or unresolved page links SHALL keep selected-source labels and receive local diagnostics. Unavailable block references, macros, unsupported remote media, Hiccup, and unsupported syntax SHALL produce visible fallback content and local diagnostics. It SHALL link unique explicit outline UUID references only to generated selected targets, with bounded escaped plain target labels when source labels are absent. It SHALL render bounded selected-content transclusions according to the selected-content-transclusion capability. Arbitrary queries SHALL retain visible fallbacks and local diagnostics; the publisher SHALL perform no query evaluation.
 
 #### Scenario: A selected page links to another selected page
 - **WHEN** Start references Other using a page reference
@@ -30,7 +30,7 @@ The publisher SHALL render outlines, headings, paragraphs, inline emphasis, lite
 
 #### Scenario: Excluded embed and block target
 - **WHEN** a selected page references or embeds an excluded page or block whose source contains a sentinel
-- **THEN** the sentinel is absent from all output and the unsupported references receive diagnostics
+- **THEN** the sentinel is absent from all output and the unavailable references receive diagnostics
 
 #### Scenario: Source HTML is escaped
 - **WHEN** selected source contains script-like HTML or an unsafe URL scheme
@@ -91,3 +91,19 @@ The publisher SHALL require a fresh output directory with an existing parent out
 #### Scenario: Real-garden demonstration
 - **WHEN** a documented public-garden namespace example is generated and inspected locally
 - **THEN** its index, readable page content, navigation, and source preservation are recorded
+
+### Requirement: Select a published homepage
+
+The SDK SHALL accept an optional homepage page selector resolved through selected visible titles and aliases. A unique selector SHALL render the selected page at index.html and retain its ordinary page route. The complete page index SHALL remain available at pages.html and generated pages SHALL expose navigation to it. An unavailable or ambiguous homepage selector SHALL fail before output is created. Omitting the selector SHALL preserve the existing index homepage.
+
+#### Scenario: Choose the homepage by alias
+- **WHEN** the caller chooses a unique selected visible alias as the homepage
+- **THEN** index.html contains the target page's content with functioning local links and media, its ordinary page route remains available, and pages.html lists selected pages
+
+#### Scenario: Reject a withheld homepage
+- **WHEN** the requested homepage resolves only to an excluded or private page, or its selected lookup is ambiguous
+- **THEN** publication fails before creating output and introduces no withheld content
+
+#### Scenario: Preserve default publication
+- **WHEN** the caller supplies no homepage selector
+- **THEN** index.html retains the generated selected-page index
