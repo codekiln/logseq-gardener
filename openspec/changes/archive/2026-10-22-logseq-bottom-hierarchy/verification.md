@@ -8,3 +8,11 @@
 - Audio continued from 14:42 to 16:58 while navigating through bottom hierarchy links to a year namespace, then was paused.
 
 The implementation closes #60. Cleanup child #61 tracks the follow-up OpenSpec archive after merge.
+
+## Post-merge verification
+
+[PR #62 — Render full Logseq hierarchies at page bottom](https://github.com/codekiln/logseq-gardener/pull/62) merged into main as [5eab6ffc468cfed9b62e1b08b80d25de06d9e502](https://github.com/codekiln/logseq-gardener/commit/5eab6ffc468cfed9b62e1b08b80d25de06d9e502). The cleanup worktree started at that commit, and merge ancestry in origin/main was verified before synchronization.
+
+All planning artifacts and six tasks were complete. The merged hierarchy renderer, ten integration tests, deep-namespace regression, and recorded desktop/mobile keyboard and playback inspection cover the corrected bottom placement, all descendant rows, independent prefix links, protected gaps, and disclosure behavior. The complete modified `published-namespace-hierarchy` requirement and every scenario were synchronized inline and compared with the main specification before archival. Safe namespace derivation and source/index contracts remain intact. No implementation gap or unresolved delta conflict was found.
+
+The cleanup worktree passed strict `mise run openspec:validate`, `mise run rulesync:check`, and the full `mise run ci` after synchronization and archival.

@@ -30,19 +30,31 @@ The publisher SHALL derive namespace navigation only from slash-separated prefix
 
 ### Requirement: Navigate ancestors and children
 
-Every published source and generated namespace page SHALL provide labelled breadcrumb navigation with linked available ancestors and an identified current page. Unavailable ancestor destinations SHALL appear as plain prefix text. A page with navigable namespace children SHALL include a Hierarchy section with deterministic child links. Descendants separated by unavailable intermediate destinations SHALL attach to their nearest available ancestor using an unambiguous relative path label. Labels and attributes SHALL be escaped. Navigation SHALL use semantic keyboard-accessible links and wrap long names on narrow screens while retaining visible focus indicators.
+Every published source and generated namespace page SHALL place its Hierarchy view after page content. The publisher SHALL remove top namespace breadcrumb navigation. The Hierarchy view SHALL contain a flat list whose first row is the current complete logical path, followed by every navigable descendant destination at all depths in deterministic normalized logical-title order. Descendant matching SHALL respect slash-separated namespace boundaries. Each row SHALL show its full path with slash separators, and every segment with an available destination SHALL link independently to its cumulative prefix, including the current page's final segment. Unavailable private, withheld, or alias-conflicting prefix destinations SHALL remain plain segment text without recreating routes. The whole Hierarchy section SHALL be foldable and expanded by default; all rows SHALL be visible when expanded. Labels and attributes SHALL be escaped. Semantic disclosure controls and links SHALL support keyboard operation, visible focus, and wrapping of long paths on narrow screens.
 
 #### Scenario: Source page with ancestors and children
-- **WHEN** Instruments, Instruments/Synth, and Instruments/Synth/Preset are published
-- **THEN** the preset links both ancestors, Synth links its Preset child in Hierarchy, and source content remains present
+- **WHEN** A/B/C, A/B/C/D, A/B/C/E, and A/B/C/E/F are navigable destinations
+- **THEN** A/B/C displays those four full-path rows at the bottom, including E/F, with separate links for every available cumulative prefix segment and no top breadcrumb
 
 #### Scenario: Missing ancestor destination creates a gap
 - **WHEN** Root and Root/Private/PublicChild are visible but Root/Private is withheld
-- **THEN** Root links Private/PublicChild in Hierarchy, the descendant breadcrumb shows Private as plain text, and no navigation points to a standalone Root/Private destination
+- **THEN** Root's bottom list includes Root/Private/PublicChild, Private remains plain text in its row, and no navigation points to a standalone Root/Private destination
+
+#### Scenario: Namespaced leaf retains ancestor links
+- **WHEN** A/B/C has no descendants
+- **THEN** its bottom Hierarchy includes the current A/B/C row with available A, A/B, and A/B/C segment links
+
+#### Scenario: Similar sibling namespace
+- **WHEN** A/B/C and A/B/Cousin are published
+- **THEN** Cousin is absent from C's descendant rows
+
+#### Scenario: Expanded disclosure
+- **WHEN** a page with multiple descendant levels is opened
+- **THEN** every path row is initially visible and the Hierarchy control can collapse and expand the whole list by keyboard
 
 #### Scenario: Long mobile path
 - **WHEN** a deep namespace with long segments is viewed at a narrow mobile width
-- **THEN** breadcrumbs and child labels wrap within the available width and every navigation link remains keyboard reachable with visible focus
+- **THEN** complete path rows wrap within the available width and every available segment link remains keyboard reachable with visible focus
 
 ### Requirement: Preserve index and source publication contracts
 
