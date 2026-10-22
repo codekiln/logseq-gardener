@@ -241,7 +241,13 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
     ] {
         assert!(page.contains(content), "missing {content}: {page}");
     }
-    assert!(!page.contains("<script>"));
+    // The publisher owns one known fragment helper; source scripts stay escaped.
+    assert_eq!(page.matches("<script").count(), 1);
+    assert!(page.contains(&format!(
+        "<script data-lsg-fragments>{}</script>",
+        include_str!("../src/site/fragments.js")
+    )));
+    assert!(!page.contains("<script>SOURCE_HTML_SENTINEL"));
     assert!(!page.contains("href=\"javascript:"));
     assert!(!page.contains("src=\"http://example.com/remote.png\""));
     assert!(page.contains("href=\"https://example.com/?a=1&amp;b=2\""));
