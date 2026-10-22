@@ -13,7 +13,6 @@ pub(super) struct Node {
 
 pub(super) struct Hierarchy {
     nodes: BTreeMap<String, Node>,
-    children: BTreeMap<String, Vec<String>>,
 }
 
 fn ancestors(title: &str) -> Vec<String> {
@@ -66,75 +65,82 @@ impl Hierarchy {
             }
             nodes.insert(key, Node { title, route });
         }
-        let mut children: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        for (key, node) in &nodes {
-            if let Some(parent) = ancestors(&node.title)
-                .into_iter()
-                .rev()
-                .map(|prefix| lookup_key(&prefix))
-                .find(|prefix| nodes.contains_key(prefix))
-            {
-                children.entry(parent).or_default().push(key.clone());
-            }
-        }
-        for entries in children.values_mut() {
-            entries.sort_by(|left, right| nodes[left].title.cmp(&nodes[right].title));
-        }
-        Ok(Self { nodes, children })
+        Ok(Self { nodes })
     }
 
     pub fn entries(&self) -> impl Iterator<Item = &Node> {
         self.nodes.values()
     }
 
-    pub fn breadcrumbs(&self, title: &str) -> String {
-        let mut html =
-            String::from("<nav class=\"namespace-breadcrumbs\" aria-label=\"Breadcrumb\"><ol>");
+    fn path_links(&self, title: &str, current: bool) -> String {
+        let mut html = String::from("<span class=\"namespace-path\">");
         let parts = title.split('/').collect::<Vec<_>>();
         for (position, label) in parts.iter().enumerate() {
-            let label = escape(label);
-            if position + 1 == parts.len() {
-                html.push_str(&format!(
-                    "<li><span aria-current=\"page\">{label}</span></li>"
-                ));
-            } else if let Some(node) = self.nodes.get(&lookup_key(&parts[..=position].join("/"))) {
+            if position > 0 {
+                html.push_str("<span class=\"namespace-separator\" aria-hidden=\"true\">/</span>");
+            }
+            if let Some(node) = self.nodes.get(&lookup_key(&parts[..=position].join("/"))) {
                 let label = escape(node.title.rsplit('/').next().unwrap_or(&node.title));
+                let marker = if current && position + 1 == parts.len() {
+                    " aria-current=\"page\""
+                } else {
+                    ""
+                };
                 html.push_str(&format!(
-                    "<li><a href=\"{}\">{label}</a></li>",
+                    "<a{marker} href=\"{}\">{label}</a>",
                     escape(&node.route)
                 ));
             } else {
-                html.push_str(&format!("<li><span>{label}</span></li>"));
+                html.push_str(&format!(
+                    "<span class=\"namespace-unavailable\">{}</span>",
+                    escape(label)
+                ));
             }
         }
-        html.push_str("</ol></nav>");
+        html.push_str("</span>");
         html
     }
 
-    pub fn child_links(&self, title: &str) -> String {
+    pub fn bottom_view(&self, title: &str) -> String {
         let key = lookup_key(title);
-        let Some(children) = self.children.get(&key) else {
+        let Some(current) = self.nodes.get(&key) else {
             return String::new();
         };
-        let depth = title.split('/').count();
+        let prefix = format!("{key}/");
+        let descendants = self
+            .nodes
+            .range(prefix.clone()..)
+            .take_while(|(name, _)| name.starts_with(&prefix))
+            .map(|(_, node)| node);
         let mut html = String::from(
-            "<section class=\"namespace-hierarchy\" aria-label=\"Hierarchy\"><h2>Hierarchy</h2><ul>",
+            "<section class=\"namespace-hierarchy\" aria-label=\"Hierarchy\"><details open><summary>Hierarchy</summary><ul>",
         );
-        for child in children {
-            let node = &self.nodes[child];
-            let label = node
-                .title
-                .split('/')
-                .skip(depth)
-                .collect::<Vec<_>>()
-                .join("/");
-            html.push_str(&format!(
-                "<li><a href=\"{}\">{}</a></li>",
-                escape(&node.route),
-                escape(&label)
-            ));
+        for node in std::iter::once(current).chain(descendants) {
+            html.push_str("<li>");
+            html.push_str(&self.path_links(&node.title, node.route == current.route));
+            html.push_str("</li>");
         }
-        html.push_str("</ul></section>");
+        html.push_str("</ul></details></section>");
         html
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn full_descendant_enumeration_has_no_namespace_depth_cutoff() {
+        let title = std::iter::once("Root".to_owned())
+            .chain((0..128).map(|index| format!("N{index}")))
+            .collect::<Vec<_>>()
+            .join("/");
+        let sources = BTreeMap::from([(format!("p-{}.html", digest(&title)), title.clone())]);
+        let hierarchy = Hierarchy::new(&sources, &BTreeSet::new(), &BTreeSet::new()).unwrap();
+        let html = hierarchy.bottom_view("Root");
+        assert_eq!(html.matches("<li>").count(), 129);
+        assert!(html.contains(&format!("href=\"p-{}.html\">N127</a>", digest(&title))));
+        assert_eq!(html.matches("<ul>").count(), 1);
+        assert_eq!(hierarchy.bottom_view(&title).matches("<li>").count(), 1);
     }
 }

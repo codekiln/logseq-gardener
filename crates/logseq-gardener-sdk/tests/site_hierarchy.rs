@@ -74,6 +74,41 @@ fn has_route(root: &Path, title: &str) -> bool {
     root.join("site").join(route(title)).is_file()
 }
 
+fn hierarchy_rows(html: &str) -> Vec<&str> {
+    let section = html
+        .split_once("<section class=\"namespace-hierarchy\"")
+        .unwrap()
+        .1;
+    let list = section
+        .split_once("<ul>")
+        .unwrap()
+        .1
+        .split_once("</ul>")
+        .unwrap()
+        .0;
+    list.split("<li>")
+        .skip(1)
+        .map(|row| row.split_once("</li>").unwrap().0)
+        .collect()
+}
+
+fn row_text(row: &str) -> String {
+    let mut tag = false;
+    row.chars()
+        .filter(|character| match character {
+            '<' => {
+                tag = true;
+                false
+            }
+            '>' => {
+                tag = false;
+                false
+            }
+            _ => !tag,
+        })
+        .collect()
+}
+
 #[test]
 fn missing_parents_are_indexed_navigation_pages_without_source_lookup() {
     let f = Fixture::new();
@@ -102,8 +137,11 @@ fn missing_parents_are_indexed_navigation_pages_without_source_lookup() {
         route("Instruments/Synth/Preset")
     )));
     let leaf = f.html("Instruments/Synth/Preset");
-    assert!(leaf.contains("<main><nav class=\"namespace-breadcrumbs\""));
-    assert!(leaf.contains("aria-current=\"page\">Preset"));
+    assert!(!leaf.contains("namespace-breadcrumbs"));
+    assert!(leaf.contains(&format!(
+        "aria-current=\"page\" href=\"{}\">Preset",
+        route("Instruments/Synth/Preset")
+    )));
     assert!(leaf.contains("LEAF_NOTES"));
     assert!(leaf.contains("class=\"unresolved\">Instruments/Synth"));
     assert!(
@@ -112,7 +150,18 @@ fn missing_parents_are_indexed_navigation_pages_without_source_lookup() {
             .iter()
             .any(|diagnostic| diagnostic.message.contains("Instruments/Synth"))
     );
-    assert!(!leaf.contains("aria-label=\"Hierarchy\""));
+    assert!(leaf.contains("aria-label=\"Hierarchy\""));
+    assert_eq!(
+        hierarchy_rows(&leaf)
+            .iter()
+            .map(|row| row_text(row))
+            .collect::<Vec<_>>(),
+        ["Instruments/Synth/Preset"]
+    );
+    assert!(
+        leaf.find("LEAF_NOTES").unwrap()
+            < leaf.find("<section class=\"namespace-hierarchy\"").unwrap()
+    );
 }
 
 #[test]
@@ -148,7 +197,7 @@ fn private_title_override_outside_selection_blocks_synthetic_parent() {
     assert!(!has_route(&f.0, "Secret"));
     assert!(!f.index(false).contains(">Secret</a>"));
     let leaf = f.html("Secret/PublicChild");
-    assert!(leaf.contains("<li><span>Secret</span></li>"));
+    assert!(leaf.contains("<span class=\"namespace-unavailable\">Secret</span>"));
     assert!(!leaf.contains(&route("Secret")));
     assert!(!f.all_html().contains("PRIVATE_SENTINEL"));
 }
@@ -167,8 +216,15 @@ fn hidden_gaps_connect_children_to_nearest_visible_ancestor() {
     let report = f.publish(&["Root", "Hidden"], &["Root/Excluded"], None);
     assert_eq!(report.pages, 2);
     assert_eq!(report.withheld_pages, 2);
-    assert!(f.html("Root").contains(&format!(
-        "href=\"{}\">Private/Visible</a>",
+    let root = f.html("Root");
+    let rows = hierarchy_rows(&root);
+    assert_eq!(
+        rows.iter().map(|row| row_text(row)).collect::<Vec<_>>(),
+        ["Root", "Root/Private/Visible"]
+    );
+    assert!(rows[1].contains("<span class=\"namespace-unavailable\">Private</span>"));
+    assert!(rows[1].contains(&format!(
+        "href=\"{}\">Visible</a>",
         route("Root/Private/Visible")
     )));
     assert!(!has_route(&f.0, "Root/Private"));
@@ -210,6 +266,13 @@ fn normalized_prefixes_share_deterministic_spelling_and_source_routes_win() {
     assert_eq!(report.pages, 3);
     assert!(!has_route(&f.0, "Node"));
     assert!(f.html("node").contains("REAL_PARENT_BODY"));
+    assert_eq!(
+        hierarchy_rows(&f.html("node"))
+            .iter()
+            .map(|row| row_text(row))
+            .collect::<Vec<_>>(),
+        ["node", "node/One", "node/Two"]
+    );
     assert!(
         f.html("Node/One")
             .contains(&format!("href=\"{}\">node</a>", route("node")))
@@ -223,6 +286,11 @@ fn normalized_prefixes_share_deterministic_spelling_and_source_routes_win() {
     assert!(has_route(&g.0, "Cafe\u{301}"));
     assert!(!has_route(&g.0, "Café"));
     assert_eq!(g.index(false).matches("<li><a href=").count(), 3);
+    let parent = g.html("Cafe\u{301}");
+    let rows = hierarchy_rows(&parent);
+    assert_eq!(rows.len(), 3);
+    assert!(rows[1].contains(&route("Café/One")));
+    assert!(rows[2].contains(&route("Cafe\u{301}/Two")));
 }
 
 #[test]
@@ -283,4 +351,84 @@ fn generated_spelling_and_output_do_not_depend_on_source_filename_order() {
             .collect::<std::collections::BTreeMap<_, _>>()
     };
     assert_eq!(contents(&f), contents(&g));
+}
+
+#[test]
+fn bottom_hierarchy_contains_all_flat_full_paths_and_independent_segment_links() {
+    let f = Fixture::new();
+    for title in ["A/B/C", "A/B/C/D", "A/B/C/E", "A/B/C/E/F", "A/B/Cousin"] {
+        f.write(
+            &format!("{}.md", title.replace('/', "___")),
+            "- SOURCE_BODY\n",
+        );
+    }
+    let report = f.publish(&["A"], &[], None);
+    assert_eq!(report.pages, 5);
+    let page = f.html("A/B/C");
+    assert!(!page.contains("namespace-breadcrumbs"));
+    assert!(page.contains("<details open><summary>Hierarchy</summary><ul>"));
+    assert!(
+        page.find("SOURCE_BODY").unwrap()
+            < page.find("<section class=\"namespace-hierarchy\"").unwrap()
+    );
+    let rows = hierarchy_rows(&page);
+    assert_eq!(
+        rows.iter().map(|row| row_text(row)).collect::<Vec<_>>(),
+        ["A/B/C", "A/B/C/D", "A/B/C/E", "A/B/C/E/F"]
+    );
+    for (row, title) in rows
+        .iter()
+        .zip(["A/B/C", "A/B/C/D", "A/B/C/E", "A/B/C/E/F"])
+    {
+        let parts = title.split('/').collect::<Vec<_>>();
+        assert_eq!(row.matches("<a ").count(), parts.len());
+        for (position, label) in parts.iter().enumerate() {
+            assert!(row.contains(&format!(
+                "href=\"{}\">{label}</a>",
+                route(&parts[..=position].join("/"))
+            )));
+        }
+        assert!(!row.contains("<ul>"));
+    }
+    assert_eq!(rows[0].matches("aria-current=\"page\"").count(), 1);
+    assert!(rows[1..].iter().all(|row| !row.contains("aria-current")));
+    assert!(!page.contains(&route("A/B/Cousin")));
+    let leaf = f.html("A/B/C/E/F");
+    let rows = hierarchy_rows(&leaf);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(row_text(rows[0]), "A/B/C/E/F");
+    assert_eq!(rows[0].matches("<a ").count(), 5);
+    assert!(leaf.contains("overflow-wrap:anywhere"));
+    assert!(leaf.contains("summary:focus-visible"));
+}
+
+#[test]
+fn alias_and_private_gaps_stay_plain_across_all_descendant_levels() {
+    let f = Fixture::new();
+    f.write("Root.md", "- ROOT\n");
+    f.write("Root___Private.md", "public:: false\n- PRIVATE_SENTINEL\n");
+    f.write("Owner.md", "alias:: Root/Private/Alias\n- OWNER\n");
+    f.write(
+        "deep.md",
+        "title:: Root/Private/Alias/Leaf/Deeper\n- DEEP_BODY\n",
+    );
+    f.publish(&["Root", "Owner"], &[], None);
+    let root = f.html("Root");
+    let rows = hierarchy_rows(&root);
+    assert_eq!(
+        rows.iter().map(|row| row_text(row)).collect::<Vec<_>>(),
+        [
+            "Root",
+            "Root/Private/Alias/Leaf",
+            "Root/Private/Alias/Leaf/Deeper"
+        ]
+    );
+    for row in &rows[1..] {
+        assert!(row.contains("namespace-unavailable\">Private</span>"));
+        assert!(row.contains("namespace-unavailable\">Alias</span>"));
+        assert!(!row.contains(&route("Owner")));
+    }
+    assert!(!has_route(&f.0, "Root/Private"));
+    assert!(!has_route(&f.0, "Root/Private/Alias"));
+    assert!(!f.all_html().contains("PRIVATE_SENTINEL"));
 }
