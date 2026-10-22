@@ -178,13 +178,7 @@ fn stylesheet_contents(path: &Path) -> Result<Vec<u8>, SiteError> {
     fs::read(path).map_err(|error| io_error(path, error))
 }
 
-fn html_document(
-    title: &str,
-    body: &str,
-    breadcrumbs: &str,
-    stylesheet: Option<&str>,
-    homepage: bool,
-) -> String {
+fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bool) -> String {
     let navigation = if homepage {
         "<a href=\"index.html\">Home</a> · <a href=\"pages.html\">All pages</a>"
     } else {
@@ -200,7 +194,7 @@ fn html_document(
         })
         .unwrap_or_default();
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}a:focus-visible{{outline:2px solid #1855a3;outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}.namespace-breadcrumbs ol{{display:flex;flex-wrap:wrap;gap:.25rem .5rem;list-style:none;padding:0;margin:0}}.namespace-breadcrumbs li,.namespace-hierarchy li{{min-width:0;overflow-wrap:anywhere}}.namespace-breadcrumbs li+li::before{{content:\"/\";margin-right:.5rem}}.namespace-hierarchy{{margin-top:2rem}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main>{breadcrumbs}<h1>{title}</h1>{body}</main></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}a:focus-visible,summary:focus-visible{{outline:2px solid #1855a3;outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main><h1>{title}</h1>{body}</main></body></html>\n"
     )
 }
 
@@ -363,8 +357,7 @@ pub fn publish_site_with_options(
             route.clone(),
             html_document(
                 &title,
-                &(rendered.html + &hierarchy.child_links(&title)),
-                &hierarchy.breadcrumbs(&title),
+                &(rendered.html + &hierarchy.bottom_view(&title)),
                 stylesheet_route,
                 has_homepage,
             ),
@@ -377,8 +370,7 @@ pub fn publish_site_with_options(
         documents.entry(node.route.clone()).or_insert_with(|| {
             html_document(
                 &node.title,
-                &hierarchy.child_links(&node.title),
-                &hierarchy.breadcrumbs(&node.title),
+                &hierarchy.bottom_view(&node.title),
                 stylesheet_route,
                 has_homepage,
             )
@@ -400,7 +392,7 @@ pub fn publish_site_with_options(
     };
     documents.insert(
         index_route.to_owned(),
-        html_document("Garden", &index, "", stylesheet_route, has_homepage),
+        html_document("Garden", &index, stylesheet_route, has_homepage),
     );
     if let Some(route) = homepage_route {
         documents.insert("index.html".to_owned(), documents[&route].clone());
