@@ -85,3 +85,21 @@ SDK callers can use `site::publish_site_with_options` with `SiteOptions { styles
 ## Choose a homepage
 
 Add `--homepage "Ghost in the Patch"` to render a uniquely selected visible page or alias at `index.html`. The original page route remains available and the complete page list moves to `pages.html`. Every page links to Home and All pages. An unavailable or ambiguous homepage fails before output is created. Omitting `--homepage` retains the generated page index.
+
+## Collapsed outlines
+
+An outline parent with an attached `collapsed:: true` property starts closed.
+Readers can open its summary with a click or the keyboard to reveal the complete
+outline. Nested closed parents open independently. False or absent flags keep the
+outline expanded, and a leaf stays visible without an empty disclosure.
+
+Formatting and links remain in the summary. When a parent contains a page or block
+embed, its text labels the summary and the complete rich content appears inside.
+Media, transclusions and publication visibility keep their existing behavior.
+
+Links to blocks inside closed outlines reveal the containing disclosures, including
+on the initial page load. Sites that replace document content during navigation can
+call `window.logseqGardenerRevealFragment(hash, {scroll: false})` before their own
+fragment focus and scrolling. The helper accepts an encoded fragment beginning with
+`#`, opens only the target's containing disclosures, and returns the target element
+or `null` when unavailable.

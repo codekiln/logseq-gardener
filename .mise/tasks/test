@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-#MISE description="Run all Rust tests"
+#MISE description="Run workspace and supporting tests"
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
 
 cargo test --locked --workspace --all-targets --all-features
 cargo test --locked -p logseq-gardener-sdk --doc
 python3 -m unittest check-bundles/codekiln-help/test_checker.py
+node --test tests/fragments.test.cjs

@@ -193,6 +193,9 @@ fn block_label(nodes: &[Inline], depth: usize) -> String {
                     text.push_str("[reference]");
                 }
             }
+            Inline::Macro { name, .. } if name.eq_ignore_ascii_case("embed") => {
+                text.push_str("[embedded content]");
+            }
             _ => text.push_str("[unsupported content]"),
         }
     }
@@ -292,8 +295,8 @@ impl Renderer<'_> {
         }
         // The AST's outline bullets are flat. Track observed levels, without creating
         // empty list items for skipped indentation levels. Continuations remain in li.
-        let mut levels: Vec<u32> = Vec::new();
-        for block in blocks {
+        let mut levels: Vec<(u32, bool)> = Vec::new();
+        for (index, block) in blocks.iter().enumerate() {
             if !self.consume_work() {
                 break;
             }
@@ -308,33 +311,75 @@ impl Renderer<'_> {
                 ..
             } = block
             {
-                while levels.last().is_some_and(|previous| previous > level) {
-                    self.html.push_str("</li></ul>");
-                    levels.pop();
+                let collapsed = matches!(blocks.get(index + 1), Some(Block::Properties { props, .. })
+                    if props.iter().rev().find(|p| p.0.trim().eq_ignore_ascii_case("collapsed"))
+                        .is_some_and(|p| p.1.trim().eq_ignore_ascii_case("true")))
+                    && blocks[index + 1..]
+                        .iter()
+                        .find_map(|block| match block {
+                            Block::Bullet { level, .. } => Some(level),
+                            _ => None,
+                        })
+                        .is_some_and(|next| next > level);
+                let item_start = if collapsed {
+                    "<li class=\"outline-collapsed\">"
+                } else {
+                    "<li>"
+                };
+                while levels.last().is_some_and(|(previous, _)| previous > level) {
+                    self.close_outline_item(levels.pop().unwrap().1);
+                    self.html.push_str("</ul>");
                 }
-                if levels.last() == Some(level) {
-                    self.html.push_str("</li><li>");
+                if levels.last().is_some_and(|(previous, _)| previous == level) {
+                    self.close_outline_item(levels.last().unwrap().1);
+                    self.html.push_str(item_start);
                 } else if levels.len() < MAX_DEPTH {
-                    self.html.push_str("<ul><li>");
-                    levels.push(*level);
+                    self.html.push_str("<ul>");
+                    self.html.push_str(item_start);
+                    levels.push((*level, false));
                 } else {
                     self.diagnostic("Outline nesting limit reached; rendered as sibling");
-                    self.html.push_str("</li><li>");
+                    self.close_outline_item(levels.last().unwrap().1);
+                    self.html.push_str(item_start);
                 }
+                levels.last_mut().unwrap().1 = collapsed;
                 if !self.embedded
                     && let Some(id) = span.as_ref().and_then(|span| self.anchors.get(&span.0))
                 {
                     self.html
                         .push_str(&format!("<span id=\"block-{id}\"></span>"));
                 }
-                self.heading_content(
-                    *size,
-                    inline,
-                    marker.as_deref(),
-                    priority.as_deref(),
-                    htags,
-                    depth,
-                );
+                let flow_label = collapsed && contains_embed(inline, 0);
+                if collapsed {
+                    self.html
+                        .push_str("<details class=\"outline-disclosure\"><summary>");
+                    if flow_label {
+                        self.text(&block_label(inline, 0));
+                    }
+                }
+                if !flow_label {
+                    self.heading_content(
+                        *size,
+                        inline,
+                        marker.as_deref(),
+                        priority.as_deref(),
+                        htags,
+                        depth,
+                    );
+                }
+                if collapsed {
+                    self.html.push_str("</summary>");
+                }
+                if flow_label {
+                    self.heading_content(
+                        *size,
+                        inline,
+                        marker.as_deref(),
+                        priority.as_deref(),
+                        htags,
+                        depth,
+                    );
+                }
                 continue;
             }
             match block {
@@ -422,9 +467,16 @@ impl Renderer<'_> {
                 Block::Bullet { .. } => unreachable!("handled above"),
             }
         }
-        for _ in levels {
-            self.html.push_str("</li></ul>");
+        for (_, collapsed) in levels.into_iter().rev() {
+            self.close_outline_item(collapsed);
+            self.html.push_str("</ul>");
         }
+    }
+    fn close_outline_item(&mut self, collapsed: bool) {
+        if collapsed {
+            self.html.push_str("</details>");
+        }
+        self.html.push_str("</li>");
     }
     fn heading_content(
         &mut self,
