@@ -11,5 +11,5 @@
 ## 3. Verify and review
 
 - [x] 3.1 Add meaningful Rust and JavaScript fixtures for privacy, identity, config, counts, filtering, and disclosure/navigation behavior.
-- [ ] 3.2 Document shared behavior and verify desktop/mobile, keyboard, no-JavaScript, and host-replacement behavior.
-- [ ] 3.3 Run required checks, create the cleanup sub-issue, and record independent implementation review.
+- [x] 3.2 Document shared behavior and verify desktop/mobile, keyboard, no-JavaScript, and host-replacement behavior.
+- [x] 3.3 Run required checks, create the cleanup sub-issue, and record independent implementation review.
