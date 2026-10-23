@@ -6,7 +6,7 @@ Generated sites currently use fixed light colors. Readers need the site to follo
 
 - Add shared light and dark palettes that follow the system preference by default, including changes while the page is open.
 - Add a labelled appearance selector with Light, Dark and System choices and a persistent browser preference.
-- Apply the initial choice before page content paints, and expose an idempotent initializer for hosts that replace navigation content.
+- Apply the initial choice before page content appears. Sites that replace navigation can update the Appearance selector without resetting the reader’s choice.
 - Provide palette variables for site styles, with readable disclosures, hierarchy, backlinks, focus indicators and native media controls.
 
 ## Capabilities
