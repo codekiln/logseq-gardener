@@ -1,6 +1,8 @@
 //! Generate a local HTML garden from explicitly selected Markdown pages.
 
 mod assets;
+mod backlinks;
+mod config;
 mod hierarchy;
 mod render;
 
@@ -194,8 +196,9 @@ fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bo
         })
         .unwrap_or_default();
     let fragments = include_str!("fragments.js");
+    let backlinks = include_str!("backlinks.js");
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}a:focus-visible,summary:focus-visible{{outline:2px solid #1855a3;outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}a:focus-visible,summary:focus-visible{{outline:2px solid #1855a3;outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group article{{border-left:2px solid #c6ccd2;margin:.75rem 0;padding-left:.75rem;overflow-wrap:anywhere}}.backlinks-group h3{{font-size:1rem}}.backlink-context,.backlink-source{{font-size:.85rem}}.linked-references [hidden]{{display:none!important}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
     )
 }
 
@@ -299,6 +302,21 @@ pub fn publish_site_with_options(
         })
         .transpose()?;
     let has_homepage = homepage_route.is_some();
+    let (reference_config, config_diagnostics) = config::read(&root);
+    for message in config_diagnostics {
+        report.diagnostics.push(SiteDiagnostic {
+            source: "logseq/config.edn".into(),
+            message,
+        });
+    }
+    let reference_index = backlinks::Backlinks::new(
+        &selected,
+        &names,
+        hierarchy
+            .entries()
+            .map(|node| (node.route.clone(), node.title.clone()))
+            .collect(),
+    );
     let selected_documents = selected
         .iter()
         .map(|(_, route, document)| (route.clone(), *document))
@@ -322,33 +340,46 @@ pub fn publish_site_with_options(
     let mut documents = BTreeMap::new();
     let mut index = String::from("<ul>");
     selected.sort_by(|left, right| left.0.cmp(&right.0));
-    for (title, route, document) in selected {
-        let mut asset = |source: &Path, url: &str| {
-            let resolved = assets::resolve_asset(&root, source, url)?;
-            let path = resolved
-                .relative_path
-                .to_str()
-                .ok_or("asset path is not UTF-8")?
-                .replace('\\', "/");
-            let route = format!("assets/a-{}.{}", digest(&path), resolved.extension);
-            if let Some((previous, _)) = copied.get(&route) {
-                if previous != &resolved.relative_path {
-                    return Err("asset route collision".to_owned());
-                }
-            } else {
-                copied.insert(route.clone(), (resolved.relative_path, resolved.contents));
+    let mut asset = |source: &Path, url: &str| {
+        let resolved = assets::resolve_asset(&root, source, url)?;
+        let path = resolved
+            .relative_path
+            .to_str()
+            .ok_or("asset path is not UTF-8")?
+            .replace('\\', "/");
+        let route = format!("assets/a-{}.{}", digest(&path), resolved.extension);
+        if let Some((previous, _)) = copied.get(&route) {
+            if previous != &resolved.relative_path {
+                return Err("asset route collision".to_owned());
             }
-            Ok(route)
-        };
-        let rendered = render::render_document_with_embeds(
+        } else {
+            copied.insert(route.clone(), (resolved.relative_path, resolved.contents));
+        }
+        Ok(route)
+    };
+    for (title, route, document) in selected {
+        let rendered = render::render_document_with_source_anchors(
             document,
             &names,
             &targets,
             &route,
             &selected_documents,
+            reference_index.source_anchors(&route),
             &mut asset,
         );
-        for message in rendered.diagnostics {
+        let (reference_html, reference_diagnostics) = reference_index.render(
+            &route,
+            reference_config,
+            &names,
+            &targets,
+            &selected_documents,
+            &mut asset,
+        );
+        for message in rendered
+            .diagnostics
+            .into_iter()
+            .chain(reference_diagnostics)
+        {
             report.diagnostics.push(SiteDiagnostic {
                 source: document.relative_path.clone(),
                 message,
@@ -358,7 +389,7 @@ pub fn publish_site_with_options(
             route.clone(),
             html_document(
                 &title,
-                &(rendered.html + &hierarchy.bottom_view(&title)),
+                &(rendered.html + &hierarchy.bottom_view(&title) + &reference_html),
                 stylesheet_route,
                 has_homepage,
             ),
@@ -368,14 +399,25 @@ pub fn publish_site_with_options(
     let mut entries = hierarchy.entries().collect::<Vec<_>>();
     entries.sort_by(|left, right| left.title.cmp(&right.title));
     for node in entries {
-        documents.entry(node.route.clone()).or_insert_with(|| {
-            html_document(
-                &node.title,
-                &hierarchy.bottom_view(&node.title),
-                stylesheet_route,
-                has_homepage,
-            )
-        });
+        if !documents.contains_key(&node.route) {
+            let (reference_html, _) = reference_index.render(
+                &node.route,
+                reference_config,
+                &names,
+                &targets,
+                &selected_documents,
+                &mut asset,
+            );
+            documents.insert(
+                node.route.clone(),
+                html_document(
+                    &node.title,
+                    &(hierarchy.bottom_view(&node.title) + &reference_html),
+                    stylesheet_route,
+                    has_homepage,
+                ),
+            );
+        }
         index.push_str(&format!(
             "<li><a href=\"{}\">{}</a></li>",
             render::escape(&node.route),
