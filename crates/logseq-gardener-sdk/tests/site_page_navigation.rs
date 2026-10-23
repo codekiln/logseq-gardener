@@ -99,6 +99,14 @@ fn explicit_sequence_resolves_aliases_to_canonical_titles_and_homepage_routes() 
                 .unwrap()
     );
     assert!(middle.contains("<audio controls"));
+    assert!(
+        middle
+            .find("<section class=\"namespace-hierarchy\"")
+            .unwrap()
+            < middle.find("<section class=\"linked-references\"").unwrap()
+    );
+    assert!(middle.contains("<script data-lsg-backlinks-script>"));
+    assert!(middle.contains("Page properties"));
     assert_eq!(
         fs::read_to_string(f.0.join("site/index.html")).unwrap(),
         middle
@@ -175,6 +183,7 @@ fn namespace_status_preserves_index_names_and_selected_empty_pages() {
         generated.contains("class=\"namespace-link\" aria-label=\"Visible/Branch (Namespace)\"")
     );
     assert!(generated.contains("text-decoration-style:dotted"));
+    assert!(generated.contains("<section class=\"linked-references\""));
     assert!(
         !f.html("Visible/Empty")
             .contains("<p class=\"namespace-notice\"")

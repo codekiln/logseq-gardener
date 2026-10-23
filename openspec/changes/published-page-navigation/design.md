@@ -16,7 +16,7 @@ Track whether a hierarchy node came from a selected source route. A generated de
 
 ### Resolve sequence properties through the selected source index
 
-A separate sequence module reads the leading Properties block and uses the existing title/alias candidate index. Only one direct page reference is accepted. The last matching property supplies the value, matching existing alias precedence. Resolve to a canonical selected route and title; omit unsafe or ambiguous neighbors. Render a Page sequence nav after the body and before Hierarchy. Sequence metadata does not create body backlinks or new source routes.
+A separate sequence module reads the leading Properties block and uses the existing title/alias candidate index. Only one direct page reference is accepted. The last matching property supplies the value, matching existing alias precedence. Resolve to a canonical selected route and title; omit unsafe or ambiguous neighbors. Render a Page sequence nav after the body and before Hierarchy. Rendered sequence links add no backlinks or source routes; authored property references retain the existing Page properties backlink context.
 
 ### Keep integration small beside the backlinks work
 
