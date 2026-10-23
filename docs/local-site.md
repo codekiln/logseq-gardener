@@ -126,3 +126,11 @@ A host that replaces page content can call `window.logseqGardenerInitBacklinks(r
 Generated namespace pages show a Namespace notice. Their index and hierarchy entries carry a Namespace badge, and links to these destinations use a dotted underline. Selected source pages keep ordinary page labels, including empty source pages. Namespace status describes the published destination; an unselected source ancestor has the same status as a missing ancestor.
 
 Add leading `prev:: [[Page title]]` or `next:: [[Page title]]` properties to publish Previous and Next navigation after the page content. Each value must be one direct page reference. Titles and unique aliases resolve to the canonical selected source page. Private, excluded, missing, ambiguous, self, and generated-only targets produce no navigation link. The last leading value for each key applies; nested properties and literal code do not supply sequence links. Authors choose the order, and a page can have either neighbor or both.
+
+## Appearance
+
+Generated sites follow the reader's system appearance by default. The Appearance selector offers System, Light and Dark. Light and Dark are saved under `logseq-gardener-theme` in browser localStorage for the origin; System removes that override. If storage is unavailable, the choice lasts for the current document and its internal navigation. Without JavaScript, shared CSS still follows the system preference and the inactive selector remains hidden.
+
+The shared script applies the initial appearance in the document head and updates it when the system preference changes. Hosts that replace navigation content call `window.logseqGardenerInitTheme(importedNavigation)` after insertion so the new selector reflects the active choice. Repeated initialization is safe and does not replace page content or media players.
+
+Custom stylesheets can set `--lsg-text`, `--lsg-background`, `--lsg-surface`, `--lsg-link`, `--lsg-border`, `--lsg-quote-border`, `--lsg-warning`, `--lsg-focus` and `--lsg-muted`. Put light overrides on `:root` and dark overrides on `:root[data-lsg-theme="dark"]`; an equivalent `@media (prefers-color-scheme: dark)` rule for `:root:not([data-lsg-theme])` supplies the no-JavaScript dark palette. A stylesheet with fixed colors needs matching dark overrides for its own components.
