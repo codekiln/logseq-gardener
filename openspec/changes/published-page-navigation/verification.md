@@ -2,7 +2,7 @@
 
 The publisher marks generated namespace destinations with visible Namespace text, dotted links and accessible labels while retaining the exact full logical index anchor text. Missing and ordinarily unselected stored ancestors produce identical published status. Source page names, aliases, media, routes, embeds and counts retain their behavior.
 
-The focused navigation suite covers canonical title/alias resolution, one-sided sequences, homepage neighbors, escaping, source-byte preservation, invalid or duplicate metadata, and omission of private, excluded, missing, ambiguous, self and generated-only neighbors. All five tests and the existing ten hierarchy tests pass.
+The navigation tests cover title and alias resolution, sequences with one neighbor, homepage links, escaped titles, and invalid or duplicate properties. They also check that source files remain unchanged and that private, excluded, missing, ambiguous, self and generated-only targets receive no links. All five tests and the existing ten hierarchy tests pass.
 
 Full `mise run ci`, strict OpenSpec validation, RuleSync checks and `git diff --check` pass. An independent review of the implementation found no issues.
 
