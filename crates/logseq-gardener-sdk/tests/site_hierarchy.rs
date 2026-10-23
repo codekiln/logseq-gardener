@@ -285,7 +285,7 @@ fn normalized_prefixes_share_deterministic_spelling_and_source_routes_win() {
     assert_eq!(report.pages, 2);
     assert!(has_route(&g.0, "Cafe\u{301}"));
     assert!(!has_route(&g.0, "Café"));
-    assert_eq!(g.index(false).matches("<li><a href=").count(), 3);
+    assert_eq!(g.index(false).matches("<li><a").count(), 3);
     let parent = g.html("Cafe\u{301}");
     let rows = hierarchy_rows(&parent);
     assert_eq!(rows.len(), 3);
@@ -419,7 +419,7 @@ fn alias_and_private_gaps_stay_plain_across_all_descendant_levels() {
         rows.iter().map(|row| row_text(row)).collect::<Vec<_>>(),
         [
             "Root",
-            "Root/Private/Alias/Leaf",
+            "Root/Private/Alias/Leaf Namespace",
             "Root/Private/Alias/Leaf/Deeper"
         ]
     );

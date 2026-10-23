@@ -4,7 +4,9 @@ mod assets;
 mod backlinks;
 mod config;
 mod hierarchy;
+mod page_status;
 mod render;
+mod sequence;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -196,9 +198,10 @@ fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bo
         })
         .unwrap_or_default();
     let fragments = include_str!("fragments.js");
+    let navigation_styles = page_status::STYLES;
     let backlinks = include_str!("backlinks.js");
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}a:focus-visible,summary:focus-visible{{outline:2px solid #1855a3;outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group article{{border-left:2px solid #c6ccd2;margin:.75rem 0;padding-left:.75rem;overflow-wrap:anywhere}}.backlinks-group h3{{font-size:1rem}}.backlink-context,.backlink-source{{font-size:.85rem}}.linked-references [hidden]{{display:none!important}}</style>{stylesheet}</head><body><nav>{navigation}</nav><main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><style>body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:#20252b;background:#fafafa}}a{{color:#1855a3}}a:focus-visible,summary:focus-visible{{outline:2px solid #1855a3;outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:#eceff2;padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid #c6ccd2;padding:.4rem}}.unsupported{{color:#695429}}blockquote{{border-left:3px solid #b3bbc4;margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group article{{border-left:2px solid #c6ccd2;margin:.75rem 0;padding-left:.75rem;overflow-wrap:anywhere}}.backlinks-group h3{{font-size:1rem}}.backlink-context,.backlink-source{{font-size:.85rem}}.linked-references [hidden]{{display:none!important}}{navigation_styles}</style>{stylesheet}</head><body><nav>{navigation}</nav><main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
     )
 }
 
@@ -389,7 +392,10 @@ pub fn publish_site_with_options(
             route.clone(),
             html_document(
                 &title,
-                &(rendered.html + &hierarchy.bottom_view(&title) + &reference_html),
+                &(rendered.html
+                    + &sequence::navigation(document, &route, &names, &routes)
+                    + &hierarchy.bottom_view(&title)
+                    + &reference_html),
                 stylesheet_route,
                 has_homepage,
             ),
@@ -412,16 +418,20 @@ pub fn publish_site_with_options(
                 node.route.clone(),
                 html_document(
                     &node.title,
-                    &(hierarchy.bottom_view(&node.title) + &reference_html),
+                    &(page_status::notice().to_owned()
+                        + &hierarchy.bottom_view(&node.title)
+                        + &reference_html),
                     stylesheet_route,
                     has_homepage,
                 ),
             );
         }
         index.push_str(&format!(
-            "<li><a href=\"{}\">{}</a></li>",
+            "<li><a{} href=\"{}\">{}</a>{}</li>",
+            page_status::link_attributes(node.generated, &node.title),
             render::escape(&node.route),
-            render::escape(&node.title)
+            render::escape(&node.title),
+            page_status::badge(node.generated)
         ));
     }
     index.push_str("</ul>");
