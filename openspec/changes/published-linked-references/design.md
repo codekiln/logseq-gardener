@@ -26,7 +26,7 @@ Add a reference rendering mode that suppresses original IDs, bounds work, and ap
 
 Render counts and all reference context in native details elements. Related-page selects offer Any, Include, and Exclude; all includes must match and any exclude rejects a context. Search narrows option labels only. Hide controls until the trusted script initializes them, so a no-JavaScript reader sees working disclosures and all results. The browser API `logseqGardenerInitBacklinks` initializes the initial document and supports explicit host initialization after content replacement, independently of fragment handling.
 
-### Read only the two graph settings
+### Read Logseq’s reference collapse threshold and outline depth settings
 
 Use a bounded EDN reader for top-level integer values, honoring comments, strings, nested forms, and discarded forms. Keep Logseq's defaults of threshold 100 and open depth 2. Treat unusable settings as defaults with diagnostics rather than changing public API options or adding a parser dependency.
 

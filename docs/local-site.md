@@ -106,41 +106,17 @@ or `null` when unavailable.
 
 ## Linked references
 
-Each source and namespace page has a bottom **Linked references** section showing
-how many published pages and referring contexts link to it. The counts remain
-visible when the section is collapsed, including when both are zero. Several
-links to the same destination in one context count once; several referring blocks
-on one page count as one linking page and multiple references. Leading property
-references have a minimal **Page properties** context. Pure block UUID references
-retain block navigation and do not create page backlinks.
+Each source and namespace page has a bottom **Linked references** section showing how many published pages and referring contexts link to it. The counts remain visible when the section is collapsed, including when both are zero. Several links to the same destination in one context count once; several referring blocks on one page count as one linking page and multiple references. Leading property references have a minimal **Page properties** context. Pure block UUID references retain block navigation and do not create page backlinks.
 
-Related-page controls offer **Any**, **Include**, and **Exclude**. A result must
-match every included page and none of the excluded pages in its reference path.
-Parent references remain visible when a matching child supplies the related page;
-unrelated child branches hide. **Find related pages** searches the available
-filter options. **Reset filters** clears the selections and restores every result.
-Active filters show the visible versus total page and reference counts.
+Related-page controls offer **Any**, **Include**, and **Exclude**. A result must match every included page and none of the excluded pages in its reference path. Parent references remain visible when a matching child supplies the related page; unrelated child branches hide. **Find related pages** searches the available filter options. **Reset filters** clears the selections and restores every result. Active filters show the visible versus total page and reference counts.
 
-Only selected visible source content supplies references and filter identities.
-Aliases resolve through the same published-name lookup as ordinary links.
-Generated hierarchy and navigation links do not add backlinks. Authored links can
-refer to an already-safe generated namespace destination. Reference copies retain
-source-relative assets and link back to the originating page or outline block.
+Only selected visible source content supplies references and filter identities. Aliases resolve through the same published-name lookup as ordinary links. Generated hierarchy and navigation links do not add backlinks. Authored links can refer to an already-safe generated namespace destination. Reference copies retain source-relative assets and link back to the originating page or outline block.
 
 The publisher reads these top-level integer settings from `logseq/config.edn`:
 
-- `:ref/linked-references-collapsed-threshold` defaults to `100`. A section starts
-  closed when its reference-context count reaches this threshold. Set it to `0`
-  to start every section closed while keeping its counts visible.
-- `:ref/default-open-blocks-level` defaults to `2`. Reference-context parents at
-  this depth or deeper start closed. Authored collapsed parents also stay closed.
+- `:ref/linked-references-collapsed-threshold` defaults to `100`. A section starts closed when its reference-context count reaches this threshold. Set it to `0` to start every section closed while keeping its counts visible.
+- `:ref/default-open-blocks-level` defaults to `2`. Reference-context parents at this depth or deeper start closed. Authored collapsed parents also stay closed.
 
-Missing settings use defaults. Unusable config receives a local diagnostic;
-reading is bounded and never evaluates EDN or follows config-path symlinks.
-Native disclosures and all unfiltered context remain readable without JavaScript.
-Filter controls appear when the trusted script initializes them.
+Missing settings use defaults. Unusable config receives a local diagnostic; reading is bounded and never evaluates EDN or follows config-path symlinks. Native disclosures and all unfiltered context remain readable without JavaScript. Filter controls appear when the trusted script initializes them.
 
-A host that replaces page content can call
-`window.logseqGardenerInitBacklinks(root)` after inserting the new content. The
-call is idempotent and separate from `logseqGardenerRevealFragment`; it installs
-section-local filter controls and does not change navigation or media playback.
+A host that replaces page content can call `window.logseqGardenerInitBacklinks(root)` after inserting the new content. The call is idempotent and separate from `logseqGardenerRevealFragment`; it installs section-local filter controls and does not change navigation or media playback.
