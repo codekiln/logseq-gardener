@@ -7,5 +7,5 @@
 ## 2. Verify and review
 
 - [x] 2.1 Add focused regression tests for status, metadata precedence, aliases, hidden/ambiguous/self targets, homepage routes, escaping, and retained source content.
-- [ ] 2.2 Run full CI and verify desktop/mobile/keyboard navigation in a real preview.
-- [ ] 2.3 Record verification, create a native cleanup child, and obtain independent review before merge.
+- [x] 2.2 Run full CI and verify desktop/mobile/keyboard navigation in a real preview.
+- [x] 2.3 Record verification, create a native cleanup child, and obtain independent review before merge.
