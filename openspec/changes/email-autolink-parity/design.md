@@ -10,13 +10,13 @@ The parser already supplies an Email node with local_part and domain fields. The
 
 ## Decisions
 
-Handle Email in the existing inline renderer. Reuse text and attribute escaping, and encode URI delimiter bytes in the destination so address data cannot become mail headers or fragments. Keep the source address as the visible label. The parser remains responsible for email syntax; minimal structural checks protect SDK callers constructing AST data directly.
+Handle Email in the existing inline renderer. The renderer escapes HTML and percent-encodes `?`, `#`, and `%` in the destination to keep those characters part of the address. Keep the source address as the visible label. The parser remains responsible for email syntax; minimal structural checks protect SDK callers constructing AST data directly.
 
 Use the existing label context to render addresses as text within an outer anchor. Creating anchors unconditionally would produce invalid nested links. Code nodes continue through their existing literal branch.
 
 ## Risks / Trade-offs
 
-- Address delimiters can change mailto semantics → percent-encode URI delimiter bytes and test the resulting destination.
+- Address characters can change how a mailto link opens → percent-encode `?`, `#`, and `%`, and test that the destination preserves the address.
 - Unexpected SDK AST values can create invalid destinations → preserve the existing fallback for malformed components.
 - Synthetic tests can miss parser behavior → include publication coverage using real Markdown parsing.
 
