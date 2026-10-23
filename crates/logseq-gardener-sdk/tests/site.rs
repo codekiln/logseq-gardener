@@ -256,7 +256,7 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
 }
 
 #[test]
-fn email_fallback_preserves_the_address_and_reports_unsupported_syntax() {
+fn email_autolink_preserves_the_address_without_parser_fields() {
     let fixture = Fixture::new();
     fixture.write("garden/pages/Notes___Email.md", "- <reader@example.com>\n");
     let selection = NamespaceSelection::new(&["Notes"], &[]).unwrap();
@@ -273,10 +273,8 @@ fn email_fallback_preserves_the_address_and_reports_unsupported_syntax() {
         "missing email address: {page}"
     );
     assert!(!page.contains("local_part"), "parser fields leaked: {page}");
-    assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.source == Path::new("pages/Notes___Email.md")
-            && diagnostic.message.contains("email syntax")
-    }));
+    assert!(page.contains("<a href=\"mailto:reader@example.com\">reader@example.com</a>"));
+    assert!(report.diagnostics.is_empty());
 }
 
 #[test]
@@ -774,4 +772,54 @@ fn unreadable_stylesheet_leaves_destination_absent() {
         assert!(!f.output().exists());
     }
     fs::set_permissions(&css, fs::Permissions::from_mode(0o600)).unwrap();
+}
+
+#[test]
+fn email_autolinks_publish_without_assets_or_private_addresses() {
+    let fixture = Fixture::new();
+    fixture.write(
+        "garden/pages/Notes___Contact.md",
+        concat!(
+            "- Contact <reader+news@example.org>.\n",
+            "- Delimiters <reader?subject=hello#tag%20@example.org>.\n",
+            "- Literal `<reader@example.org>`.\n",
+            "- ~~~text\n  <fenced@example.org>\n  ~~~\n",
+        ),
+    );
+    fixture.write(
+        "garden/pages/Notes___Private.md",
+        "public:: false\n- <private-sentinel@example.org>\n",
+    );
+    let before = files(&fixture.garden());
+    let report = publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
+    )
+    .unwrap();
+    let page = html(&fixture.output(), "Notes/Contact");
+    assert!(
+        page.contains("<a href=\"mailto:reader+news@example.org\">reader+news@example.org</a>")
+    );
+    assert!(page.contains(
+        "<a href=\"mailto:reader%3Fsubject=hello%23tag%2520@example.org\">reader?subject=hello#tag%20@example.org</a>"
+    ), "{page}");
+    assert_eq!(page.matches("mailto:").count(), 2);
+    assert!(page.contains("<code>&lt;reader@example.org&gt;</code>"));
+    assert!(page.contains("&lt;fenced@example.org&gt;"));
+    assert!(
+        report.diagnostics.iter().all(|diagnostic| {
+            diagnostic.source == Path::new("pages/Notes___Private.md")
+                && diagnostic.message.contains("withheld")
+        }),
+        "{:?}",
+        report.diagnostics
+    );
+    assert_eq!(report.assets, 0);
+    assert_eq!(report.withheld_pages, 1);
+    for contents in files(&fixture.output()).values() {
+        assert!(!String::from_utf8_lossy(contents).contains("private-sentinel"));
+    }
+    assert_eq!(files(&fixture.garden()), before);
 }

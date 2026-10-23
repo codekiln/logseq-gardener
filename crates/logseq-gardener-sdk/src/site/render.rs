@@ -658,7 +658,25 @@ impl Renderer<'_> {
                         text.get("local_part").and_then(|value| value.as_str()),
                         text.get("domain").and_then(|value| value.as_str()),
                     ) {
-                        self.literal("email syntax", &format!("{local}@{domain}"));
+                        let address = format!("{local}@{domain}");
+                        if local.is_empty()
+                            || domain.is_empty()
+                            || address.chars().any(|c| c.is_control() || c.is_whitespace())
+                        {
+                            self.literal("email syntax", &address);
+                        } else if label {
+                            self.text(&address);
+                        } else {
+                            // Keep address delimiters out of mailto query/header syntax.
+                            let destination = address
+                                .replace('%', "%25")
+                                .replace('?', "%3F")
+                                .replace('#', "%23");
+                            self.html
+                                .push_str(&format!("<a href=\"mailto:{}\">", escape(&destination)));
+                            self.text(&address);
+                            self.html.push_str("</a>");
+                        }
                     } else {
                         self.literal("email syntax", "[unsupported email]");
                     }
@@ -1221,6 +1239,138 @@ mod tests {
             assert!(rendered.html.contains("Recording"), "{url}");
             assert!(!rendered.diagnostics.is_empty(), "{url}");
         }
+    }
+
+    #[test]
+    fn email_autolinks_preserve_addresses_and_literal_code() {
+        let rendered = render(
+            "- Contact <reader+news@example.org>.\n- Literal `<reader@example.org>`.\n- ~~~text\n  <reader@example.org>\n  ~~~\n",
+        );
+        assert!(
+            rendered
+                .html
+                .contains("<a href=\"mailto:reader+news@example.org\">reader+news@example.org</a>")
+        );
+        assert_eq!(rendered.html.matches("mailto:").count(), 1);
+        assert!(
+            rendered
+                .html
+                .contains("<code>&lt;reader@example.org&gt;</code>")
+        );
+        assert!(rendered.html.contains("&lt;reader@example.org&gt;"));
+        assert!(
+            rendered.diagnostics.is_empty(),
+            "{:?}",
+            rendered.diagnostics
+        );
+    }
+
+    fn email_document(local: &str, domain: &str) -> GardenDocument {
+        let mut doc = document("<reader@example.org>");
+        let Block::Paragraph { inline, .. } = &mut doc.parsed.blocks[0] else {
+            panic!("expected email paragraph");
+        };
+        let Inline::Email { text, .. } = &mut inline[0] else {
+            panic!("expected email node");
+        };
+        text["local_part"] = local.into();
+        text["domain"] = domain.into();
+        doc
+    }
+
+    #[test]
+    fn email_addresses_escape_html_and_mailto_delimiters() {
+        let rendered = render_document(
+            &email_document("o'hara&news?subject=hello#tag%20\"", "example.org"),
+            &BTreeMap::new(),
+            &mut |_| panic!("email must not request an asset"),
+        );
+        assert!(
+            rendered.html.contains(
+                "href=\"mailto:o&#39;hara&amp;news%3Fsubject=hello%23tag%2520&quot;@example.org\""
+            ),
+            "{}",
+            rendered.html
+        );
+        assert!(
+            rendered
+                .html
+                .contains(">o&#39;hara&amp;news?subject=hello#tag%20&quot;@example.org</a>")
+        );
+        assert!(rendered.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn emails_in_link_labels_remain_text() {
+        let mut doc = email_document("reader", "example.org");
+        let Block::Paragraph { inline, .. } = &mut doc.parsed.blocks[0] else {
+            unreachable!();
+        };
+        let email = inline[0].clone();
+        inline[0] = Inline::Link {
+            url: Url::Complex {
+                protocol: Some("https".into()),
+                link: Some("example.org".into()),
+            },
+            label: vec![email],
+            full: String::new(),
+            image: false,
+            metadata: String::new(),
+            title: None,
+            span: None,
+        };
+        let rendered =
+            render_document(&doc, &BTreeMap::new(), &mut |_| panic!("email label asset"));
+        assert_eq!(rendered.html.matches("<a ").count(), 1);
+        assert!(
+            rendered
+                .html
+                .contains("<a href=\"https://example.org\">reader@example.org</a>")
+        );
+        assert!(rendered.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn malformed_email_nodes_keep_visible_fallbacks() {
+        for (local, domain) in [
+            ("", "example.org"),
+            ("reader", ""),
+            ("reader\n", "example.org"),
+            ("reader", "bad domain"),
+        ] {
+            let rendered = render_document(
+                &email_document(local, domain),
+                &BTreeMap::new(),
+                &mut |_| panic!("malformed email asset"),
+            );
+            assert!(!rendered.html.contains("<a "));
+            assert!(rendered.html.contains("<code>"));
+            assert_eq!(rendered.diagnostics.len(), 1);
+        }
+        let mut doc = email_document("reader", "example.org");
+        let Block::Paragraph { inline, .. } = &mut doc.parsed.blocks[0] else {
+            unreachable!();
+        };
+        let Inline::Email { text, .. } = &mut inline[0] else {
+            unreachable!();
+        };
+        text["domain"] = false.into();
+        let rendered = render_document(&doc, &BTreeMap::new(), &mut |_| panic!("email asset"));
+        assert!(rendered.html.contains("[unsupported email]"));
+        assert!(!rendered.html.contains("<a "));
+        assert_eq!(rendered.diagnostics.len(), 1);
+        let mut doc = email_document("reader", "example.org");
+        let Block::Paragraph { inline, .. } = &mut doc.parsed.blocks[0] else {
+            unreachable!();
+        };
+        let Inline::Email { text, .. } = &mut inline[0] else {
+            unreachable!();
+        };
+        text.as_object_mut().unwrap().remove("domain");
+        let rendered = render_document(&doc, &BTreeMap::new(), &mut |_| panic!("email asset"));
+        assert!(rendered.html.contains("[unsupported email]"));
+        assert!(!rendered.html.contains("<a "));
+        assert_eq!(rendered.diagnostics.len(), 1);
     }
 
     #[test]
