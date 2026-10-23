@@ -1,6 +1,6 @@
 ## Context
 
-The parser already supplies an Email node with local_part and domain fields. The renderer currently converts it to an unsupported literal. Logseq 0.10.6 joins those fields into a mailto anchor in its block component at lines 1596–1599.
+The parser already supplies an Email node with local_part and domain fields. The renderer currently converts it to an unsupported literal. [Logseq 0.10.6’s email renderer](https://github.com/logseq/logseq/blob/0.10.6/src/main/frontend/components/block.cljs#L1596-L1599) joins the local part and domain into a mailto link.
 
 ## Goals / Non-Goals
 
@@ -26,7 +26,7 @@ Published HTML gains mailto anchors when regenerated. Reverting this renderer ch
 
 ## Resolved Questions
 
-### 1 - Which behavior supplies the parity reference?
+### Email links in Logseq 0.10.6
 
 The locally available Logseq 0.10.6 Email renderer displays the joined address as a mailto link. The fixture reproduces Gardener's current unsupported literal for the same source.
 
