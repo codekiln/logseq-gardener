@@ -10,17 +10,17 @@ Gardener already creates navigation-only destinations from visible namespace pre
 
 ## Decisions
 
-### Classify destinations from selected source routes
+### Label generated parent pages as Namespace
 
 Track whether a hierarchy node came from a selected source route. A generated destination receives a visible Namespace notice and badge, and its links use a dotted underline and accessible Namespace label. Keep index anchor text equal to the full logical title so downstream packaging continues to resolve routes. Place status text outside anchors. An unselected stored ancestor has the same presentation as an absent ancestor; neither status asserts whether a source file exists.
 
-### Resolve sequence properties through the selected source index
+### Link Previous and Next only to published source pages
 
 A separate sequence module reads the leading Properties block and uses the existing title/alias candidate index. Only one direct page reference is accepted. The last matching property supplies the value, matching existing alias precedence. Resolve to a canonical selected route and title; omit unsafe or ambiguous neighbors. Render a Page sequence nav after the body and before Hierarchy. Rendered sequence links add no backlinks or source routes; authored property references retain the existing Page properties backlink context.
 
-### Keep integration small beside the backlinks work
+### Render navigation separately from page content
 
-Use separate page_status and sequence modules and focused tests. Site assembly adds the helper output without changing body rendering. The concurrent backlinks implementation can append its own section after Hierarchy. Generated status is recorded in hierarchy nodes; source name and embed indexes stay unchanged.
+Use separate page_status and sequence modules and focused tests. Site assembly adds the helper output without changing body rendering. The publisher places Linked references after Hierarchy. Generated status is recorded in hierarchy nodes; source name and embed indexes stay unchanged.
 
 ## Risks / Trade-offs
 
