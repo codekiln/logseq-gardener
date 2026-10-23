@@ -6,4 +6,4 @@ set -euo pipefail
 cargo test --locked --workspace --all-targets --all-features
 cargo test --locked -p logseq-gardener-sdk --doc
 python3 -m unittest check-bundles/codekiln-help/test_checker.py
-node --test tests/fragments.test.cjs
+node --test tests/*.test.cjs

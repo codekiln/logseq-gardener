@@ -1,5 +1,5 @@
 //! Escaped HTML rendering with bounded selected-content transclusion.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::ast::{Block, Inline, ListItem, Url};
@@ -170,7 +170,7 @@ fn contains_embed(nodes: &[Inline], depth: usize) -> bool {
     })
 }
 
-fn block_label(nodes: &[Inline], depth: usize) -> String {
+pub(super) fn block_label(nodes: &[Inline], depth: usize) -> String {
     if depth > MAX_DEPTH {
         return "[nesting limit reached]".into();
     }
@@ -202,12 +202,92 @@ fn block_label(nodes: &[Inline], depth: usize) -> String {
     text
 }
 
+#[cfg(test)]
 pub(super) fn render_document_with_embeds(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
     targets: &BTreeMap<String, Option<BlockTarget>>,
     route: &str,
     documents: &BTreeMap<String, &GardenDocument>,
+    asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+) -> Rendered {
+    render_context(
+        document,
+        pages,
+        targets,
+        route,
+        documents,
+        RenderMode::default(),
+        asset,
+    )
+}
+
+#[derive(Default)]
+struct RenderMode {
+    reference_depth: Option<i64>,
+    source_anchors: BTreeSet<usize>,
+    reference_paths: BTreeMap<usize, String>,
+}
+
+pub(super) fn render_document_with_source_anchors(
+    document: &GardenDocument,
+    pages: &crate::page_names::PageNameIndex<String>,
+    targets: &BTreeMap<String, Option<BlockTarget>>,
+    route: &str,
+    documents: &BTreeMap<String, &GardenDocument>,
+    source_anchors: BTreeSet<usize>,
+    asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+) -> Rendered {
+    render_context(
+        document,
+        pages,
+        targets,
+        route,
+        documents,
+        RenderMode {
+            source_anchors,
+            ..RenderMode::default()
+        },
+        asset,
+    )
+}
+
+pub(super) struct ReferencePresentation {
+    pub open_depth: i64,
+    pub paths: BTreeMap<usize, String>,
+}
+
+pub(super) fn render_reference_context(
+    document: &GardenDocument,
+    pages: &crate::page_names::PageNameIndex<String>,
+    targets: &BTreeMap<String, Option<BlockTarget>>,
+    route: &str,
+    documents: &BTreeMap<String, &GardenDocument>,
+    presentation: ReferencePresentation,
+    asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+) -> Rendered {
+    render_context(
+        document,
+        pages,
+        targets,
+        route,
+        documents,
+        RenderMode {
+            reference_depth: Some(presentation.open_depth),
+            reference_paths: presentation.paths,
+            ..RenderMode::default()
+        },
+        asset,
+    )
+}
+
+fn render_context(
+    document: &GardenDocument,
+    pages: &crate::page_names::PageNameIndex<String>,
+    targets: &BTreeMap<String, Option<BlockTarget>>,
+    route: &str,
+    documents: &BTreeMap<String, &GardenDocument>,
+    mode: RenderMode,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
     let anchors = outline_targets(&document.parsed.blocks)
@@ -231,7 +311,11 @@ pub(super) fn render_document_with_embeds(
         active: vec![route.to_owned()],
         remaining_expansions: 128,
         remaining_work: 10_000,
-        embedded: false,
+        embedded: mode.reference_depth.is_some(),
+        reference_depth: mode.reference_depth,
+        source_anchors: mode.source_anchors,
+        reference_origin: document.relative_path.clone(),
+        reference_paths: mode.reference_paths,
         asset,
     };
     renderer.blocks(&document.parsed.blocks, 0);
@@ -253,6 +337,10 @@ struct Renderer<'a> {
     remaining_expansions: usize,
     remaining_work: usize,
     embedded: bool,
+    reference_depth: Option<i64>,
+    source_anchors: BTreeSet<usize>,
+    reference_origin: PathBuf,
+    reference_paths: BTreeMap<usize, String>,
     asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
 }
 
@@ -311,9 +399,12 @@ impl Renderer<'_> {
                 ..
             } = block
             {
-                let collapsed = matches!(blocks.get(index + 1), Some(Block::Properties { props, .. })
+                let collapsed = (self
+                    .reference_depth
+                    .is_some_and(|limit| i64::from(*level) >= limit)
+                    || matches!(blocks.get(index + 1), Some(Block::Properties { props, .. })
                     if props.iter().rev().find(|p| p.0.trim().eq_ignore_ascii_case("collapsed"))
-                        .is_some_and(|p| p.1.trim().eq_ignore_ascii_case("true")))
+                        .is_some_and(|p| p.1.trim().eq_ignore_ascii_case("true"))))
                     && blocks[index + 1..]
                         .iter()
                         .find_map(|block| match block {
@@ -321,28 +412,49 @@ impl Renderer<'_> {
                             _ => None,
                         })
                         .is_some_and(|next| next > level);
-                let item_start = if collapsed {
-                    "<li class=\"outline-collapsed\">"
-                } else {
-                    "<li>"
-                };
+                let reference_attributes = span
+                    .as_ref()
+                    .filter(|_| self.source == self.reference_origin)
+                    .and_then(|span| self.reference_paths.get(&span.0))
+                    .map(|refs| {
+                        format!(
+                            " data-backlinks-node data-backlinks-refs=\"{}\"",
+                            escape(refs)
+                        )
+                    })
+                    .unwrap_or_default();
+                let item_start = format!(
+                    "<li{}{reference_attributes}>",
+                    if collapsed {
+                        " class=\"outline-collapsed\""
+                    } else {
+                        ""
+                    }
+                );
                 while levels.last().is_some_and(|(previous, _)| previous > level) {
                     self.close_outline_item(levels.pop().unwrap().1);
                     self.html.push_str("</ul>");
                 }
                 if levels.last().is_some_and(|(previous, _)| previous == level) {
                     self.close_outline_item(levels.last().unwrap().1);
-                    self.html.push_str(item_start);
+                    self.html.push_str(&item_start);
                 } else if levels.len() < MAX_DEPTH {
                     self.html.push_str("<ul>");
-                    self.html.push_str(item_start);
+                    self.html.push_str(&item_start);
                     levels.push((*level, false));
                 } else {
                     self.diagnostic("Outline nesting limit reached; rendered as sibling");
                     self.close_outline_item(levels.last().unwrap().1);
-                    self.html.push_str(item_start);
+                    self.html.push_str(&item_start);
                 }
                 levels.last_mut().unwrap().1 = collapsed;
+                if !self.embedded
+                    && let Some(span) = span
+                    && self.source_anchors.contains(&span.0)
+                {
+                    self.html
+                        .push_str(&format!("<span id=\"source-block-{}\"></span>", span.0));
+                }
                 if !self.embedded
                     && let Some(id) = span.as_ref().and_then(|span| self.anchors.get(&span.0))
                 {

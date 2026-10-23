@@ -242,7 +242,11 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
         assert!(page.contains(content), "missing {content}: {page}");
     }
     // The publisher owns one known fragment helper; source scripts stay escaped.
-    assert_eq!(page.matches("<script").count(), 1);
+    assert_eq!(page.matches("<script").count(), 2);
+    assert!(page.contains(&format!(
+        "<script data-lsg-backlinks-script>{}</script>",
+        include_str!("../src/site/backlinks.js")
+    )));
     assert!(page.contains(&format!(
         "<script data-lsg-fragments>{}</script>",
         include_str!("../src/site/fragments.js")
