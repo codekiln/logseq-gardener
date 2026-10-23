@@ -71,3 +71,15 @@ The complete page index SHALL list each selected source page and generated names
 #### Scenario: Retained rendering
 - **WHEN** a selected homepage includes supported media and selected-content transclusions
 - **THEN** hierarchy navigation is added while its existing rendered content, media destinations, block links, and transclusions retain their behavior
+
+### Requirement: Space hierarchy path separators
+
+The default stylesheet SHALL give hierarchy slash separators a logical horizontal margin of 0.2em on either side. Separators SHALL remain unlinked text, and paths SHALL retain natural wrapping.
+
+#### Scenario: Read namespace segments
+- **WHEN** a generated page displays the hierarchy path `GitP/A/Session/26/10/22-Thu`
+- **THEN** each slash has visible space on both sides while the existing segment links remain intact
+
+#### Scenario: Wrap a long path
+- **WHEN** a hierarchy path exceeds the available width on a narrow screen
+- **THEN** the path continues to wrap without a forced no-wrap separator container
