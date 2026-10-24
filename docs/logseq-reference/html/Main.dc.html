@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Published page view: tmux</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#ffffff}
+a{color:#106ba3;text-decoration:none}a:hover{color:#0b4f7a;text-decoration:underline}
+.br{color:#6b7280}
+.blk{display:flex;gap:8px;align-items:flex-start;line-height:1.6;margin:2px 0}
+.dot{flex:none;width:16px;height:25px;display:flex;align-items:center;justify-content:center}
+.dot span{width:6px;height:6px;border-radius:50%;background:#9ba1a6;display:block}
+.kids{margin-left:7px;padding-left:22px;border-left:1px solid #e9ecef}
+.navbtn{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;color:#11181c;font-size:15px;min-height:32px}
+.navbtn:hover{background:#e9ecef;color:#11181c;text-decoration:none}
+.icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;border-radius:6px;color:#687076;cursor:pointer}
+.icon:hover{background:#f1f3f5;color:#11181c}
+</style>
+</helmet>
+<div style="min-height: 1180px; font-family: 'Source Sans 3', sans-serif; color: #11181c; background: #ffffff; font-size: 16px">
+<header style="height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: rgba(255,255,255,0.9); border-bottom: 1px solid #e9ecef; position: sticky; top: 0">
+<div style="display: flex; align-items: center; gap: 4px">
+<button class="icon" aria-label="Toggle left sidebar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+<button class="icon" aria-label="Search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7"></circle><path d="M21 21l-6-6"></path></svg></button>
+</div>
+<div style="display: flex; align-items: center; gap: 4px">
+<a href="#" style="font-size: 14px; font-weight: 500; color: #687076; padding: 8px 10px; border-radius: 6px">Graph</a>
+<button class="icon" aria-label="More"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button>
+<button class="icon" aria-label="Toggle right sidebar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+</div>
+</header>
+<div style="display: flex; flex-wrap: wrap">
+<nav aria-label="Left sidebar" style="flex: 1 1 246px; max-width: 100%; box-sizing: border-box; background: #f8f9fa; border-right: 1px solid #e9ecef; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; min-height: 1132px">
+<a class="navbtn" href="Journals.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M4 11h16"></path></svg>Journals</a>
+<a class="navbtn" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"></path><rect x="2" y="3" width="20" height="18" rx="2"></rect></svg>Whiteboards</a>
+<a class="navbtn" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="7" width="13" height="14" rx="2"></rect><path d="M8 3h11a2 2 0 0 1 2 2v12"></path></svg><span style="flex: 1">Flashcards</span><span style="font-size: 12px; font-weight: 600; background: #e9ecef; color: #3a3f44; border-radius: 9px; padding: 1px 7px">430</span></a>
+<a class="navbtn" href="AllPages.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg>All pages</a>
+<div style="margin: 18px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: #687076">FAVORITES</div>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>fd</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>gh-dash</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>tuicr</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>LazyVim</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>Obsidian</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>chezmoi</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>mise</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>nvim</a>
+<a class="navbtn" href="#" style="font-size: 14px; background: #e9ecef"><span style="width: 6px; height: 6px; border-radius: 50%; background: #3e63dd"></span>tmux</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>yazi</a>
+<a class="navbtn" href="#" style="font-size: 14px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6"></span>Lazygit</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 24px 64px">
+<div style="max-width: 810px; margin: 0 auto">
+<h1 style="margin: 0 0 16px; font-size: 36px; font-weight: 300; color: #000000; line-height: 1.3">tmux</h1>
+<div style="background: #f8f9fa; border-radius: 4px; padding: 4px 32px 4px 8px; font-size: 12.8px; line-height: 1.6; margin-bottom: 12px">
+<div><span style="font-weight: 500">created-by:</span> <span class="br">[[</span><a href="#">Person/Nicholas Marriott</a><span class="br">]]</span></div>
+<div><span style="font-weight: 500">logseq-entity:</span> <span class="br">[[</span><a href="#">Logseq/Entity/Software/Project</a><span class="br">]]</span></div>
+</div>
+<div class="blk"><div class="dot"><span></span></div><div style="font-size: 28px; font-weight: 300; line-height: 1.5">tmux</div></div>
+<div class="kids">
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">GitHub/Star</a><span class="br">]]</span>s: 47,343 as of <span class="br">[[</span><a href="#">2026-07-04 Sat</a><span class="br">]]</span></div></div>
+<div class="blk"><div class="dot"><span></span></div><div>A terminal multiplexer: run many terminal sessions in one screen, detach and reattach them, and script window and pane layouts.</div></div>
+<div class="blk"><div class="dot"><span></span></div><div>ideas</div></div>
+<div class="kids">
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">tmux/Idea/Pomodoro with status line and silent flash</a><span class="br">]]</span></div></div>
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">tmux/Idea/Toggl Track status in status line</a><span class="br">]]</span></div></div>
+</div>
+<div class="blk"><div class="dot"><span></span></div><div>customization</div></div>
+<div class="kids">
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">tmux/Config</a><span class="br">]]</span></div></div>
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">Catppuccin</a><span class="br">]]</span></div></div>
+</div>
+<div class="blk"><div class="dot"><span></span></div><div>extensions</div></div>
+<div class="kids">
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">oh-my-tmux</a><span class="br">]]</span> — by <span class="br">[[</span><a href="#">Person/Grégory Pakosz</a><span class="br">]]</span></div></div>
+</div>
+<div class="blk"><div class="dot"><span></span></div><div>learning</div></div>
+<div class="kids">
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">tmux/Docs/Getting Started</a><span class="br">]]</span></div></div>
+<div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">tmux/man</a><span class="br">]]</span></div></div>
+</div>
+</div>
+<section style="margin-top: 40px">
+<h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 700">Pages tagged with "tmux"</h2>
+<div style="display: flex; flex-direction: column; gap: 4px; padding-left: 4px; font-size: 15px">
+<a href="#">Person/Brian P. Hogan/Book/25/tmux 3</a>
+<a href="#">tmux/Tutorial/Use tmux on Mac</a>
+</div>
+</section>
+<section style="margin-top: 32px">
+<button style="display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 0; font: inherit; font-size: 16px; font-weight: 700; color: #11181c; cursor: pointer; min-height: 32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>795 Linked References</button>
+<div style="margin-top: 10px; background: #f8f9fa; border-radius: 6px; padding: 12px 16px">
+<a href="#" style="font-size: 15px; font-weight: 600">2026-09-15 Tue</a>
+<div class="blk" style="margin-top: 6px"><div class="dot"><span></span></div><div>I was pleasantly surprised to find this morning that clicking on <code style="font-size: 14px; background: #e9ecef; border-radius: 3px; padding: 1px 4px">Opened PR #101</code> in <span class="br">[[</span><a href="#">GitHub/CoPilot/CLI</a><span class="br">]]</span> in <span class="br">[[</span><a href="#">Ghostty</a><span class="br">]]</span> in <span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span> actually opened the PR in my browser</div></div>
+</div>
+</section>
+<section style="margin-top: 32px">
+<h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 700">Hierarchy</h2>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 15px">
+<div><a href="#">tmux</a><span class="br">/</span><a href="#">Cheat Sheet</a></div>
+<div><a href="#">tmux</a><span class="br">/</span><a href="#">Command</a><span class="br">/</span><a href="#">new-session</a></div>
+<div><a href="#">tmux</a><span class="br">/</span><a href="#">Config</a></div>
+<div><a href="#">tmux</a><span class="br">/</span><a href="#">Docs</a><span class="br">/</span><a href="#">Getting Started</a></div>
+<div><a href="#">tmux</a><span class="br">/</span><a href="#">How To</a><span class="br">/</span><a href="#">Reload</a></div>
+</div>
+</section>
+<section style="margin-top: 32px">
+<button style="display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 0; font: inherit; font-size: 16px; font-weight: 700; color: #11181c; cursor: pointer; min-height: 32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>Unlinked References</button>
+</section>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

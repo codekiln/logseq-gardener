@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Graph view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#106ba3}a:hover{color:#0b4f7a}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;min-height:32px}
+.sw{width:32px;height:18px;border-radius:9px;background:#dee2e6;position:relative;flex:none}
+.sw span{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#ffffff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw.on{background:#3e63dd}.sw.on span{left:16px}
+.sec{font-size:13px;font-weight:600;color:#11181c;display:flex;align-items:center;gap:6px;margin-top:6px}
+.slider{height:4px;border-radius:2px;background:#dee2e6;position:relative}
+.slider span{position:absolute;top:-5px;width:14px;height:14px;border-radius:50%;background:#3e63dd}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; font-family: 'Source Sans 3', sans-serif; color: #11181c; background: #ffffff; display: flex; flex-direction: column">
+<header style="height: 48px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid #e9ecef">
+<div style="display: flex; gap: 4px; color: #687076">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="margin: 8px" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="margin: 8px" aria-hidden="true"><circle cx="10" cy="10" r="7"></circle><path d="M21 21l-6-6"></path></svg>
+</div>
+<div style="display: flex; align-items: center; gap: 4px; color: #687076; font-size: 14px; font-weight: 500"><span style="padding: 8px 10px; color: #11181c">Graph</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin: 8px" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></div>
+</header>
+<div style="flex: 1; position: relative; background: #f8f9fa; overflow: hidden">
+<svg width="1440" height="852" viewBox="0 0 1440 852" role="img" aria-label="Force-directed graph of garden pages; tmux and nvim are large hubs with many linked pages around them">
+<g stroke="#ced4da" stroke-width="1">
+<path d="M560 420L420 300M560 420L470 560M560 420L700 330M560 420L640 600M560 420L380 450M700 330L860 280M700 330L820 450M860 280L980 220M860 280L940 380M820 450L940 380M820 450L780 600M470 560L360 640M470 560L520 690M420 300L330 220M420 300L480 190M380 450L280 420M640 600L720 700M940 380L1040 470M980 220L1060 160M700 330L640 220M640 220L560 160M860 280L800 180"></path>
+</g>
+<g fill="#9ba1a6">
+<circle cx="560" cy="420" r="18" fill="#3e63dd"></circle><circle cx="700" cy="330" r="13"></circle><circle cx="860" cy="280" r="11"></circle><circle cx="820" cy="450" r="9"></circle><circle cx="420" cy="300" r="8"></circle><circle cx="470" cy="560" r="8"></circle><circle cx="640" cy="600" r="7"></circle><circle cx="380" cy="450" r="6"></circle><circle cx="940" cy="380" r="8"></circle><circle cx="980" cy="220" r="6"></circle><circle cx="780" cy="600" r="5"></circle><circle cx="360" cy="640" r="5"></circle><circle cx="520" cy="690" r="5"></circle><circle cx="330" cy="220" r="5"></circle><circle cx="480" cy="190" r="5"></circle><circle cx="280" cy="420" r="4"></circle><circle cx="720" cy="700" r="4"></circle><circle cx="1040" cy="470" r="5"></circle><circle cx="1060" cy="160" r="4"></circle><circle cx="640" cy="220" r="6"></circle><circle cx="560" cy="160" r="4"></circle><circle cx="800" cy="180" r="4"></circle>
+<circle cx="200" cy="120" r="3"></circle><circle cx="1120" cy="620" r="3"></circle><circle cx="240" cy="740" r="3"></circle><circle cx="1000" cy="740" r="3"></circle>
+</g>
+<g font-family="Source Sans 3, sans-serif" font-size="13" fill="#3a3f44" text-anchor="middle">
+<text x="560" y="452" font-weight="600" fill="#11181c">tmux</text><text x="700" y="358">nvim</text><text x="860" y="306">vim</text><text x="820" y="474">LazyVim</text><text x="420" y="324">tmux/Config</text><text x="470" y="584">tmux/Keyshort</text><text x="640" y="622">oh-my-tmux</text><text x="380" y="472">Catppuccin</text><text x="940" y="404">Keyshort</text><text x="980" y="242">vim/Keyshort</text><text x="640" y="244">mise</text><text x="330" y="244">tmux/Docs</text><text x="1040" y="494">card</text>
+</g>
+</svg>
+<aside aria-label="Graph settings" style="position: absolute; top: 16px; right: 16px; width: 280px; background: #ffffff; border: 1px solid #e9ecef; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 4px">
+<div class="sec">Nodes</div>
+<div class="row"><span>Orphan pages</span><span class="sw on"><span></span></span></div>
+<div class="row"><span>Built-in pages</span><span class="sw"><span></span></span></div>
+<div class="row"><span>Excluded pages</span><span class="sw"><span></span></span></div>
+<div class="row"><span>Show Journals</span><span class="sw"><span></span></span></div>
+<div style="border-top: 1px solid #e9ecef; margin: 8px 0 4px"></div>
+<div class="sec">Search</div>
+<div class="row" style="color: #687076"><span>Click to search</span><span style="font-size: 13px; color: #106ba3">Clear All</span></div>
+<div style="border-top: 1px solid #e9ecef; margin: 8px 0 4px"></div>
+<div class="sec">Forces</div>
+<div style="font-size: 13px; color: #687076; margin-top: 4px">Link Distance</div>
+<div class="slider" style="margin: 8px 0"><span style="left: 40%"></span></div>
+<div style="font-size: 13px; color: #687076">Charge Strength</div>
+<div class="slider" style="margin: 8px 0"><span style="left: 60%"></span></div>
+<div style="font-size: 13px; color: #687076">Charge Range</div>
+<div class="slider" style="margin: 8px 0"><span style="left: 50%"></span></div>
+<div class="row" style="justify-content: flex-start"><span style="font-size: 13px; color: #106ba3">Reset Forces</span></div>
+<div style="border-top: 1px solid #e9ecef; margin: 8px 0 4px"></div>
+<div class="sec">Export</div>
+</aside>
+<div style="position: absolute; left: 24px; bottom: 24px; width: 460px; background: #ffffff; border: 1px solid #e9ecef; border-radius: 10px; padding: 14px 18px; font-size: 14px; line-height: 1.55; color: #3a3f44">
+<b style="color: #11181c">Behaviour.</b> Header link <b>Graph</b> → <code style="font-size: 12px">#/graph</code>. Every page is a node sized by link count; edges are page references. Click a node to open the page; journals are hidden by default. A page's own neighbourhood appears as <b>Page graph</b> in the right sidebar. Node layout is a force simulation, so positions here are illustrative.
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
