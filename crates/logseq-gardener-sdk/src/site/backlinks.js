@@ -8,6 +8,7 @@
     const pageCount = section.querySelector("[data-backlinks-page-count]");
     const referenceCount = section.querySelector("[data-backlinks-reference-count]");
     const status = section.querySelector("[data-backlinks-status]");
+    const explanation = section.querySelector("[data-backlinks-count-explanation]");
     if (!controls || !pageCount || !referenceCount || !status) return;
     const filters = Array.from(controls.querySelectorAll("[data-backlinks-filter]"));
     const options = Array.from(controls.querySelectorAll("[data-backlinks-option]"));
@@ -82,12 +83,16 @@
         if (visible) pages++;
         references += visible;
       }
-      pageCount.textContent = `${pages}${active ? ` of ${totalPages}` : ""} linking pages`;
-      referenceCount.textContent = `${references}${active ? ` of ${totalReferences}` : ""} references`;
+      const pageLabel = (active ? totalPages : pages) === 1 ? "page" : "pages";
+      const showContexts = pages !== references || (active && totalPages !== totalReferences);
+      pageCount.textContent = `${pages}${active ? ` of ${totalPages}` : ""} ${pageLabel}`;
+      referenceCount.textContent = ` · ${references}${active ? ` of ${totalReferences}` : ""} referring contexts`;
+      referenceCount.hidden = !showContexts;
+      if (explanation) explanation.hidden = !showContexts;
       status.textContent = active
         ? references === 0
-          ? "No references match these filters."
-          : `Showing ${pages} of ${totalPages} linking pages and ${references} of ${totalReferences} references.`
+          ? "No pages match these filters."
+          : `Showing ${pages} of ${totalPages} ${pageLabel}${showContexts ? ` and ${references} of ${totalReferences} referring contexts` : ""}.`
         : "";
       searchOptions();
     }
