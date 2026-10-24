@@ -5,6 +5,7 @@ mod backlinks;
 mod config;
 mod hierarchy;
 mod page_status;
+mod properties;
 mod render;
 mod sequence;
 
@@ -204,7 +205,7 @@ fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bo
     let theme_styles = include_str!("theme.css");
     let theme_control = "<label class=\"theme-control\" data-lsg-theme-control hidden>Appearance <select data-lsg-theme-select aria-label=\"Appearance\"><option value=\"system\">System</option><option value=\"light\">Light</option><option value=\"dark\">Dark</option></select></label>";
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:var(--lsg-text);background:var(--lsg-background)}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group article{{border-left:2px solid var(--lsg-border);margin:.75rem 0;padding-left:.75rem;overflow-wrap:anywhere}}.backlinks-group h3{{font-size:1rem}}.backlink-context,.backlink-source{{font-size:.85rem}}.linked-references [hidden]{{display:none!important}}{navigation_styles}</style>{stylesheet}</head><body><nav>{navigation}{theme_control}</nav><main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:var(--lsg-text);background:var(--lsg-background)}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group article{{border-left:2px solid var(--lsg-border);margin:.75rem 0;padding-left:.75rem;overflow-wrap:anywhere}}.backlinks-group h3{{font-size:1rem}}.backlink-context,.backlink-source{{font-size:.85rem}}.linked-references [hidden]{{display:none!important}}{navigation_styles}</style>{stylesheet}</head><body><nav>{navigation}{theme_control}</nav><main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
     )
 }
 
@@ -315,9 +316,19 @@ pub fn publish_site_with_options(
             message,
         });
     }
+    let property_views: BTreeMap<_, _> = selected
+        .iter()
+        .map(|(_, route, document)| {
+            (
+                route.clone(),
+                properties::view(document, route, &names, &routes, &reference_config),
+            )
+        })
+        .collect();
     let reference_index = backlinks::Backlinks::new(
         &selected,
         &names,
+        reference_config.properties.then_some(&property_views),
         hierarchy
             .entries()
             .map(|node| (node.route.clone(), node.title.clone()))
@@ -364,6 +375,14 @@ pub fn publish_site_with_options(
         Ok(route)
     };
     for (title, route, document) in selected {
+        let properties = &property_views[&route];
+        let mut omitted = properties.sequence_keys.clone();
+        omitted.extend(reference_config.hidden_properties.iter().cloned());
+        let sequence = if reference_config.sequence {
+            sequence::navigation(document, &route, &names, &routes, &omitted)
+        } else {
+            String::new()
+        };
         let rendered = render::render_document_with_source_anchors(
             document,
             &names,
@@ -375,7 +394,7 @@ pub fn publish_site_with_options(
         );
         let (reference_html, reference_diagnostics) = reference_index.render(
             &route,
-            reference_config,
+            &reference_config,
             &names,
             &targets,
             &selected_documents,
@@ -395,8 +414,9 @@ pub fn publish_site_with_options(
             route.clone(),
             html_document(
                 &title,
-                &(rendered.html
-                    + &sequence::navigation(document, &route, &names, &routes)
+                &(properties.html.clone()
+                    + &rendered.html
+                    + &sequence
                     + &hierarchy.bottom_view(&title)
                     + &reference_html),
                 stylesheet_route,
@@ -411,7 +431,7 @@ pub fn publish_site_with_options(
         if !documents.contains_key(&node.route) {
             let (reference_html, _) = reference_index.render(
                 &node.route,
-                reference_config,
+                &reference_config,
                 &names,
                 &targets,
                 &selected_documents,

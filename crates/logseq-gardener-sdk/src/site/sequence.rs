@@ -36,29 +36,41 @@ fn target(document: &GardenDocument, key: &str) -> Option<String> {
     }
 }
 
+pub(super) fn resolve<'a>(
+    document: &GardenDocument,
+    key: &str,
+    current_route: &str,
+    names: &PageNameIndex<String>,
+    routes: &'a BTreeMap<String, String>,
+) -> Option<(String, &'a str)> {
+    let target = target(document, key)?;
+    let [route] = names.candidates(&target) else {
+        return None;
+    };
+    if route == current_route {
+        return None;
+    }
+    Some((route.clone(), routes.get(route)?.as_str()))
+}
+
 pub(super) fn navigation(
     document: &GardenDocument,
     current_route: &str,
     names: &PageNameIndex<String>,
     routes: &BTreeMap<String, String>,
+    omitted: &std::collections::BTreeSet<String>,
 ) -> String {
     let mut links = String::new();
     for (key, label) in [("prev", "Previous"), ("next", "Next")] {
-        let Some(target) = target(document, key) else {
-            continue;
-        };
-        let [route] = names.candidates(&target) else {
-            continue;
-        };
-        if route == current_route {
+        if omitted.contains(key) {
             continue;
         }
-        let Some(title) = routes.get(route) else {
+        let Some((route, title)) = resolve(document, key, current_route, names, routes) else {
             continue;
         };
         links.push_str(&format!(
             "<a rel=\"{key}\" href=\"{}\">{label}: {}</a>",
-            escape(route),
+            escape(&route),
             escape(title)
         ));
     }

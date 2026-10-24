@@ -65,3 +65,15 @@ test('missing and malformed fragments leave closed content unchanged', () => {
   assert.equal(closed.open, false);
   assert.equal(target.scrolls, 0);
 });
+
+
+test('property summary fragment reveals its own disclosure without opening another branch', () => {
+  const properties = element('DETAILS');
+  const summary = element('SUMMARY', properties);
+  const outline = element('DETAILS');
+  const state = page('', new Map([['page-properties', summary], ['other', element('SPAN', outline)]]));
+  assert.equal(state.window.logseqGardenerRevealFragment('#page-properties'), summary);
+  assert.equal(properties.open, true);
+  assert.equal(outline.open, false);
+  assert.equal(summary.scrolls, 1);
+});
