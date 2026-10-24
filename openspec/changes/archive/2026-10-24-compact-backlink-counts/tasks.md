@@ -10,4 +10,4 @@
 ## 3. Verify
 
 - [x] 3.1 Run focused tests, full required checks and inspect the final diff.
-- [ ] 3.2 Submit the implementation PR with a native cleanup child and obtain independent review.
+- [x] 3.2 Submit the implementation PR with a native cleanup child and obtain independent review.
