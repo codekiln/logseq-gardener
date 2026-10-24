@@ -32,4 +32,4 @@
 - [x] 6.2 Add `docs/parity/README.md` explaining the five tasks and where their output goes.
 - [x] 6.3 Run the four contributor tasks on the encode garden; record the group counts, the `tmux` screenshots and `docs/parity/performance.md` in the implementation PR, and check the counts against the analysis.
 - [x] 6.4 Open an issue under #106 for publishing titles that contain `%2F`. Opened #129.
-- [ ] 6.5 Run `mise run ci`, open the implementation PR and create its cleanup sub-issue under #108.
+- [x] 6.5 Run `mise run ci`, open the implementation PR and create its cleanup sub-issue under #108. PR #131; cleanup #130.
