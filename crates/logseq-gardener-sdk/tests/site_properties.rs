@@ -148,7 +148,7 @@ fn property_backlinks_target_the_real_revealable_summary_and_resolve_bare_tags()
     f.publish();
     let target = f.html("Visible/Target");
     assert!(backlinks(&target).contains(&format!(
-        "href=\"{}#page-properties\">Open source properties",
+        "href=\"{}#page-properties\">Page properties",
         route("Visible/Source")
     )));
     let source = f.html("Visible/Source");
@@ -166,7 +166,7 @@ fn defaults_keep_sequence_and_label_property_source_links_honestly() {
     assert!(properties(&f.html("Visible/One")).is_empty());
     assert!(f.html("Visible/One").contains("class=\"page-sequence\""));
     let two = f.html("Visible/Two");
-    assert!(backlinks(&two).contains("Open source page"));
+    assert!(backlinks(&two).contains("Page reference"));
     assert!(!backlinks(&two).contains("#page-properties"));
 }
 

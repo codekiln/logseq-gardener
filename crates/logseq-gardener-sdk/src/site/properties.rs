@@ -4,8 +4,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::{config::ReferenceConfig, render::escape, sequence};
 use crate::{ast::Block, garden::GardenDocument, page_names::PageNameIndex};
 
+pub(super) struct PropertyRow {
+    pub html: String,
+    pub targets: BTreeSet<String>,
+}
+
 #[derive(Default)]
 pub(super) struct PropertyView {
+    pub rows: Vec<PropertyRow>,
     pub html: String,
     pub targets: BTreeSet<String>,
     pub sequence_keys: BTreeSet<String>,
@@ -175,10 +181,15 @@ pub(super) fn view(
         let Some((html, targets)) = value(text, names, routes) else {
             continue;
         };
-        rows.push_str(&format!(
+        let row = format!(
             "<div class=\"page-property\"><dt>{}</dt><dd>{html}</dd></div>",
             escape(key)
-        ));
+        );
+        rows.push_str(&row);
+        result.rows.push(PropertyRow {
+            html: row,
+            targets: targets.clone(),
+        });
         result.targets.extend(targets);
         if matches!(normalized.as_str(), "prev" | "next") {
             result.sequence_keys.insert(normalized);

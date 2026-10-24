@@ -20,7 +20,7 @@
       entries: Array.from(group.querySelectorAll("[data-backlinks-entry]"), element => ({
         element,
         refs: refsFor(element),
-        nodes: Array.from(element.querySelectorAll("[data-backlinks-node]"), element => ({
+        nodes: [...(element.matches("[data-backlinks-node]") ? [element] : []), ...element.querySelectorAll("[data-backlinks-node]")].map(element => ({
           element,
           refs: refsFor(element),
         })),

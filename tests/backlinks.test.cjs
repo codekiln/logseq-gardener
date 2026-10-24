@@ -291,3 +291,41 @@ test('equal totals omit redundant detail while unequal contexts remain explained
   assert.equal(multi.references.textContent, ' · 2 referring contexts');
   assert.equal(multi.disclosure.open, false);
 });
+
+
+test('shared nested contexts retain original totals, ancestor matches and reset', () => {
+  const f = fixture();
+  const node = (refs, children = [], entry = false) => new Element({
+    'data-backlinks-node': '', 'data-backlinks-refs': refs,
+    ...(entry ? { 'data-backlinks-entry': '' } : {}),
+  }, children);
+  const grandchild = node('one.html a.html b.html c.html');
+  const child = node('one.html a.html b.html', [grandchild], true);
+  const sibling = node('one.html a.html');
+  const parent = node('one.html a.html', [child, sibling]);
+  const article = new Element({ 'data-backlinks-entry': '', 'data-backlinks-refs': 'one.html a.html' }, [parent]);
+  const group = el('data-backlinks-group', 'one.html', [article]);
+  f.disclosure.children = [f.pages, f.references, f.explanation, f.controls, f.status, group];
+  setup(f);
+  assert.equal(f.references.textContent, ' · 2 referring contexts');
+  assert.equal(f.pages.textContent, '1 page');
+  choose(f, 'c.html', 'include');
+  assert.equal(f.references.textContent, ' · 2 of 2 referring contexts');
+  for (const element of [article, parent, child, grandchild]) assert.equal(element.hidden, false);
+  assert.equal(sibling.hidden, true);
+  choose(f, 'a.html', 'include');
+  assert.equal(child.hidden, false);
+  choose(f, 'c.html', '');
+  choose(f, 'b.html', 'exclude');
+  assert.equal(article.hidden, false);
+  assert.equal(child.hidden, true);
+  assert.equal(grandchild.hidden, true);
+  assert.equal(f.references.textContent, ' · 1 of 2 referring contexts');
+  choose(f, 'a.html', 'exclude');
+  assert.equal(group.hidden, true);
+  assert.equal(f.pages.textContent, '0 of 1 page');
+  f.reset.fire('click');
+  for (const element of [article, parent, child, grandchild, sibling, group]) assert.equal(element.hidden, false);
+  assert.equal(f.references.textContent, ' · 2 referring contexts');
+  assert.equal(f.disclosure.open, false);
+});
