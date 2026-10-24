@@ -7,6 +7,7 @@ mise run lint
 mise run test
 mise run pr:title-test
 mise run build:release
+mise run parity:budgets
 mise run openspec:validate
 mise run parser:baseline-check
 mise run openspec:check-skill-versions

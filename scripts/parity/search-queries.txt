@@ -1,0 +1,5 @@
+# One query per line, typed one character at a time.
+tmux
+logseq query
+claude code
+flashcard
