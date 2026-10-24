@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Publish every selectable page of a garden with lsg into target/parity/<time>/site"
+#USAGE flag "--garden <path>" help="Garden to publish (default: the encode garden from ghq)"
+set -euo pipefail
+args=()
+if [ -n "${usage_garden:-}" ]; then args+=(--garden "$usage_garden"); fi
+python3 scripts/parity/build.py ${args[@]+"${args[@]}"}

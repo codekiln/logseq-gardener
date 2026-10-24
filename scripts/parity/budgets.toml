@@ -1,0 +1,16 @@
+# Performance budgets for every lsg fixture page. KB is 1,000 and MB is 1,000,000.
+# parity:perf marks lsg values above these; parity:budgets checks the two size budgets in CI.
+
+[desktop]
+data_before_title_kb = 100
+script_before_title_kb = 16
+title_ms = 300
+peak_heap_mb = 10
+search_p95_ms = 50
+
+[phone]
+data_before_title_kb = 100
+script_before_title_kb = 16
+title_ms = 1500
+peak_heap_mb = 10
+search_p95_ms = 100

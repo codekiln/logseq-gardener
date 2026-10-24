@@ -1,0 +1,4 @@
+- # Editor
+	- Runs inside [[Tools/tmux]].
+	- ((6a1b2c3d-0000-4000-8000-000000000001))
+	- {{embed [[Tools/Notes]]}}
