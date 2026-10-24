@@ -6,6 +6,6 @@
 
 ## 2. Verification
 
-- [ ] 2.1 Verify nested context counts, descendant filters, privacy and source fragments with generic fixtures.
-- [ ] 2.2 Run full CI and review desktop/mobile cards and keyboard navigation.
-- [ ] 2.3 Obtain independent review and submit the implementation PR with a native cleanup child.
+- [x] 2.1 Verify nested context counts, descendant filters, privacy and source fragments with generic fixtures.
+- [x] 2.2 Run full CI and review desktop/mobile cards and keyboard navigation.
+- [x] 2.3 Obtain independent review and submit the implementation PR with a native cleanup child.

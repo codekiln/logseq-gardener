@@ -29,4 +29,3 @@ Groups SHALL use a compact source-page card with one page heading and linked anc
 #### Scenario: Equal and unequal totals
 - **WHEN** one source page has two referring contexts
 - **THEN** the heading shows one page and two referring contexts, while a page with one context shows only one page
-
