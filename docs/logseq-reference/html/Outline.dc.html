@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spec: outline and blocks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#106ba3;text-decoration:none}a:hover{color:#0b4f7a;text-decoration:underline}
+.br{color:#6b7280}
+.blk{display:flex;gap:8px;align-items:flex-start;line-height:1.6;margin:2px 0}
+.dot{flex:none;width:16px;height:25px;display:flex;align-items:center;justify-content:center}
+.dot span{width:6px;height:6px;border-radius:50%;background:#8b8d98;opacity:.8;display:block}
+.dot.closed span{box-shadow:0 0 0 5px rgba(0,0,0,0.08)}
+.kids{margin-left:7px;padding-left:22px;border-left:1px solid #e9ecef}
+.src{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.6;background:#11181c;color:#e6edf3;border-radius:8px;padding:14px 16px;white-space:pre-wrap;margin:0}
+.out{border:1px solid #e9ecef;border-radius:8px;padding:16px 20px;font-size:16px;background:#ffffff;line-height:1.6}
+.dom{font-size:13.5px;line-height:1.55;color:#3a3f44;margin:0}
+code{font-family:'JetBrains Mono',monospace;font-size:12px;background:#f1f3f5;border-radius:3px;padding:1px 4px;color:#11181c}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;color:#687076;margin-bottom:8px}
+.row{display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:24px;align-items:start}
+h2{margin:0 0 12px;font-size:20px;font-weight:600}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1300px; box-sizing: border-box; padding: 56px 64px; background: #ffffff; font-family: 'Source Sans 3', sans-serif; color: #11181c; display: flex; flex-direction: column; gap: 32px">
+<div>
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: #3e63dd">SPEC · OUTLINE AND BLOCKS</div>
+<h1 style="margin: 6px 0 4px; font-size: 40px; font-weight: 300">Every line is a block with a bullet; indentation is structure</h1>
+<p style="margin: 0; font-size: 16px; color: #4c5155">Gardener specs: <code>authored-outline-collapse</code>, <code>selected-block-navigation</code>. Source: <code>block.cljs › block-container, breadcrumb</code>; <code>block.css .bullet-container, .block-children-container, .ls-block h1–h6</code>.</p>
+</div>
+<div class="row"><div class="lbl">GARDEN SOURCE (.md)</div><div class="lbl">LOGSEQ RENDERS</div><div class="lbl">DOM AND RULES</div></div>
+<section>
+<h2>1 · Bullets and nesting</h2>
+<div class="row">
+<pre class="src">- ideas
+	- [[tmux/Idea/Toggl Track status in status line]]
+- learning
+	- [[tmux/man]]</pre>
+<div class="out">
+<div class="blk"><div class="dot"><span></span></div><div>ideas</div></div>
+<div class="kids"><div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">tmux/Idea/Toggl Track status in status line</a><span class="br">]]</span></div></div></div>
+<div class="blk"><div class="dot"><span></span></div><div>learning</div></div>
+<div class="kids"><div class="blk"><div class="dot"><span></span></div><div><span class="br">[[</span><a href="#">tmux/man</a><span class="br">]]</span></div></div></div>
+</div>
+<p class="dom"><code>div.ls-block</code> → <code>.bullet-container</code> 16×16 round, holding <code>.bullet</code> 6×6, gray-08 at 80% opacity. Body 16px, line-height 1.6. Children in <code>.block-children-container</code> (margin-left 29px) with a 1px <code>#e9ecef</code> guideline (<code>.block-children-left-border</code>, darkens on hover). Clicking a bullet zooms into the block.</p>
+</div>
+</section>
+<section>
+<h2>2 · Collapsed blocks</h2>
+<div class="row">
+<pre class="src">- extensions
+  collapsed:: true
+	- [[oh-my-tmux]] — by [[Person/Grégory Pakosz]]</pre>
+<div class="out">
+<div class="blk"><div class="dot closed"><span></span></div><div>extensions</div></div>
+<div style="font-size: 13px; color: #687076; margin-top: 8px">Children not drawn. Hovering shows a disclosure arrow left of the bullet that expands them in place.</div>
+</div>
+<p class="dom"><code>collapsed:: true</code> (hidden property) → <code>.bullet-container.bullet-closed</code>: the 16px circle fills with gray-04-alpha, a halo round the dot. Children are omitted from the DOM until expanded. A static build should ship children and toggle them client-side.</p>
+</div>
+</section>
+<section>
+<h2>3 · Heading blocks</h2>
+<div class="row">
+<pre class="src">- # Spotify [[TUI]] Projects
+- ## [[spotify-player]]
+- ### Agent skill
+- #### Context</pre>
+<div class="out">
+<div class="blk" style="align-items: center"><div class="dot"><span></span></div><div style="font-size: 32px; line-height: 1.5">Spotify <span class="br">[[</span><a href="#">TUI</a><span class="br">]]</span> Projects</div></div>
+<div class="blk" style="align-items: center"><div class="dot"><span></span></div><div style="font-size: 24px; line-height: 1.5"><span class="br">[[</span><a href="#">spotify-player</a><span class="br">]]</span></div></div>
+<div class="blk" style="align-items: center"><div class="dot"><span></span></div><div style="font-size: 19.2px; line-height: 1.5">Agent skill</div></div>
+<div class="blk" style="align-items: center"><div class="dot"><span></span></div><div style="font-size: 16px; line-height: 1.5">Context</div></div>
+</div>
+<p class="dom"><code>.ls-block h1</code> 2em, <code>h2</code> 1.5em, <code>h3</code> 1.2em, <code>h4</code> 1em, <code>h5</code> 0.83em; the bullet stays and centres on the heading line. Page title is separate (<code>h1.title</code>, 36px measured).</p>
+</div>
+</section>
+<section>
+<h2>4 · Zoomed-in block</h2>
+<div class="row">
+<pre class="src"># URL: #/page/6a3f6744-5403-429d-ad4a-4391e01224ea</pre>
+<div class="out">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0; font-size: 14px; color: #687076; margin-bottom: 10px"><a href="#" style="color: #687076">spotify-player</a><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="opacity: 0.5; margin: 0 4px" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg><span>Features</span></div>
+<div class="blk" style="align-items: center"><div class="dot"><span></span></div><div style="font-size: 24px; line-height: 1.5">Features</div></div>
+<div class="kids"><div class="blk"><div class="dot"><span></span></div><div><a href="#">configurable</a></div></div></div>
+</div>
+<p class="dom">Route <code>#/page/&lt;uuid&gt;</code>. Breadcrumb: page name, then each ancestor's title, joined by a 20px <code>chevron-right</code> at 50% opacity with <code>mx-1</code>. The block becomes the root of the outline; no page title, properties or references below it.</p>
+</div>
+</section>
+<section>
+<h2>5 · Tasks and numbered text</h2>
+<div class="row">
+<pre class="src">- TODO [task text]
+- DONE [task text]
+- 1. First item</pre>
+<div class="out">
+<div class="blk" style="align-items: center"><div class="dot"><span></span></div><div style="display: flex; align-items: center; gap: 8px"><input type="checkbox" aria-label="TODO" style="width: 16px; height: 16px; margin: 0"><span>[task text]</span></div></div>
+<div class="blk" style="align-items: center"><div class="dot"><span></span></div><div style="display: flex; align-items: center; gap: 8px; opacity: 0.6"><input type="checkbox" checked aria-label="DONE" style="width: 16px; height: 16px; margin: 0"><span style="text-decoration: line-through">[task text]</span></div></div>
+<div class="blk"><div class="dot"><span></span></div><div>1. First item</div></div>
+</div>
+<p class="dom">Leading <code>TODO</code>/<code>LATER</code> → unchecked box; <code>DONE</code> → checked, struck through, dimmed; <code>NOW</code>/<code>DOING</code> show a marker label (<code>.block-marker</code>, 85%, opacity .7). Checkboxes are read-only when published. The garden writes ordered lists as literal <code>1.</code> text under a bullet, so that renders verbatim.</p>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

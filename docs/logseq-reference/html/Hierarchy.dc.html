@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spec: namespace hierarchy</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#106ba3;text-decoration:none}a:hover{color:#0b4f7a;text-decoration:underline}
+.br{color:#6b7280}
+.src{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.6;background:#11181c;color:#e6edf3;border-radius:8px;padding:14px 16px;white-space:pre-wrap;margin:0}
+.out{border:1px solid #e9ecef;border-radius:8px;padding:16px 20px;font-size:16px;background:#ffffff;line-height:1.6}
+.dom{font-size:13.5px;line-height:1.55;color:#3a3f44;margin:0}
+code{font-family:'JetBrains Mono',monospace;font-size:12px;background:#f1f3f5;border-radius:3px;padding:1px 4px;color:#11181c}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;color:#687076;margin-bottom:8px}
+.row{display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:24px;align-items:start}
+h2{margin:0 0 12px;font-size:20px;font-weight:600}
+.sep{margin:0 8px;opacity:.3}
+.ns{list-style:none;margin:12px 24px;padding:0}
+.ns li{margin:8px 0}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1300px; box-sizing: border-box; padding: 56px 64px; background: #ffffff; font-family: 'Source Sans 3', sans-serif; color: #11181c; display: flex; flex-direction: column; gap: 36px">
+<div>
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: #3e63dd">SPEC · NAMESPACE HIERARCHY</div>
+<h1 style="margin: 6px 0 4px; font-size: 40px; font-weight: 300">A / in a page name makes a tree, shown as a flat list of paths</h1>
+<p style="margin: 0; font-size: 16px; color: #4c5155">Gardener spec: <code>published-namespace-hierarchy</code>, <code>markdown-page-titles</code>. Source: <code>hierarchy.cljs › structures, get-relation</code> (65 lines; port it directly).</p>
+</div>
+<div class="row"><div class="lbl">GARDEN SOURCE</div><div class="lbl">LOGSEQ RENDERS</div><div class="lbl">DOM AND RULES</div></div>
+<section>
+<h2>1 · Files become namespaced pages</h2>
+<div class="row">
+<pre class="src">pages/tmux.md
+pages/tmux___Config.md
+pages/tmux___Cheat Sheet.md
+pages/tmux___Command___new-session.md
+pages/tmux___Docs___Getting Started.md
+
+# no file needed for tmux/Command
+# or tmux/Docs: they exist because
+# a child names them</pre>
+<div class="out">
+<div style="font-size: 36px; font-weight: 300; color: #000000; line-height: 1.3">tmux/Command/new-session</div>
+<div style="font-size: 14px; color: #687076; margin-top: 8px">Title is the full original name, slashes included.</div>
+</div>
+<p class="dom"><code>___</code> in a filename is <code>/</code> in the page name (older gardens use <code>%2F</code> or <code>.</code>; see <code>:file/name-format</code>). Every prefix (<code>tmux/Command</code>) is a real page even with no file: it opens, shows no blocks, and still gets Linked References and Hierarchy.</p>
+</div>
+</section>
+<section>
+<h2>2 · Hierarchy section on the root page</h2>
+<div class="row">
+<pre class="src"># on page: tmux</pre>
+<div class="out">
+<div style="display: flex; align-items: center; gap: 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg><span style="font-size: 16px; font-weight: 700; opacity: 0.3">Hierarchy</span></div>
+<ul class="ns">
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Cheat Sheet</a><span class="br">]]</span></li>
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Command</a><span class="br">]]</span></li>
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Command</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">new-session</a><span class="br">]]</span></li>
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Config</a><span class="br">]]</span></li>
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Docs</a><span class="br">]]</span></li>
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Docs</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Getting Started</a><span class="br">]]</span></li>
+</ul>
+</div>
+<p class="dom"><code>div.page-hierarchy.mt-6</code> → foldable <code>h2.font-bold.opacity-30</code> "Hierarchy", open by default, title toggles it. <code>ul.namespaces</code> margin <code>12px 24px</code>; one <code>li.my-2</code> per page in the subtree, <b>every depth</b>, sorted by lower-cased name. Each segment is a page link labelled with that segment but pointing at the full prefix path (<code>Command</code> → <code>tmux/Command</code>); brackets follow <code>show-brackets?</code>. Separator <code>span.mx-2.opacity-30 "/"</code>.</p>
+</div>
+</section>
+<section>
+<h2>3 · On a child page</h2>
+<div class="row">
+<pre class="src"># on page: tmux/Config</pre>
+<div class="out">
+<div style="font-size: 16px; font-weight: 700; opacity: 0.3">Hierarchy</div>
+<ul class="ns">
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Config</a><span class="br">]]</span></li>
+<li><span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">Config</a><span class="br">]]</span><span class="sep">/</span><span class="br">[[</span><a href="#">local</a><span class="br">]]</span></li>
+</ul>
+</div>
+<p class="dom">The list unions the page's <b>descendants</b> with its <b>ancestor routes</b>, de-duplicated and sorted. A leaf with no children still shows one row: its own full path, which doubles as a breadcrumb back up. A page with no <code>/</code> and no children has no Hierarchy section. If the page is an alias, the first namespaced alias is used.</p>
+</div>
+</section>
+<section>
+<h2>4 · Where it sits</h2>
+<div class="row">
+<pre class="src"># on page: tmux</pre>
+<div class="out" style="font-size: 15px; display: flex; flex-direction: column; gap: 6px">
+<div>1. Page blocks</div>
+<div>2. Pages tagged with "tmux"</div>
+<div>3. 795 Linked References</div>
+<div style="font-weight: 600">4. Hierarchy</div>
+<div>5. Unlinked References</div>
+</div>
+<p class="dom">Order measured on the published <code>tmux</code> page. All Pages lists every namespaced page by its full name; there is no tree view outside this section.</p>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

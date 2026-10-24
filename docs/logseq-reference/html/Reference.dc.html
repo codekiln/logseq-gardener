@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Static site reference sheet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#106ba3}a:hover{color:#0b4f7a}
+code{font-family:'JetBrains Mono',monospace;font-size:13px;background:#f1f3f5;border-radius:4px;padding:1px 5px;color:#11181c}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1800px; box-sizing: border-box; padding: 72px 80px; background: #ffffff; font-family: 'Source Sans 3', sans-serif; color: #11181c; display: flex; flex-direction: column; gap: 56px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 14px; font-weight: 600; letter-spacing: 0.08em; color: #3e63dd">LOGSEQ-ENCODE-GARDEN · STATIC SITE</div>
+<h1 style="margin: 0; font-size: 48px; font-weight: 300; line-height: 1.15">How the published garden is built and drawn</h1>
+<p style="margin: 0; font-size: 18px; color: #4c5155; max-width: 900px; line-height: 1.5">The site is the Logseq web app compiled in publishing mode: the whole graph ships as data inside one page, and the app renders it read-only on GitHub Pages.</p>
+</div>
+<section style="display: flex; flex-direction: column; gap: 20px">
+<h2 style="margin: 0; font-size: 24px; font-weight: 600">1 · How it ships <span style="font-weight: 400; font-size: 16px; color: #687076">.github/workflows/gh-pages.yml, on every push to main</span></h2>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px">
+<div style="border: 1px solid #e9ecef; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 700; color: #3e63dd">STEP 1</div>
+<div style="font-size: 17px; font-weight: 600">Guard the sentinel</div>
+<div style="font-size: 14px; line-height: 1.5; color: #4c5155">Fails the build if <code>pages/</code> or <code>journals/</code> contain a literal <code>logseq____&amp;amp;</code>-style token, which would corrupt the embedded JSON and blank the site.</div>
+</div>
+<div style="border: 1px solid #e9ecef; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 700; color: #3e63dd">STEP 2</div>
+<div style="font-size: 17px; font-weight: 600">logseq/publish-spa</div>
+<div style="font-size: 14px; line-height: 1.5; color: #4c5155">Builds the app from graph <code>.</code> into <code>www/</code> with accent color <code>indigo</code>. All pages are public: <code>:publishing/all-pages-public? true</code>.</div>
+</div>
+<div style="border: 1px solid #e9ecef; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 700; color: #3e63dd">STEP 3</div>
+<div style="font-size: 17px; font-weight: 600">Add .nojekyll</div>
+<div style="font-size: 14px; line-height: 1.5; color: #4c5155">Stops GitHub Pages from running Jekyll over the build, so paths with underscores are served as-is.</div>
+</div>
+<div style="border: 1px solid #e9ecef; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 700; color: #3e63dd">STEP 4</div>
+<div style="font-size: 17px; font-weight: 600">Compress the graph</div>
+<div style="font-size: 14px; line-height: 1.5; color: #4c5155"><code>compress_logseq_db.py</code> moves the inline <code>window.logseq_db</code> into <code>static/js/db.gz</code> and swaps in a loader, keeping <code>index.html</code> under GitHub's 100 MB limit.</div>
+</div>
+<div style="border: 1px solid #e9ecef; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 700; color: #3e63dd">STEP 5</div>
+<div style="font-size: 17px; font-weight: 600">Deploy to gh-pages</div>
+<div style="font-size: 14px; line-height: 1.5; color: #4c5155">Pushes <code>www/</code> to the <code>gh-pages</code> branch with a clean deploy. To preview locally, extract that branch and serve it over http on localhost.</div>
+</div>
+</div>
+</section>
+<section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 24px; font-weight: 600">2 · What publishing mode keeps</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; font-size: 16px; line-height: 1.5">
+<div>Journals home</div><div>All pages table (16,693 pages)</div>
+<div>Flashcards (430 cards)</div><div>Favorites in the left sidebar</div>
+<div>Search (pages and blocks)</div><div>Graph view</div>
+<div>Linked and unlinked references</div><div>Namespace hierarchy</div>
+<div>More › Export graph</div><div>More › Toggle theme</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 24px; font-weight: 600">What it drops</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; font-size: 16px; line-height: 1.5; color: #4c5155">
+<div>Block and page editing</div><div>Settings</div>
+<div>Plugins and Themes</div><div>Import</div>
+<div>Join the community</div><div>Report bug</div>
+<div>Pages under <code>:hidden</code> in config.edn</div><div>Pages with <code>public:: false</code></div>
+<div>Flashcard scoring write-back</div><div>Saved reference filters</div>
+</div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 24px; font-weight: 600">Feature map <span style="font-weight: 400; font-size: 16px; color: #687076">where each feature is specified on this canvas</span></h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 24px; font-size: 15px; line-height: 1.5">
+<div><b>Page view</b>: layout, header, sidebar</div>
+<div><b>Journals</b>: home feed</div>
+<div><b>All pages</b>: table, paging</div>
+<div><b>Search</b>: ⌘K dialog</div>
+<div><b>Flashcards</b>: review modal</div>
+<div><b>Graph view</b>: settings panel</div>
+<div><b>Frontmatter</b>: page and block properties</div>
+<div><b>Transclusion</b>: block refs, embeds</div>
+<div><b>Backlinks</b>: linked, filters, unlinked</div>
+<div><b>Hierarchy</b>: namespace paths</div>
+<div><b>Outline</b>: bullets, collapse, zoom, tasks</div>
+<div><b>Inline</b>: refs, tags, links, macros</div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 20px">
+<h2 style="margin: 0; font-size: 24px; font-weight: 600">3 · Tokens <span style="font-weight: 400; font-size: 16px; color: #687076">measured from the live build, light theme</span></h2>
+<div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #ffffff; border: 1px solid #dee2e6"></div><div style="font-size: 14px; font-weight: 600">#ffffff</div><div style="font-size: 12px; color: #687076">primary-background</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #f8f9fa; border: 1px solid #dee2e6"></div><div style="font-size: 14px; font-weight: 600">#f8f9fa</div><div style="font-size: 12px; color: #687076">secondary-background, properties</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #e9ecef"></div><div style="font-size: 14px; font-weight: 600">#e9ecef</div><div style="font-size: 12px; color: #687076">tertiary-background, border, guideline</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #11181c"></div><div style="font-size: 14px; font-weight: 600">#11181c</div><div style="font-size: 12px; color: #687076">body text</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #687076"></div><div style="font-size: 14px; font-weight: 600">#687076</div><div style="font-size: 12px; color: #687076">muted text, icons</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #6b7280"></div><div style="font-size: 14px; font-weight: 600">#6b7280</div><div style="font-size: 12px; color: #687076">[[ ]] brackets</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #106ba3"></div><div style="font-size: 14px; font-weight: 600">#106ba3</div><div style="font-size: 12px; color: #687076">link, page-ref, tag</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div style="height: 64px; border-radius: 8px; background: #3e63dd"></div><div style="font-size: 14px; font-weight: 600">#3e63dd</div><div style="font-size: 12px; color: #687076">indigo accent (rx-indigo-09)</div></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 150px; font-size: 13px; color: #687076; flex: none">Page title 36 / 300</span><span style="font-size: 36px; font-weight: 300; color: #000000">tmux</span></div>
+<div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 150px; font-size: 13px; color: #687076; flex: none">h1 block 32 (2em) / 300</span><span style="font-size: 32px; font-weight: 300">ideas</span></div>
+<div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 150px; font-size: 13px; color: #687076; flex: none">Section 16 / 700</span><span style="font-size: 16px; font-weight: 700">795 Linked References</span></div>
+<div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 150px; font-size: 13px; color: #687076; flex: none">Block 16 / 400, lh 1.6</span><span style="font-size: 16px">A terminal multiplexer: run many terminal sessions in one screen.</span></div>
+<div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 150px; font-size: 13px; color: #687076; flex: none">Property 12.8 / 500 key</span><span style="font-size: 12.8px"><b style="font-weight: 500">created-by:</b> <span style="color: #6b7280">[[</span><span style="color: #106ba3">Person/Nicholas Marriott</span><span style="color: #6b7280">]]</span></span></div>
+<div style="font-size: 14px; color: #4c5155">Family: Source Sans 3 (variable), fallbacks Source Han Sans, sans-serif.</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.5">
+<div style="display: flex; gap: 16px"><span style="width: 170px; color: #687076; flex: none">Header</span><span>48 px, <code>rgba(255,255,255,0.9)</code></span></div>
+<div style="display: flex; gap: 16px"><span style="width: 170px; color: #687076; flex: none">Left sidebar</span><span>246 px (<code>--ls-left-sidebar-width</code>)</span></div>
+<div style="display: flex; gap: 16px"><span style="width: 170px; color: #687076; flex: none">Content column</span><span>810 px max (<code>--ls-main-content-max-width</code>), centered</span></div>
+<div style="display: flex; gap: 16px"><span style="width: 170px; color: #687076; flex: none">Properties box</span><span>#f8f9fa, radius 4, padding 4 32 4 8</span></div>
+<div style="display: flex; gap: 16px"><span style="width: 170px; color: #687076; flex: none">Bullet</span><span>6 px dot in a 16 px column; children indent behind a 1 px #e9ecef guideline</span></div>
+</div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 24px; font-weight: 600">4 · Anatomy <span style="font-weight: 400; font-size: 16px; color: #687076">DOM hooks for custom.css or tests</span></h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 32px; font-size: 15px; line-height: 1.5">
+<div><code>#head</code> header bar</div>
+<div><code>#left-sidebar</code> navigation and favorites</div>
+<div><code>#main-content-container</code> scrolling page</div>
+<div><code>.page-title .title</code> page name</div>
+<div><code>.page-properties</code> first-block properties</div>
+<div><code>.ls-block .bullet-container</code> outline</div>
+<div><code>.references.page-tags</code> pages tagged with</div>
+<div><code>.references.page-linked</code> linked references</div>
+<div><code>.page-hierarchy</code> namespace tree</div>
+<div><code>.references.page-unlinked</code> unlinked references</div>
+<div><code>window.logseq_db</code> graph data, loaded from db.gz</div>
+<div><code>#/page/&lt;name&gt;</code>, <code>#/all-pages</code> hash routes</div>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1800}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

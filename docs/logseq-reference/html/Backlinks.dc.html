@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spec: backlinks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#106ba3;text-decoration:none}a:hover{color:#0b4f7a;text-decoration:underline}
+.br{color:#6b7280}
+.blk{display:flex;gap:8px;align-items:flex-start;line-height:1.6;margin:2px 0}
+.dot{flex:none;width:16px;height:25px;display:flex;align-items:center;justify-content:center}
+.dot span{width:6px;height:6px;border-radius:50%;background:#9ba1a6;display:block}
+.kids{margin-left:7px;padding-left:22px;border-left:1px solid #e9ecef}
+.src{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.6;background:#11181c;color:#e6edf3;border-radius:8px;padding:14px 16px;white-space:pre-wrap;margin:0}
+.out{border:1px solid #e9ecef;border-radius:8px;padding:16px 20px;font-size:16px;background:#ffffff;line-height:1.6}
+.dom{font-size:13.5px;line-height:1.55;color:#3a3f44;margin:0}
+code{font-family:'JetBrains Mono',monospace;font-size:12px;background:#f1f3f5;border-radius:3px;padding:1px 4px;color:#11181c}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;color:#687076;margin-bottom:8px}
+.row{display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:24px;align-items:start}
+h2{margin:0 0 12px;font-size:20px;font-weight:600}
+.crumb{font-size:14px;color:#687076;margin-left:24px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:14px;padding:2px 8px;border-radius:4px;background:#f1f3f5}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1300px; box-sizing: border-box; padding: 56px 64px; background: #ffffff; font-family: 'Source Sans 3', sans-serif; color: #11181c; display: flex; flex-direction: column; gap: 36px">
+<div>
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: #3e63dd">SPEC · BACKLINKS</div>
+<h1 style="margin: 6px 0 4px; font-size: 40px; font-weight: 300">Linked References: every block that points here, grouped by page</h1>
+<p style="margin: 0; font-size: 16px; color: #4c5155">Gardener spec: <code>published-linked-references</code>. Source: <code>reference.cljs › references, filter-dialog</code>; <code>reference.css</code>; strings in <code>dicts/en.edn</code>.</p>
+</div>
+<div class="row"><div class="lbl">GARDEN SOURCE (.md)</div><div class="lbl">LOGSEQ RENDERS ON PAGE "tmux"</div><div class="lbl">DOM AND RULES</div></div>
+<section>
+<h2>1 · Section header and count</h2>
+<div class="row">
+<pre class="src"># any block, on any page, that
+# contains [[tmux]], #tmux,
+# tags:: tmux, or a ref to an
+# alias of tmux</pre>
+<div class="out" style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; justify-content: space-between"><button style="display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 0; font: inherit; font-size: 16px; font-weight: 500; color: #11181c; min-height: 32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>795 Linked References</button><a href="#" title="Filter" style="color: #687076; opacity: 0.6; display: flex; padding: 6px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v2.2a2 2 0 0 1-.6 1.4L15 12v7l-6 2v-8.5L4.5 7.6A2 2 0 0 1 4 6.2z"></path></svg></a></div>
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 16px; font-weight: 500">2 of 5 Linked References</span><span style="color: #18794e; display: flex; padding: 6px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v2.2a2 2 0 0 1-.6 1.4L15 12v7l-6 2v-8.5L4.5 7.6A2 2 0 0 1 4 6.2z"></path></svg></span></div>
+</div>
+<p class="dom"><code>h2.font-medium</code> in a foldable header; chevron appears on hover. Text: <code>"N Linked Reference(s)"</code>, or <code>"F of N …"</code> while a filter is on. N counts <b>referencing blocks</b> (via the page or any alias), not pages. Filter icon <code>a.filter</code>, 22 px: grey at 60% with no filter, green if all includes, red if all excludes, orange if mixed.</p>
+</div>
+</section>
+<section>
+<h2>2 · A reference group</h2>
+<div class="row">
+<pre class="src"># journals/2026_08_25.md
+- # I wonder
+	- if there is a way that [[Claude/Code]] in [[tmux]] could surface links which, if clicked, would open [[nvim]] in an adjacent pane.</pre>
+<div class="out" style="background: #f8f9fa; border: 0">
+<a href="#" style="font-size: 16px; font-weight: 600">2026-08-25 Tue</a>
+<div class="crumb" style="margin-top: 4px"><a href="#" style="color: #687076">I wonder</a></div>
+<div class="blk"><div class="dot"><span></span></div><div>if there is a way that <span class="br">[[</span><a href="#">Claude/Code</a><span class="br">]]</span> in <span class="br">[[</span><a href="#">tmux</a><span class="br">]]</span> could surface links which, if clicked, would open <span class="br">[[</span><a href="#">nvim</a><span class="br">]]</span> in an adjacent pane.</div></div>
+</div>
+<p class="dom">One group per referencing page: page link, then each matching block. A block that isn't top-level gets a <b>breadcrumb</b> of its ancestors' titles above it (<code>.references-blocks .breadcrumb</code>, margin-left 1.5rem, muted, joined by 20px <code>chevron-right</code> icons); clicking a crumb zooms to that ancestor. The block renders with its whole subtree. Within a group, blocks whose parent is the page come first.</p>
+</div>
+</section>
+<section>
+<h2>3 · Filter dialog</h2>
+<div class="row">
+<pre class="src"># per-page filter state is saved as
+# a page property:
+filters:: {"nvim" true, "card" false}</pre>
+<div class="out">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v2.2a2 2 0 0 1-.6 1.4L15 12v7l-6 2v-8.5L4.5 7.6A2 2 0 0 1 4 6.2z"></path></svg>Filter</div>
+<div style="font-size: 14px; color: #687076; margin: 2px 0 12px">Click to include and shift-click to exclude. Click again to remove.</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; margin-bottom: 6px"><b style="font-weight: 500">Includes:</b><span class="chip" style="color: #18794e">nvim <span>4</span></span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; margin-bottom: 12px"><b style="font-weight: 500">Excludes:</b><span class="chip" style="color: #ce2c31">card <span>12</span></span></div>
+<label for="flt" style="position: absolute; left: -9999px">Search in linked pages</label>
+<input id="flt" placeholder="Search in linked pages" style="width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 10px">
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><span class="chip">Keyshort <span style="color: #687076">40</span></span><span class="chip">tmux/Keyshort <span style="color: #687076">31</span></span><span class="chip">oh-my-tmux <span style="color: #687076">9</span></span><span class="chip">Ghostty <span style="color: #687076">6</span></span></div>
+</div>
+<p class="dom">Modal (<code>.ls-filters</code>, max-width 704px). Chips list the <b>other</b> pages co-referenced by the linked blocks with their counts, most frequent first; fuzzy search narrows them. In the published build filters work for the session but the <code>filters::</code> write-back can't persist. The chip counts above are illustrative.</p>
+</div>
+</section>
+<section>
+<h2>4 · Unlinked References</h2>
+<div class="row">
+<pre class="src">- [any block that says tmux as plain text, no brackets or #]</pre>
+<div class="out">
+<button style="display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 0; font: inherit; font-size: 16px; font-weight: 500; color: #11181c; min-height: 32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>Unlinked References</button>
+</div>
+<p class="dom"><code>.references.page-unlinked</code>, collapsed by default; the full-text search for the page name (and aliases) runs only when expanded, then the title becomes <code>"N Unlinked Reference(s)"</code>. Same group layout as linked refs. Section order on a page: blocks → Pages tagged with → Linked → Hierarchy → Unlinked.</p>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

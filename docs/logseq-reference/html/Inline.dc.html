@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spec: inline syntax</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#106ba3;text-decoration:none}a:hover{color:#0b4f7a;text-decoration:underline}
+.br{color:#6b7280}
+.s{font-family:'JetBrains Mono',monospace;font-size:13px;color:#11181c;background:#f1f3f5;border-radius:6px;padding:10px 12px;white-space:pre-wrap;word-break:break-word}
+.r{font-size:16px;line-height:1.6;padding:10px 0}
+.n{font-size:13.5px;line-height:1.5;color:#3a3f44;padding:10px 0}
+code{font-family:'JetBrains Mono',monospace;font-size:12px;background:#f1f3f5;border-radius:3px;padding:1px 4px;color:#11181c}
+.ic{font-family:'JetBrains Mono',monospace;font-size:0.9em;background:#e0e1e6;color:#60646c;border-radius:3px;padding:1px 4px}
+.tag{font-size:0.9em;opacity:.7;padding:0 2px;border-radius:4px;color:#3e63dd}
+.ext{border-bottom:1px solid #106ba3}
+mark{background:#fef3ac;color:#262626;padding:2px 4px;border-radius:3px}
+.grid{display:grid;grid-template-columns:400px minmax(0,1fr) 400px;column-gap:24px;row-gap:6px;align-items:start}
+.lbl{font-size:12px;font-weight:600;letter-spacing:.06em;color:#687076}
+.hr{grid-column:1 / -1;border-top:1px solid #f1f3f5}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 1300px; box-sizing: border-box; padding: 56px 64px; background: #ffffff; font-family: 'Source Sans 3', sans-serif; color: #11181c; display: flex; flex-direction: column; gap: 28px">
+<div>
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: #3e63dd">SPEC · INLINE SYNTAX</div>
+<h1 style="margin: 6px 0 4px; font-size: 40px; font-weight: 300">Inline markup inside a block</h1>
+<p style="margin: 0; font-size: 16px; color: #4c5155">Gardener specs: <code>email-autolinks</code>, <code>selected-page-aliases</code>. Source: <code>block.cljs › inline, page-cp, macro-cp</code>; <code>common.css a.tag, mark, .external-link, :not(pre) &gt; code</code>.</p>
+</div>
+<div class="grid">
+<div class="lbl">GARDEN SOURCE</div><div class="lbl">LOGSEQ RENDERS</div><div class="lbl">DOM AND RULES</div>
+<div class="hr"></div>
+<div class="s">[[tmux/Config]]</div>
+<div class="r"><span class="br">[[</span><a href="#">tmux/Config</a><span class="br">]]</span></div>
+<div class="n"><code>a.page-ref</code>, link colour; brackets are separate grey <code>span.text-gray-500</code> (<code>:ui/show-brackets?</code>). Target matched case-insensitively, aliases resolve to the original page.</div>
+<div class="hr"></div>
+<div class="s">[that config]([[tmux/Config]])</div>
+<div class="r"><a href="#">that config</a></div>
+<div class="n">Labelled page ref: link text only, no brackets, same target.</div>
+<div class="hr"></div>
+<div class="s">#card   #[[Keyshort]]   #tmux/Keyshort</div>
+<div class="r"><a href="#" class="tag">#card</a>   <a href="#" class="tag">#Keyshort</a>   <a href="#" class="tag">#tmux/Keyshort</a></div>
+<div class="n"><code>a.tag</code>: 0.9em, accent colour at 70% opacity, padding <code>0 2px</code>, radius 4; underline on hover. A tag is a page ref: it appears in that page's Linked References and "Pages tagged with".</div>
+<div class="hr"></div>
+<div class="s">[[2026-07-04 Sat]]</div>
+<div class="r"><span class="br">[[</span><a href="#">2026-07-04 Sat</a><span class="br">]]</span></div>
+<div class="n">Journal refs use the graph's <code>:journal/page-title-format</code>; they open the journal page.</div>
+<div class="hr"></div>
+<div class="s">[Panel | Visual Studio Code Extension API](https://code.visualstudio.com/api/ux-guidelines/panel)</div>
+<div class="r"><a href="#" class="ext">Panel | Visual Studio Code Extension API</a></div>
+<div class="n"><code>a.external-link</code>: 1px solid bottom border, opens a new tab.</div>
+<div class="hr"></div>
+<div class="s">&lt;someone@example.com&gt;</div>
+<div class="r"><a href="#" class="ext">someone@example.com</a></div>
+<div class="n">Autolinked address → <code>mailto:</code> link, styled like an external link.</div>
+<div class="hr"></div>
+<div class="s">`&lt;prefix&gt; z`</div>
+<div class="r"><span class="ic">&lt;prefix&gt; z</span></div>
+<div class="n"><code>:not(pre) &gt; code</code>: 0.9em mono, radius 3, bg gray-05/06, text gray-11.</div>
+<div class="hr"></div>
+<div class="s">**Zooms** · _hidden_ · ==fills the window== · ~~old~~</div>
+<div class="r"><b>Zooms</b> · <i>hidden</i> · <mark>fills the window</mark> · <s>old</s></div>
+<div class="n"><code>mark</code>: bg <code>#fef3ac</code>, text <code>#262626</code>, padding <code>2px 4px</code>, radius 3.</div>
+<div class="hr"></div>
+<div class="s">![panel image](https://code.visualstudio.com/assets/api/ux-guidelines/examples/panel.png)
+![diagram](../assets/[file].png)</div>
+<div class="r"><span style="display: inline-flex; align-items: center; justify-content: center; width: 240px; height: 120px; background: #f1f3f5; border-radius: 4px; font-size: 13px; color: #687076">[image]</span></div>
+<div class="n">Inline <code>img</code>, max-width 100%. Relative <code>../assets/</code> paths must be copied into the build and rewritten.</div>
+<div class="hr"></div>
+<div class="s">{{youtube-timestamp 620}}
+{{cloze &lt;prefix&gt; z}}
+{{embed …}}  {{query …}}</div>
+<div class="r"><a href="#">10:20</a> · <span style="background: #e9ecef; border-radius: 3px; padding: 0 6px">[…]</span> while reviewing, text otherwise</div>
+<div class="n">Macros: <code>youtube-timestamp</code> → seek link; <code>cloze</code> hides its text during card review; <code>embed</code> on the transclusion sheet; <code>query</code> runs live in the app, so a static build must pre-compute it or show it as unsupported. Unknown macros render <code>span.warning</code> "Unsupported macro name".</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Search dialog and More menu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#106ba3}a:hover{color:#0b4f7a}
+</style>
+</helmet>
+<div style="width: 1440px; height: 820px; box-sizing: border-box; padding: 64px; background: #3a3f44; font-family: 'Source Sans 3', sans-serif; color: #11181c; display: flex; gap: 64px; align-items: flex-start">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="font-size: 14px; font-weight: 600; letter-spacing: 0.06em; color: #e9ecef">SEARCH — HEADER BUTTON OR ⌘K</div>
+<div role="dialog" aria-label="Search" style="width: 720px; background: #ffffff; border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,0.35); overflow: hidden">
+<div style="display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #e9ecef">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7"></circle><path d="M21 21l-6-6"></path></svg>
+<label for="q" style="position: absolute; left: -9999px">Search the garden</label>
+<input id="q" value="tmux" style="flex: 1; border: 0; outline: none; font: inherit; font-size: 20px; color: #11181c; background: transparent">
+</div>
+<div style="padding: 8px 8px 12px">
+<div style="padding: 8px 12px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: #687076">PAGES</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; background: #edf2fe">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3e63dd" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg>
+<span style="flex: 1; font-size: 16px; font-weight: 600">tmux</span>
+<span style="font-size: 12px; color: #687076">↵ open</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg>
+<span style="font-size: 16px"><b>tmux</b>/Config</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg>
+<span style="font-size: 16px"><b>tmux</b>/Cheat Sheet</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg>
+<span style="font-size: 16px"><b>tmux</b>/Tutorial/Use <b>tmux</b> on Mac</span>
+</div>
+<div style="padding: 14px 12px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: #687076">BLOCKS</div>
+<div style="display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border-radius: 8px">
+<span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6; margin-top: 9px; flex: none"></span>
+<span style="font-size: 15px; line-height: 1.5">…opened the PR in my browser from GitHub/CoPilot/CLI in Ghostty in <b>tmux</b><br><span style="font-size: 13px; color: #687076">2026-09-15 Tue</span></span>
+</div>
+<div style="display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; border-radius: 8px">
+<span style="width: 6px; height: 6px; border-radius: 50%; background: #9ba1a6; margin-top: 9px; flex: none"></span>
+<span style="font-size: 15px; line-height: 1.5">if there is a way that Claude/Code in <b>tmux</b> could surface links which, if clicked, would open nvim in an adjacent pane<br><span style="font-size: 13px; color: #687076">2026-08-25 Tue</span></span>
+</div>
+</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="font-size: 14px; font-weight: 600; letter-spacing: 0.06em; color: #e9ecef">MORE MENU — PUBLISHING MODE</div>
+<div role="menu" aria-label="More" style="width: 280px; background: #ffffff; border-radius: 10px; box-shadow: 0 16px 48px rgba(0,0,0,0.3); padding: 6px">
+<button role="menuitem" style="width: 100%; display: flex; align-items: center; gap: 10px; border: 0; background: #f1f3f5; border-radius: 6px; padding: 10px 12px; font: inherit; font-size: 15px; color: #11181c; text-align: left; cursor: pointer; min-height: 44px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="10" cy="6" rx="7" ry="3"></ellipse><path d="M3 6v6c0 1.7 3.1 3 7 3"></path><path d="M3 12v6c0 1.7 3.1 3 7 3"></path><path d="M15 18h7M19 15l3 3-3 3"></path></svg>Export graph</button>
+<button role="menuitem" style="width: 100%; display: flex; align-items: center; gap: 10px; border: 0; background: transparent; border-radius: 6px; padding: 10px 12px; font: inherit; font-size: 15px; color: #11181c; text-align: left; cursor: pointer; min-height: 44px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#687076" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 16a5 5 0 1 1 6 0 3.5 3.5 0 0 0-1 3 2 2 0 0 1-4 0 3.5 3.5 0 0 0-1-3"></path><path d="M9.7 17h4.6"></path></svg>Toggle theme</button>
+</div>
+<div style="width: 280px; font-size: 14px; line-height: 1.5; color: #c1c8cd">Settings, Plugins, Themes, Import, Join the community and Report bug are left out when the app is built for publishing.</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":820}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

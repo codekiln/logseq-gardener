@@ -1,0 +1,1543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Logseq published garden prototype</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Fira+Code:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.lsq{--codebg:#f8f9fa;--ck:#bd4b00;--cs:#297c3b;--cc:#7e868c;--cn:#cd1d8d;--cd:#0078a1;--co:#793aaf;--cv2:#946800;--hr:#dee2e6}
+.lsq.dark{--codebg:#151718;--ck:#ff8b3e;--cs:#71d083;--cc:#787f85;--cn:#ff8dcc;--cd:#75c7f0;--co:#d19dff;--cv2:#f0c000;--hr:#313538}
+.cl{min-height:1.45em}
+.t-k{color:var(--ck)}.t-s{color:var(--cs)}.t-c{color:var(--cc);font-style:italic}.t-n,.t-b{color:var(--cn)}.t-d,.t-p,.t-a{color:var(--cd)}.t-o{color:var(--co)}
+.ltab{width:100%;border-collapse:collapse;text-align:left;margin:1rem 0;font-size:15px}
+.ltab th{font-size:14px;font-weight:400;color:var(--tx);border-bottom:2px solid var(--bd);padding:10px 8px}
+.ltab td{padding:6px 8px}
+.ltab tr:nth-child(even){background:var(--bg3)}
+.app{height:100vh;display:flex;flex-direction:column}
+.shell{flex:1;min-height:0;display:flex}
+.shell > nav,.shell > main,.shell > aside{overflow-y:auto}
+@media (max-width: 760px){.app{height:auto;min-height:100vh}.shell{flex-direction:column}.shell > nav,.shell > aside{width:auto !important;min-width:0 !important}}
+.lsq{--bg:#ffffff;--bg2:#f8f9fa;--bg3:#f1f3f5;--bg4:#e9ecef;--bd:#e9ecef;--tx:#11181c;--tx2:#3a3f44;--mu:#687076;--ln:#106ba3;--brk:#6b7280;--dot:#9ba1a6;--ac:#3e63dd;--title:#000000;--icbg:#e9ecef;--ictx:#3a3f44;--warn:#b54708;--prop:#f8f9fa;--ov:rgba(17,24,28,.45);--card:#ffffff;--hd:rgba(255,255,255,.9);--sel:#e6edfe}
+.lsq.dark{--bg:#1a1d1e;--bg2:#151718;--bg3:#202425;--bg4:#2b2f31;--bd:#2b2f31;--tx:#ecedee;--tx2:#c1c8cd;--mu:#9ba1a6;--ln:#a3cef1;--brk:#787f85;--dot:#697177;--ac:#849dff;--title:#ffffff;--icbg:#2b2f31;--ictx:#c1c8cd;--warn:#f1a10d;--prop:#202425;--ov:rgba(0,0,0,.6);--card:#202425;--hd:rgba(26,29,30,.92);--sel:#1f2d5c}
+.lsq a{color:var(--ln);text-decoration:none;cursor:pointer}
+.lsq a:hover{text-decoration:underline}
+.brk{color:var(--brk)}
+.tag{font-size:.9em;opacity:.7;padding:0 2px;border-radius:4px}
+.lsq a.tag{color:var(--ac)}
+.ext{border-bottom:1px solid currentColor}
+.lsq a.ext:hover{text-decoration:none}
+.ic{font-family:'Fira Code',Monaco,Menlo,monospace;font-size:.9em;background:var(--icbg);color:var(--ictx);border-radius:3px;padding:1px 4px}
+.mk{background:#fef3ac;color:#262626;padding:2px 4px;border-radius:3px}
+.lsq a.bref{border-bottom:.5px solid currentColor;padding:2px 0;cursor:alias}
+.lsq a.bref:hover{text-decoration:none}
+.warn{color:var(--warn)}
+.lsq a.yts{display:inline-flex;align-items:center;gap:3px;font-size:.9em}
+.ib{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;border-radius:6px;color:var(--mu);cursor:pointer;flex:none;padding:0}
+.ib:hover{background:var(--bg3);color:var(--tx)}
+.nav{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;color:var(--tx);font:inherit;font-size:15px;min-height:34px;border:0;background:transparent;width:100%;text-align:left;cursor:pointer;box-sizing:border-box}
+.nav:hover{background:var(--bg4)}
+.nav.on{background:var(--bg4)}
+.row{position:relative}
+.gl{position:absolute;top:0;bottom:0;width:1px;background:var(--bd)}
+.blk{display:flex;gap:6px;align-items:flex-start}
+.bul{flex:none;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:0;padding:0;background:transparent;cursor:pointer}
+.bul span{width:6px;height:6px;border-radius:50%;background:var(--dot);opacity:.85;display:block}
+.bul.closed{background:var(--bg4)}
+.bul:hover span{background:var(--tx)}
+.tog{position:absolute;top:2px;width:18px;height:22px;border:0;background:transparent;color:var(--mu);cursor:pointer;opacity:0;display:flex;align-items:center;justify-content:center;padding:0}
+.row:hover > .tog{opacity:1}
+.tog.shut svg{transform:rotate(-90deg)}
+.bc{flex:1;min-width:0;line-height:1.6;word-wrap:break-word}
+.props{background:var(--prop);border-radius:4px;padding:4px 32px 4px 8px;font-size:12.8px;line-height:1.6;margin:4px 0}
+.lsq a.pk{font-weight:500;color:var(--mu)}
+.code{position:relative;background:var(--codebg);border-radius:2px;font-family:'Fira Code',Monaco,Menlo,monospace;font-size:12px;line-height:1.45;padding:22px 12px 10px;white-space:pre;overflow-x:auto;margin:4px 0;color:var(--tx)}
+.lang{position:absolute;top:0;right:0;font-size:12px;padding:4px 6px;background:var(--bg2);opacity:.8;font-family:'Source Sans 3',sans-serif;line-height:1}
+.embed{background:var(--bg2);border-radius:4px;padding:4px 12px 8px;margin:4px 0}
+.kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:4px;background:var(--bg4);font-size:11px;color:var(--tx2);box-sizing:border-box}
+.mi{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;border-radius:6px;padding:8px 12px;font:inherit;font-size:14px;color:var(--tx);text-align:left;cursor:pointer;min-height:38px;box-sizing:border-box}
+.mi:hover{background:var(--bg3)}
+.res{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;padding:8px 12px;font:inherit;font-size:15px;color:var(--tx2);text-align:left;cursor:pointer;min-height:40px;box-sizing:border-box}
+.res.hi{background:var(--bg4);color:var(--tx)}
+.hit{color:var(--tx);font-weight:600}
+.sech{display:flex;align-items:center;gap:6px;border:0;background:transparent;padding:0;font:inherit;font-size:16px;font-weight:500;color:var(--tx);cursor:pointer;min-height:32px}
+.sbtn{font:inherit;font-size:13px;border:0;background:transparent;color:var(--tx2);padding:6px 10px;border-radius:6px;cursor:pointer;min-height:32px}
+.sbtn:hover{background:var(--bg4)}
+.sbtn.on{background:var(--bg4);color:var(--tx)}
+.card{background:var(--card);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.08);border:1px solid var(--bd);overflow:hidden}
+.ctl{position:absolute;width:30px;height:30px;border:0;background:transparent;color:var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.ctl.off{opacity:.2;cursor:default}
+.sr{position:absolute;left:-9999px}
+.th{font-weight:600;font-size:14px;color:var(--mu);text-align:left;padding:10px 12px;border-bottom:1px solid var(--bd);white-space:nowrap}
+.td{padding:8px 12px;border-bottom:1px solid var(--bg3);font-size:15px}
+.gnode{position:absolute;transform:translate(-50%,-50%);border:0;padding:0;border-radius:50%;cursor:pointer}
+.glabel{position:absolute;transform:translate(-50%,0);font-size:12px;color:var(--tx2);white-space:nowrap;pointer-events:none}
+.gedge{position:absolute;height:1px;background:var(--bd);transform-origin:0 0}
+.slide h1,.slide h2,.slide h3,.slide h4{margin:0 0 12px;font-weight:600;color:var(--tx)}
+</style>
+</helmet>
+<div class="lsq app {{themeClass}}" style="background: var(--bg); color: var(--tx); font-family: 'Source Sans 3', sans-serif; font-size: 16px; position: relative">
+<header style="height: 48px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: var(--hd); border-bottom: 1px solid var(--bd)">
+<div style="display: flex; align-items: center; gap: 4px">
+<button class="ib" aria-label="Toggle left sidebar" title="Toggle left sidebar (t l)" onClick="{{toggleLeft}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+<button class="ib" aria-label="Search" title="Search (⌘K)" onClick="{{openSearch}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7"></circle><path d="M21 21l-6-6"></path></svg></button>
+</div>
+<div style="display: flex; align-items: center; gap: 4px">
+<sc-if value="{{showHome}}" hint-placeholder-val="{{false}}"><button class="ib" aria-label="Home" title="Home (g h)" onClick="{{goHome}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12H3l9-9 9 9h-2"></path><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"></path><path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6"></path></svg></button></sc-if>
+<button class="sbtn" style="font-size: 14px; font-weight: 500; color: var(--mu)" onClick="{{goGraph}}">Graph</button>
+<button class="ib" aria-label="More" title="More" onClick="{{toggleMore}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button>
+<button class="ib" aria-label="Toggle right sidebar" title="Toggle right sidebar (t r)" onClick="{{toggleRight}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+</div>
+</header>
+<div class="shell">
+<sc-if value="{{leftOpen}}" hint-placeholder-val="{{true}}">
+<nav aria-label="Left sidebar" style="width: 246px; flex: none; box-sizing: border-box; background: var(--bg2); border-right: 1px solid var(--bd); padding: 12px 8px; display: flex; flex-direction: column; gap: 2px">
+<button class="nav {{navJournalsCls}}" onClick="{{goHome}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--mu)"><rect x="4" y="5" width="16" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M4 11h16"></path></svg>Journals</button>
+<button class="nav {{navWbCls}}" onClick="{{goWhiteboards}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--mu)"><path d="M3 17l5-5 4 4 8-8"></path><rect x="2" y="3" width="20" height="18" rx="2"></rect></svg>Whiteboards</button>
+<button class="nav" onClick="{{openCards}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--mu)"><rect x="3" y="7" width="13" height="14" rx="2"></rect><path d="M8 3h11a2 2 0 0 1 2 2v12"></path></svg><span style="flex: 1">Flashcards</span><span style="font-size: 12px; font-weight: 600; background: var(--bg4); color: var(--tx2); border-radius: 9px; padding: 1px 7px">430</span></button>
+<button class="nav {{navAllCls}}" onClick="{{goAll}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--mu)"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg>All pages</button>
+<div style="margin: 18px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--mu)">FAVORITES</div>
+<sc-for list="{{favorites}}" as="f" hint-placeholder-count="8">
+<button class="nav {{f.cls}}" style="font-size: 14px" onClick="{{f.go}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--dot); flex: none"></span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{f.name}}</span></button>
+</sc-for>
+<div style="margin: 22px 10px 6px; padding-top: 12px; border-top: 1px dashed var(--bd); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--mu)">EXAMPLE PAGES · NOT LOGSEQ UI</div>
+<sc-for list="{{fixtures}}" as="f"><button class="nav {{f.cls}}" style="font-size: 14px; color: var(--mu)" onClick="{{f.go}}">{{f.name}}</button></sc-for>
+</nav>
+</sc-if>
+<main id="main" ref="{{mainRef}}" style="flex: 1; min-width: 0; box-sizing: border-box; padding: 28px 28px 80px">
+<div style="max-width: 810px; margin: 0 auto">
+
+<sc-if value="{{isGraph}}" hint-placeholder-val="{{false}}">
+<div style="position: relative; height: 640px; background: var(--bg2); border-radius: 8px; overflow: hidden; border: 1px solid var(--bd)">
+<sc-for list="{{graph.edges}}" as="e"><div class="gedge" style="left: {{e.x}}px; top: {{e.y}}px; width: {{e.len}}px; transform: rotate({{e.ang}}deg)"></div></sc-for>
+<sc-for list="{{graph.nodes}}" as="n"><button class="gnode" aria-label="{{n.name}}" title="{{n.name}}" onClick="{{n.go}}" style="left: {{n.x}}px; top: {{n.y}}px; width: {{n.r}}px; height: {{n.r}}px; background: {{n.color}}"></button><span class="glabel" style="left: {{n.x}}px; top: {{n.ly}}px">{{n.label}}</span></sc-for>
+<aside aria-label="Graph settings" style="position: absolute; top: 12px; right: 12px; width: 220px; background: var(--card); border: 1px solid var(--bd); border-radius: 8px; padding: 10px 12px; font-size: 14px; display: flex; flex-direction: column; gap: 6px">
+<div style="font-weight: 600; font-size: 13px">Nodes</div>
+<label style="display: flex; justify-content: space-between; align-items: center; min-height: 28px">Show Journals<input type="checkbox" checked="{{graph.journals}}" onChange="{{graph.toggleJournals}}"></label>
+<label style="display: flex; justify-content: space-between; align-items: center; min-height: 28px">Orphan pages<input type="checkbox" checked="{{true}}" onChange="{{noop}}"></label>
+<label style="display: flex; justify-content: space-between; align-items: center; min-height: 28px">Built-in pages<input type="checkbox" checked="{{false}}" onChange="{{noop}}"></label>
+<div style="font-weight: 600; font-size: 13px; margin-top: 6px">Search</div>
+<div style="color: var(--mu); font-size: 13px">Click to search</div>
+<div style="font-weight: 600; font-size: 13px; margin-top: 6px">Forces</div>
+<div style="color: var(--mu); font-size: 13px">Link Distance · Charge Strength · Charge Range</div>
+<div style="font-weight: 600; font-size: 13px; margin-top: 6px">Export</div>
+</aside>
+<div style="position: absolute; left: 12px; bottom: 12px; font-size: 13px; color: var(--mu)">{{graph.caption}}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isAll}}" hint-placeholder-val="{{false}}">
+<h1 style="margin: 0 0 6px; font-size: 36px; font-weight: 300; color: var(--title)">All pages</h1>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; font-size: 14px; color: var(--mu)">
+<span>Total {{all.total}} pages in this prototype (the published graph has 16693)</span>
+<span style="display: flex; align-items: center; gap: 8px">{{all.pageLabel}}<button class="sbtn" style="border: 1px solid var(--bd)" onClick="{{all.prev}}">Prev</button><button class="sbtn" style="border: 1px solid var(--bd)" onClick="{{all.next}}">Next</button></span>
+</div>
+<div style="overflow-x: auto; border: 1px solid var(--bd); border-radius: 8px">
+<table style="width: 100%; border-collapse: collapse">
+<thead><tr><th class="th" scope="col">Page name</th><th class="th" scope="col">Backlinks</th><th class="th" scope="col">Created At</th><th class="th" scope="col">Updated At</th></tr></thead>
+<tbody>
+<sc-for list="{{all.rows}}" as="ar" hint-placeholder-count="10"><tr><td class="td"><a onClick="{{ar.go}}">{{ar.name}}</a></td><td class="td">{{ar.back}}</td><td class="td" style="color: var(--mu)">—</td><td class="td" style="color: var(--mu)">—</td></tr></sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+
+<sc-if value="{{isWb}}" hint-placeholder-val="{{false}}">
+<h1 style="margin: 0 0 12px; font-size: 36px; font-weight: 300; color: var(--title)">Whiteboards</h1>
+<div style="border: 1px dashed var(--bd); border-radius: 8px; padding: 40px; text-align: center; color: var(--mu)">[Whiteboard dashboard: a grid of whiteboard thumbnails. Not captured in this prototype.]</div>
+</sc-if>
+
+<sc-if value="{{isDocs}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 56px">
+<sc-for list="{{docs}}" as="doc" hint-placeholder-count="1">
+<article>
+<sc-if value="{{doc.isZoom}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; flex-wrap: wrap; font-size: 14px; color: var(--mu); margin-bottom: 14px">
+<sc-for list="{{doc.crumbs}}" as="cr"><a onClick="{{cr.go}}" style="color: var(--mu)">{{cr.v}}</a><sc-if value="{{cr.sep}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="opacity: 0.5; margin: 0 4px" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></sc-if></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{doc.showTitle}}" hint-placeholder-val="{{true}}">
+<h1 style="margin: 0 0 16px; font-size: {{doc.titleSize}}; font-weight: 300; line-height: 1.3; color: var(--title)"><a onClick="{{doc.go}}" style="color: var(--title)">{{doc.title}}</a></h1>
+</sc-if>
+<sc-if value="{{doc.hasProps}}" hint-placeholder-val="{{false}}">
+<div class="props" style="margin-bottom: 10px"><sc-for list="{{doc.props}}" as="p"><div><a class="pk" onClick="{{p.go}}">{{p.k}}</a><span style="margin-right: 4px">:</span><sc-for list="{{p.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isComma}}"><span>, </span></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if></sc-for></div></sc-for></div>
+</sc-if>
+<sc-for list="{{doc.rows}}" as="row" hint-placeholder-count="5">
+<div class="row" style="padding-left: {{row.pad}}px">
+<sc-for list="{{row.guides}}" as="gd"><span class="gl" style="left: {{gd.x}}px"></span></sc-for>
+<sc-if value="{{row.hasKids}}"><button class="tog {{row.togCls}}" style="left: {{row.togX}}px" aria-label="Toggle children" onClick="{{row.toggle}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></sc-if>
+<div class="blk">
+<button class="bul {{row.bulCls}}" style="margin-top: {{row.bulTop}}px" aria-label="Zoom into block" onClick="{{row.zoom}}"><span></span></button>
+<div class="bc">
+<sc-for list="{{row.items}}" as="it">
+<sc-if value="{{it.isText}}"><div style="font-size: {{it.fs}}; font-weight: {{it.fw}}; line-height: {{it.lh}}; min-height: 1.6em; border-bottom: {{it.hb}}; padding-bottom: {{it.hpb}}; margin: {{it.hm}}"><sc-for list="{{it.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isG}}"><a class="tag" onClick="{{s.go}}">#{{s.v}}</a></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isM}}"><span class="mk">{{s.v}}</span></sc-if><sc-if value="{{s.isTs}}"><a class="yts" onClick="{{s.go}}" title="Seek video"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>{{s.v}}</a></sc-if><sc-if value="{{s.isBr}}"><a class="bref" onClick="{{s.go}}" title="{{s.title}}">{{s.v}}</a></sc-if><sc-if value="{{s.isW}}"><span class="warn" title="Block ref invalid">{{s.v}}</span></sc-if></sc-for></div></sc-if>
+<sc-if value="{{it.isLi}}"><div style="display: flex; gap: 8px; padding-left: {{it.pad}}px; line-height: 1.6"><span style="color: var(--mu)">•</span><span><sc-for list="{{it.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if></sc-for></span></div></sc-if>
+<sc-if value="{{it.isQuote}}"><blockquote style="margin: 4px 0; padding: 4px 12px; border-left: 3px solid var(--bd); color: var(--tx2)"><sc-for list="{{it.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if></sc-for></blockquote></sc-if>
+<sc-if value="{{it.isCode}}"><div class="code"><span class="lang">{{it.lang}}</span><sc-for list="{{it.lines}}" as="ln"><div class="cl"><sc-for list="{{ln.toks}}" as="t"><span class="{{t.c}}">{{t.v}}</span></sc-for></div></sc-for></div></sc-if>
+<sc-if value="{{it.isVideo}}"><div style="width: 560px; max-width: 100%; aspect-ratio: 16 / 9; background: #0f0f0f; border-radius: 4px; margin: 6px 0; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #ffffff"><svg width="68" height="48" viewBox="0 0 68 48" aria-hidden="true"><rect width="68" height="48" rx="12" fill="#ff0000"></rect><path d="M27 14l18 10-18 10z" fill="#ffffff"></path></svg><div style="font-size: 13px; opacity: 0.8; font-family: 'JetBrains Mono', monospace">youtube.com/embed/{{it.vid}}{{it.startLabel}}</div><div style="font-size: 12px; opacity: 0.55">iframe placeholder · 560×315 in Logseq</div><sc-if value="{{it.hasSeek}}"><div style="position: absolute; left: 12px; bottom: 12px; background: rgba(0,0,0,0.75); padding: 4px 10px; border-radius: 4px; font-size: 13px">Seeked to {{it.seekLabel}}</div></sc-if></div></sc-if>
+<sc-if value="{{it.isImg}}"><sc-if value="{{it.hasSrc}}"><img src="{{it.src}}" alt="{{it.alt}}" style="display: block; width: {{it.w}}; max-width: 100%; height: auto; border-radius: 4px; margin: 6px 0"></sc-if><sc-if value="{{it.noSrc}}"><div style="width: {{it.w}}; max-width: 100%; height: {{it.h}}; background: var(--bg3); border-radius: 4px; margin: 6px 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; color: var(--mu); padding: 8px; box-sizing: border-box">[external image: {{it.alt}}]</div></sc-if></sc-if>
+<sc-if value="{{it.isEmbed}}"><div class="embed"><sc-if value="{{it.isPageEmbed}}"><div style="display: flex; align-items: center; gap: 10px; padding: 4px 0; font-weight: 600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="color: var(--mu)" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg><a onClick="{{it.go}}">{{it.eTitle}}</a></div></sc-if><sc-for list="{{it.erows}}" as="er"><div class="blk" style="padding-left: {{er.pad}}px"><span class="bul" style="margin-top: {{er.bulTop}}px"><span></span></span><div class="bc" style="font-size: {{er.fs}}; line-height: {{er.lh}}"><sc-for list="{{er.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if></sc-for></div></div></sc-for><sc-if value="{{it.eMissing}}"><div style="font-size: 14px; color: var(--mu); padding: 4px 0">[embedded block {{it.eRef}} lives on a page outside this prototype]</div></sc-if></div></sc-if>
+<sc-if value="{{it.isTable}}"><div style="overflow-x: auto"><table class="ltab"><thead><tr><sc-for list="{{it.head}}" as="hc"><th><sc-for list="{{hc.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if></sc-for></th></sc-for></tr></thead><tbody><sc-for list="{{it.body}}" as="tbr"><tr><sc-for list="{{tbr.cells}}" as="tbc"><td><sc-for list="{{tbc.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if></sc-for></td></sc-for></tr></sc-for></tbody></table></div></sc-if>
+<sc-if value="{{it.isQuery}}"><div style="margin: 4px 0 8px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; color: var(--mu); padding: 2px 0 4px">
+<button onClick="{{it.toggleOpen}}" style="display: flex; align-items: center; gap: 4px; border: 0; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left"><sc-if value="{{it.isDsl}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7"></circle><path d="M21 21l-6-6"></path></svg><span>{{it.label}}</span></sc-if><sc-if value="{{it.hasTitle}}"><span style="font-size: 16px; color: var(--tx)">{{it.title}}</span><span style="font-size: 13px; color: var(--mu)">{{it.titleCount}}</span></sc-if></button>
+<sc-if value="{{it.showTools}}"><span style="display: flex; align-items: center; gap: 2px"><sc-if value="{{it.hasCount}}"><span style="margin-right: 4px">{{it.countLabel}}</span></sc-if><sc-if value="{{it.canTable}}"><button class="ib" style="width: 28px; height: 28px" title="{{it.tableTitle}}" aria-label="{{it.tableTitle}}" onClick="{{it.toggleTable}}"><sc-if value="{{it.isTableView}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M5 6v.01M5 12v.01M5 18v.01"></path></svg></sc-if><sc-if value="{{it.isListView}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 10h18M10 4v16"></path></svg></sc-if></button></sc-if><button class="ib" style="width: 28px; height: 28px" title="Setting properties" aria-label="Setting properties" onClick="{{it.settings}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button><sc-if value="{{it.slow}}"><button class="ib" style="width: 28px; height: 28px" title="{{it.slowTip}}" aria-label="Refresh query" onClick="{{it.refresh}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg></button></sc-if></span></sc-if>
+</div>
+<sc-if value="{{it.open}}">
+<sc-if value="{{it.isError}}"><div class="warn" style="margin: 4px 0">Query failed: <p style="margin: 2px 0 0; font-family: 'Fira Code', monospace; font-size: 13px">{{it.error}}</p></div></sc-if>
+<sc-if value="{{it.isNone}}"><div style="font-size: 14px; margin-top: 8px; opacity: 0.9">No matched result</div></sc-if>
+<sc-if value="{{it.showTable}}"><div style="overflow-x: auto"><table class="ltab" style="margin-top: 4px"><thead><tr><sc-for list="{{it.cols}}" as="c"><th>{{c}}</th></sc-for></tr></thead><tbody><sc-for list="{{it.trows}}" as="qtr"><tr><sc-for list="{{qtr.cells}}" as="tc"><td><sc-if value="{{tc.isLink}}"><a onClick="{{tc.go}}">{{tc.v}}</a></sc-if><sc-if value="{{tc.isText}}">{{tc.v}}</sc-if></td></sc-for></tr></sc-for></tbody></table></div></sc-if>
+<sc-if value="{{it.showList}}"><div style="margin: 4px 0 0 4px; display: flex; flex-direction: column; gap: 8px"><sc-for list="{{it.groups}}" as="qg"><div style="background: var(--bg2); border-radius: 6px; padding: 8px 12px"><a onClick="{{qg.go}}" style="font-weight: 600">{{qg.title}}</a><sc-for list="{{qg.blocks}}" as="lb"><div style="margin-top: 4px"><sc-if value="{{lb.hasCrumbs}}"><div style="display: flex; align-items: center; flex-wrap: wrap; margin-left: 24px; font-size: 14px; color: var(--mu)"><sc-for list="{{lb.crumbs}}" as="cr"><a onClick="{{cr.go}}" style="color: var(--mu)">{{cr.v}}</a><sc-if value="{{cr.sep}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="opacity: 0.5; margin: 0 4px" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></sc-if></sc-for></div></sc-if><div class="blk"><button class="bul" style="margin-top: 5px" aria-label="Zoom into block" onClick="{{lb.zoom}}"><span></span></button><div class="bc"><sc-for list="{{lb.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isG}}"><a class="tag" onClick="{{s.go}}">#{{s.v}}</a></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isTs}}"><a class="yts" onClick="{{s.go}}">{{s.v}}</a></sc-if></sc-for></div></div></div></sc-for></div></sc-for></div></sc-if>
+</sc-if>
+</div></sc-if>
+<sc-if value="{{it.isCards}}"><div style="border: 1px solid var(--bd); border-radius: 8px; padding: 12px 16px; margin: 4px 0">
+<sc-if value="{{it.cardNone}}"><div style="opacity: 0.6"><code class="ic" style="padding: 4px">Cards: {{it.qtext}}</code><div style="margin: 8px 0 0 8px; font-weight: 500">No matched cards</div></div></sc-if>
+<sc-if value="{{it.cardSome}}">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px"><span style="display: flex; align-items: center; gap: 6px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9.8 9.2a4 4 0 1 0 0 5.6a10 10 0 0 0 2.2-2.8a10 10 0 0 1 2.2-2.8a4 4 0 1 1 0 5.6a10 10 0 0 1-2.2-2.8a10 10 0 0 0-2.2-2.8"></path></svg>{{it.qtext}}</span><span style="display: flex; gap: 10px; color: var(--mu)"><span title="Current/Total">{{it.cur}}</span><span title="Overdue/Total">{{it.overdue}}</span></span></div>
+<sc-if value="{{it.cardDone}}"><p style="margin: 10px 0 0">Congrats, you've reviewed all the cards for this query, see you next time! 💯</p></sc-if>
+<sc-if value="{{it.cardActive}}">
+<div style="margin-top: 10px; line-height: 1.6"><div class="blk"><span class="bul" style="margin-top: 5px"><span></span></span><div class="bc"><sc-for list="{{it.front}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isG}}"><a class="tag" onClick="{{s.go}}">#{{s.v}}</a></sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if></sc-for></div></div>
+<sc-if value="{{it.showBack}}"><div style="margin-left: 7px; padding-left: 22px; border-left: 1px solid var(--bd)"><sc-for list="{{it.back}}" as="bk"><div class="blk"><span class="bul" style="margin-top: 5px"><span></span></span><div class="bc"><sc-for list="{{bk.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if></sc-for></div></div></sc-for></div></sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px"><button class="sbtn" style="border: 1px solid var(--bd)" onClick="{{it.flip}}">{{it.flipLabel}} <span class="kbd">s</span></button><span style="flex: 1"></span><sc-if value="{{it.showBack}}"><button class="sbtn" style="background: #ce2c31; color: #ffffff" onClick="{{it.next}}">Forgotten <span class="kbd">f</span></button><button class="sbtn" style="background: #3e63dd; color: #ffffff" onClick="{{it.next}}">Took a while to recall <span class="kbd">t</span></button><button class="sbtn" style="background: #18794e; color: #ffffff" onClick="{{it.next}}">Remembered <span class="kbd">r</span></button></sc-if></div>
+</sc-if>
+</sc-if>
+</div></sc-if>
+</sc-for>
+<sc-if value="{{row.hasProps}}"><div class="props"><sc-for list="{{row.props}}" as="p"><div><a class="pk" onClick="{{p.go}}">{{p.k}}</a><span style="margin-right: 4px">:</span><sc-for list="{{p.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isComma}}"><span>, </span></sc-if></sc-for></div></sc-for></div></sc-if>
+</div>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{doc.full}}" hint-placeholder-val="{{false}}">
+<sc-if value="{{doc.hasTagged}}"><section style="margin-top: 40px"><h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 700">Pages tagged with "{{doc.title}}"</h2><div style="display: flex; flex-direction: column; gap: 4px; padding-left: 4px"><sc-for list="{{doc.tagged}}" as="tp"><a onClick="{{tp.go}}">{{tp.name}}</a></sc-for></div></section></sc-if>
+<section style="margin-top: 32px">
+<div style="display: flex; align-items: center; justify-content: space-between"><button class="sech" onClick="{{toggleLinked}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="color: var(--mu); transform: rotate({{linkedRot}}deg)"><path d="M6 9l6 6 6-6"></path></svg>{{doc.linkedLabel}}</button><button class="ib" title="Filter" aria-label="Filter linked references" style="opacity: 0.6" onClick="{{openFilter}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v2.2a2 2 0 0 1-.6 1.4L15 12v7l-6 2v-8.5L4.5 7.6A2 2 0 0 1 4 6.2z"></path></svg></button></div>
+<sc-if value="{{linkedOpen}}"><div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px"><sc-for list="{{doc.linked}}" as="lg"><div style="background: var(--bg2); border-radius: 6px; padding: 10px 14px"><a onClick="{{lg.go}}" style="font-weight: 600">{{lg.title}}</a><sc-for list="{{lg.blocks}}" as="lb"><div style="margin-top: 6px"><sc-if value="{{lb.hasCrumbs}}"><div style="display: flex; align-items: center; flex-wrap: wrap; margin-left: 24px; font-size: 14px; color: var(--mu)"><sc-for list="{{lb.crumbs}}" as="cr"><a onClick="{{cr.go}}" style="color: var(--mu)">{{cr.v}}</a><sc-if value="{{cr.sep}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="opacity: 0.5; margin: 0 4px" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></sc-if></sc-for></div></sc-if><div class="blk"><button class="bul" style="margin-top: 5px" aria-label="Zoom into block" onClick="{{lb.zoom}}"><span></span></button><div class="bc" style="font-size: {{lb.fs}}"><sc-for list="{{lb.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isG}}"><a class="tag" onClick="{{s.go}}">#{{s.v}}</a></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isTs}}"><a class="yts" onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isBr}}"><a class="bref" onClick="{{s.go}}">{{s.v}}</a></sc-if></sc-for></div></div></div></sc-for></div></sc-for><sc-if value="{{doc.noLinked}}"><div style="font-size: 14px; color: var(--mu)">No pages in this prototype link here.</div></sc-if></div></sc-if>
+</section>
+<sc-if value="{{doc.hasHier}}"><section style="margin-top: 32px"><button class="sech" style="font-weight: 700; opacity: 0.3" onClick="{{toggleHier}}">Hierarchy</button><sc-if value="{{hierOpen}}"><ul style="list-style: none; margin: 12px 24px; padding: 0"><sc-for list="{{doc.hier}}" as="hl"><li style="margin: 8px 0"><sc-for list="{{hl.parts}}" as="hp"><span class="brk">[[</span><a onClick="{{hp.go}}">{{hp.v}}</a><span class="brk">]]</span><sc-if value="{{hp.sep}}"><span style="margin: 0 8px; opacity: 0.3">/</span></sc-if></sc-for></li></sc-for></ul></sc-if></section></sc-if>
+<section style="margin-top: 32px">
+<button class="sech" onClick="{{toggleUnlinked}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="color: var(--mu); transform: rotate({{unlinkedRot}}deg)"><path d="M6 9l6 6 6-6"></path></svg>{{doc.unlinkedLabel}}</button>
+<sc-if value="{{unlinkedOpen}}"><div style="margin-top: 8px; font-size: 14px; color: var(--mu)">Full-text search for "{{doc.title}}" runs only when this opens; matching plain-text blocks are listed in the same groups as linked references.</div></sc-if>
+</section>
+</sc-if>
+</article>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</main>
+<sc-if value="{{rightOpen}}" hint-placeholder-val="{{false}}">
+<aside aria-label="Right sidebar" style="width: 40%; min-width: 320px; flex: none; box-sizing: border-box; background: var(--bg2); border-left: 1px solid var(--bd); padding: 8px 10px 40px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 2px; flex-wrap: wrap">
+<button class="sbtn" onClick="{{addContents}}">Contents</button>
+<button class="sbtn" onClick="{{addPageGraph}}">Page graph</button>
+<button class="sbtn" onClick="{{addHelp}}">Help</button>
+</div>
+<sc-if value="{{noItems}}"><div style="font-size: 14px; color: var(--mu); padding: 12px 4px">Shift-click any page link, or press ⇧⏎ in search, to open it here.</div></sc-if>
+<sc-for list="{{items}}" as="item" hint-placeholder-count="1">
+<div class="card">
+<div style="display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; background: var(--card); border-bottom: 1px solid var(--bd)">
+<button onClick="{{item.toggle}}" style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 4px 0; font: inherit; font-size: 15px; font-weight: 600; color: var(--tx); text-align: left; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis"><span style="color: var(--mu); display: flex">{{item.icon}}</span>{{item.title}}</button>
+<button class="ib" style="width: 30px; height: 30px" aria-label="More" onClick="{{item.toggleMenu}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg></button>
+<button class="ib" style="width: 30px; height: 30px" aria-label="Close" onClick="{{item.close}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+</div>
+<sc-if value="{{item.menuOpen}}"><div style="padding: 4px; border-bottom: 1px solid var(--bd)"><sc-for list="{{item.menu}}" as="m"><button class="mi" onClick="{{m.go}}">{{m.label}}</button></sc-for></div></sc-if>
+<sc-if value="{{item.open}}">
+<div style="padding: 12px">
+<sc-if value="{{item.isRows}}">
+<sc-if value="{{item.hasPageLink}}"><a onClick="{{item.go}}" style="display: block; font-size: 20px; font-weight: 300; margin-bottom: 8px">{{item.pageTitle}}</a></sc-if>
+<sc-for list="{{item.rows}}" as="row"><div class="row" style="padding-left: {{row.pad}}px"><sc-for list="{{row.guides}}" as="gd"><span class="gl" style="left: {{gd.x}}px"></span></sc-for><div class="blk"><button class="bul {{row.bulCls}}" style="margin-top: {{row.bulTop}}px" aria-label="Zoom into block" onClick="{{row.zoom}}"><span></span></button><div class="bc"><sc-for list="{{row.items}}" as="it"><sc-if value="{{it.isText}}"><div style="font-size: {{it.fs}}; font-weight: {{it.fw}}; line-height: {{it.lh}}; min-height: 1.6em; border-bottom: {{it.hb}}; padding-bottom: {{it.hpb}}; margin: {{it.hm}}"><sc-for list="{{it.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isG}}"><a class="tag" onClick="{{s.go}}">#{{s.v}}</a></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isTs}}"><a class="yts" onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isBr}}"><a class="bref" onClick="{{s.go}}">{{s.v}}</a></sc-if></sc-for></div></sc-if><sc-if value="{{it.isLi}}"><div style="padding-left: {{it.pad}}px">• <sc-for list="{{it.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if></sc-for></div></sc-if><sc-if value="{{it.isCode}}"><div class="code"><span class="lang">{{it.lang}}</span><sc-for list="{{it.lines}}" as="ln"><div class="cl"><sc-for list="{{ln.toks}}" as="t"><span class="{{t.c}}">{{t.v}}</span></sc-for></div></sc-for></div></sc-if><sc-if value="{{it.isVideo}}"><div style="aspect-ratio: 16 / 9; background: #0f0f0f; border-radius: 4px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px">YouTube {{it.vid}}</div></sc-if><sc-if value="{{it.isImg}}"><sc-if value="{{it.hasSrc}}"><img src="{{it.src}}" alt="{{it.alt}}" style="max-width: 100%; border-radius: 4px"></sc-if><sc-if value="{{it.noSrc}}"><div style="background: var(--bg3); padding: 16px; font-size: 13px; color: var(--mu); border-radius: 4px">[external image: {{it.alt}}]</div></sc-if></sc-if><sc-if value="{{it.isEmbed}}"><div class="embed" style="font-size: 14px; color: var(--mu)">embed: {{it.eTitle}}{{it.eRef}}</div></sc-if></sc-for></div></div></div></sc-for>
+</sc-if>
+<sc-if value="{{item.isGraph}}">
+<div style="position: relative; height: 300px; background: var(--bg); border-radius: 6px; overflow: hidden"><sc-for list="{{item.graph.edges}}" as="e"><div class="gedge" style="left: {{e.x}}px; top: {{e.y}}px; width: {{e.len}}px; transform: rotate({{e.ang}}deg)"></div></sc-for><sc-for list="{{item.graph.nodes}}" as="n"><button class="gnode" aria-label="{{n.name}}" title="{{n.name}}" onClick="{{n.go}}" style="left: {{n.x}}px; top: {{n.y}}px; width: {{n.r}}px; height: {{n.r}}px; background: {{n.color}}"></button><span class="glabel" style="left: {{n.x}}px; top: {{n.ly}}px">{{n.label}}</span></sc-for></div>
+<div style="font-size: 13px; color: var(--mu); margin-top: 6px">{{item.graph.caption}}</div>
+</sc-if>
+<sc-if value="{{item.isHelp}}">
+<div style="font-size: 14px; display: flex; flex-direction: column; gap: 6px"><div style="font-weight: 600">Keyboard shortcuts</div><sc-for list="{{shortcuts}}" as="sc"><div style="display: flex; justify-content: space-between; gap: 12px"><span>{{sc.name}}</span><span style="display: flex; gap: 3px"><sc-for list="{{sc.keys}}" as="k"><span class="kbd">{{k}}</span></sc-for></span></div></sc-for></div>
+</sc-if>
+<sc-if value="{{item.isSearch}}">
+<div style="font-size: 14px; color: var(--mu); margin-bottom: 6px">Search results for "{{item.q}}"</div>
+<sc-for list="{{item.results}}" as="r"><button class="res" style="font-size: 14px; padding: 6px 4px" onClick="{{r.open}}"><span style="flex: 1">{{r.pre}}<span class="hit">{{r.hit}}</span>{{r.post}}<sc-if value="{{r.hasSub}}"><span style="display: block; font-size: 12px; color: var(--mu)">{{r.sub}}</span></sc-if></span></button></sc-for>
+</sc-if>
+<sc-if value="{{item.isSlides}}">
+<a onClick="{{item.go}}" style="display: block; font-size: 15px; font-weight: 600; margin-bottom: 4px">{{item.pageTitle}}</a>
+<p style="margin: 0 0 8px; font-size: 13px"><span style="opacity: 0.7">Tip: press </span><code class="ic">f</code><span style="opacity: 0.7"> to go fullscreen</span></p>
+<div tabIndex="0" onKeyDown="{{item.deckKey}}" aria-label="Slide deck: use arrow keys" style="position: relative; aspect-ratio: 4 / 3; background: var(--bg); border: 1px solid var(--bd); border-radius: 4px; overflow: hidden; outline-offset: 2px">
+<div class="slide" style="position: absolute; inset: 0 0 34px; overflow: auto; padding: 22px 26px; display: flex; flex-direction: column; text-align: center; font-size: 15px"><div style="margin: auto 0; display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{item.slide.items}}" as="si"><sc-if value="{{si.isText}}"><div style="font-size: {{si.fs}}; font-weight: {{si.fw}}; line-height: 1.3"><sc-for list="{{si.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isG}}"><a class="tag" onClick="{{s.go}}">#{{s.v}}</a></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if></sc-for></div></sc-if><sc-if value="{{si.isLi}}"><div style="text-align: left; padding-left: {{si.pad}}px">• <sc-for list="{{si.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if></sc-for></div></sc-if><sc-if value="{{si.isImg}}"><sc-if value="{{si.hasSrc}}"><img src="{{si.src}}" alt="{{si.alt}}" style="max-width: 80%; max-height: 150px; margin: 4px auto; display: block"></sc-if><sc-if value="{{si.noSrc}}"><div style="margin: 4px auto; width: 70%; height: 90px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--mu)">[external image: {{si.alt}}]</div></sc-if></sc-if><sc-if value="{{si.isVideo}}"><div style="margin: 4px auto; width: 70%; aspect-ratio: 16 / 9; background: #0f0f0f; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 12px">YouTube {{si.vid}}{{si.startLabel}}</div></sc-if><sc-if value="{{si.isEmbed}}"><div class="embed" style="font-size: 12px; color: var(--mu)">[embed {{si.eRef}}{{si.eTitle}}]</div></sc-if><sc-if value="{{si.isCode}}"><div class="code" style="text-align: left; font-size: 11px">{{si.code}}</div></sc-if></sc-for>
+</div></div>
+<button class="ctl {{item.cLeft}}" style="right: 50px; bottom: 6px" aria-label="Previous slide" onClick="{{item.left}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15 5l-8 7 8 7z"></path></svg></button>
+<button class="ctl {{item.cRight}}" style="right: 6px; bottom: 6px" aria-label="Next slide" onClick="{{item.right}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 5l8 7-8 7z"></path></svg></button>
+<button class="ctl {{item.cUp}}" style="right: 28px; bottom: 24px; width: 24px; height: 18px" aria-label="Slide up" onClick="{{item.up}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 15l7-8 7 8z"></path></svg></button>
+<button class="ctl {{item.cDown}}" style="right: 28px; bottom: 2px; width: 24px; height: 18px" aria-label="Slide down" onClick="{{item.down}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 9l7 8 7-8z"></path></svg></button>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--bg3)"><div style="height: 100%; width: {{item.progress}}%; background: var(--ac)"></div></div>
+<div style="position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: var(--mu)">{{item.slideLabel}}</div>
+</div>
+<div style="display: flex; gap: 6px; margin-top: 8px"><button class="sbtn" style="border: 1px solid var(--bd)" onClick="{{item.full}}">Fullscreen (f)</button></div>
+</sc-if>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</aside>
+</sc-if>
+</div>
+
+<sc-if value="{{moreOpen}}" hint-placeholder-val="{{false}}">
+<div onClick="{{closeMore}}" style="position: fixed; inset: 0; z-index: 40"></div>
+<div role="menu" aria-label="More" style="position: fixed; top: 46px; right: 52px; width: 240px; background: var(--card); color: var(--tx); border: 1px solid var(--bd); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); padding: 4px; z-index: 41">
+<sc-if value="{{isPageRoute}}"><button class="mi" role="menuitem" onClick="{{viewSlides}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--mu)"><rect x="3" y="4" width="18" height="12" rx="1"></rect><path d="M12 16v4M8 20h8"></path></svg>View as slides</button><div style="border-top: 1px solid var(--bd); margin: 4px 0"></div></sc-if>
+<button class="mi" role="menuitem" onClick="{{openExport}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--mu)"><ellipse cx="10" cy="6" rx="7" ry="3"></ellipse><path d="M3 6v6c0 1.7 3.1 3 7 3M3 12v6c0 1.7 3.1 3 7 3M15 18h7M19 15l3 3-3 3"></path></svg>Export graph</button>
+<button class="mi" role="menuitem" onClick="{{toggleTheme}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color: var(--mu)"><path d="M9 16a5 5 0 1 1 6 0 3.5 3.5 0 0 0-1 3 2 2 0 0 1-4 0 3.5 3.5 0 0 0-1-3M9.7 17h4.6"></path></svg>Toggle theme</button>
+</div>
+</sc-if>
+
+<sc-if value="{{exportOpen}}" hint-placeholder-val="{{false}}">
+<div onClick="{{closeExport}}" style="position: fixed; inset: 0; background: var(--ov); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px">
+<div role="dialog" aria-label="Export" onClick="{{stop}}" style="width: 440px; max-width: 100%; background: var(--card); color: var(--tx); border-radius: 10px; padding: 20px 24px">
+<h2 style="margin: 0 0 12px; font-size: 24px; font-weight: 500">Export</h2>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<sc-for list="{{exportOptions}}" as="x"><button class="mi" style="color: var(--ln)" onClick="{{x.go}}">{{x.label}}</button></sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{filterOpen}}" hint-placeholder-val="{{false}}">
+<div onClick="{{closeFilter}}" style="position: fixed; inset: 0; background: var(--ov); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px">
+<div role="dialog" aria-label="Filter" onClick="{{stop}}" style="width: 560px; max-width: 100%; background: var(--card); color: var(--tx); border-radius: 10px; padding: 20px 24px">
+<div style="font-size: 18px; font-weight: 500">Filter</div>
+<div style="font-size: 14px; color: var(--mu); margin: 2px 0 12px">Click to include and shift-click to exclude. Click again to remove.</div>
+<sc-if value="{{filt.hasIncl}}"><div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; margin-bottom: 6px"><b style="font-weight: 500">Includes:</b><sc-for list="{{filt.incl}}" as="c"><button class="sbtn" style="color: #18794e; background: var(--bg3)" onClick="{{c.go}}">{{c.name}} {{c.n}}</button></sc-for></div></sc-if>
+<sc-if value="{{filt.hasExcl}}"><div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; margin-bottom: 6px"><b style="font-weight: 500">Excludes:</b><sc-for list="{{filt.excl}}" as="c"><button class="sbtn" style="color: #ce2c31; background: var(--bg3)" onClick="{{c.go}}">{{c.name}} {{c.n}}</button></sc-for></div></sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px"><sc-for list="{{filt.rest}}" as="c"><button class="sbtn" style="background: var(--bg3)" onClick="{{c.go}}">{{c.name}} <span style="color: var(--mu)">{{c.n}}</span></button></sc-for></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{cardsOpen}}" hint-placeholder-val="{{false}}">
+<div onClick="{{closeCards}}" style="position: fixed; inset: 0; background: var(--ov); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px">
+<div role="dialog" aria-label="Flashcards" onClick="{{stop}}" style="width: 720px; max-width: 100%; background: var(--card); color: var(--tx); border-radius: 12px; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 14px; font-weight: 500">∞ All</span><span style="font-size: 14px; color: var(--mu)">{{cards.counter}}</span></div>
+<sc-if value="{{cards.done}}"><p style="margin: 8px 0">Congrats, you've reviewed all the cards for this query, see you next time! 💯</p></sc-if>
+<sc-if value="{{cards.active}}">
+<div style="border-top: 1px solid var(--bd); padding-top: 12px; line-height: 1.6">
+<div style="display: flex; gap: 8px"><span class="bul" style="margin-top: 5px"><span></span></span><div><b>{{cards.front}}</b> <a class="tag">#card</a></div></div>
+<sc-if value="{{cards.showBack}}"><div style="margin-left: 29px; border-left: 1px solid var(--bd); padding-left: 10px"><sc-for list="{{cards.back}}" as="bk"><div style="display: flex; gap: 8px; margin: 2px 0"><span class="bul" style="margin-top: 5px"><span></span></span><div><sc-for list="{{bk.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><span class="brk">[[</span><a onClick="{{s.go}}">{{s.v}}</a><span class="brk">]]</span></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if></sc-for></div></div></sc-for></div></sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+<button class="sbtn" style="border: 1px solid var(--bd)" onClick="{{cards.flip}}">{{cards.flipLabel}} <span class="kbd">s</span></button>
+<span style="flex: 1"></span>
+<sc-if value="{{cards.showBack}}"><button class="sbtn" style="background: #ce2c31; color: #ffffff" onClick="{{cards.next}}">Forgotten <span class="kbd">f</span></button><button class="sbtn" style="background: #3e63dd; color: #ffffff" onClick="{{cards.next}}">Took a while to recall <span class="kbd">t</span></button><button class="sbtn" style="background: #18794e; color: #ffffff" onClick="{{cards.next}}">Remembered <span class="kbd">r</span></button></sc-if>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{search.open}}" hint-placeholder-val="{{false}}">
+<div onClick="{{closeSearch}}" style="position: fixed; inset: 0; background: var(--ov); z-index: 70; display: flex; justify-content: center; align-items: flex-start; padding: 8vh 16px 16px">
+<div role="dialog" aria-label="Search" onClick="{{stop}}" style="width: 90vw; max-width: 896px; background: var(--bg2); color: var(--tx); border-radius: 8px; box-shadow: 0 24px 64px rgba(0,0,0,0.35); overflow: hidden; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--bd); padding-left: 8px">
+<sc-if value="{{search.hasFilter}}"><span style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; background: var(--bg4); border-radius: 6px; padding: 2px 4px 2px 8px; white-space: nowrap; color: var(--tx2)">Search only: {{search.filterName}}<button class="ib" style="width: 24px; height: 24px" aria-label="Remove filter" onClick="{{search.clearFilter}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span></sc-if>
+<label for="cmdk-input" class="sr">Search</label>
+<input id="cmdk-input" ref="{{search.ref}}" value="{{search.q}}" onChange="{{search.onQ}}" onKeyDown="{{search.onKey}}" placeholder="What are you looking for?" autoComplete="off" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 20px; padding: 12px 4px; color: var(--tx)">
+</div>
+<div style="max-height: 62vh; min-height: 220px; overflow-y: auto">
+<sc-for list="{{search.groups}}" as="g">
+<div style="border-bottom: 1px solid var(--bd); padding-bottom: 4px">
+<div style="display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; font-size: 12px; color: var(--mu); background: var(--bg2)">
+<button onClick="{{g.toggle}}" style="border: 0; background: transparent; padding: 0; font: inherit; font-size: 12px; font-weight: 700; color: var(--mu); cursor: pointer">{{g.name}}</button>
+<span style="font-size: 11px; color: var(--tx); background: var(--bg4); border-radius: 9px; padding: 0 6px">{{g.count}}</span>
+<span style="flex: 1"></span>
+<sc-if value="{{g.canToggle}}"><button onClick="{{g.toggle}}" style="display: flex; align-items: center; gap: 4px; border: 0; background: transparent; font: inherit; font-size: 12px; color: var(--mu); cursor: pointer">{{g.toggleLabel}}<span class="kbd">⌘</span><span class="kbd">{{g.arrow}}</span></button></sc-if>
+</div>
+<sc-for list="{{g.items}}" as="r">
+<button class="res {{r.cls}}" onClick="{{r.open}}" onMouseMove="{{r.hover}}">
+<span style="width: 28px; height: 28px; flex: none; border-radius: 6px; background: var(--bg4); display: flex; align-items: center; justify-content: center; color: var(--mu)">
+<sc-if value="{{r.isPage}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg></sc-if>
+<sc-if value="{{r.isBlock}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="7" r="1.5"></circle><path d="M10 7h10M10 12h10M10 17h10"></path><circle cx="6" cy="12" r="1.5"></circle><circle cx="6" cy="17" r="1.5"></circle></svg></sc-if>
+<sc-if value="{{r.isCmd}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 9a2 2 0 1 1 2-2v10a2 2 0 1 1-2-2h10a2 2 0 1 1-2 2V7a2 2 0 1 1 2 2z"></path></svg></sc-if>
+<sc-if value="{{r.isRecent}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg></sc-if>
+<sc-if value="{{r.isFilter}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v2.2a2 2 0 0 1-.6 1.4L15 12v7l-6 2v-8.5L4.5 7.6A2 2 0 0 1 4 6.2z"></path></svg></sc-if>
+</span>
+<span style="flex: 1; min-width: 0; overflow: hidden"><span style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.pre}}<span class="hit">{{r.hit}}</span>{{r.post}}</span><sc-if value="{{r.hasSub}}"><span style="display: block; font-size: 12px; color: var(--mu); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.sub}}</span></sc-if></span>
+<sc-if value="{{r.hasKeys}}"><span style="display: flex; gap: 3px"><sc-for list="{{r.keys}}" as="k"><span class="kbd">{{k}}</span></sc-for></span></sc-if>
+<sc-if value="{{r.hasInfo}}"><span style="font-size: 12px; color: var(--mu)">{{r.info}}</span></sc-if>
+</button>
+</sc-for>
+</div>
+</sc-for>
+<sc-if value="{{search.none}}"><div style="padding: 16px 12px; color: var(--mu); font-size: 14px">No matched results</div></sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--bd); font-size: 13px; color: var(--mu); background: var(--bg2)">
+<div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap"><span style="font-weight: 500; color: var(--tx)">Tip:</span>
+<sc-if value="{{search.tipEsc}}"><span>Type</span><span class="kbd">ESC</span><span>to clear search filter</span></sc-if>
+<sc-if value="{{search.tipSlash}}"><span>Type</span><span class="kbd">/</span><span>to filter search results</span></sc-if>
+<sc-if value="{{search.tipSide}}"><span class="kbd">⌘</span><span class="kbd">⏎</span><span>to open search in the sidebar</span></sc-if>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<sc-for list="{{search.hints}}" as="h"><button onClick="{{h.go}}" style="display: flex; align-items: center; gap: 4px; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--mu); cursor: pointer; opacity: 0.8">{{h.label}}<sc-for list="{{h.keys}}" as="k"><span class="kbd">{{k}}</span></sc-for></button></sc-for>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{deckFull}}" hint-placeholder-val="{{false}}">
+<div tabIndex="0" ref="{{fullRef}}" onKeyDown="{{fullKey}}" style="position: fixed; inset: 0; z-index: 90; background: var(--bg); color: var(--tx); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; gap: 14px; outline: none">
+<sc-for list="{{fullSlide.items}}" as="si"><sc-if value="{{si.isText}}"><div style="font-size: {{si.bigFs}}; font-weight: {{si.fw}}; line-height: 1.25; max-width: 1000px"><sc-for list="{{si.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isR}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isL}}"><a onClick="{{s.go}}">{{s.v}}</a></sc-if><sc-if value="{{s.isG}}"><a class="tag">#{{s.v}}</a></sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if><sc-if value="{{s.isC}}"><code class="ic">{{s.v}}</code></sc-if><sc-if value="{{s.isE}}"><a class="ext" href="{{s.href}}" target="_blank" rel="noopener">{{s.v}}</a></sc-if></sc-for></div></sc-if><sc-if value="{{si.isLi}}"><div style="font-size: 24px; text-align: left; padding-left: {{si.pad}}px; min-width: 50%">• <sc-for list="{{si.segs}}" as="s"><sc-if value="{{s.isX}}">{{s.v}}</sc-if><sc-if value="{{s.isB}}"><b>{{s.v}}</b></sc-if><sc-if value="{{s.isI}}"><i>{{s.v}}</i></sc-if></sc-for></div></sc-if><sc-if value="{{si.isImg}}"><sc-if value="{{si.hasSrc}}"><img src="{{si.src}}" alt="{{si.alt}}" style="max-width: 60vw; max-height: 45vh"></sc-if><sc-if value="{{si.noSrc}}"><div style="width: 50vw; height: 30vh; background: var(--bg3); display: flex; align-items: center; justify-content: center; color: var(--mu)">[external image: {{si.alt}}]</div></sc-if></sc-if><sc-if value="{{si.isVideo}}"><div style="width: 50vw; aspect-ratio: 16 / 9; background: #0f0f0f; color: #ffffff; display: flex; align-items: center; justify-content: center">YouTube {{si.vid}}{{si.startLabel}}</div></sc-if><sc-if value="{{si.isEmbed}}"><div class="embed" style="color: var(--mu)">[embed {{si.eRef}}{{si.eTitle}}]</div></sc-if></sc-for>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--bg3)"><div style="height: 100%; width: {{fullProgress}}%; background: var(--ac)"></div></div>
+<div style="position: absolute; right: 20px; bottom: 16px; font-size: 13px; color: var(--mu)">{{fullLabel}} · arrows to move · f or Esc to exit</div>
+</div>
+</sc-if>
+
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}"><div role="status" style="position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--tx); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 95">{{toast}}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+const A1 = 'https://raw.githubusercontent.com/codekiln/logseq-encode-garden/main/assets/image_1742292361076_0.png';
+const A2 = 'https://raw.githubusercontent.com/codekiln/logseq-encode-garden/main/assets/image_1742369972123_0.png';
+const ASSETS = { 'image_1742292361076_0.png': A1, 'image_1742369972123_0.png': A2 };
+const HIDDEN = new Set(['id','collapsed','heading','background-color','created-at','updated-at','card-last-interval','card-repeats','card-ease-factor','card-next-schedule','card-last-reviewed','card-last-score','filters','public','title','query-table','query-properties','query-sort-by','query-sort-desc','prototype-slow']);
+const TODAY = '2026-10-24';
+const COMMA_PROPS = new Set(['tags','alias']);
+
+const SRC = {};
+SRC['tmux'] = `created-by:: [[Person/Nicholas Marriott]]
+logseq-entity:: [[Logseq/Entity/Software/Project]]
+
+- # [tmux](https://github.com/tmux/tmux)
+\t- [[GitHub/Star]]s: 47,343 as of [[2026-07-04 Sat]]
+\t- A terminal multiplexer: run many terminal sessions in one screen, detach and reattach them, and script window and pane layouts.
+\t- ideas
+\t\t- [[tmux/Idea/Pomodoro with status line and silent flash]]
+\t\t- [[tmux/Idea/Toggl Track status in status line]]
+\t- customization
+\t\t- For coordinated palette setup (e.g.  with TPM ports)
+\t\t- [[tmux/Config]]
+\t\t- [[Catppuccin]]
+\t- extensions
+\t\t- [[oh-my-tmux]] — by [[Person/Grégory Pakosz]]
+\t- learning
+\t\t- [[tmux/Docs/Getting Started]]
+\t\t- [[Person/Brian P. Hogan/Book/25/tmux 3]]
+\t\t- [[tmux/man]]`;
+
+SRC['tmux/Keyshort/Pane/Zoom Pane'] = `- [[Keyshort]] [[tmux]] [[tmux/Keyshort]] [[tmux/Keyshort/Pane]]
+\t- **Zoom pane (toggle)** #card
+\t  card-last-interval:: 10.24
+\t  card-repeats:: 3
+\t  card-ease-factor:: 2.56
+\t  card-next-schedule:: 2026-07-04T12:38:29.316Z
+\t  card-last-reviewed:: 2026-06-24T07:38:29.316Z
+\t  card-last-score:: 5
+\t\t- Shortcut: \`<prefix> z\` (same chord toggles zoom **off**; tmux calls this key the **prefix**)
+\t\t- [[My Notes]] : **Zooms** the active [[tmux/Pane]] it **fills the window**; other panes in that window are **hidden until you press the same shortcut again** to restore the split layout. You can see that a window is zoomed because it has a **Z** at the end of its window name, or at any rate, in oh-my-tmux it does.`;
+
+SRC['Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs'] = `logseq-entity:: [[Logseq/Entity/YouTube]]
+created-by:: [[Person/Omer Hamerman]]
+date-created:: [[2026/07/28]]
+readwise-link:: https://read.readwise.io/read/01m25dyqe1zk4hs4yq903vjkr4
+
+- # [The Holy Grail of Code Review TUIs - YouTube](https://www.youtube.com/watch?v=6cqVzgVQJfE)
+\t- Speaker: [[Person/Omer Hamerman]] (channel credit in Readwise: **DevOps Toolbox**)
+\t- Channel: [DevOps Toolbox](https://www.youtube.com/@devopstoolbox) · ~16 mins · published [[2026/07/28]]
+\t- Topic: [[tuicr]] — terminal code review that can push real GitHub/GitLab comments; compared with hunk; agent skill via [[PiAI]]; pairs with [[gh-dash]]
+\t- ## [[Video]]
+\t\t- Raw transcript: [[Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs/Video]]
+\t\t- {{video https://www.youtube.com/watch?v=6cqVzgVQJfE}}
+\t\t\t- ### {{youtube-timestamp 0}} The review gap
+\t\t\t\t- Opens on a Mitchell tweet thread about "vibe coding" quality metrics, then the pitch: review a PR from the terminal, leave inline comments like GitHub, and push them back without opening a browser.
+\t\t\t\t- That was the missing piece versus **hunk**, a diff TUI that stops short of team-visible review comments.
+\t\t\t- ### {{youtube-timestamp 41}} Introducing [[tuicr]]
+\t\t\t\t- "When I saw tuicr, pronounced tweaker, I got curious."
+\t\t\t\t- Checklist it hits: single binary, [[vim]] motions, works with [[git]] / [[jj-vcs]] / [[mercurial]], and can submit real GitHub and GitLab review comments.
+\t\t\t- ### {{youtube-timestamp 106}} Features vs hunk
+\t\t\t\t- tuicr is built around collaborative review: suggestion / issue / note / praise [[tuicr/Comment/Type]], GitHub-style diffs, themes, clipboard Markdown export, and an agent skill.
+\t\t\t- ### {{youtube-timestamp 187}} Creator and stack
+\t\t\t\t- [[Person/Almog Gavra]]: Cornell, staff engineer at LinkedIn and Confluent, now doing his own thing.
+\t\t\t\t- Written in [[Rust]]. Pronounced **tweaker**.
+\t\t\t- ### {{youtube-timestamp 220}} Install and local review
+\t\t\t\t- \`tuicr tui\` matches running the binary; \`tuicr -w\` reviews uncommitted local changes.
+\t\t\t- ### {{youtube-timestamp 400}} Comment types and submit
+\t\t\t  id:: 6aa57707-e737-4321-9b40-aaac81aaba45
+\t\t\t\t- \`:submit\` pushes the review via [[GitHub/CLI]] (\`gh\`); GitLab needs \`glab\`.
+\t\t\t- ### {{youtube-timestamp 520}} End-to-end with Worktrunk, [[PiAI]], and [[gh-dash]]
+\t\t\t\t- For non-review GitHub life cycle (issues, notifications), he leans on [[gh-dash]].
+\t\t\t- ### {{youtube-timestamp 620}} Agent skill
+\t\t\t  id:: 6aa57707-6afe-46ec-bf96-766804d117dc
+\t\t\t\t- [[tuicr/Agent/Skill]] uses the CLI to add/read comments on **active** sessions and can open a review pane in [[tmux]] or [[Zellij]].
+\t\t\t\t- Inline agent comments beat a generic AI summary — "game changer."`;
+
+SRC['tuicr/Agent/Skill'] = `tags:: [[Diataxis/Concept]]
+logseq-entity:: [[Logseq/Entity/Concept]]
+see-also:: [[tuicr/Comment/Type]], [[tuicr]]
+
+- # [[tuicr]] [[Agent/Skills]]
+\t- ## Overview
+\t\t- Design line from the skill file itself: **"the TUI is where the human reviews code; the CLI is how the agent discovers active sessions, reads user comments, and, only when appropriate, adds agent-authored comments."**
+\t\t- Video coverage: ((6aa57707-6afe-46ec-bf96-766804d117dc)) in [[Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs]] — install via the packaged \`pi-tuicr\` skill rather than reinventing it; inline agent comments beat a generic AI summary.`;
+
+SRC['AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025'] = `tags:: [[Logseq/Slideshow]]
+
+- # What I learned at the [[AI Engineer Summit 2025 NYC Workshops]]
+\t- ## What *is* the [[AI Engineer Summit]]?
+\t\t- ### How I *found out* about the AI Engineer Summit...
+\t\t\t- #### ⚡ flash back to [[@swyx]]'s [[GraphQL]] presentation at [[Conference/React Boston/2018]] ...
+\t\t\t  \`babel-blade\`: **solving the GraphQL double declaration Problem**
+\t\t\t  ![image.png](../assets/image_1742292361076_0.png){:height 331, :width 397}
+\t\t\t  [swyx 🌉 on X - link](https://x.com/swyx/status/1046108066037583872)
+\t\t\t- [[Wayfair]] threw a great party. Got to know [[Person/Shawn @swyx Wang]], who at that time was working at [[Netlify]] as a DevRel.
+\t\t\t- ... Time Passes ...
+\t\t\t- Now my favorite AI podcast is ... [[The Latent Space Podcast]]
+\t\t\t- {{embed ((67d943c3-9827-4274-9daa-b2069d73d4b0))}}
+\t\t- ### so, *what* is the AI Engineer Summit?
+\t\t\t- ![AI engineer Summit logo](../assets/image_1742369972123_0.png)
+\t\t\t- #### [[AI Engineer Summit NYC 2025]]
+\t\t\t  {{embed ((67d94f45-ee8f-42df-844b-c8a44d9a3cdd))}}
+\t\t- ### so, *when* was the AI Engineer Summit?
+\t\t  * Thu Feb 20 - **Leadership Track**
+\t\t  * Fri Feb 21 - **Engineering Track**
+\t\t  * Sat Feb 22 - **Workshops**
+\t\t      * *I only attended the workshops this year. Would love to attend the full event in the future*
+\t\t- ### *where* was the AI Engineer Summit?
+\t\t  *Downtown Manhattan, NYC*
+\t\t  ![Pic 02](https://lh3.googleusercontent.com/pw/pic02){:height 309, :width 512}
+\t\t  * **Jay Conference Bryant Park** - 109 W 39th St
+\t\t  * **AWS** -  JFK27 (12 W 39th St)
+\t- ## How I *got* to the AI engineer summit
+\t  *Many thanks to the leadership team and employer for sponsoring my attendance*
+\t  ![Pic 01](https://lh3.googleusercontent.com/pw/pic01){:height 382, :width 678}
+- # Before [[AIES 25 WS 1 - Building Agents with MCP - Mahesh Murag]]
+\t- ![Pic 01](https://lh3.googleusercontent.com/pw/pic01b){:height 389, :width 747}
+\t- ## Discussions before the first workshop
+\t\t- ### 1/3 [[Person/Junrui (Tom) Hu]]
+\t\t  Getting coffee before the first workshop, I met Tom, **AI Lead** at [[HanoverPark]], where he's building **AI portfolio management**, **AI inbox analyzer**, real-time fund metrics, and an investor portal.
+\t\t- ### 2/3 - [[Person/Mike Christensen]]
+\t\t  ((67da7fc2-1c1f-46e9-84b0-dee824e45395))
+- # [[AIES 25 WS 1 - Building Agents with MCP - Mahesh Murag]] - #MCP Talk that went viral
+\t- ## Context - #MCP #Examples from [[David Ondrej - Build Anything with MCP Agents]]
+\t\t- ### #Example 1 - using [[GitHub/MCP]] enable [[CursorAI]] to take actions in GitHub
+\t\t  {{video https://www.youtube.com/watch?v=TQsP_PlCY1I&t=205s}}
+\t\t- ### #Example 2 - enabling [[CursorAI]] to interact with [[Chrome/DevTools]] with [[AgentDeskAI/GitHub/browser-tools-mcp]]
+\t\t  {{video https://www.youtube.com/watch?v=TQsP_PlCY1I&t=806s}}
+\t- ## What problem does [[Model Context Protocol]] solve?
+\t\t- ### What does this mean ... for [[AI Coding]]? AI Agents in Code editors can now ...
+\t\t  * develop technical plans using Jira, Confluence
+\t\t  * submit merge requests to GitHub, GitLab, etc
+\t\t  * check out a ticket and start working on it
+\t\t  * introspect into database, etc`;
+
+SRC['AI/Batch Inference/Concept/AWS vs OpenAI vs LangChain'] = `tags:: [[Diataxis/Explanation]]
+
+- # AWS Bedrock vs OpenAI vs LangChain - Batch Inference Conceptual Overview
+\t- ## Overview
+\t\t- Batch inference submits many prompts or embedding requests as one asynchronous job, trading higher latency for lower cost and greater throughput.
+\t- ## Key Principles
+\t\t- Control-plane job APIs separate **submission** from **execution**.
+\t\t- External object storage stages **inputs** and **outputs**.
+\t\t- Discounted pricing incentivises deferred processing.
+\t- ## Mechanism
+\t\t- ### OpenAI
+\t\t\t- Upload data with \`POST /v1/files\`, then launch \`POST /v1/batches\` and inspect with \`GET /v1/batches/{id}\`. Full reference in the [OpenAI Batch API docs](https://platform.openai.com/docs/api-reference/batches).
+\t\t- ### Comparative Flow
+\t\t\t- \`\`\`mermaid
+\t\t\t  graph TD
+\t\t\t    A[Client] -->|Upload JSONL| B(S3 / OpenAI Files)
+\t\t\t    A -->|Create Job| C(Bedrock Job API)
+\t\t\t    A -->|Create Job| D(OpenAI /v1/batches)
+\t\t\t    C -->|Write output| B
+\t\t\t    D -->|Write output| B
+\t\t\t  \`\`\`
+\t- ## Examples
+\t\t- ### Bedrock CLI
+\t\t\t- ~~~bash
+\t\t\t  aws bedrock create-model-invocation-job \\
+\t\t\t    --model-id anthropic.claude-3-sonnet-20240229-v1:0 \\
+\t\t\t    --input-data-config file://input.jsonl \\
+\t\t\t    --output-data-config s3://my-bucket/results/ \\
+\t\t\t    --role-arn arn:aws:iam::123456789012:role/BedrockBatchRole
+\t\t\t  ~~~
+\t\t- ### OpenAI Python
+\t\t\t- ~~~python
+\t\t\t  from openai import OpenAI
+\t\t\t  client = OpenAI()
+\t\t\t
+\t\t\t  file = client.files.create(
+\t\t\t      file=open("input.jsonl", "rb"),
+\t\t\t      purpose="batch"
+\t\t\t  )
+\t\t\t
+\t\t\t  batch = client.batches.create(
+\t\t\t      input_file_id=file.id,
+\t\t\t      endpoint="/v1/chat/completions",
+\t\t\t      completion_window="24h"
+\t\t\t  )
+\t\t\t  print(batch.status)  # "queued"
+\t\t\t  ~~~`;
+
+SRC['Spotify/Tool/TUI'] = `tags:: [[TUI]]
+alias:: [[Spotify TUI Options]]
+
+- # Spotify [[TUI]] Projects
+\t- ## [[spotify-player]]
+\t\t- {{embed ((6a3f6744-5403-429d-ad4a-4391e01224ea))}}
+\t- ## [[ncspot]]
+\t\t- more minimal than [[spotify-player]] minimalist pick: ncurses-style, resource-friendly, Vim-keyed, and closer to an MPD-client mental model.
+\t- ## [[spotify-tui]]
+\t\t- historical reference: older, once popular Rust Spotify TUI. dependent on an external playback client such as the official Spotify app or spotifyd.`;
+
+SRC['spotify-player'] = `- ## Features
+  id:: 6a3f6744-5403-429d-ad4a-4391e01224ea
+\t- [configurable](https://github.com/aome510/spotify-player/blob/master/docs/config.md)
+\t- To enable [fuzzy search](https://en.wikipedia.org/wiki/Approximate_string_matching), build with the \`fzf\` feature (disabled by default).`;
+
+SRC['Logseq/Frontmatter'] = `- # Logseq Frontmatter
+\t- This page defines shared page-level frontmatter conventions for the knowledge garden.
+\t- Page-level attributes are bare \`key:: value\` lines at the top of the file, before any bullet. \`---\` fences around them are illegal in Logseq; if they appear, unwrap them.
+\t- {{embed [[Logseq/Frontmatter/alias]]}}`;
+
+SRC['Logseq/Frontmatter/alias'] = `- # \`alias::\` for more convenient or alternate names
+\t- In Logseq, if page \`[[Super Long Name]]\` has frontmatter \`alias:: [[Shortname]]\`, then clicking \`[[Shortname]]\` anywhere in the graph navigates to \`[[Super Long Name]]\`.
+\t- ## Aliases are human-curated, not agent-generated
+\t\t- Agents should suggest alias candidates in the chat response rather than writing them to the page without explicit instruction.`;
+
+SRC['Logseq/Slideshow'] = `tags:: [[Slideshows]]
+alias:: [[Logseq Slideshow]], [[Logseq Slideshows]]
+
+-`;
+
+SRC['contents'] = `-`;
+
+SRC['2026-10-23 Fri'] = `- # [[Filed]]
+\t- [[GitP/A/Session/26/10/22-Thu/Asset/Audio/Trimmed/mp3]]
+\t- [[Obsidian/Q/Should a team vault in git commit its community plugins' code, or only the list of plugins?]]
+\t- [[My/Pref/Dev/Tool/Obsidian/Plugins in Git]]
+\t- [[LangSmith/Deployment/Q/Can a LangSmith Cloud deployment call Amazon Bedrock through an IAM role instead of stored AWS keys?]]
+- # [[Updated]]
+\t- GitP episodes
+\t\t- [[GitP/A/Session/26/09/25-Fri]]
+\t\t- [[GitP/A/Session/26/10/22-Thu]]
+\t- [[My/Pref/Dev/mise/Tasks]]
+\t- [[My/Pref/Writing/Use Plain language]]`;
+
+SRC['2026-10-22 Thu'] = `- # [[Updated]]
+\t- Music
+\t\t- [[GitP/A/Session/26/10/20-Tue]]
+\t\t- [[GitP/How To/Prepare Podcast Metadata]]
+\t\t- [[Microfreak/Preset/016 Voidom]]
+\t\t- [[Logseq/Entity/Preset/Synth/Microfreak]]
+- # [[Filed]]
+\t- [[GitP/A/Session/26/10/22-Thu]]`;
+
+SRC['2026-09-15 Tue'] = `- I was pleasantly surprised to find this morning that clicking on \`Opened [PR #101](https://github.com/codekiln/dotfiles/pull/101)\` in [[GitHub/CoPilot/CLI]] in [[Ghostty]] in [[tmux]] actually opened the PR in my browser.
+- # [[Filed]]
+\t- [[MacOS/How To/Find What Blocked a Software Update Install]]`;
+
+SRC['2026-08-25 Tue'] = `- # Experiments
+\t- This morning, tried [[ChatGPT/Remote/Voice]] chat for the first time for reviewing lazyvim flashcards. It worked pretty well; has a lot of promise.
+- # I wonder
+\t- if there is a way that [[Claude/Code]] in [[tmux]] could surface links which, if clicked, would open [[nvim]] in an adjacent pane.`;
+
+SRC['Rust/loop/label'] = `- when loops are nested in rust, it's possible to lablel them. This is useful if you have to break out of one loop but the other.
+- The syntax is \`'loop_name: loop { ... break 'loop_name}\`.
+\t- [[Confus/ing]]
+\t\t- Syntactically, the (\`'identifier\`) token shape appears elsewhere in [[Rust/Lifetime]]s, but there it serves a different purpose
+\t\t- | Context | Meaning |
+\t\t  | ---- | ---- | ---- |
+\t\t  | \`'label:\` before a loop | loop label |
+\t\t  | \`'label\` in \`break 'label\` | labeled control flow |
+\t\t  | \`'a\` in \`&'a T\` | lifetime parameter |
+\t\t  | \`'static\` | the static lifetime |
+\t\t  | \`'_'\` | anonymous lifetime |
+\t\t- So \`'thing\` is *not* “the same feature” being reused — it’s the same **token class** used in multiple grammar positions.
+- [[Example]]
+\t- \`\`\`rust
+\t  fn loop_labels_to_disambiguate_multiple_loops() {
+\t      println!("Loop labels to disambiguate multiple loops:");
+\t      let mut count = 0;
+\t
+\t      'counting_up: loop {
+\t          println!("count = {count}");
+\t          let mut remaining = 10;
+\t
+\t          loop {
+\t              println!("remaining = {remaining}");
+\t              if remaining == 9 {
+\t                  break;
+\t              }
+\t              if count == 2 {
+\t                  break 'counting_up;
+\t              }
+\t              remaining -= 1;
+\t          }
+\t
+\t          count += 1;
+\t      }
+\t      println!("End count = {count}");
+\t  }
+\t  \`\`\``;
+
+SRC['Latent Space/Pod'] = `- # The Latent Space Podcast
+\t- ## [What is Latent.Space?](https://www.latent.space/about)
+\t  id:: 67d943c3-9827-4274-9daa-b2069d73d4b0
+\t\t- ![The Latent Space Podcast](https://i.scdn.co/image/ab6765630000ba8ad1157ab13e3e7438bf374972){:height 208, :width 192}
+\t\t- > A technical **newsletter**, **podcast** ([top 10 in US Tech](https://twitter.com/swyx/status/1672306744884887553)! in audio podcast and YouTube video formats), and community (VERY active Discord online and in person) by and for the rising cl…`;
+
+SRC['yazi/Keyshort/Leader'] = `- [[Keyshort]] [[yazi]] [[yazi/Keyshort]]
+\t- **\`<yazi-sort-leader>\` for default sort chords** #card
+\t  card-last-interval:: 84.1
+\t  card-repeats:: 5
+\t  card-ease-factor:: 2.76
+\t  card-next-schedule:: 2026-09-16T08:24:02.595Z
+\t  card-last-reviewed:: 2026-06-24T06:24:02.595Z
+\t  card-last-score:: 5
+\t\t- Shortcut: \`,\` (comma), then a second key (two-key sequence)
+\t\t- Context: File list / manager pane (\`[mgr]\` layer, default keymap)`;
+
+SRC['yazi/Keyshort/Sort/Time/Modification'] = `- [[Keyshort]] [[yazi]] [[yazi/Keyshort]]
+\t- **Sort by modification time (normal order)** #card
+\t  card-last-interval:: 90.49
+\t  card-repeats:: 5
+\t  card-ease-factor:: 2.9
+\t  card-next-schedule:: 2026-09-22T18:17:14.100Z
+\t  card-last-reviewed:: 2026-06-24T07:17:14.100Z
+\t  card-last-score:: 5
+\t\t- Shortcut: \`,\` \`m\` (comma, then lowercase \`m\`)
+\t\t- Context: File list / manager pane (default keymap)
+\t\t- Description: Runs \`sort mtime --reverse=no\` and sets **linemode** to \`mtime\` so each row shows last modified time. Pair with \`,\` \`M\` for reversed order.`;
+
+SRC['Logseq/Flashcard/Review/Favorite/yazi'] = `- # Favorite Flashcards: [[yazi]]
+\t- {{cards [[yazi]] }}
+\t  favorite-deck:: [[yazi]]`;
+
+SRC['Logseq/Flashcard/Review/Favorite'] = `alias:: [[LFRF]]
+
+- # Favorite Flashcards
+\t- foregrounds flashcard scopes for my [[Logseq/Favorite]]s ([[Logseq/Queries]]).
+\t- ## All Favorite Flashcards
+\t\t- {{cards (and (or [[LazyVim]] [[Obsidian]] [[Codex]] [[chezmoi]] [[DevContainer]] [[mise]] [[rg]] [[vim]] [[nvim]] [[fzf]] [[Zoxide]] [[yazi]] [[tmux]] [[Lazygit]]) (not [[oh-my-tmux]])) }}
+\t\t  favorite-deck:: aggregate
+\t\t  deck-exclude:: [[oh-my-tmux]]
+\t\t\t- Summary: 19 items, 19 review counts [[2026-06-26 Fri]]
+\t\t\t\t- Remembered:   14 (73%)
+\t\t\t\t- Forgotten :   5 (26%)
+\t- ## Background / Non-Favorite
+\t  collapsed:: true
+\t\t- {{cards (not (or [[LazyVim]] [[Obsidian]] [[Codex]] [[chezmoi]] [[DevContainer]] [[mise]] [[rg]] [[vim]] [[nvim]] [[fzf]] [[Zoxide]] [[yazi]] [[tmux]] [[Lazygit]])) }}
+\t\t  favorite-deck:: background
+\t\t  query-properties:: [:block]
+\t- ## By Favorite
+\t\t- [[Logseq/Flashcard/Review/Favorite/yazi]]
+\t\t- [[Logseq/Flashcard/Review/Favorite/tmux]]`;
+
+SRC['Prototype/Fixture/Headings'] = `- This page is a prototype fixture, not a page in the garden: one block per Markdown heading level, then body text. h1–h4 were measured on the published site; h5–h6 come from Logseq's block.css.
+- # Heading 1 · 32px, weight 300, rule below
+- ## Heading 2 · 24px, weight 300, rule below
+- ### Heading 3 · 19.2px, weight 600
+- #### Heading 4 · 16px, weight 600
+- ##### Heading 5 · 0.83em, weight 600
+- ###### Heading 6 · 0.75em, weight 600
+- Body text · 16px, weight 400, line-height 1.6`;
+
+SRC['Prototype/Fixture/Queries'] = `- This page is a prototype fixture, not a page in the garden. Each block shows one query state; results are computed from the pages in this prototype.
+- ## Simple query: blocks grouped by page
+\t- {{query [[tuicr]]}}
+- ## Simple query in table view
+\t- {{query (and [[Keyshort]] [[yazi]])}}
+\t  query-table:: true
+- ## Page query
+\t- {{query (page-tags [[Logseq/Slideshow]])}}
+- ## Advanced query with a title
+\t- #+BEGIN_QUERY
+\t  {:title "Cards about yazi"
+\t   :query (and [[yazi]] [[card]])}
+\t  #+END_QUERY
+- ## Advanced query, collapsed
+\t- #+BEGIN_QUERY
+\t  {:title "Blocks that mention tmux"
+\t   :query [[tmux]]
+\t   :collapsed? true}
+\t  #+END_QUERY
+- ## No results
+\t- {{query (and [[yazi]] [[Rust]])}}
+- ## Slow query (auto refresh disabled)
+\t- {{query (or [[nvim]] [[vim]])}}
+\t  prototype-slow:: 120
+- ## Failed query
+\t- #+BEGIN_QUERY
+\t  {:title "Broken query"
+\t   :query (and [[tmux]]}
+\t  #+END_QUERY
+- ## Flashcards query
+\t- {{cards [[yazi]]}}
+- ## Flashcards query with no matches
+\t- {{cards [[Rust]]}}`;
+
+const JOURNALS = ['2026-10-23 Fri','2026-10-22 Thu','2026-09-15 Tue','2026-08-25 Tue'];
+const FAVORITES = ['fd','gh-dash','GitHub/CLI/Extension/gh-dash','tuicr','tmux/Q/How can I put a thick border around the focused pane?','LazyVim','Logseq/Flashcard/Review/Favorite','Obsidian','Codex','chezmoi','DevContainer','mise','rg','vim','nvim','Zoxide','yazi','tmux','Lazygit'];
+const FIXTURES = ['Prototype/Fixture/Headings','Prototype/Fixture/Queries','Rust/loop/label','AI/Batch Inference/Concept/AWS vs OpenAI vs LangChain','Logseq/Flashcard/Review/Favorite/yazi'];
+const EXTRA_NAMES = ['tmux/Bug','tmux/Bug/Vim Right Pane Insert Shows Up in Left Pane','tmux/Cheat Sheet','tmux/Command','tmux/Command/choose-tree','tmux/Command/last-window','tmux/Command/new-session','tmux/Command/new-session/-t','tmux/Command/new-window','tmux/Command/set-option','tmux/Command/source-file','tmux/Config','tmux/Config/local','tmux/Docs','tmux/Docs/Getting Started','tmux/Docs/Getting Started/Basic Concepts','tmux/How To','tmux/How To/Reload','tmux/Idea','tmux/Idea/Pomodoro with status line and silent flash','tmux/Idea/Toggl Track status in status line','tmux/Keyshort','tmux/Keyshort/Pane','tmux/man','tmux/Tutorial/Use tmux on Mac','Person/Brian P. Hogan/Book/25/tmux 3','fd','gh-dash','tuicr','LazyVim','Obsidian','Codex','chezmoi','mise','nvim','vim','yazi','Lazygit','Catppuccin','oh-my-tmux','Keyshort','card','Logseq/Slideshow','Logseq/Frontmatter/tags','TUI','Rust','Model Context Protocol','AI Engineer Summit','Diataxis/Explanation','Filed','Updated','Ghostty','Claude/Code','GitHub/CoPilot/CLI'];
+const TAGGED_EXTRA = { 'tmux': ['Person/Brian P. Hogan/Book/25/tmux 3','tmux/Tutorial/Use tmux on Mac'] };
+const COMMANDS = [
+ {name:'Go to journals', keys:['g','j'], run:'journals'},
+ {name:'Go to all pages', keys:['g','a'], run:'all'},
+ {name:'Go to graph view', keys:['g','g'], run:'graph'},
+ {name:'Go to home', keys:['g','h'], run:'journals'},
+ {name:'Toggle flashcards', keys:['t','c'], run:'cards'},
+ {name:'Toggle left sidebar', keys:['t','l'], run:'left'},
+ {name:'Toggle right sidebar', keys:['t','r'], run:'right'},
+ {name:'Toggle between dark/light theme', keys:['t','t'], run:'theme'},
+ {name:'Toggle wide mode', keys:['t','w'], run:'wide'}
+];
+const FILTERS = [
+ {text:'Search only pages', group:'pages', name:'pages'},
+ {text:'Search only current page', group:'current-page', name:'current page'},
+ {text:'Search only blocks', group:'blocks', name:'blocks'},
+ {text:'Search only commands', group:'commands', name:'commands'},
+ {text:'Search only whiteboards', group:'whiteboards', name:'whiteboards'},
+ {text:'Search only files', group:'files', name:'files'}
+];
+const SHORTCUTS = [
+ {name:'Search pages and blocks', keys:['⌘','k']},
+ {name:'Go to journals', keys:['g','j']},
+ {name:'Go to home', keys:['g','h']},
+ {name:'Go to all pages', keys:['g','a']},
+ {name:'Go to graph view', keys:['g','g']},
+ {name:'Toggle flashcards', keys:['t','c']},
+ {name:'Toggle left sidebar', keys:['t','l']},
+ {name:'Toggle right sidebar', keys:['t','r']},
+ {name:'Toggle between dark/light theme', keys:['t','t']},
+ {name:'Toggle wide mode', keys:['t','w']}
+];
+const EXPORTS = ['Export as EDN','Export as JSON','Export as standard Markdown (no block properties)','Export as OPML','Export as Roam JSON'];
+
+const lc = (s) => String(s || '').toLowerCase();
+
+function parseSegs(text) {
+  const out = [];
+  const re = /(\{\{youtube-timestamp (\d+)\}\})|(\(\(([0-9a-f-]{36})\)\))|(#\[\[([^\]]+)\]\])|(\[([^\]]+)\]\(\[\[([^\]]+)\]\]\))|(\[\[([^\]]+)\]\])|(\[([^\]]+)\]\((https?:[^)\s]+)\))|(\*\*([^*]+)\*\*)|(`([^`]+)`)|(==([^=]+)==)|(\*([^*\s][^*]*)\*)|((?<=^|\s)#([A-Za-z0-9@][\w\/.@-]*))/g;
+  let last = 0; let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push({k:'x', v:text.slice(last, m.index)});
+    if (m[1]) out.push({k:'ts', s:parseInt(m[2],10)});
+    else if (m[3]) out.push({k:'br', id:m[4]});
+    else if (m[5]) out.push({k:'g', v:m[6], t:m[6]});
+    else if (m[7]) out.push({k:'l', v:m[8], t:m[9]});
+    else if (m[10]) out.push({k:'r', v:m[11], t:m[11]});
+    else if (m[12]) out.push({k:'e', v:m[13], href:m[14]});
+    else if (m[15]) out.push({k:'b', v:m[16]});
+    else if (m[17]) out.push({k:'c', v:m[18]});
+    else if (m[19]) out.push({k:'m', v:m[20]});
+    else if (m[21]) out.push({k:'i', v:m[22]});
+    else if (m[23]) out.push({k:'g', v:m[24], t:m[24]});
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push({k:'x', v:text.slice(last)});
+  return out;
+}
+
+function ytId(url) { const m = String(url).match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/); return m ? m[1] : ''; }
+function ytStart(url) { const m = String(url).match(/[?&]t=(\d+)s?/); return m ? parseInt(m[1],10) : 0; }
+function secs(s) {
+  s = Math.floor(s); const h = Math.floor(s/3600), mi = Math.floor(s/60)%60, se = s%60;
+  const p = (v) => (v < 10 ? '0' + v : String(v));
+  return (h ? p(h) + ':' : '') + p(mi) + ':' + p(se);
+}
+
+const KW = {
+  python: 'and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield None True False',
+  rust: 'as break const continue crate else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while async await dyn'
+};
+const BI = { python: 'print open len range str int dict list set tuple isinstance super', rust: '' };
+const DEFS = { python: ['def','class'], rust: ['fn','struct','enum','trait','mod'] };
+function hl(code, lang) {
+  const l = lc(lang);
+  const L = l === 'py' ? 'python' : l === 'rs' ? 'rust' : ['sh','shell','zsh','bash'].includes(l) ? 'bash' : l;
+  const lines = code.split('\n');
+  const re = L === 'python' ? /(?<c>#.*)|(?<s>"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(?<n>\b\d+(?:\.\d+)?\b)|(?<w>[A-Za-z_]\w*)|(?<o>[=+\-*\/<>%&|]+)/g
+    : L === 'rust' ? /(?<c>\/\/.*)|(?<s>"(?:[^"\\]|\\.)*")|(?<l>'[A-Za-z_]\w*)|(?<n>\b\d+(?:\.\d+)?\b)|(?<m>[A-Za-z_]\w*!)|(?<w>[A-Za-z_]\w*)|(?<o>[=+\-*\/<>%&|]+)/g
+    : L === 'bash' ? /(?<c>(?<=^|\s)#.*)|(?<a>(?<=^|\s)--?[A-Za-z][\w-]*)/g : null;
+  if (!re) return lines.map((x) => ({toks: [{v: x || ' ', c: ''}]}));
+  const kw = new Set((KW[L] || '').split(' ').filter(Boolean)); const bi = new Set((BI[L] || '').split(' ').filter(Boolean)); const defs = new Set(DEFS[L] || []);
+  return lines.map((line) => {
+    const toks = []; let last = 0; let prev = ''; let m; re.lastIndex = 0;
+    while ((m = re.exec(line)) !== null) {
+      if (m[0] === '') { re.lastIndex++; continue; }
+      if (m.index > last) toks.push({v: line.slice(last, m.index), c: ''});
+      const g = m.groups; let c = '';
+      if (g.c) c = 't-c'; else if (g.s) c = 't-s'; else if (g.n) c = 't-n'; else if (g.a) c = 't-a'; else if (g.m) c = 't-o'; else if (g.o) c = 't-o';
+      else if (g.w) { const w = g.w; if (kw.has(w)) c = 't-k'; else if (bi.has(w)) c = 't-b'; else if (defs.has(prev)) c = 't-d'; else if (L === 'python' && line[m.index - 1] === '.') c = 't-p'; prev = w; }
+      toks.push({v: m[0], c}); last = re.lastIndex;
+    }
+    if (last < line.length) toks.push({v: line.slice(last), c: ''});
+    if (!toks.length) toks.push({v: ' ', c: ''});
+    return {toks};
+  });
+}
+
+function tokQ(s) { const re = /\s*(\(|\)|#?\[\[[^\]]+\]\]|"[^"]*"|[^\s()]+)/g; const out = []; let m; while ((m = re.exec(s)) !== null) { if (!m[1]) break; out.push(m[1]); } return out; }
+function parseQ(s) {
+  const t = tokQ(s); let i = 0;
+  if (!t.length) throw new Error('Empty query');
+  const rd = () => { if (i >= t.length) throw new Error('EOF while reading'); const x = t[i++]; if (x === '(') { const l = []; while (t[i] !== ')') { if (i >= t.length) throw new Error('EOF while reading'); l.push(rd()); } i++; return l; } if (x === ')') throw new Error('Unmatched delimiter: )'); return x; };
+  const v = rd(); if (i < t.length) throw new Error('Unexpected input after query'); return v;
+}
+function parseAdvanced(text) {
+  let depth = 0; for (const ch of text) { if (ch === '(' || ch === '{' || ch === '[') depth++; if (ch === ')' || ch === '}' || ch === ']') depth--; }
+  if (depth !== 0) throw new Error('EOF while reading');
+  const title = (text.match(/:title\s+"([^"]*)"/) || [])[1] || '';
+  const collapsed = /:collapsed\?\s+true/.test(text);
+  const qi = text.indexOf(':query'); if (qi < 0) throw new Error('Missing :query');
+  let rest = text.slice(qi + 6).trim(); let q = '';
+  if (rest.startsWith('(')) { let d = 0; for (let k = 0; k < rest.length; k++) { if (rest[k] === '(') d++; if (rest[k] === ')') d--; if (d === 0) { q = rest.slice(0, k + 1); break; } } }
+  else q = (rest.match(/^#?\[\[[^\]]+\]\]/) || [rest.split(/\s/)[0]])[0];
+  return {title, collapsed, query: q};
+}
+const HPX = {0:16, 1:32, 2:24, 3:19.2, 4:16, 5:13.28, 6:12};
+const HFW = {0:400, 1:300, 2:300, 3:600, 4:600, 5:600, 6:600};
+const bulTopFor = (h) => Math.round(((HPX[h] || 16) * 1.6 - 16) / 2 * 10) / 10;
+const strip = (x) => String(x).replace(/^#/, '').replace(/^\[\[|\]\]$/g, '').replace(/^"|"$/g, '');
+
+function blockItems(b) {
+  const items = []; const props = []; let fence = null; let aq = null; let table = null;
+  const flushTable = () => { if (table) { items.push({kind:'table', rows: table}); table = null; } };
+  b.raw.forEach((t) => {
+    if (aq) { if (/^#\+END_QUERY/.test(t.trim())) { items.push({kind:'aquery', text: aq.join('\n')}); aq = null; } else aq.push(t); return; }
+    if (/^#\+BEGIN_QUERY/.test(t.trim())) { flushTable(); aq = []; return; }
+    if (!fence && /^\|.*\|\s*$/.test(t.trim())) { const cells = t.trim().slice(1, -1).split('|').map((x) => x.trim()); if (!cells.every((x) => /^:?-+:?$/.test(x))) { (table = table || []).push(cells); } else if (!table) table = []; return; }
+    if (!fence) flushTable();
+    if (fence) {
+      if (/^(```|~~~)\s*$/.test(t.trim())) { items.push({kind:'code', lang:fence.lang, code:fence.lines.join('\n')}); fence = null; }
+      else fence.lines.push(t);
+      return;
+    }
+    const f = t.trim().match(/^(```|~~~)([\w-]*)$/);
+    if (f) { fence = {lang:f[2], lines:[]}; return; }
+    const p = t.match(/^([A-Za-z0-9_.-]+):: ?(.*)$/);
+    if (p) { props.push({k:p[1], v:p[2]}); return; }
+    const vid = t.trim().match(/^\{\{(?:video|youtube) (\S+)\}\}$/);
+    if (vid) { items.push({kind:'video', url:vid[1], vid:ytId(vid[1]), start:ytStart(vid[1])}); return; }
+    const emb = t.trim().match(/^\{\{embed (.+)\}\}$/);
+    if (emb) { items.push({kind:'embed', target:emb[1].trim()}); return; }
+    const qm = t.trim().match(/^\{\{query (.*)\}\}$/);
+    if (qm) { items.push({kind:'query', q: qm[1].trim()}); return; }
+    const cm = t.trim().match(/^\{\{cards ?(.*)\}\}$/);
+    if (cm) { items.push({kind:'cards', q: cm[1].trim()}); return; }
+    const img = t.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)(\{[^}]*\})?$/);
+    if (img) {
+      const wm = (img[3] || '').match(/:width (\d+)/); const hm = (img[3] || '').match(/:height (\d+)/);
+      items.push({kind:'img', alt:img[1], src:img[2], w: wm ? parseInt(wm[1],10) : 0, h: hm ? parseInt(hm[1],10) : 0}); return;
+    }
+    const li = t.match(/^(\s*)\* (.*)$/);
+    if (li) { items.push({kind:'li', depth:Math.floor(li[1].length/4), text:li[2]}); return; }
+    const q = t.match(/^> ?(.*)$/);
+    if (q) { items.push({kind:'quote', text:q[1]}); return; }
+    const h = t.match(/^(#{1,6}) (.*)$/);
+    if (h) { items.push({kind:'text', h:h[1].length, text:h[2]}); return; }
+    items.push({kind:'text', h:0, text:t});
+  });
+  if (fence) items.push({kind:'code', lang:fence.lang, code:fence.lines.join('\n')});
+  flushTable();
+  b.items = items;
+  const mk = items.find((i) => i.kind === 'text'); const mm = mk ? mk.text.match(/^(TODO|DOING|DONE|LATER|NOW|WAITING|CANCELED) /) : null; b.marker = mm ? mm[1] : null;
+  b.allProps = props;
+  b.props = props.filter((p) => !HIDDEN.has(p.k));
+  b.collapsedProp = props.some((p) => p.k === 'collapsed' && p.v === 'true');
+  const idp = props.find((p) => p.k === 'id'); b.uuid = idp ? idp.v : null;
+  const first = items.find((i) => i.kind === 'text' || i.kind === 'li');
+  b.plain = first ? first.text.replace(/\{\{youtube-timestamp (\d+)\}\}/g, (a, n) => secs(n)).replace(/\[\[|\]\]/g, '').replace(/\*\*/g, '').replace(/`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/^#+ /, '') : (b.raw[0] || '').trim();
+  b.segs0 = first ? parseSegs(first.text) : [];
+  b.h0 = first && first.kind === 'text' ? first.h : 0;
+}
+
+function parsePage(name, src) {
+  const lines = src.split('\n'); const pageProps = []; const blocks = []; let i = 0;
+  while (i < lines.length && !/^\t*-( |$)/.test(lines[i])) {
+    const m = lines[i].match(/^([A-Za-z0-9_.-]+):: ?(.*)$/); if (m) pageProps.push({k:m[1], v:m[2]}); i++;
+  }
+  const stack = []; let cur = null; let inFence = false;
+  for (; i < lines.length; i++) {
+    const L = lines[i];
+    const m = L.match(/^(\t*)-( (.*)|$)/);
+    if (m && !inFence) {
+      const d = m[1].length; const first = m[3] || '';
+      cur = {id: name + '#' + blocks.length, d, raw:[first], page:name, kids:[]};
+      while (stack.length && stack[stack.length-1].d >= d) stack.pop();
+      cur.parent = stack.length ? stack[stack.length-1] : null;
+      if (cur.parent) cur.parent.kids.push(cur);
+      stack.push(cur); blocks.push(cur);
+      const ft = first.trim(); if (/^(```|~~~)/.test(ft) && !/^(```|~~~).*(```|~~~)$/.test(ft.slice(3) ? ft : '')) inFence = true;
+    } else if (cur) {
+      const t = L.replace(/^\t*/, '').replace(/^  /, '');
+      cur.raw.push(t);
+      if (/^(```|~~~)/.test(t.trim())) inFence = !inFence;
+    }
+  }
+  blocks.forEach(blockItems);
+  return {name, lname:lc(name), props:pageProps, blocks};
+}
+
+const PAGES = {};
+Object.keys(SRC).forEach((n) => { PAGES[lc(n)] = parsePage(n, SRC[n]); });
+const BY_UUID = {}; const BY_ID = {};
+Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => { BY_ID[b.id] = b; if (b.uuid) BY_UUID[b.uuid] = b; }));
+const ALIAS = {};
+Object.values(PAGES).forEach((p) => p.props.forEach((pp) => { if (pp.k === 'alias') (pp.v.match(/\[\[([^\]]+)\]\]/g) || []).forEach((a) => { ALIAS[lc(a.slice(2,-2))] = p.lname; }); }));
+const resolve = (n) => ALIAS[lc(n)] || lc(n);
+const ORIGINAL = {};
+[...EXTRA_NAMES, ...Object.keys(SRC)].forEach((n) => { ORIGINAL[lc(n)] = n; });
+Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => b.items.forEach((it) => { if (it.text) parseSegs(it.text).forEach((s) => { if (s.t && !ORIGINAL[lc(s.t)]) ORIGINAL[lc(s.t)] = s.t; }); })));
+Object.values(PAGES).forEach((p) => p.props.forEach((pp) => (pp.v.match(/\[\[([^\]]+)\]\]/g) || []).forEach((a) => { const n = a.slice(2,-2); if (!ORIGINAL[lc(n)]) ORIGINAL[lc(n)] = n; })));
+delete ORIGINAL['contents'];
+const ALL_NAMES = Object.values(ORIGINAL).sort((a, b) => lc(a) < lc(b) ? -1 : 1);
+
+function blockRefs(b) {
+  const refs = new Set();
+  b.items.forEach((it) => { if (it.text && (it.kind === 'text' || it.kind === 'li' || it.kind === 'quote')) parseSegs(it.text).forEach((s) => { if (s.t) refs.add(resolve(s.t)); }); });
+  b.allProps.forEach((p) => (p.v.match(/\[\[([^\]]+)\]\]/g) || []).forEach((a) => refs.add(resolve(a.slice(2,-2)))));
+  return refs;
+}
+Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => { b.refs = blockRefs(b); }));
+Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => { const s = new Set([p.lname]); let x = b; while (x) { x.refs.forEach((r) => s.add(r)); x = x.parent; } b.path = s; }));
+const ALL_BLOCKS = []; Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => ALL_BLOCKS.push(b)));
+function pageTags(p) { const t = []; p.props.forEach((pp) => { if (pp.k === 'tags') (pp.v.match(/\[\[([^\]]+)\]\]/g) || []).forEach((a) => t.push(resolve(a.slice(2,-2)))); }); return t; }
+function evalQ(n, b) {
+  if (Array.isArray(n)) {
+    const op = n[0], args = n.slice(1);
+    if (op === 'and') return args.every((a) => evalQ(a, b));
+    if (op === 'or') return args.some((a) => evalQ(a, b));
+    if (op === 'not') return !args.some((a) => evalQ(a, b));
+    if (op === 'task') return args.includes(b.marker);
+    if (op === 'page') return args.some((a) => lc(b.page) === resolve(strip(a)));
+    throw new Error('Unknown query operator: ' + op);
+  }
+  return b.path.has(resolve(strip(n)));
+}
+function backlinkCount(lname) {
+  let n = 0; Object.values(PAGES).forEach((p) => { if (p.lname !== lname) p.blocks.forEach((b) => { if (b.refs.has(lname)) n++; }); }); return n;
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      route: {type:'journals'}, left: true, right: false, dark: false,
+      items: [], itemMenu: null, more: false, exportOpen: false, filterOpen: false, filters: {},
+      search: false, q: '', sfilter: null, hi: 0, showMore: {},
+      recent: [], collapsed: {}, qstate: {}, cstate: {}, linkedOpen: true, unlinkedOpen: false, hierOpen: true,
+      cards: false, cardIdx: 0, cardBack: false, seek: {}, allPage: 0, graphJournals: false,
+      deckFull: null, toast: '', key: 1
+    };
+    this._focusSearch = false;
+    this._focusFull = false;
+  }
+  set(patch) { this.setState(patch); }
+  prevent(e) { if (e && e.preventDefault) e.preventDefault(); if (e && e.stopPropagation) e.stopPropagation(); }
+  flash(msg) { this.setState({toast: msg}); clearTimeout(this._t); this._t = setTimeout(() => this.setState({toast: ''}), 2200); }
+
+  open(name, e) {
+    if (e && e.shiftKey) { this.addItem({type:'page', name: resolve(name)}); return; }
+    const ln = resolve(name);
+    if (JOURNALS.map(lc).includes(ln) && false) return;
+    const recent = [ln, ...this.state.recent.filter((r) => r !== ln)].slice(0, 6);
+    this.setState({route: {type:'page', name: ln}, recent, search: false, more: false, linkedOpen: true, unlinkedOpen: false});
+  }
+  zoom(id) { this.setState({route: {type:'block', id}, search: false}); }
+  addItem(it) {
+    const key = this.state.key + 1;
+    this.setState({items: [{...it, key, open: true, h: 0, v: 0}, ...this.state.items], right: true, key, search: false});
+  }
+  runCommand(run) {
+    this.setState({search: false});
+    if (run === 'journals') this.setState({route: {type:'journals'}});
+    else if (run === 'all') this.setState({route: {type:'all'}});
+    else if (run === 'graph') this.setState({route: {type:'graph'}});
+    else if (run === 'cards') this.setState({cards: true, cardIdx: 0, cardBack: false});
+    else if (run === 'left') this.setState({left: !this.state.left});
+    else if (run === 'right') this.setState({right: !this.state.right});
+    else if (run === 'theme') this.setState({dark: !this.state.dark});
+    else if (run === 'wide') this.flash('Wide mode widens the 810px content column');
+  }
+
+  decorate(segs, ctx) {
+    const res = [];
+    segs.forEach((s) => {
+      const o = {v: s.v, isX:false, isR:false, isL:false, isG:false, isE:false, isB:false, isI:false, isC:false, isM:false, isTs:false, isBr:false, isW:false, isComma:false, href: s.href || '', title: ''};
+      if (s.k === 'x') o.isX = true;
+      else if (s.k === 'r') { o.isR = true; o.go = (e) => { this.prevent(e); this.open(s.t, e); }; }
+      else if (s.k === 'l') { o.isL = true; o.go = (e) => { this.prevent(e); this.open(s.t, e); }; }
+      else if (s.k === 'g') { o.isG = true; o.go = (e) => { this.prevent(e); this.open(s.t, e); }; }
+      else if (s.k === 'e') o.isE = true;
+      else if (s.k === 'b') { o.isB = true; o.v = String(s.v).replace(/`/g, ''); }
+      else if (s.k === 'i') o.isI = true;
+      else if (s.k === 'c') o.isC = true;
+      else if (s.k === 'm') o.isM = true;
+      else if (s.k === 'ts') {
+        o.isTs = true; o.v = secs(s.s);
+        const vk = ctx && ctx.video ? ctx.video : null;
+        o.go = (e) => { this.prevent(e); if (vk) { this.setState({seek: {...this.state.seek, [vk]: s.s}}); this.flash('Seeking video to ' + secs(s.s)); } };
+      }
+      else if (s.k === 'br') {
+        const t = BY_UUID[s.id];
+        if (t) { o.isBr = true; o.v = t.plain; o.title = 'Block from ' + (ORIGINAL[t.page.toLowerCase()] || t.page); o.go = (e) => { this.prevent(e); if (e && e.shiftKey) this.addItem({type:'block', id:t.id}); else this.zoom(t.id); }; }
+        else { o.isW = true; o.v = '((' + s.id + '))'; }
+      }
+      if (!o.go) o.go = (e) => this.prevent(e);
+      res.push(o);
+    });
+    return res;
+  }
+  propRows(props) {
+    return props.map((p) => {
+      let segs;
+      if (COMMA_PROPS.has(p.k)) {
+        const names = (p.v.match(/\[\[([^\]]+)\]\]/g) || []).map((a) => a.slice(2,-2));
+        const list = names.length ? names : p.v.split(',').map((x) => x.trim()).filter(Boolean);
+        segs = [];
+        list.forEach((n, i) => { if (i) segs.push({k:'comma'}); segs.push({k:'l', v:n, t:n}); });
+        segs = this.decorate(segs.filter((s) => s.k !== 'comma'), null);
+        const withCommas = []; segs.forEach((s, i) => { if (i) withCommas.push({isComma:true}); withCommas.push(s); }); segs = withCommas;
+      } else if (/^https?:/.test(p.v.trim())) {
+        segs = this.decorate([{k:'e', v:p.v.trim(), href:p.v.trim()}], null);
+      } else segs = this.decorate(parseSegs(p.v), null);
+      return {k: p.k, segs, go: (e) => { this.prevent(e); this.open(p.k, e); }};
+    });
+  }
+  itemVM(it, ctx, compact) {
+    const base = {isText:false, isLi:false, isQuote:false, isCode:false, isVideo:false, isImg:false, isEmbed:false, isTable:false, isQuery:false, isCards:false};
+    if (it.kind === 'text') {
+      const px = HPX[it.h] || 16;
+      const rule = it.h === 1 || it.h === 2;
+      return {...base, isText:true, segs:this.decorate(parseSegs(it.text), ctx), fs: px + 'px', fw: HFW[it.h] || 400, lh: 1.6, hb: rule ? '1px solid var(--hr)' : '0', hpb: rule ? '0.125em' : '0', hm: rule ? '0.125em 0' : '0', bigFs: it.h === 1 ? '56px' : it.h === 2 ? '44px' : it.h === 3 ? '36px' : it.h === 4 ? '30px' : '26px', h: it.h};
+    }
+    if (it.kind === 'table') {
+      const rows = it.rows || [];
+      return {...base, isTable:true, head: (rows[0] || []).map((c) => ({segs: this.decorate(parseSegs(c), ctx)})), body: rows.slice(1).map((r) => ({cells: r.map((c) => ({segs: this.decorate(parseSegs(c), ctx)}))}))};
+    }
+    if (it.kind === 'query' || it.kind === 'aquery') return {...base, ...this.queryVM(it, ctx ? ctx.block : null)};
+    if (it.kind === 'cards') return {...base, ...this.cardsVM(it, ctx ? ctx.block : null)};
+    if (it.kind === 'li') return {...base, isLi:true, pad: 18 * it.depth, segs:this.decorate(parseSegs(it.text), ctx)};
+    if (it.kind === 'quote') return {...base, isQuote:true, segs:this.decorate(parseSegs(it.text), ctx)};
+    if (it.kind === 'code') return {...base, isCode:true, lang: it.lang || '', code: it.code, lines: hl(it.code, it.lang || '')};
+    if (it.kind === 'video') {
+      const key = it.vid + '@' + (ctx ? ctx.page : '');
+      const sk = this.state.seek[key];
+      return {...base, isVideo:true, vid: it.vid, startLabel: it.start ? '?start=' + it.start : '', hasSeek: sk !== undefined, seekLabel: sk !== undefined ? secs(sk) : ''};
+    }
+    if (it.kind === 'img') {
+      const fn = it.src.split('/').pop(); const local = /^\.\.\/assets\//.test(it.src); const src = local ? ASSETS[fn] : null;
+      return {...base, isImg:true, alt: it.alt || fn, hasSrc: !!src, noSrc: !src, src: src || '', w: it.w ? it.w + 'px' : (src ? 'auto' : '480px'), h: it.h ? it.h + 'px' : '220px'};
+    }
+    if (it.kind === 'embed') {
+      const out = {...base, isEmbed:true, isPageEmbed:false, erows:[], eMissing:false, eTitle:'', eRef:''};
+      const bm = it.target.match(/^\(\(([0-9a-f-]{36})\)\)$/); const pm = it.target.match(/^\[\[(.+)\]\]$/);
+      let roots = [];
+      if (bm) { const b = BY_UUID[bm[1]]; if (b) roots = [b]; else { out.eMissing = true; out.eRef = it.target; } }
+      else if (pm) {
+        const p = PAGES[resolve(pm[1])]; out.isPageEmbed = true; out.eTitle = pm[1]; out.go = (e) => { this.prevent(e); this.open(pm[1], e); };
+        if (p) roots = p.blocks.filter((b) => b.d === 0); else { out.eMissing = true; out.eRef = it.target; }
+      }
+      const flat = []; const walk = (b, d) => { flat.push({b, d}); b.kids.forEach((k) => walk(k, d + 1)); };
+      roots.forEach((r) => walk(r, 0));
+      out.erows = flat.slice(0, 10).map(({b, d}) => ({pad: d * 29, fs: (HPX[b.h0] || 16) + 'px', lh: 1.6, bulTop: bulTopFor(b.h0), segs: this.decorate(b.segs0, ctx)}));
+      return out;
+    }
+    return base;
+  }
+  queryVM(it, b) {
+    const key = b ? b.id : 'q';
+    const qs = this.state.qstate[key] || {};
+    let ast = null, err = null, title = '', collapsed = false, qtext = it.q || '';
+    const isDsl = it.kind === 'query';
+    if (!isDsl) { title = (it.text.match(/:title\s+"([^"]*)"/) || [])[1] || ''; try { const a = parseAdvanced(it.text); title = a.title; collapsed = a.collapsed; qtext = a.query; } catch (e) { err = e.message; } }
+    if (!err) { try { ast = parseQ(qtext); } catch (e) { err = e.message; } }
+    let pageMode = false, hits = [], pages = [];
+    if (ast && !err) {
+      try {
+        if (Array.isArray(ast) && ast[0] === 'page-tags') { pageMode = true; const want = ast.slice(1).map((x) => resolve(strip(x))); pages = Object.values(PAGES).filter((p) => pageTags(p).some((t) => want.includes(t))); }
+        else hits = ALL_BLOCKS.filter((x) => x !== b && evalQ(ast, x));
+      } catch (e) { err = e.message; }
+    }
+    const open = qs.open !== undefined ? qs.open : !collapsed;
+    const tableProp = b ? b.allProps.some((p) => p.k === 'query-table' && p.v === 'true') : false;
+    const table = pageMode || (qs.table !== undefined ? qs.table : tableProp);
+    const count = pageMode ? pages.length : hits.length;
+    const slowP = b ? b.allProps.find((p) => p.k === 'prototype-slow') : null;
+    const upd = (patch) => this.setState({qstate: {...this.state.qstate, [key]: {...qs, ...patch}}});
+    const out = {isQuery: true, isDsl, label: 'Live query' + (pageMode ? ' for pages' : ''), hasTitle: !isDsl, title: title || 'Query', titleCount: '',
+      showTools: !err && (isDsl ? true : open), hasCount: count > 0, countLabel: count + (count > 1 ? ' results' : ' result'),
+      canTable: !pageMode && !err, isTableView: table, isListView: !table, tableTitle: table ? 'Switch to list view' : 'Switch to table view',
+      toggleTable: () => upd({table: !table}), toggleOpen: () => { if (!isDsl) upd({open: !open}); },
+      settings: () => this.flash('Properties settings for this query: ' + (pageMode ? 'page, created-at, updated-at' : 'block, page')),
+      slow: !!slowP, slowTip: slowP ? 'This query takes ' + slowP.v + "ms to finish, it's a bit slow so that auto refresh is disabled. Click the refresh button instead if you want to see the latest result." : '',
+      refresh: () => this.flash('Query re-run'),
+      open, isError: !!err, error: err || '', isNone: !err && count === 0,
+      showTable: !err && count > 0 && table, showList: !err && count > 0 && !table, cols: [], trows: [], groups: []};
+    if (!isDsl && collapsed && !open) out.titleCount = count ? '(' + count + ')' : '';
+    if (out.showTable) {
+      if (pageMode) { out.cols = ['page', 'created-at', 'updated-at']; out.trows = pages.map((p) => ({cells: [{isLink: true, isText: false, v: p.name, go: (e) => this.open(p.name, e)}, {isText: true, isLink: false, v: '—'}, {isText: true, isLink: false, v: '—'}]})); }
+      else { out.cols = ['block', 'page']; out.trows = hits.map((h) => ({cells: [{isText: true, isLink: false, v: h.plain}, {isLink: true, isText: false, v: ORIGINAL[lc(h.page)] || h.page, go: (e) => this.open(h.page, e)}]})); }
+    }
+    if (out.showList) {
+      const set = new Set(hits); const top = hits.filter((h) => { let p = h.parent; while (p) { if (set.has(p)) return false; p = p.parent; } return true; });
+      const byPage = {}; top.forEach((h) => { (byPage[h.page] = byPage[h.page] || []).push(h); });
+      out.groups = Object.keys(byPage).map((pn) => ({title: ORIGINAL[lc(pn)] || pn, go: (e) => this.open(pn, e), blocks: byPage[pn].map((h) => { const cr = h.parent ? this.crumbsFor(h, false).slice(1) : []; return {hasCrumbs: cr.length > 0, crumbs: cr.map((c, i) => ({...c, sep: i < cr.length - 1})), segs: this.decorate(h.segs0, null), zoom: (e) => { this.prevent(e); this.zoom(h.id); }}; })}));
+    }
+    return out;
+  }
+  cardsVM(it, b) {
+    const key = b ? b.id : 'c';
+    let ast = null; try { ast = it.q ? parseQ(it.q) : null; } catch (e) { ast = null; }
+    const cards = ALL_BLOCKS.filter((x) => x.refs.has('card') && (!ast || evalQ(ast, x)));
+    const st = this.state.cstate[key] || {i: 0, back: false};
+    const upd = (patch) => this.setState({cstate: {...this.state.cstate, [key]: {...st, ...patch}}});
+    const overdue = cards.filter((c) => { const p = c.allProps.find((q) => q.k === 'card-next-schedule'); return !p || p.v.slice(0, 10) <= TODAY; }).length;
+    const c = cards[st.i];
+    return {isCards: true, qtext: it.q || 'All', cardNone: cards.length === 0, cardSome: cards.length > 0, cardDone: cards.length > 0 && !c, cardActive: !!c,
+      cur: Math.min(st.i + 1, cards.length) + '/' + cards.length, overdue: overdue + '/' + cards.length,
+      front: c ? this.decorate(c.segs0, null) : [], showBack: !!st.back, back: c ? c.kids.map((k) => ({segs: this.decorate(k.segs0, null)})) : [],
+      flipLabel: st.back ? 'Hide answers' : 'Show answers', flip: () => upd({back: !st.back}), next: () => upd({i: st.i + 1, back: false})};
+  }
+  outline(blocks, opts) {
+    const o = opts || {};
+    const rows = []; let video = null;
+    const page = blocks.length ? blocks[0].page : '';
+    const walk = (b, d) => {
+      const collapsed = this.state.collapsed[b.id] !== undefined ? this.state.collapsed[b.id] : b.collapsedProp;
+      const vids = b.items.filter((i) => i.kind === 'video'); if (vids.length) video = vids[vids.length - 1].vid + '@' + page;
+      const ctx = {video, page, block: b};
+      const items = b.items.map((it) => this.itemVM(it, ctx, o.compact));
+      const firstItem = b.items[0];
+      const h = firstItem && firstItem.kind === 'text' ? firstItem.h : 0;
+      const bulTop = bulTopFor(h) + (h === 1 || h === 2 ? 2 : 0);
+      const guides = []; for (let i = 0; i < d; i++) guides.push({x: i * 29 + 8});
+      const hasKids = b.kids.length > 0;
+      rows.push({
+        pad: d * 29, guides, hasKids, items, bulTop,
+        togCls: collapsed ? 'shut' : '', togX: d * 29 - 20,
+        bulCls: hasKids && collapsed ? 'closed' : '',
+        hasProps: b.props.length > 0, props: this.propRows(b.props),
+        toggle: (e) => { this.prevent(e); this.setState({collapsed: {...this.state.collapsed, [b.id]: !collapsed}}); },
+        zoom: (e) => { this.prevent(e); if (e && e.shiftKey) this.addItem({type:'block', id:b.id}); else this.zoom(b.id); }
+      });
+      if (!collapsed || o.expandAll) b.kids.forEach((k) => walk(k, d + 1));
+    };
+    blocks.forEach((b) => walk(b, 0));
+    return rows;
+  }
+  crumbsFor(b, includeSelf) {
+    const chain = []; let p = includeSelf ? b : b.parent; while (p) { chain.unshift(p); p = p.parent; }
+    const pageName = ORIGINAL[lc(b.page)] || b.page;
+    const list = [{v: pageName, go: (e) => { this.prevent(e); this.open(b.page, e); }}];
+    chain.forEach((c) => list.push({v: c.plain, go: (e) => { this.prevent(e); this.zoom(c.id); }}));
+    return list.map((c, i) => ({...c, sep: i < list.length - 1}));
+  }
+  hierarchy(name) {
+    const lname = lc(name); const set = new Set();
+    ALL_NAMES.forEach((n) => { if (lc(n).startsWith(lname + '/')) set.add(n); });
+    if (name.includes('/') ) { const parts = name.split('/'); for (let i = 2; i <= parts.length; i++) set.add(parts.slice(0, i).join('/')); }
+    const list = [...set].sort((a, b) => lc(a) < lc(b) ? -1 : 1);
+    return list.map((n) => { const parts = n.split('/'); return {parts: parts.map((p, i) => ({v: p, sep: i < parts.length - 1, go: (e) => { this.prevent(e); this.open(parts.slice(0, i + 1).join('/'), e); }}))}; });
+  }
+  linked(lname) {
+    const groups = []; const f = this.state.filters[lname] || {};
+    Object.values(PAGES).forEach((p) => {
+      if (p.lname === lname) return;
+      const bl = p.blocks.filter((b) => b.refs.has(lname));
+      const ok = bl.filter((b) => {
+        for (const k in f) { if (f[k] === true && !b.refs.has(k)) return false; if (f[k] === false && b.refs.has(k)) return false; }
+        return true;
+      });
+      if (ok.length) groups.push({p, bl: ok});
+    });
+    groups.sort((a, b) => {
+      const ja = JOURNALS.map(lc).indexOf(a.p.lname), jb = JOURNALS.map(lc).indexOf(b.p.lname);
+      return (ja < 0 ? 99 : ja) - (jb < 0 ? 99 : jb);
+    });
+    let n = 0;
+    const out = groups.map(({p, bl}) => ({
+      title: p.name, go: (e) => { this.prevent(e); this.open(p.name, e); },
+      blocks: bl.map((b) => { n++; const crumbs = b.parent ? this.crumbsFor(b, false).slice(1) : []; const cr = crumbs.map((c, i) => ({...c, sep: i < crumbs.length - 1})); return {hasCrumbs: cr.length > 0, crumbs: cr, segs: this.decorate(b.segs0, null), fs: b.h0 ? '18px' : '16px', zoom: (e) => { this.prevent(e); this.zoom(b.id); }}; })
+    }));
+    return {groups: out, n};
+  }
+  pageDoc(lname, full) {
+    const p = PAGES[lname];
+    const title = ORIGINAL[lname] || (p ? p.name : lname);
+    const isJ = JOURNALS.map(lc).includes(lname);
+    const blocks = p ? p.blocks.filter((b) => b.d === 0) : [];
+    const rows = blocks.length ? this.outline(blocks) : [{pad:0, guides:[], hasKids:false, items:[{isText:true, segs:[], fs:'16px', fw:400, lh:1.6}], bulTop:5, togCls:'', togX:-20, bulCls:'', hasProps:false, props:[], toggle:()=>{}, zoom:()=>{}}];
+    const props = p ? p.props.filter((x) => !HIDDEN.has(x.k)) : [];
+    const doc = {title, titleSize: isJ ? '30px' : '36px', showTitle: true, isZoom: false, go: (e) => { this.prevent(e); this.open(title, e); }, hasProps: props.length > 0, props: this.propRows(props), rows, full};
+    if (full) {
+      const L = this.linked(lname); const total = this.linked.call({state: {...this.state, filters: {}}, prevent: this.prevent, open: this.open.bind(this), zoom: this.zoom.bind(this), decorate: this.decorate.bind(this), crumbsFor: this.crumbsFor.bind(this)}, lname).n;
+      const filtered = Object.keys(this.state.filters[lname] || {}).length > 0;
+      doc.linked = L.groups; doc.noLinked = L.groups.length === 0;
+      doc.linkedLabel = (filtered ? L.n + ' of ' : '') + total + (total === 1 ? ' Linked Reference' : ' Linked References');
+      const tagged = Object.values(PAGES).filter((pg) => pg.props.some((pp) => pp.k === 'tags' && (pp.v.match(/\[\[([^\]]+)\]\]/g) || []).some((a) => resolve(a.slice(2,-2)) === lname))).map((pg) => pg.name);
+      const extra = TAGGED_EXTRA[lname] || [];
+      const tl = [...tagged, ...extra];
+      doc.hasTagged = tl.length > 0; doc.tagged = tl.map((n) => ({name: n, go: (e) => { this.prevent(e); this.open(n, e); }}));
+      doc.hier = this.hierarchy(title); doc.hasHier = doc.hier.length > 0;
+      doc.unlinkedLabel = 'Unlinked References';
+    }
+    return doc;
+  }
+
+  searchModel() {
+    const s = this.state; const q = s.q.trim(); const ql = lc(q);
+    const curName = s.route.type === 'page' ? s.route.name : null;
+    const hl = (text) => { const t = String(text); const i = ql ? lc(t).indexOf(ql) : -1; return i < 0 ? {pre: t, hit: '', post: ''} : {pre: t.slice(0, i), hit: t.slice(i, i + q.length), post: t.slice(i + q.length)}; };
+    const groups = [];
+    const pageItem = (n) => ({type:'page', label:n, run: (e) => this.open(n, e), side: () => this.addItem({type:'page', name: resolve(n)})});
+    const blockItem = (b) => ({type:'block', label:b.plain, sub: ORIGINAL[lc(b.page)] || b.page, run: () => this.zoom(b.id), side: () => this.addItem({type:'block', id: b.id}), copy: () => this.flash('Copied block ref ((' + (b.uuid || 'uuid') + '))')});
+    const addGroup = (key, name, items) => { if (items.length) groups.push({key, name, items}); };
+    if (q.startsWith('/') && !s.sfilter) {
+      const fq = lc(q.slice(1));
+      addGroup('filters', 'Filters', FILTERS.filter((f) => lc(f.text).includes(fq) || lc(f.name).includes(fq)).map((f) => ({type:'filter', label: f.text, info: 'Add filter to search', run: () => this.setState({sfilter: f, q: '', hi: 0})})));
+      if (q.length > 1) addGroup('pages', 'Pages', ALL_NAMES.filter((n) => lc(n).includes(lc(q.slice(1)))).map(pageItem));
+    } else {
+      const pages = q ? ALL_NAMES.filter((n) => lc(n).includes(ql)).sort((a, b) => (lc(a).startsWith(ql) ? 0 : 1) - (lc(b).startsWith(ql) ? 0 : 1) || a.length - b.length) : [];
+      const allBlocks = []; Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => { if (b.plain && b.plain !== '[' && lc(b.plain).includes(ql)) allBlocks.push(b); }));
+      const cur = allBlocks.filter((b) => curName && lc(b.page) === curName);
+      const other = allBlocks.filter((b) => !(curName && lc(b.page) === curName));
+      const cmds = COMMANDS.filter((c) => !q || lc(c.name).includes(ql)).map((c) => ({type:'cmd', label:c.name, keys:c.keys, run: () => this.runCommand(c.run)}));
+      const f = s.sfilter ? s.sfilter.group : null;
+      if (!q && !f) {
+        addGroup('recents', 'Recents', s.recent.map((r) => ({type:'recent', label: ORIGINAL[r] || r, run: (e) => this.open(r, e), side: () => this.addItem({type:'page', name: r})})));
+        addGroup('commands', 'Commands', cmds);
+      } else if (f) {
+        if (f === 'pages') addGroup('pages', 'pages', pages.map(pageItem));
+        if (f === 'blocks') { addGroup('current-page', 'Current page', cur.map(blockItem)); addGroup('blocks', 'blocks', other.map(blockItem)); }
+        if (f === 'current-page') addGroup('current-page', 'Current page', cur.map(blockItem));
+        if (f === 'commands') addGroup('commands', 'commands', cmds);
+      } else {
+        addGroup('pages', 'Pages', pages.map(pageItem));
+        addGroup('commands', 'Commands', q ? cmds : []);
+        addGroup('current-page', 'Current page', cur.map(blockItem));
+        addGroup('blocks', 'Blocks', other.map(blockItem));
+      }
+    }
+    let idx = 0; const flat = [];
+    const vgroups = groups.map((g) => {
+      const more = !!s.showMore[g.key];
+      const vis = more ? g.items : g.items.slice(0, 5);
+      const toggle = (e) => { this.prevent(e); this.setState({showMore: {...s.showMore, [g.key]: !more}}); };
+      const items = vis.map((it) => {
+        const my = idx++; flat.push(it);
+        const h = hl(it.label);
+        return {cls: my === s.hi ? 'hi' : '', pre: h.pre, hit: h.hit, post: h.post, hasSub: !!it.sub, sub: it.sub || '', isPage: it.type === 'page', isBlock: it.type === 'block', isCmd: it.type === 'cmd', isRecent: it.type === 'recent', isFilter: it.type === 'filter', hasKeys: !!it.keys, keys: it.keys || [], hasInfo: !!it.info, info: it.info || '',
+          open: (e) => { this.prevent(e); if (e && e.shiftKey && it.side) it.side(); else it.run(e); },
+          hover: () => { if (s.hi !== my) this.setState({hi: my}); }};
+      });
+      return {name: g.name, count: g.items.length > 99 ? '99+' : String(g.items.length), items, canToggle: g.items.length > 5, toggleLabel: more ? 'Show less' : 'Show more', arrow: more ? '↑' : '↓', toggle};
+    });
+    const cur = flat[Math.min(s.hi, flat.length - 1)];
+    const hints = [];
+    if (cur && (cur.type === 'page' || cur.type === 'recent')) { hints.push({label:'Open', keys:['⏎'], go: (e) => { this.prevent(e); cur.run(); }}); hints.push({label:'Open in sidebar', keys:['⇧','⏎'], go: (e) => { this.prevent(e); cur.side(); }}); }
+    if (cur && cur.type === 'block') { hints.push({label:'Open', keys:['⏎'], go: (e) => { this.prevent(e); cur.run(); }}); hints.push({label:'Open in sidebar', keys:['⇧','⏎'], go: (e) => { this.prevent(e); cur.side(); }}); hints.push({label:'Copy ref', keys:['⌘','c'], go: (e) => { this.prevent(e); cur.copy(); }}); }
+    if (cur && cur.type === 'cmd') hints.push({label:'Trigger', keys:['⏎'], go: (e) => { this.prevent(e); cur.run(); }});
+    if (cur && cur.type === 'filter') hints.push({label:'Filter', keys:['⏎'], go: (e) => { this.prevent(e); cur.run(); }});
+    return {vgroups, flat, cur, hints};
+  }
+
+  slidesFor(lname) {
+    const p = PAGES[lname]; if (!p) return [];
+    const cols = [];
+    p.blocks.filter((b) => b.d === 0).forEach((top) => {
+      const col = [top]; top.kids.forEach((k) => col.push(k)); cols.push(col);
+    });
+    return cols;
+  }
+  slideVM(b, isTop) {
+    const items = [];
+    const sub = (blk) => { blk.items.forEach((it) => items.push(this.itemVM(it, {page: blk.page, block: blk}, true))); if (!isTop) blk.kids.forEach((k) => sub(k)); };
+    sub(b);
+    return {items: items.map((i) => ({...i, isEmbed: i.isEmbed, eRef: i.eRef || '', eTitle: i.eTitle || ''}))};
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (this._fullEl && this._focusFull) { this._focusFull = false; this._fullEl.focus(); }
+    if (prevState && prevState.route !== this.state.route && this._main) this._main.scrollTop = 0;
+  }
+
+  renderVals() {
+    const s = this.state; const r = s.route;
+    const stop = (e) => { if (e && e.stopPropagation) e.stopPropagation(); };
+    const vals = {
+      themeClass: s.dark ? 'dark' : '', leftOpen: s.left, rightOpen: s.right,
+      showHome: r.type !== 'journals', isGraph: r.type === 'graph', isAll: r.type === 'all', isWb: r.type === 'wb',
+      isDocs: r.type === 'journals' || r.type === 'page' || r.type === 'block', isPageRoute: r.type === 'page',
+      navJournalsCls: r.type === 'journals' ? 'on' : '', navAllCls: r.type === 'all' ? 'on' : '', navWbCls: r.type === 'wb' ? 'on' : '',
+      toggleLeft: () => this.set({left: !s.left}), toggleRight: () => this.set({right: !s.right}),
+      goHome: () => this.set({route: {type:'journals'}}), goGraph: () => this.set({route: {type:'graph'}}), goAll: () => this.set({route: {type:'all'}}), goWhiteboards: () => this.set({route: {type:'wb'}}),
+      openSearch: () => { this._focusSearch = true; this.set({search: true, q: '', sfilter: null, hi: 0, showMore: {}}); },
+      closeSearch: () => this.set({search: false}),
+      toggleMore: () => this.set({more: !s.more}), closeMore: () => this.set({more: false}),
+      toggleTheme: () => this.set({dark: !s.dark, more: false}),
+      openExport: () => this.set({exportOpen: true, more: false}), closeExport: () => this.set({exportOpen: false}),
+      exportOptions: EXPORTS.map((x) => ({label: x, go: () => { this.set({exportOpen: false}); this.flash(x + ': the browser downloads the file'); }})),
+      viewSlides: () => { this.set({more: false}); if (r.type === 'page') this.addItem({type:'slides', name: r.name}); },
+      openCards: () => this.set({cards: true, cardIdx: 0, cardBack: false}), closeCards: () => this.set({cards: false}),
+      toggleLinked: () => this.set({linkedOpen: !s.linkedOpen}), toggleUnlinked: () => this.set({unlinkedOpen: !s.unlinkedOpen}), toggleHier: () => this.set({hierOpen: !s.hierOpen}),
+      linkedOpen: s.linkedOpen, unlinkedOpen: s.unlinkedOpen, hierOpen: s.hierOpen,
+      linkedRot: s.linkedOpen ? 0 : -90, unlinkedRot: s.unlinkedOpen ? 0 : -90,
+      openFilter: () => this.set({filterOpen: true}), closeFilter: () => this.set({filterOpen: false}),
+      stop, noop: () => {}, moreOpen: s.more, exportOpen: s.exportOpen, filterOpen: s.filterOpen, cardsOpen: s.cards,
+      addContents: () => this.addItem({type:'contents'}),
+      addPageGraph: () => this.addItem({type:'graph', name: r.type === 'page' ? r.name : null}),
+      addHelp: () => this.addItem({type:'help'}),
+      shortcuts: SHORTCUTS, hasToast: !!s.toast, toast: s.toast
+    };
+    vals.favorites = FAVORITES.map((n) => ({name: n, cls: r.type === 'page' && r.name === lc(n) ? 'on' : '', go: (e) => this.open(n, e)}));
+    vals.fixtures = FIXTURES.map((n) => ({name: n.split('/').slice(-2).join('/'), cls: r.type === 'page' && r.name === lc(n) ? 'on' : '', go: (e) => this.open(n, e)}));
+    vals.mainRef = (el) => { this._main = el; };
+
+    // main documents
+    let docs = [];
+    if (r.type === 'journals') docs = JOURNALS.map((j) => { const d = this.pageDoc(lc(j), false); return d; });
+    else if (r.type === 'page') docs = [this.pageDoc(r.name, true)];
+    else if (r.type === 'block') {
+      const b = BY_ID[r.id];
+      if (b) docs = [{title: '', showTitle: false, isZoom: true, crumbs: this.crumbsFor(b, true), hasProps: false, props: [], rows: this.outline([b]), full: false}];
+    }
+    vals.docs = docs;
+
+    // all pages
+    const per = 20; const pages = Math.max(1, Math.ceil(ALL_NAMES.length / per)); const pg = Math.min(s.allPage, pages - 1);
+    vals.all = {total: ALL_NAMES.length, pageLabel: (pg + 1) + '/' + pages, prev: () => this.set({allPage: Math.max(0, pg - 1)}), next: () => this.set({allPage: Math.min(pages - 1, pg + 1)}),
+      rows: ALL_NAMES.slice(pg * per, pg * per + per).map((n) => ({name: n, back: backlinkCount(lc(n)), go: (e) => this.open(n, e)}))};
+
+    // graph view
+    const mkGraph = (centre, w, h) => {
+      let names;
+      if (centre) {
+        const p = PAGES[centre]; const nb = new Set();
+        if (p) p.blocks.forEach((b) => b.refs.forEach((x) => nb.add(x)));
+        Object.values(PAGES).forEach((pp) => pp.blocks.forEach((b) => { if (b.refs.has(centre)) nb.add(pp.lname); }));
+        nb.delete(centre); names = [centre, ...[...nb].slice(0, 14)];
+      } else {
+        const deg = {}; Object.values(PAGES).forEach((p) => { if (!s.graphJournals && JOURNALS.map(lc).includes(p.lname)) return; p.blocks.forEach((b) => b.refs.forEach((x) => { deg[x] = (deg[x] || 0) + 1; deg[p.lname] = (deg[p.lname] || 0) + 1; })); });
+        names = Object.keys(deg).filter((n) => s.graphJournals || !JOURNALS.map(lc).includes(n)).sort((a, b) => deg[b] - deg[a]).slice(0, 36);
+      }
+      const pos = {}; const cx = w / 2, cy = h / 2;
+      names.forEach((n, i) => {
+        if (centre && i === 0) { pos[n] = [cx, cy]; return; }
+        const k = centre ? i - 1 : i; const total = centre ? names.length - 1 : names.length;
+        const ring = centre ? 0 : (k % 3); const rad = centre ? Math.min(w, h) * 0.36 : Math.min(w, h) * (0.18 + ring * 0.12);
+        const ang = (k / Math.max(1, total)) * Math.PI * 2 + ring * 0.5;
+        pos[n] = [cx + Math.cos(ang) * rad * (w / h > 1.2 ? 1.25 : 1), cy + Math.sin(ang) * rad];
+      });
+      const edges = []; const seen = new Set();
+      Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => b.refs.forEach((x) => {
+        const a = p.lname; if (!pos[a] || !pos[x] || a === x) return; const key = a < x ? a + '|' + x : x + '|' + a; if (seen.has(key)) return; seen.add(key);
+        const [x1, y1] = pos[a], [x2, y2] = pos[x]; edges.push({x: x1, y: y1, len: Math.hypot(x2 - x1, y2 - y1), ang: Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI});
+      })));
+      const nodes = names.map((n) => { const big = n === centre || backlinkCount(n) > 2; const rr = n === centre ? 18 : big ? 12 : 8; return {name: ORIGINAL[n] || n, label: (ORIGINAL[n] || n).split('/').pop(), x: pos[n][0], y: pos[n][1], r: rr, ly: pos[n][1] + rr / 2 + 2, color: n === centre ? 'var(--ac)' : 'var(--dot)', go: (e) => this.open(ORIGINAL[n] || n, e)}; });
+      return {nodes, edges};
+    };
+    vals.graph = {...mkGraph(null, 810, 640), journals: s.graphJournals, toggleJournals: () => this.set({graphJournals: !s.graphJournals}), caption: 'Pages from this prototype; the published graph draws all 16,693 with a force layout.'};
+
+    // right sidebar items
+    vals.noItems = s.items.length === 0;
+    vals.items = s.items.map((it, idx) => {
+      const close = () => this.set({items: s.items.filter((x) => x.key !== it.key)});
+      const upd = (patch) => this.set({items: s.items.map((x) => x.key === it.key ? {...x, ...patch} : x)});
+      const multi = s.items.length > 1;
+      const menu = [{label:'Close', go: close}];
+      if (multi) menu.push({label:'Close others', go: () => this.set({items: [it], itemMenu: null})});
+      menu.push({label:'Close all', go: () => this.set({items: [], right: false, itemMenu: null})});
+      if (it.open) menu.push({label:'Collapse', go: () => { upd({open: false}); this.set({itemMenu: null}); }}); else menu.push({label:'Expand', go: () => upd({open: true})});
+      if (multi) menu.push({label:'Collapse others', go: () => this.set({items: s.items.map((x) => ({...x, open: x.key === it.key})), itemMenu: null})});
+      if (it.type === 'page' || it.type === 'block') menu.push({label:'Open as page', go: () => { if (it.type === 'page') this.open(it.name); else this.zoom(it.id); this.set({itemMenu: null}); }});
+      const v = {key: it.key, open: it.open, close, toggle: () => upd({open: !it.open}), toggleMenu: () => this.set({itemMenu: s.itemMenu === it.key ? null : it.key}), menuOpen: s.itemMenu === it.key, menu: menu.map((m) => ({label: m.label, go: () => { m.go(); }})),
+        isRows: false, isGraph: false, isHelp: false, isSearch: false, isSlides: false, hasPageLink: false, icon: '', title: ''};
+      if (it.type === 'contents') { Object.assign(v, {isRows: true, title: 'Contents', icon: '☰', rows: this.outline(PAGES['contents'].blocks)}); }
+      if (it.type === 'page') { const p = PAGES[it.name]; Object.assign(v, {isRows: true, title: ORIGINAL[it.name] || it.name, icon: '▤', hasPageLink: true, pageTitle: ORIGINAL[it.name] || it.name, go: () => this.open(it.name), rows: p ? this.outline(p.blocks.filter((b) => b.d === 0)) : []}); }
+      if (it.type === 'block') { const b = BY_ID[it.id]; Object.assign(v, {isRows: true, title: b ? b.plain : 'Block', icon: '•', rows: b ? this.outline([b]) : []}); }
+      if (it.type === 'graph') { const c = it.name || null; Object.assign(v, {isGraph: true, title: 'Page graph', icon: '⌘', graph: {...(c ? mkGraph(c, 360, 300) : mkGraph(null, 360, 300)), caption: c ? 'Neighbours of ' + (ORIGINAL[c] || c) : 'Open a page to see its neighbourhood; showing the whole prototype graph.'}}); }
+      if (it.type === 'help') Object.assign(v, {isHelp: true, title: 'Help', icon: '?'});
+      if (it.type === 'search') {
+        const q = lc(it.q); const res = [];
+        ALL_NAMES.filter((n) => lc(n).includes(q)).slice(0, 8).forEach((n) => { const i = lc(n).indexOf(q); res.push({pre: n.slice(0, i), hit: n.slice(i, i + q.length), post: n.slice(i + q.length), hasSub: false, sub: '', open: (e) => this.open(n, e)}); });
+        Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => { const i = lc(b.plain).indexOf(q); if (q && i >= 0 && res.length < 16) res.push({pre: b.plain.slice(0, i), hit: b.plain.slice(i, i + q.length), post: b.plain.slice(i + q.length), hasSub: true, sub: ORIGINAL[lc(b.page)] || b.page, open: () => this.zoom(b.id)}); }));
+        Object.assign(v, {isSearch: true, title: it.q || 'Blank input', icon: '⌕', q: it.q, results: res});
+      }
+      if (it.type === 'slides') {
+        const cols = this.slidesFor(it.name); const hh = Math.min(it.h, cols.length - 1); const col = cols[hh] || []; const vv = Math.min(it.v, col.length - 1);
+        const totalSlides = cols.reduce((a, c) => a + c.length, 0); let before = 0; for (let i = 0; i < hh; i++) before += cols[i].length; before += vv + 1;
+        const go = (nh, nv) => upd({h: nh, v: nv});
+        const left = () => { if (hh > 0) go(hh - 1, 0); }; const right = () => { if (hh < cols.length - 1) go(hh + 1, 0); };
+        const up = () => { if (vv > 0) go(hh, vv - 1); }; const down = () => { if (vv < col.length - 1) go(hh, vv + 1); };
+        const full = () => { this._focusFull = true; this.set({deckFull: it.key}); };
+        Object.assign(v, {isSlides: true, title: 'Slides', icon: '▭', pageTitle: ORIGINAL[it.name] || it.name, go: () => this.open(it.name),
+          slide: col[vv] ? this.slideVM(col[vv], vv === 0) : {items: []}, left, right, up, down, full,
+          cLeft: hh > 0 ? '' : 'off', cRight: hh < cols.length - 1 ? '' : 'off', cUp: vv > 0 ? '' : 'off', cDown: vv < col.length - 1 ? '' : 'off',
+          progress: Math.round(before / Math.max(1, totalSlides) * 100), slideLabel: (hh + 1) + '.' + (vv + 1),
+          deckKey: (e) => { const k = e.key; if (k === 'ArrowLeft') { e.preventDefault(); left(); } else if (k === 'ArrowRight' || k === ' ') { e.preventDefault(); right(); } else if (k === 'ArrowUp') { e.preventDefault(); up(); } else if (k === 'ArrowDown') { e.preventDefault(); down(); } else if (k === 'f') full(); }});
+        if (s.deckFull === it.key) {
+          vals.fullSlide = v.slide; vals.fullProgress = v.progress; vals.fullLabel = 'Slide ' + v.slideLabel;
+          vals.fullKey = (e) => { const k = e.key; if (k === 'Escape' || k === 'f') this.set({deckFull: null}); else v.deckKey(e); };
+        }
+      }
+      return v;
+    });
+    vals.deckFull = !!s.deckFull && !!vals.fullSlide;
+    if (!vals.fullSlide) { vals.fullSlide = {items: []}; vals.fullProgress = 0; vals.fullLabel = ''; vals.fullKey = () => {}; }
+    vals.fullRef = (el) => { this._fullEl = el; if (el && this._focusFull) { this._focusFull = false; setTimeout(() => el.focus(), 0); } };
+
+    // reference filter dialog
+    const curL = r.type === 'page' ? r.name : null;
+    const fstate = curL ? (this.state.filters[curL] || {}) : {};
+    const counts = {};
+    if (curL) Object.values(PAGES).forEach((p) => { if (p.lname !== curL) p.blocks.forEach((b) => { if (b.refs.has(curL)) b.refs.forEach((x) => { if (x !== curL) counts[x] = (counts[x] || 0) + 1; }); }); });
+    const chip = (n) => ({name: ORIGINAL[n] || n, n: counts[n] || 0, go: (e) => { const nf = {...fstate}; if (nf[n] !== undefined) delete nf[n]; else nf[n] = !(e && e.shiftKey); this.set({filters: {...this.state.filters, [curL]: nf}}); }});
+    const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    vals.filt = {incl: keys.filter((k) => fstate[k] === true).map(chip), excl: keys.filter((k) => fstate[k] === false).map(chip), rest: keys.filter((k) => fstate[k] === undefined).map(chip)};
+    vals.filt.hasIncl = vals.filt.incl.length > 0; vals.filt.hasExcl = vals.filt.excl.length > 0;
+    vals.openFilter = () => this.set({filterOpen: true});
+
+    // flashcards
+    const cardBlocks = []; Object.values(PAGES).forEach((p) => p.blocks.forEach((b) => { if (b.refs.has('card')) cardBlocks.push(b); }));
+    const ci = s.cardIdx; const cb = cardBlocks[ci];
+    vals.cards = {done: !cb, active: !!cb, counter: Math.min(ci + 1, cardBlocks.length) + '/' + cardBlocks.length + ' in this prototype (430 published)',
+      front: cb ? cb.plain.replace(/#card/, '').trim() : '', showBack: s.cardBack, flipLabel: s.cardBack ? 'Hide answers' : 'Show answers',
+      back: cb ? cb.kids.map((k) => ({segs: this.decorate(k.segs0, null)})) : [],
+      flip: () => this.set({cardBack: !s.cardBack}), next: () => this.set({cardIdx: ci + 1, cardBack: false})};
+
+    // search
+    const sm = s.search ? this.searchModel() : {vgroups: [], flat: [], cur: null, hints: []};
+    const onKey = (e) => {
+      const k = e.key; const n = sm.flat.length; const meta = e.metaKey || e.ctrlKey;
+      if (k === 'ArrowDown' || (e.ctrlKey && k === 'n')) { e.preventDefault(); if (meta && k === 'ArrowDown') { const g = sm.flat[s.hi]; } this.set({hi: n ? (s.hi + 1) % n : 0}); }
+      else if (k === 'ArrowUp' || (e.ctrlKey && k === 'p')) { e.preventDefault(); this.set({hi: n ? (s.hi - 1 + n) % n : 0}); }
+      else if (k === 'Enter') {
+        e.preventDefault();
+        if (meta) { this.addItem({type:'search', q: s.q}); return; }
+        const it = sm.flat[s.hi]; if (!it) return;
+        if (e.shiftKey && it.side) it.side(); else it.run(e);
+      }
+      else if (k === 'Escape') { e.preventDefault(); if (s.sfilter) this.set({sfilter: null}); else this.set({search: false}); }
+      else if (k === 'Backspace' && !s.q && s.sfilter) { this.set({sfilter: null}); }
+      else if (meta && k === 'c' && sm.cur && sm.cur.copy) { e.preventDefault(); sm.cur.copy(); }
+    };
+    vals.search = {open: s.search, q: s.q, groups: sm.vgroups, none: s.search && (s.q.trim() || s.sfilter) && sm.flat.length === 0,
+      hasFilter: !!s.sfilter, filterName: s.sfilter ? s.sfilter.name : '', clearFilter: () => this.set({sfilter: null}),
+      onQ: (e) => this.set({q: e.target.value, hi: 0, showMore: {}}), onKey,
+      ref: (el) => { if (el && this._focusSearch) { this._focusSearch = false; setTimeout(() => el.focus(), 0); } },
+      tipEsc: !!s.sfilter, tipSlash: !s.sfilter && !s.q, tipSide: !s.sfilter && !!s.q, hints: sm.hints};
+    return vals;
+  }
+}
+</script>
+</body>
+</html>
