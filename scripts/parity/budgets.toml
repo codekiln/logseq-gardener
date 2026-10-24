@@ -14,3 +14,8 @@ script_before_title_kb = 16
 title_ms = 1500
 peak_heap_mb = 10
 search_p95_ms = 100
+
+# The header and left sidebar on every lsg page (published-app-shell).
+[shell]
+script_kb = 6
+frame_kb = 6

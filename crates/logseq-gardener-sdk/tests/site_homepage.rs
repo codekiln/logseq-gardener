@@ -79,7 +79,7 @@ fn homepage_title_and_alias_keep_content_links_media_and_original_route() {
         assert!(
             originals
                 .iter()
-                .any(|entry| fs::read_to_string(entry.path()).unwrap() == html)
+                .any(|entry| main(&fs::read_to_string(entry.path()).unwrap()) == main(&html))
         );
         assert!(
             fs::read_to_string(f.0.join("garden/pages/Home.md"))
@@ -113,7 +113,14 @@ fn omitted_homepage_retains_index_behavior() {
     let f = Fixture::new();
     f.publish(None).unwrap();
     let index = fs::read_to_string(f.0.join("output/index.html")).unwrap();
-    assert!(index.contains("Garden index") && index.contains(">Home</a>"));
+    assert!(
+        index.contains("data-lsg-all-pages aria-current=\"page\"") && index.contains(">Home</a>")
+    );
+    assert!(!index.contains("aria-label=\"Home\""));
     assert!(!index.contains("HOMEPAGE_CONTENT"));
     assert!(!f.0.join("output/pages.html").exists());
+}
+
+fn main(html: &str) -> &str {
+    &html[html.find("<main>").unwrap()..]
 }

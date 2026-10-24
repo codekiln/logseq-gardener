@@ -84,7 +84,7 @@ SDK callers can use `site::publish_site_with_options` with `SiteOptions { styles
 
 ## Choose a homepage
 
-Add `--homepage "Ghost in the Patch"` to render a uniquely selected visible page or alias at `index.html`. The original page route remains available and the complete page list moves to `pages.html`. Every page links to Home and All pages. An unavailable or ambiguous homepage fails before output is created. Omitting `--homepage` retains the generated page index.
+Add `--homepage "Ghost in the Patch"` to render a uniquely selected visible page or alias at `index.html`. The original page route remains available and the complete page list moves to `pages.html`. The left sidebar's All pages link opens `pages.html`. An unavailable or ambiguous homepage fails before output is created. Omitting `--homepage` retains the generated page index.
 
 ## Collapsed outlines
 
@@ -127,13 +127,21 @@ Generated namespace pages show a Namespace notice. Their index and hierarchy ent
 
 Add leading `prev:: [[Page title]]` or `next:: [[Page title]]` properties to publish Previous and Next navigation after the page content. Each value must be one direct page reference. Titles and unique aliases resolve to the canonical selected source page. Private, excluded, missing, ambiguous, self, and generated-only targets produce no navigation link. The last leading value for each key applies; nested properties and literal code do not supply sequence links. Authors choose the order, and a page can have either neighbor or both.
 
+## Header and left sidebar
+
+Every page has Logseq's header: Toggle left sidebar on the left, Home (on every page except `index.html`) and More on the right. The left sidebar lists All pages, then the garden's favorites from `:favorites` in `logseq/config.edn`, in config order. Each favorite resolves through page titles and aliases and shows the title or alias as the author spelled it; the current page is highlighted. A favorite that names no published page is left out and reported as a diagnostic.
+
+The sidebar starts closed. The header button or `t l` toggles it, and the state is saved under `logseq-gardener-left-sidebar` in browser localStorage. From 640px wide the open sidebar is 246px and pushes the page right; on narrower screens it opens over the page and closes when the reader taps the shade, follows a link or presses Escape. `t w` switches between the 810px and 1280px page widths, saved under `logseq-gardener-wide`. `g h` opens Home and `g a` opens All pages. Shortcuts are ignored while typing in a field.
+
+The header and sidebar behaviour is in `lsg-shell.js` at the site root, which every page loads with `defer`. Without JavaScript the sidebar stays closed and its button and More stay hidden.
+
 ## Appearance
 
-Generated sites follow the reader's system appearance by default. The Appearance selector offers System, Light and Dark. Light and Dark are saved under `logseq-gardener-theme` in browser localStorage for the origin; System removes that override. If storage is unavailable, the choice lasts for the current document and its internal navigation. Without JavaScript, shared CSS still follows the system preference and the inactive selector remains hidden.
+Generated sites follow the reader's system appearance by default. Toggle theme in the More menu, or `t t`, switches between light and dark and saves the choice under `logseq-gardener-theme` in browser localStorage for the origin. While a choice is saved, More also offers Use system theme, which removes it. If storage is unavailable, the choice lasts for the current document and its internal navigation. Without JavaScript, shared CSS still follows the system preference.
 
-The shared script applies the initial appearance in the document head and updates it when the system preference changes. Hosts that replace navigation content call `window.logseqGardenerInitTheme(importedNavigation)` after insertion so the new selector reflects the active choice. Repeated initialization is safe and does not replace page content or media players.
+The shared script applies the initial appearance in the document head and updates it when the system preference changes. Hosts that insert their own native Appearance selector (`<select data-lsg-theme-select>` with `system`, `light` and `dark` options inside a `data-lsg-theme-control` element) call `window.logseqGardenerInitTheme(importedNavigation)` after insertion so the selector reflects the active choice. Repeated initialization is safe and does not replace page content or media players.
 
-Custom stylesheets can set `--lsg-text`, `--lsg-background`, `--lsg-surface`, `--lsg-link`, `--lsg-border`, `--lsg-quote-border`, `--lsg-warning`, `--lsg-focus` and `--lsg-muted`. Put light overrides on `:root` and dark overrides on `:root[data-lsg-theme="dark"]`; an equivalent `@media (prefers-color-scheme: dark)` rule for `:root:not([data-lsg-theme])` supplies the no-JavaScript dark palette. A stylesheet with fixed colors needs matching dark overrides for its own components.
+The default colours are Logseq's indigo theme. Custom stylesheets can set `--lsg-text`, `--lsg-background`, `--lsg-surface`, `--lsg-sidebar`, `--lsg-header`, `--lsg-link`, `--lsg-border`, `--lsg-quote-border`, `--lsg-warning`, `--lsg-focus` and `--lsg-muted`. Put light overrides on `:root` and dark overrides on `:root[data-lsg-theme="dark"]`; an equivalent `@media (prefers-color-scheme: dark)` rule for `:root:not([data-lsg-theme])` supplies the no-JavaScript dark palette. A stylesheet with fixed colors needs matching dark overrides for its own components.
 
 
 ## Page properties

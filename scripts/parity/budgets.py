@@ -63,6 +63,38 @@ def page_sizes(site, page):
     return len(data), metrics.gzip_size(data), script
 
 
+SHELL_SCRIPT = 'lsg-shell.js'
+
+
+def frame_size(site, page):
+    """Size of the header and sidebar markup between <body> and <main>."""
+    text = (site / page).read_text(encoding='utf-8')
+    start, end = text.find('<body>'), text.find('<main>')
+    return len(text[start:end].encode('utf-8')) if 0 <= start < end else 0
+
+
+def check_shell(small_site, large_site, pages, shell):
+    """Return failure messages for the shared shell script and each page's frame."""
+    failures = []
+    script = small_site / SHELL_SCRIPT
+    if not script.exists():
+        return [f'{SHELL_SCRIPT}: missing from the build']
+    size = script.stat().st_size
+    if size > shell['script_kb'] * 1000:
+        failures.append(f'{SHELL_SCRIPT}: {size:,} exceeds {shell["script_kb"] * 1000:,}')
+    if (large_site / SHELL_SCRIPT).stat().st_size != size:
+        failures.append(f'{SHELL_SCRIPT}: size changed when {FILLER_PAGES:,} unrelated pages were added')
+    for page in pages:
+        frame = frame_size(small_site, page)
+        if frame > shell['frame_kb'] * 1000:
+            failures.append(f'{page}: header and sidebar {frame:,} exceed {shell["frame_kb"] * 1000:,}')
+    return failures
+
+
+def profiles(budgets):
+    return {name: limits for name, limits in budgets.items() if name in ('desktop', 'phone')}
+
+
 def site_pages(site):
     return sorted(p.name for p in site.glob('*.html') if p.name not in ('index.html', 'pages.html'))
 
@@ -83,8 +115,8 @@ def add_filler(garden, count):
 
 def check(small, large, budgets):
     """Return failure messages for budget overruns and pages that grew with the garden."""
-    limit_data = min(b['data_before_title_kb'] for b in budgets.values()) * 1000
-    limit_script = min(b['script_before_title_kb'] for b in budgets.values()) * 1000
+    limit_data = min(b['data_before_title_kb'] for b in profiles(budgets).values()) * 1000
+    limit_script = min(b['script_before_title_kb'] for b in profiles(budgets).values()) * 1000
     failures = []
     for page, (raw, packed, script) in sorted(small.items()):
         if packed > limit_data:
@@ -116,9 +148,11 @@ def main():
         publish(lsg, garden, temp / 'large', [*FIXTURE_ROOTS, FILLER_ROOT])
         small = {page: page_sizes(temp / 'small', page) for page in site_pages(temp / 'small')}
         large = {page: page_sizes(temp / 'large', page) for page in small if (temp / 'large' / page).exists()}
+        shell_failures = check_shell(temp / 'small', temp / 'large', small, budgets['shell'])
+        print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
     for page, (raw, packed, script) in sorted(small.items()):
         print(f'{page}: first paint {raw:,} ({packed:,} gzip), script {script:,}')
-    failures = check(small, large, budgets)
+    failures = check(small, large, budgets) + shell_failures
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

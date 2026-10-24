@@ -113,3 +113,12 @@ test('default light and dark palette text, links and focus meet contrast thresho
     assert.ok(ratio(values.focus, values.background) >= 3);
   }
 });
+test('the menu interface toggles explicit choices and returns to system', () => {
+  const f = fixture({ dark: true });
+  const theme = f.window.logseqGardenerTheme;
+  assert.equal(theme.choice(), 'system'); assert.equal(theme.appearance(), 'dark');
+  theme.set('light'); assert.equal(f.theme(), 'light'); assert.equal(f.values.get(key), 'light');
+  f.system(true); assert.equal(f.theme(), 'light');
+  theme.set('system'); assert.equal(f.theme(), 'dark'); assert.equal(f.values.has(key), false);
+  theme.set('<script>'); assert.equal(theme.choice(), 'system');
+});

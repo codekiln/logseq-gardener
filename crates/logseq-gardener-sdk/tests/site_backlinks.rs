@@ -245,7 +245,7 @@ fn escaped_labels_and_nested_asset_contexts_do_not_create_duplicate_ids() {
             .count(),
         1
     );
-    assert_eq!(target.matches("<script").count(), 3);
+    assert_eq!(target.matches("<script").count(), 4);
     assert!(target.contains(&format!(
         "<script data-lsg-theme-script>{}</script>",
         include_str!("../src/site/theme.js")

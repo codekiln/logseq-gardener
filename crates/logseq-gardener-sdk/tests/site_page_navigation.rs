@@ -107,9 +107,10 @@ fn explicit_sequence_resolves_aliases_to_canonical_titles_and_homepage_routes() 
     );
     assert!(middle.contains("<script data-lsg-backlinks-script>"));
     assert!(middle.contains("Page reference"));
+    let home = fs::read_to_string(f.0.join("site/index.html")).unwrap();
     assert_eq!(
-        fs::read_to_string(f.0.join("site/index.html")).unwrap(),
-        middle
+        &home[home.find("<main>").unwrap()..],
+        &middle[middle.find("<main>").unwrap()..]
     );
     assert!(!nav(&f.html("Visible/End & <last>")).contains("rel=\"next\""));
     assert!(nav(&f.html("Visible/Start")).is_empty());
