@@ -1,8 +1,8 @@
 ## 1. Presentation
 
 - [x] 1.1 Inspect existing hierarchy classification and review the explicit reader preference.
-- [ ] 1.2 Filter generated descendant rows while retaining the current row and destination graph.
-- [ ] 1.3 Verify deep stored descendants, generated current pages and private/unselected ancestor handling.
+- [x] 1.2 Filter generated descendant rows while retaining the current row and destination graph.
+- [x] 1.3 Verify deep stored descendants, generated current pages and private/unselected ancestor handling.
 
 ## 2. Verification
 

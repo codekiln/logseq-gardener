@@ -124,7 +124,8 @@ impl Hierarchy {
             .nodes
             .range(prefix.clone()..)
             .take_while(|(name, _)| name.starts_with(&prefix))
-            .map(|(_, node)| node);
+            .map(|(_, node)| node)
+            .filter(|node| !node.generated);
         let mut html = String::from(
             "<section class=\"namespace-hierarchy\" aria-label=\"Hierarchy\"><details open><summary>Hierarchy</summary><ul>",
         );
@@ -151,7 +152,11 @@ mod tests {
         let sources = BTreeMap::from([(format!("p-{}.html", digest(&title)), title.clone())]);
         let hierarchy = Hierarchy::new(&sources, &BTreeSet::new(), &BTreeSet::new()).unwrap();
         let html = hierarchy.bottom_view("Root");
-        assert_eq!(html.matches("<li>").count(), 129);
+        assert_eq!(html.matches("<li>").count(), 2);
+        assert_eq!(hierarchy.entries().count(), 129);
+        for prefix in ancestors(&title) {
+            assert!(html.contains(&format!("href=\"p-{}.html\"", digest(&prefix))));
+        }
         assert!(html.contains(&format!("href=\"p-{}.html\">N127</a>", digest(&title))));
         assert_eq!(html.matches("<ul>").count(), 1);
         assert_eq!(hierarchy.bottom_view(&title).matches("<li>").count(), 1);
