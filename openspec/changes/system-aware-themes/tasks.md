@@ -12,4 +12,4 @@
 
 - [x] 3.1 Add generic JavaScript and publication regressions for system changes, overrides, System reset, invalid/unavailable storage, repeated initialization and replaced host controls.
 - [x] 3.2 Verify desktop/mobile keyboard controls, readable hierarchy/disclosures/backlinks/media, contrast and preserved content with a rendered fixture.
-- [ ] 3.3 Run full CI and independent implementation/codekiln reviews, submit the implementation PR, and create its native specification-cleanup child under issue81.
+- [x] 3.3 Run full CI and independent implementation/codekiln reviews, submit the implementation PR, and create its native specification-cleanup child under issue81.

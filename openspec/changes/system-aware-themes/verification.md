@@ -12,4 +12,4 @@ The rendered generic fixture includes an authored collapsed outline, hierarchy, 
 
 A second fixture with all scripts removed followed the system dark palette through CSS, retained content and native disclosures, and kept the inactive Appearance selector hidden. No audio was started during these checks. The browser preference was returned to System and temporary viewport overrides were reset.
 
-Independent review must assess the native keyboard control and host initialization together with the implementation. Gitpa still needs its palette/player overrides and initializer call after navigation replacement before this feature can be declared live there.
+Independent implementation and writing reviews passed. After rebasing onto the merged namespace and page-navigation implementation, full CI passed again and an independent integration review confirmed that navigation styling, backlinks and theme behavior remain present. Gitpa publication remains a separate integration step.
