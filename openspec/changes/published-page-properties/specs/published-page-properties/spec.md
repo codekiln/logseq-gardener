@@ -2,7 +2,7 @@
 
 ### Requirement: Publish selected leading page properties safely
 
-When explicitly enabled, the publisher SHALL render safe leading page properties in authored order with escaped keys and scalar values, keeping the last duplicate key. Direct page-reference values SHALL link only to canonical unique selected visible source pages. A property containing an unavailable or ambiguous reference, unsafe expression, block reference or file/asset URL SHALL be omitted completely. Internal/control/source metadata and configured hidden keys SHALL be omitted from property markup and enabled property backlink counts/options. Publication SHALL preserve source files.
+When explicitly enabled, the publisher SHALL render safe leading page properties in authored order with escaped keys and scalar values, keeping the last duplicate key. Direct page-reference values SHALL link only to canonical unique selected visible source pages. Standalone public HTTPS values SHALL render as escaped links after nonempty, credential-free authority and safe-delimiter validation. A property containing an unavailable or ambiguous reference, unsafe expression, block reference, unsafe scheme or local/asset path SHALL be omitted completely. Internal/control/source metadata and configured hidden keys SHALL be omitted from property markup and enabled property backlink counts/options. Publication SHALL preserve source files.
 
 #### Scenario: Ordered scalars and aliases
 - **WHEN** enabled properties contain a number, boolean, ordinary text and a reference through a unique alias

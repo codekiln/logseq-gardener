@@ -4,6 +4,10 @@ Five new publication fixtures cover generic book/preset sequences, authored orde
 
 The summary uses tabindex zero to retain native keyboard reachability. The existing fragment helper opens its containing native disclosure without opening unrelated branches.
 
+## Full validation
+
+Full local `mise run ci` passed, including release build, Rust and Node tests, strict specification validation, RuleSync, documentation and release checks. Root independently reviewed selected-only value resolution, whole-row omissions, safe property-derived backlinks, generic sequence reuse and native summary/reveal behavior. All remote checks passed for tested product revision 4a94ead.
+
 ## Remaining verification
 
-Full repository CI, release build, desktop/mobile browser proof, independent final review, remote checks and Gitpa integration remain pending. This draft is not deployment-ready. Cleanup issue100 tracks separate specification synchronization and archival after implementation merges.
+Root owns desktop/mobile browser proof and the final Gitpa build/integration review before deployment. Cleanup issue100 tracks separate specification synchronization and archival after implementation merges.

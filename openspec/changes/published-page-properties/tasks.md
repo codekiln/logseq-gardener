@@ -10,5 +10,5 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Document opt-in controls and exact exclusions; run focused and full required checks.
-- [ ] 3.2 Submit the PR, verify its native cleanup child and obtain root independent review before merge.
+- [x] 3.1 Document opt-in controls and exact exclusions; run focused and full required checks.
+- [x] 3.2 Submit the PR, verify its native cleanup child and obtain root independent review before merge.
