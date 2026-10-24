@@ -285,7 +285,15 @@ fn normalized_prefixes_share_deterministic_spelling_and_source_routes_win() {
     assert_eq!(report.pages, 2);
     assert!(has_route(&g.0, "Cafe\u{301}"));
     assert!(!has_route(&g.0, "Café"));
-    assert_eq!(g.index(false).matches("<li><a").count(), 3);
+    assert_eq!(
+        g.index(false)
+            .split("<main>")
+            .nth(1)
+            .unwrap()
+            .matches("<li><a")
+            .count(),
+        3
+    );
     let parent = g.html("Cafe\u{301}");
     let rows = hierarchy_rows(&parent);
     assert_eq!(rows.len(), 3);
@@ -310,7 +318,9 @@ fn escaped_hierarchy_keeps_homepage_media_and_generated_homepage_is_unavailable(
     assert!(homepage.contains("<audio controls"));
     assert!(homepage.contains("<h1>Notes</h1>"));
     assert!(homepage.contains("EMBEDDED_DETAILS"));
-    assert_eq!(homepage, f.html("R&D/<tag>/Leaf"));
+    let main = |html: &str| html[html.find("<main>").unwrap()..].to_owned();
+    assert_eq!(main(&homepage), main(&f.html("R&D/<tag>/Leaf")));
+    assert!(!homepage.contains("aria-label=\"Home\""));
     let g = Fixture::new();
     g.write("Root___Leaf.md", "- BODY\n");
     let result = publish_site_with_options(

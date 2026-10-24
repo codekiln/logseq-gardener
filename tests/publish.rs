@@ -249,7 +249,7 @@ fn explicit_inputs_legacy_format_and_empty_selection() {
     assert!(result.status.success());
     let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
     assert_eq!(report["pages"], 0);
-    assert_eq!(files(&f.0.join("empty")).len(), 1);
+    assert_eq!(files(&f.0.join("empty")).len(), 2);
     let output = f.0.join("legacy");
     let result = Command::new(env!("CARGO_BIN_EXE_lsg"))
         .arg("publish")

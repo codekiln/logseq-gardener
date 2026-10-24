@@ -1,2 +1,3 @@
 {:file/name-format :triple-lowbar
- :publishing/all-pages-public? true}
+ :publishing/all-pages-public? true
+ :favorites ["terminal multiplexer" "Tools/Editor" "Tools/Missing"]}

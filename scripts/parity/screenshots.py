@@ -15,7 +15,7 @@ import common  # noqa: E402
 import logseq_db  # noqa: E402
 import serve  # noqa: E402
 
-VIEWPORT = {'width': 1280, 'height': 800}
+VIEWPORTS = {'desktop': {'width': 1280, 'height': 800}, 'phone': {'width': 390, 'height': 844}}
 TITLE_TIMEOUT_MS = 60_000
 
 
@@ -23,7 +23,7 @@ def scroll_to_bottom(page):
     """Scroll in steps until the page height stops growing, so lazy sections render."""
     height, stable = 0, 0
     while stable < 3:
-        page.mouse.wheel(0, VIEWPORT['height'])
+        page.mouse.wheel(0, page.viewport_size['height'])
         page.wait_for_timeout(250)
         current = page.evaluate('''() => {
             const main = document.querySelector('#main-content-container');
@@ -79,6 +79,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', help='run directory from parity:build and parity:compare (default: the latest)')
     parser.add_argument('--fixtures', default=str(serve.FIXTURES), help='fixture list, one title per line')
+    parser.add_argument('--viewport', choices=[*VIEWPORTS, 'all'], default='all',
+                        help='desktop (1280 by 800), phone (390 by 844) or all (default)')
     args = parser.parse_args()
     from playwright.sync_api import sync_playwright
 
@@ -93,20 +95,23 @@ def main():
     rows = []
     with serve.Server(logseq_dir) as logseq, serve.Server(run / 'site') as lsg, sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        context = browser.new_context(viewport=VIEWPORT, color_scheme='light')
-        page = context.new_page()
-        for number, name in enumerate(serve.fixtures(args.fixtures), 1):
-            target = serve.targets(name, names, lsg_index)
-            row = {'name': name}
-            for build, server in (('logseq', logseq), ('lsg', lsg)):
-                if target[build] is None:
-                    row[build] = {'note': f'The {build} build lacks this page.'}
-                    continue
-                image = f'{number:02d}-{build}.png'
-                error = capture(page, server.url + target[build], serve.TITLE_SELECTORS[build], out / image)
-                row[build] = {'note': error} if error else {'image': image}
-                print(f'{name} [{build}]: {error or image}')
-            rows.append(row)
+        viewports = VIEWPORTS if args.viewport == 'all' else {args.viewport: VIEWPORTS[args.viewport]}
+        for label, viewport in viewports.items():
+            context = browser.new_context(viewport=viewport, color_scheme='light')
+            page = context.new_page()
+            for number, name in enumerate(serve.fixtures(args.fixtures), 1):
+                target = serve.targets(name, names, lsg_index)
+                row = {'name': f'{name} ({label}, {viewport["width"]} by {viewport["height"]})'}
+                for build, server in (('logseq', logseq), ('lsg', lsg)):
+                    if target[build] is None:
+                        row[build] = {'note': f'The {build} build lacks this page.'}
+                        continue
+                    image = f'{number:02d}-{label}-{build}.png'
+                    error = capture(page, server.url + target[build], serve.TITLE_SELECTORS[build], out / image)
+                    row[build] = {'note': error} if error else {'image': image}
+                    print(f'{name} [{label} {build}]: {error or image}')
+                rows.append(row)
+            context.close()
         browser.close()
     (out / 'index.html').write_text(index_page(rows), encoding='utf-8')
     (out / 'screenshots.json').write_text(json.dumps(rows, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')

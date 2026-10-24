@@ -2,12 +2,12 @@
 
 mod assets;
 mod backlinks;
-mod config;
 mod hierarchy;
 mod page_status;
 mod properties;
 mod render;
 mod sequence;
+mod shell;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -17,7 +17,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::garden::{DocumentKind, GardenLoadError, load_garden};
-use crate::page_names::{PageNameIndex, lookup_key, page_aliases};
+use crate::garden_config as config;
+use crate::garden_settings::{GardenSettings, resolve_favorites};
+use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
 use crate::publishing::NamespaceSelection;
 
@@ -183,12 +185,17 @@ fn stylesheet_contents(path: &Path) -> Result<Vec<u8>, SiteError> {
     fs::read(path).map_err(|error| io_error(path, error))
 }
 
-fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bool) -> String {
-    let navigation = if homepage {
-        "<a href=\"index.html\">Home</a> · <a href=\"pages.html\">All pages</a>"
-    } else {
-        "<a href=\"index.html\">Garden index</a>"
-    };
+fn html_document(
+    title: &str,
+    body: &str,
+    stylesheet: Option<&str>,
+    shell: &shell::Shell,
+    route: &str,
+    home: bool,
+) -> String {
+    let frame = shell.render(route, home);
+    let shell_styles = shell::STYLES;
+    let shell_script = shell::SCRIPT_ROUTE;
     let title = render::escape(title);
     let stylesheet = stylesheet
         .map(|route| {
@@ -203,9 +210,8 @@ fn html_document(title: &str, body: &str, stylesheet: Option<&str>, homepage: bo
     let backlinks = include_str!("backlinks.js");
     let theme_script = include_str!("theme.js");
     let theme_styles = include_str!("theme.css");
-    let theme_control = "<label class=\"theme-control\" data-lsg-theme-control hidden>Appearance <select data-lsg-theme-select aria-label=\"Appearance\"><option value=\"system\">System</option><option value=\"light\">Light</option><option value=\"dark\">Dark</option></select></label>";
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{font:18px/1.6 system-ui,sans-serif;max-width:55rem;margin:2rem auto;padding:0 1rem;color:var(--lsg-text);background:var(--lsg-background)}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references>.backlinks-disclosure>summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group{{background:var(--lsg-surface);border-radius:.35rem;padding:.75rem 1rem;margin:1rem 0;overflow-wrap:anywhere}}.backlinks-group article{{margin:.75rem 0}}.backlinks-group h3{{font-size:1rem;margin:0 0 .5rem}}.backlinks-group ul{{padding-left:1.25rem;margin:.35rem 0}}.backlink-context{{font-size:.85rem;color:var(--lsg-text);margin:.35rem 0}}.backlink-source{{font-size:.85rem;text-decoration:none}}.backlink-properties{{margin:.35rem 0}}.linked-references [hidden]{{display:none!important}}{navigation_styles}</style>{stylesheet}</head><body><nav>{navigation}{theme_control}</nav><main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references>.backlinks-disclosure>summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group{{background:var(--lsg-surface);border-radius:.35rem;padding:.75rem 1rem;margin:1rem 0;overflow-wrap:anywhere}}.backlinks-group article{{margin:.75rem 0}}.backlinks-group h3{{font-size:1rem;margin:0 0 .5rem}}.backlinks-group ul{{padding-left:1.25rem;margin:.35rem 0}}.backlink-context{{font-size:.85rem;color:var(--lsg-text);margin:.35rem 0}}.backlink-source{{font-size:.85rem;text-decoration:none}}.backlink-properties{{margin:.35rem 0}}.linked-references [hidden]{{display:none!important}}{navigation_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script></head><body>{frame}<main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
     )
 }
 
@@ -295,9 +301,16 @@ pub fn publish_site_with_options(
     }
     let mut names = PageNameIndex::default();
     let mut aliases = BTreeSet::new();
+    let mut spellings = BTreeMap::new();
     for (title, route, document) in &selected {
         names.insert(route.clone(), title, document);
         aliases.extend(page_aliases(document, title));
+        spellings
+            .entry(lookup_key(title))
+            .or_insert_with(|| title.clone());
+        for alias in page_alias_spellings(document, title) {
+            spellings.entry(lookup_key(&alias)).or_insert(alias);
+        }
     }
     let hierarchy = hierarchy::Hierarchy::new(&routes, &withheld_titles, &aliases)?;
     let homepage_route = options
@@ -309,6 +322,25 @@ pub fn publish_site_with_options(
         })
         .transpose()?;
     let has_homepage = homepage_route.is_some();
+    let (settings, settings_diagnostics) = GardenSettings::read(&root);
+    let (favorites, favorite_diagnostics) =
+        resolve_favorites(&settings.favorites, &names, &spellings);
+    for message in settings_diagnostics.into_iter().chain(favorite_diagnostics) {
+        report.diagnostics.push(SiteDiagnostic {
+            source: "logseq/config.edn".into(),
+            message,
+        });
+    }
+    let index_route = if has_homepage {
+        "pages.html"
+    } else {
+        "index.html"
+    };
+    let shell = shell::Shell {
+        favorites,
+        all_pages: index_route,
+    };
+    let mut homepage_document = None;
     let (reference_config, config_diagnostics) = config::read(&root);
     for message in config_diagnostics {
         report.diagnostics.push(SiteDiagnostic {
@@ -410,18 +442,24 @@ pub fn publish_site_with_options(
                 message,
             });
         }
+        let body = properties.html.clone()
+            + &rendered.html
+            + &sequence
+            + &hierarchy.bottom_view(&title)
+            + &reference_html;
+        if homepage_route.as_ref() == Some(&route) {
+            homepage_document = Some(html_document(
+                &title,
+                &body,
+                stylesheet_route,
+                &shell,
+                &route,
+                true,
+            ));
+        }
         documents.insert(
             route.clone(),
-            html_document(
-                &title,
-                &(properties.html.clone()
-                    + &rendered.html
-                    + &sequence
-                    + &hierarchy.bottom_view(&title)
-                    + &reference_html),
-                stylesheet_route,
-                has_homepage,
-            ),
+            html_document(&title, &body, stylesheet_route, &shell, &route, false),
         );
         report.pages += 1;
     }
@@ -445,7 +483,9 @@ pub fn publish_site_with_options(
                         + &hierarchy.bottom_view(&node.title)
                         + &reference_html),
                     stylesheet_route,
-                    has_homepage,
+                    &shell,
+                    &node.route,
+                    false,
                 ),
             );
         }
@@ -461,18 +501,21 @@ pub fn publish_site_with_options(
     if report.pages == 0 {
         index.push_str("<p>No pages matched the publication policy.</p>");
     }
-    let index_route = if has_homepage {
-        "pages.html"
-    } else {
-        "index.html"
-    };
     documents.insert(
         index_route.to_owned(),
-        html_document("Garden", &index, stylesheet_route, has_homepage),
+        html_document(
+            "Garden",
+            &index,
+            stylesheet_route,
+            &shell,
+            index_route,
+            !has_homepage,
+        ),
     );
-    if let Some(route) = homepage_route {
-        documents.insert("index.html".to_owned(), documents[&route].clone());
+    if let Some(document) = homepage_document {
+        documents.insert("index.html".to_owned(), document);
     }
+    documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     for (route, html) in documents {
         let path = output.join(route);

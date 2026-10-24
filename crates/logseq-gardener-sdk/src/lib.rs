@@ -26,5 +26,11 @@ pub mod page_titles;
 /// Generate a selected garden as local HTML.
 pub mod site;
 
+/// Favorites and feature flags from the garden's `logseq/config.edn`.
+pub mod garden_settings;
+
+/// Bounded EDN reading for `logseq/config.edn`.
+mod garden_config;
+
 /// Stored page names and alias candidate lookup.
 pub mod page_names;

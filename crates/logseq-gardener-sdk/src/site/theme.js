@@ -1,5 +1,11 @@
 /** Shared visitor appearance, independent of replaceable page content. */
 (() => {
+  try {
+    // Saved shell layout applies before paint; the phone overlay always starts closed.
+    const root = document.documentElement;
+    if (window.matchMedia?.('(min-width: 640px)')?.matches && window.localStorage.getItem('logseq-gardener-left-sidebar') === 'open') root.setAttribute('data-lsg-left-sidebar', 'open');
+    if (window.localStorage.getItem('logseq-gardener-wide') === 'true') root.setAttribute('data-lsg-wide', 'true');
+  } catch { /* Layout keeps its defaults. */ }
   if (typeof window.logseqGardenerInitTheme === 'function') return;
   const key = 'logseq-gardener-theme';
   const valid = value => value === 'light' || value === 'dark';
@@ -23,20 +29,23 @@
     document.documentElement.setAttribute('data-lsg-theme-mode', choice);
     initialize();
   };
-  window.logseqGardenerInitTheme = initialize;
-  apply();
-  if (media?.addEventListener) media.addEventListener('change', apply);
-  else media?.addListener?.(apply);
-  document.addEventListener('change', event => {
-    const select = event.target;
-    if (!select?.matches?.('[data-lsg-theme-select]')) return;
-    if (!valid(select.value) && select.value !== 'system') return;
-    choice = select.value;
+  const set = value => {
+    if (!valid(value) && value !== 'system') return;
+    choice = value;
     try {
       if (choice === 'system') window.localStorage.removeItem(key);
       else window.localStorage.setItem(key, choice);
     } catch { /* Keep this document's choice when storage is unavailable. */ }
     apply();
+  };
+  window.logseqGardenerInitTheme = initialize;
+  window.logseqGardenerTheme = { choice: () => choice, appearance, set };
+  apply();
+  if (media?.addEventListener) media.addEventListener('change', apply);
+  else media?.addListener?.(apply);
+  document.addEventListener('change', event => {
+    const select = event.target;
+    if (select?.matches?.('[data-lsg-theme-select]')) set(select.value);
   });
   window.addEventListener('storage', event => {
     if (event.key === key || event.key === null) { choice = read(); apply(); }

@@ -37,14 +37,20 @@ fn shared_theme_is_available_on_source_collection_and_index_documents() {
             assert!(
                 html.find("<script data-lsg-theme-script>").unwrap() < html.find("<body>").unwrap()
             );
-            assert_eq!(html.matches("data-lsg-theme-control hidden").count(), 1);
-            assert!(html.contains("aria-label=\"Appearance\""));
-            for choice in ["system", "light", "dark"] {
-                assert!(html.contains(&format!("<option value=\"{choice}\">")));
-            }
+            assert!(!html.contains("<select data-lsg-theme-select"));
+            assert_eq!(
+                html.matches("data-lsg-theme-toggle>Toggle theme</button>")
+                    .count(),
+                1
+            );
+            assert!(html.contains("data-lsg-theme-system hidden>Use system theme</button>"));
+            assert!(html.contains("data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\""));
             assert!(html.contains("@media(prefers-color-scheme:dark)"));
             assert!(html.contains(".theme-control[hidden]{display:none!important}"));
             assert!(html.contains("color:var(--lsg-text);background:var(--lsg-background)"));
+            assert!(
+                html.contains("--lsg-background:#fbfcfd") && html.contains("--lsg-link:#849dff")
+            );
             documents += 1;
         }
     }

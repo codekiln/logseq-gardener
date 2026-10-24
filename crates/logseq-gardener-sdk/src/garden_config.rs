@@ -8,7 +8,7 @@ const MAX_DEPTH: usize = 64;
 const MAX_FORMS: usize = 100_000;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct ReferenceConfig {
+pub(crate) struct ReferenceConfig {
     pub threshold: i64,
     pub open_depth: i64,
     pub properties: bool,
@@ -30,8 +30,9 @@ impl Default for ReferenceConfig {
 }
 
 #[derive(Debug)]
-enum Form {
+pub(crate) enum Form {
     Atom(String),
+    Str(String),
     Map(Vec<(Form, Form)>),
     Collection(Vec<Form>),
     Other,
@@ -60,19 +61,29 @@ impl Reader<'_> {
         }
     }
 
-    fn string(&mut self) -> Result<(), &'static str> {
+    fn string(&mut self) -> Result<String, &'static str> {
+        let mut text = Vec::new();
         loop {
             match self.input.get(self.pos).copied() {
                 Some(b'\\') => {
                     self.pos += 1;
-                    self.input.get(self.pos).ok_or("unterminated string")?;
+                    let escaped = *self.input.get(self.pos).ok_or("unterminated string")?;
+                    text.push(match escaped {
+                        b'n' => b'\n',
+                        b't' => b'\t',
+                        b'r' => b'\r',
+                        other => other,
+                    });
                     self.pos += 1;
                 }
                 Some(b'"') => {
                     self.pos += 1;
-                    return Ok(());
+                    return String::from_utf8(text).map_err(|_| "invalid UTF-8");
                 }
-                Some(_) => self.pos += 1,
+                Some(byte) => {
+                    text.push(byte);
+                    self.pos += 1;
+                }
                 None => return Err("unterminated string"),
             }
         }
@@ -135,8 +146,7 @@ impl Reader<'_> {
         };
         self.pos += 1;
         if c == b'"' {
-            self.string()?;
-            return Ok(Some(Form::Other));
+            return self.string().map(|text| Some(Form::Str(text)));
         }
         if matches!(c, b'{' | b'[' | b'(') {
             let close = match c {
@@ -197,26 +207,32 @@ fn defaults(reason: &str) -> (ReferenceConfig, Vec<String>) {
     )
 }
 
-pub(super) fn parse(text: &str) -> (ReferenceConfig, Vec<String>) {
+/// Read the top-level map, keeping its keys and direct collection values.
+pub(crate) fn top_level(text: &str) -> Result<Vec<(Form, Form)>, &'static str> {
     if text.len() > MAX_BYTES {
-        return defaults("config.edn exceeds 1 MiB");
+        return Err("config.edn exceeds 1 MiB");
     }
-    let mut result = ReferenceConfig::default();
     let mut reader = Reader {
         input: text.as_bytes(),
         pos: 0,
         work: 0,
     };
-    let pairs = match reader.form(0) {
-        Ok(Some(Form::Map(pairs))) => pairs,
-        Ok(_) => return defaults("config.edn must contain an EDN map"),
+    let pairs = match reader.form(0)? {
+        Some(Form::Map(pairs)) => pairs,
+        _ => return Err("config.edn must contain an EDN map"),
+    };
+    match reader.form(0)? {
+        None => Ok(pairs),
+        Some(_) => Err("extra EDN config content"),
+    }
+}
+
+pub(crate) fn parse(text: &str) -> (ReferenceConfig, Vec<String>) {
+    let mut result = ReferenceConfig::default();
+    let pairs = match top_level(text) {
+        Ok(pairs) => pairs,
         Err(reason) => return defaults(reason),
     };
-    match reader.form(0) {
-        Ok(None) => {}
-        Ok(Some(_)) => return defaults("extra EDN config content"),
-        Err(reason) => return defaults(reason),
-    }
     let mut diagnostics = Vec::new();
     for (key, value) in pairs {
         let Form::Atom(key) = key else {
@@ -289,39 +305,41 @@ pub(super) fn parse(text: &str) -> (ReferenceConfig, Vec<String>) {
     (result, diagnostics)
 }
 
-pub(super) fn read(root: &Path) -> (ReferenceConfig, Vec<String>) {
+/// Read `logseq/config.edn` as text; `Ok(None)` means the garden has no config.
+pub(crate) fn read_text(root: &Path) -> Result<Option<String>, &'static str> {
     let directory = root.join("logseq");
     let path = directory.join("config.edn");
     for component in [&directory, &path] {
         match fs::symlink_metadata(component) {
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                return (ReferenceConfig::default(), Vec::new());
-            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Ok(meta) if !meta.file_type().is_symlink() => {}
-            _ => return defaults("config path is unavailable or a symlink"),
+            _ => return Err("config path is unavailable or a symlink"),
         }
     }
-    let Ok(meta) = fs::metadata(&path) else {
-        return defaults("cannot read config.edn");
-    };
+    let meta = fs::metadata(&path).map_err(|_| "cannot read config.edn")?;
     if !meta.is_file() {
-        return defaults("config.edn must be a regular file");
+        return Err("config.edn must be a regular file");
     }
     if meta.len() > MAX_BYTES as u64 {
-        return defaults("config.edn exceeds 1 MiB");
+        return Err("config.edn exceeds 1 MiB");
     }
     let mut content = Vec::new();
-    let read = fs::File::open(&path)
-        .and_then(|file| file.take(MAX_BYTES as u64 + 1).read_to_end(&mut content));
-    if read.is_err() {
-        return defaults("cannot read config.edn");
-    }
+    fs::File::open(&path)
+        .and_then(|file| file.take(MAX_BYTES as u64 + 1).read_to_end(&mut content))
+        .map_err(|_| "cannot read config.edn")?;
     if content.len() > MAX_BYTES {
-        return defaults("config.edn exceeds 1 MiB");
+        return Err("config.edn exceeds 1 MiB");
     }
-    match std::str::from_utf8(&content) {
-        Ok(text) => parse(text),
-        Err(_) => defaults("cannot read config.edn as UTF-8"),
+    String::from_utf8(content)
+        .map(Some)
+        .map_err(|_| "cannot read config.edn as UTF-8")
+}
+
+pub(crate) fn read(root: &Path) -> (ReferenceConfig, Vec<String>) {
+    match read_text(root) {
+        Ok(None) => (ReferenceConfig::default(), Vec::new()),
+        Ok(Some(text)) => parse(&text),
+        Err(reason) => defaults(reason),
     }
 }
 

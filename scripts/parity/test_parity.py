@@ -152,8 +152,9 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
-        self.assertEqual(set(loaded), {'desktop', 'phone'})
-        for profile in loaded.values():
+        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell'})
+        self.assertEqual(set(loaded['shell']), {'script_kb', 'frame_kb'})
+        for profile in budgets.profiles(loaded).values():
             self.assertEqual(set(profile), {'data_before_title_kb', 'script_before_title_kb', 'title_ms',
                                             'peak_heap_mb', 'search_p95_ms'})
 
@@ -184,6 +185,18 @@ class BudgetCheckTest(unittest.TestCase):
         failures = budgets.check({'p-1.html': (900_000, 150_000, 20_000)}, {'p-1.html': (900_000, 150_000, 20_000)},
                                  self.limits)
         self.assertEqual(len(failures), 2)
+
+    def test_shell_script_and_frame(self):
+        with tempfile.TemporaryDirectory() as temp:
+            small, large = Path(temp) / 'small', Path(temp) / 'large'
+            for site, script in ((small, 'x' * 100), (large, 'x' * 101)):
+                site.mkdir()
+                (site / budgets.SHELL_SCRIPT).write_text(script, encoding='utf-8')
+                (site / 'p-1.html').write_text('<body>' + 'y' * 200 + '<main>body</main>', encoding='utf-8')
+            self.assertEqual(budgets.frame_size(small, 'p-1.html'), 206)
+            failures = budgets.check_shell(small, large, ['p-1.html'], {'script_kb': 0.05, 'frame_kb': 0.1})
+            self.assertEqual(len(failures), 3)
+            self.assertEqual(budgets.check_shell(small, small, ['p-1.html'], {'script_kb': 6, 'frame_kb': 6}), [])
 
     def test_page_sizes_include_blocking_files(self):
         with tempfile.TemporaryDirectory() as temp:

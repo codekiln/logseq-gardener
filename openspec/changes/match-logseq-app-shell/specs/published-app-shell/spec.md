@@ -2,11 +2,11 @@
 
 ### Requirement: Supply shell settings from the SDK
 
-The SDK SHALL expose an operation that reads `:favorites`, `:feature/enable-journals?`, `:feature/enable-flashcards?` and `:feature/enable-whiteboards?` from the garden's `logseq/config.edn` with the existing bounded EDN reader. Favorites SHALL keep config order. Each feature flag SHALL default to true when absent or malformed. A second operation SHALL resolve favorites through the selected visible title and alias lookup used by page links, returning in order each resolved page's route and original title, keeping only the first entry for a page named twice, and returning a diagnostic for each entry that resolves to no selected visible page.
+The SDK SHALL expose an operation that reads `:favorites`, `:feature/enable-journals?`, `:feature/enable-flashcards?` and `:feature/enable-whiteboards?` from the garden's `logseq/config.edn` with the existing bounded EDN reader. Favorites SHALL keep config order. Each feature flag SHALL default to true when absent or malformed. A second operation SHALL resolve favorites through the selected visible title and alias lookup used by page links, returning in order each resolved page's route and a label with the author's spelling of the matched title or alias, keeping only the first entry for a name listed twice, and returning a diagnostic for each entry that resolves to no selected visible page.
 
 #### Scenario: Favorites through an alias
 - **WHEN** `:favorites` lists `["tmux" "github/cli/extension/gh-dash"]` and `gh-dash` has the alias `GitHub/CLI/Extension/gh-dash`
-- **THEN** the operation returns `tmux` and `gh-dash`, in that order, with their routes and original titles
+- **THEN** the operation returns `tmux`, then the `gh-dash` page labelled `GitHub/CLI/Extension/gh-dash`, with their routes
 
 #### Scenario: Unpublished favorite
 - **WHEN** a favorite names an excluded, private or missing page
@@ -34,7 +34,7 @@ Every generated page SHALL begin with a sticky header 48px tall holding, left to
 
 ### Requirement: Show the left sidebar with All pages and favorites
 
-Every generated page SHALL include a left sidebar listing All pages, then a FAVORITES heading followed by one link per resolved favorite in config order, labelled with the page's original title. All pages SHALL link to the complete page index (`pages.html` when a homepage is selected, `index.html` otherwise). The link for the current page SHALL carry `aria-current="page"` and a highlighted style. The FAVORITES heading SHALL be absent when no favorite resolves.
+Every generated page SHALL include a left sidebar listing All pages, then a FAVORITES heading followed by one link per resolved favorite in config order, labelled with the author's spelling of the title or alias the favorite names. All pages SHALL link to the complete page index (`pages.html` when a homepage is selected, `index.html` otherwise). The link for the current page SHALL carry `aria-current="page"` and a highlighted style. The FAVORITES heading SHALL be absent when no favorite resolves.
 
 #### Scenario: Encode garden favorites
 - **WHEN** the encode garden is published with all its namespaces selected

@@ -26,6 +26,29 @@ pub fn lookup_key(name: &str) -> String {
 /// Nested properties and `aliases` metadata do not supply aliases. Returned names
 /// are sorted, normalized and deduplicated, omitting blanks and the page itself.
 pub fn page_aliases(document: &GardenDocument, title: &str) -> Vec<String> {
+    let title = lookup_key(title);
+    alias_names(document)
+        .into_iter()
+        .map(|name| lookup_key(&name))
+        .filter(|name| !name.is_empty() && name != &title)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+/// Aliases as the author spelled them, in property order, one per lookup key.
+///
+/// Uses the same property rules as [`page_aliases`], omitting blanks and the page itself.
+pub fn page_alias_spellings(document: &GardenDocument, title: &str) -> Vec<String> {
+    let mut seen = BTreeSet::from([lookup_key(title)]);
+    alias_names(document)
+        .into_iter()
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !lookup_key(name).is_empty() && seen.insert(lookup_key(name)))
+        .collect()
+}
+
+fn alias_names(document: &GardenDocument) -> Vec<String> {
     let Some(Block::Properties { props, .. }) = document.parsed.blocks.first() else {
         return Vec::new();
     };
@@ -61,14 +84,7 @@ pub fn page_aliases(document: &GardenDocument, title: &str) -> Vec<String> {
             names.push(value.to_owned());
         }
     }
-    let title = lookup_key(title);
     names
-        .into_iter()
-        .map(|name| lookup_key(&name))
-        .filter(|name| !name.is_empty() && name != &title)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
 }
 
 /// Deterministic lookup over caller-supplied stored-page identifiers.
