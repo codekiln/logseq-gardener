@@ -1,6 +1,6 @@
 ## Why
 
-Every parity analysis under issue #106 compares an `lsg` page with the same page in Logseq's published build of the encode garden. Today each comparison starts with a hand-made run: 1,042 `--include` flags to cover the whole garden, a script to decode Logseq's `db.gz`, and manual lookup of each page's file in both builds ([analysis](../../../docs/parity/comparison-harness.md)).
+Every parity analysis under issue #106 compares an `lsg` page with the same page in Logseq's published build of the encode garden. Today each comparison starts with a hand-made run: 1,042 `--include` flags to cover the whole garden, a script to decode Logseq's `db.gz`, and manual lookup of each page's file in both builds ([analysis](../../../../docs/parity/comparison-harness.md)).
 
 The parity work also has to show that `lsg` loads much faster than Logseq. Logseq's build downloads a 15.8 MB `db.gz`, which inflates to 174 MB of graph data, plus about 35 MB of JavaScript before it shows any page. Nothing measures either build's load time, memory or search speed today.
 
