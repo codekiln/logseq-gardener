@@ -417,11 +417,7 @@ fn alias_and_private_gaps_stay_plain_across_all_descendant_levels() {
     let rows = hierarchy_rows(&root);
     assert_eq!(
         rows.iter().map(|row| row_text(row)).collect::<Vec<_>>(),
-        [
-            "Root",
-            "Root/Private/Alias/Leaf Namespace",
-            "Root/Private/Alias/Leaf/Deeper"
-        ]
+        ["Root", "Root/Private/Alias/Leaf/Deeper"]
     );
     for row in &rows[1..] {
         assert!(row.contains("namespace-unavailable\">Private</span>"));
@@ -430,5 +426,70 @@ fn alias_and_private_gaps_stay_plain_across_all_descendant_levels() {
     }
     assert!(!has_route(&f.0, "Root/Private"));
     assert!(!has_route(&f.0, "Root/Private/Alias"));
+    assert!(has_route(&f.0, "Root/Private/Alias/Leaf"));
+    assert!(rows[1].contains(&format!(
+        "href=\"{}\">Leaf</a>",
+        route("Root/Private/Alias/Leaf")
+    )));
     assert!(!f.all_html().contains("PRIVATE_SENTINEL"));
+}
+
+#[test]
+fn stored_rows_skip_generated_prefixes_but_keep_every_segment_route_and_stored_parent() {
+    let f = Fixture::new();
+    for title in ["Root", "Root/Stored", "Root/Stored/Auto/Deep/Leaf"] {
+        f.write(
+            &format!("{}.md", title.replace('/', "___")),
+            "- PUBLIC_BODY\n",
+        );
+    }
+    let source = fs::read(f.0.join("garden/pages/Root___Stored___Auto___Deep___Leaf.md")).unwrap();
+    assert_eq!(f.publish(&["Root"], &[], None).pages, 3);
+    let root = f.html("Root");
+    let rows = hierarchy_rows(&root);
+    assert_eq!(
+        rows.iter().map(|row| row_text(row)).collect::<Vec<_>>(),
+        ["Root", "Root/Stored", "Root/Stored/Auto/Deep/Leaf"]
+    );
+    let current = f.html("Root/Stored/Auto");
+    let generated_rows = hierarchy_rows(&current);
+    assert_eq!(
+        generated_rows
+            .iter()
+            .map(|row| row_text(row))
+            .collect::<Vec<_>>(),
+        ["Root/Stored/Auto Namespace", "Root/Stored/Auto/Deep/Leaf"]
+    );
+    assert_eq!(
+        generated_rows[0].matches("aria-current=\"page\"").count(),
+        1
+    );
+    for title in ["Root/Stored/Auto", "Root/Stored/Auto/Deep"] {
+        assert!(has_route(&f.0, title));
+        assert!(f.index(false).contains(&format!(">{title}</a>")));
+        assert!(rows[2].contains(&format!("href=\"{}\"", route(title))));
+    }
+    assert_eq!(
+        fs::read(f.0.join("garden/pages/Root___Stored___Auto___Deep___Leaf.md")).unwrap(),
+        source
+    );
+}
+
+#[test]
+fn unselected_stored_prefixes_and_absent_prefixes_have_identical_hierarchy_rows() {
+    let with_source = Fixture::new();
+    let absent = Fixture::new();
+    with_source.write("Root.md", "- UNSELECTED_SENTINEL\n");
+    with_source.write("Root___Generated.md", "- ALSO_UNSELECTED\n");
+    for f in [&with_source, &absent] {
+        f.write("Root___Generated___Stored.md", "- SELECTED\n");
+        f.publish(&["Root/Generated/Stored"], &[], None);
+    }
+    for title in ["Root", "Root/Generated", "Root/Generated/Stored"] {
+        let left = with_source.html(title);
+        let right = absent.html(title);
+        assert_eq!(hierarchy_rows(&left), hierarchy_rows(&right));
+        assert!(!left.contains("UNSELECTED_SENTINEL"));
+        assert!(!left.contains("ALSO_UNSELECTED"));
+    }
 }
