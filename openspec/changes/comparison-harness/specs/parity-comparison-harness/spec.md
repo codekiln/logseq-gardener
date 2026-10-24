@@ -80,6 +80,58 @@ The harness SHALL map each page title to its `lsg` file and to its Logseq route 
 - **WHEN** the screenshot task serves the builds
 - **THEN** both servers listen on 127.0.0.1 and stop when the task ends
 
+### Requirement: Measure load performance for both builds
+
+`mise run parity:perf` SHALL load each fixture page from both builds, served on 127.0.0.1 with an empty browser cache, on a desktop profile and on a phone profile with a 412 by 823 viewport, four times CPU slowdown, 150 ms round trip, 1.6 Mbps download and 750 Kbps upload. For each page, build and profile it SHALL record the median of three loads for: time until the page title is visible, first contentful paint, gzip size of the data transferred before the title is visible, script size before the title is visible, and peak JavaScript heap. It SHALL write the results to the run directory as JSON and Markdown.
+
+#### Scenario: Same page, both builds, both profiles
+- **WHEN** the fixture list names `tmux`
+- **THEN** the results hold desktop and phone rows for `tmux` from Logseq's build and from `lsg`'s build, each with the five measures
+
+#### Scenario: Logseq's graph data counts before first paint
+- **WHEN** Logseq's build loads `db.gz` before it shows the page title
+- **THEN** the data-before-title measure for Logseq includes `db.gz` at its stored size
+
+#### Scenario: Page missing from one build
+- **WHEN** a fixture page exists in only one build
+- **THEN** the results record the measures for that build and mark the other build's row as missing
+
+### Requirement: Measure search latency per keystroke
+
+`mise run parity:perf` SHALL measure each build's search on the whole garden by typing each query in a fixed query list one character at a time and recording, for each keystroke, the time until the results list stops changing. It SHALL report the median and 95th percentile per build and profile. For a build without a search input it SHALL report that the build has no search.
+
+#### Scenario: Logseq search
+- **WHEN** the harness types `tmux` into Logseq's search
+- **THEN** it records four keystroke latencies for that query
+
+#### Scenario: Build without search
+- **WHEN** the `lsg` build has no search input
+- **THEN** the search rows for `lsg` read "no search" and the run completes
+
+### Requirement: Check lsg against performance budgets
+
+The harness SHALL read budgets for each measure and profile from a committed budget file, and the results SHALL mark every `lsg` value that exceeds its budget. `mise run parity:perf --record` SHALL rewrite `docs/parity/performance.md` with the results and the garden commit, `gh-pages` commit and `lsg` version they came from.
+
+#### Scenario: Page over budget
+- **WHEN** an `lsg` fixture page transfers more data before its title is visible than the budget allows
+- **THEN** the results mark that value as over budget and name the budget
+
+#### Scenario: Recorded rows
+- **WHEN** a contributor runs `mise run parity:perf --record`
+- **THEN** `docs/parity/performance.md` holds one row per fixture page, build and profile, with the commits and version used
+
+### Requirement: Check page size budgets in CI
+
+`mise run parity:budgets` SHALL build the repository fixture garden with the release `lsg`, then build it again with 2,000 added pages that no fixture page references. It SHALL fail when a fixture page's first-paint size (its HTML plus the styles and scripts it loads before rendering) or its script size exceeds the budget file, or when a fixture page's first-paint size differs between the two builds. `mise run ci` SHALL run it.
+
+#### Scenario: Pages within budget
+- **WHEN** every fixture page is within budget and the same size in both builds
+- **THEN** the task passes and prints each page's sizes
+
+#### Scenario: First paint grows with the garden
+- **WHEN** a change makes a fixture page larger in the build with 2,000 added pages
+- **THEN** the task fails and names the page and both sizes
+
 ### Requirement: Test the harness logic in CI
 
 `mise run test` SHALL run unit tests for the Logseq data decoding, the title normalization and the grouping, using small fixtures stored in the repository. The tests SHALL run without the encode garden, network access or a browser.

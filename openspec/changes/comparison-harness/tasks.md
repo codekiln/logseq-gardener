@@ -19,10 +19,17 @@
 - [ ] 4.2 Add `scripts/parity/fixtures.txt` with the fixture pages from the analysis, plus `Home` and `All pages`.
 - [ ] 4.3 Add `scripts/parity/screenshots.py` and `.mise/tasks/parity/screenshots`: serve both builds on 127.0.0.1, wait for the title, scroll until the height settles, capture full pages at 1280 by 800 in light mode, and write the side-by-side `index.html`.
 
-## 5. Wiring and verification
+## 5. Performance
 
-- [ ] 5.1 Run the harness unit tests from `mise run test` without the garden, network or a browser.
-- [ ] 5.2 Add `docs/parity/README.md` explaining the three tasks and where their output goes.
-- [ ] 5.3 Run all three tasks on the encode garden; record the group counts and the `tmux` screenshots in the implementation PR, and check the counts against the analysis.
-- [ ] 5.4 Open an issue under #106 for publishing titles that contain `%2F`.
-- [ ] 5.5 Run `mise run ci`, open the implementation PR and create its cleanup sub-issue under #108.
+- [ ] 5.1 Add `scripts/parity/budgets.toml` with the starting budgets and `scripts/parity/search-queries.txt`.
+- [ ] 5.2 Add `scripts/parity/perf.py` and `.mise/tasks/parity/perf`: desktop and phone profiles, three loads per page, title time, first contentful paint, gzip data and script before the title, peak JavaScript heap, per-keystroke search latency, budget marks, and `--record` to rewrite `docs/parity/performance.md`.
+- [ ] 5.3 Unit-test the gzip accounting, the median and percentile summary, and the budget marks on stored samples.
+- [ ] 5.4 Add `scripts/parity/budgets.py` and `.mise/tasks/parity/budgets`: build the fixture garden twice, the second time with 2,000 unreferenced pages, and check sizes against the budgets; run it from `mise run ci`.
+
+## 6. Wiring and verification
+
+- [ ] 6.1 Run the harness unit tests from `mise run test` without the garden, network or a browser.
+- [ ] 6.2 Add `docs/parity/README.md` explaining the five tasks and where their output goes.
+- [ ] 6.3 Run the four contributor tasks on the encode garden; record the group counts, the `tmux` screenshots and `docs/parity/performance.md` in the implementation PR, and check the counts against the analysis.
+- [ ] 6.4 Open an issue under #106 for publishing titles that contain `%2F`.
+- [ ] 6.5 Run `mise run ci`, open the implementation PR and create its cleanup sub-issue under #108.
