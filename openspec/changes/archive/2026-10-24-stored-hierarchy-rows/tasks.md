@@ -6,5 +6,5 @@
 
 ## 2. Verification
 
-- [ ] 2.1 Run full required checks and desktop/mobile preview verification.
-- [ ] 2.2 Obtain independent review, merge implementation and complete separate cleanup child132.
+- [x] 2.1 Run full required checks and desktop/mobile preview verification.
+- [x] 2.2 Obtain independent review and merge implementation; track separate specification cleanup in child132.
