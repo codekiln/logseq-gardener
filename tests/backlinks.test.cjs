@@ -48,12 +48,13 @@ function fixture() {
   const pages = el('data-backlinks-page-count');
   const references = el('data-backlinks-reference-count');
   const status = el('data-backlinks-status');
+  const explanation = el('data-backlinks-count-explanation');
   const entry = refs => new Element({ 'data-backlinks-entry': '', 'data-backlinks-refs': refs });
   const entries = [entry('one.html a.html b.html'), entry('one.html a.html c.html'), entry('two.html a.html b.html c.html')];
   const groups = [el('data-backlinks-group', 'one.html', entries.slice(0, 2)), el('data-backlinks-group', 'two.html', entries.slice(2))];
-  const disclosure = new Element({}, [pages, references, controls, status, ...groups]);
+  const disclosure = new Element({}, [pages, references, explanation, controls, status, ...groups]);
   const section = el('data-lsg-backlinks', '', [disclosure]);
-  return { section, filters, options, search, reset, controls, pages, references, status, entries, groups, disclosure };
+  return { section, filters, options, search, reset, controls, pages, references, status, entries, groups, disclosure, explanation };
 }
 function setup(...fixtures) {
   const document = new Element({}, fixtures.map(item => item.section));
@@ -72,8 +73,8 @@ test('initial enhancement exposes controls, totals, and keeps disclosure state',
   const f = fixture();
   setup(f);
   assert.equal(f.controls.hidden, false);
-  assert.equal(f.pages.textContent, '2 linking pages');
-  assert.equal(f.references.textContent, '3 references');
+  assert.equal(f.pages.textContent, '2 pages');
+  assert.equal(f.references.textContent, ' · 3 referring contexts');
   assert.equal(f.status.textContent, '');
   assert.equal(f.disclosure.open, false);
   assert.deepEqual(visibleEntries(f), [true, true, true]);
@@ -85,14 +86,14 @@ test('every include and any exclude determine entries and distinct page counts',
   choose(f, 'a.html', 'include');
   choose(f, 'b.html', 'include');
   assert.deepEqual(visibleEntries(f), [true, false, true]);
-  assert.equal(f.pages.textContent, '2 of 2 linking pages');
-  assert.equal(f.references.textContent, '2 of 3 references');
+  assert.equal(f.pages.textContent, '2 of 2 pages');
+  assert.equal(f.references.textContent, ' · 2 of 3 referring contexts');
   choose(f, 'c.html', 'exclude');
   assert.deepEqual(visibleEntries(f), [true, false, false]);
   assert.deepEqual(f.groups.map(group => group.hidden), [false, true]);
-  assert.equal(f.pages.textContent, '1 of 2 linking pages');
-  assert.equal(f.references.textContent, '1 of 3 references');
-  assert.match(f.status.textContent, /Showing 1 of 2 linking pages and 1 of 3 references/);
+  assert.equal(f.pages.textContent, '1 of 2 pages');
+  assert.equal(f.references.textContent, ' · 1 of 3 referring contexts');
+  assert.match(f.status.textContent, /Showing 1 of 2 pages and 1 of 3 referring contexts/);
   choose(f, 'b.html', '');
   choose(f, 'c.html', '');
   assert.deepEqual(visibleEntries(f), [true, true, true]);
@@ -106,9 +107,9 @@ test('source identities can filter and empty results have readable status', () =
   choose(f, 'a.html', 'exclude');
   assert.deepEqual(visibleEntries(f), [false, false, false]);
   assert.ok(f.groups.every(group => group.hidden));
-  assert.equal(f.pages.textContent, '0 of 2 linking pages');
-  assert.equal(f.references.textContent, '0 of 3 references');
-  assert.equal(f.status.textContent, 'No references match these filters.');
+  assert.equal(f.pages.textContent, '0 of 2 pages');
+  assert.equal(f.references.textContent, ' · 0 of 3 referring contexts');
+  assert.equal(f.status.textContent, 'No pages match these filters.');
 });
 
 test('option search preserves active filters and reset restores results and controls', () => {
@@ -123,7 +124,7 @@ test('option search preserves active filters and reset restores results and cont
   assert.equal(f.options.get('c.html').hidden, false);
   assert.equal(f.options.get('one.html').hidden, true);
   assert.deepEqual(visibleEntries(f), [true, false, false]);
-  assert.equal(f.references.textContent, '1 of 3 references');
+  assert.equal(f.references.textContent, ' · 1 of 3 referring contexts');
   choose(f, 'c.html', '');
   assert.equal(f.options.get('c.html').hidden, true);
   f.reset.fire('click');
@@ -132,8 +133,8 @@ test('option search preserves active filters and reset restores results and cont
   assert.equal(f.search.value, '');
   assert.deepEqual(visibleEntries(f), [true, true, true]);
   assert.ok(f.groups.every(group => !group.hidden));
-  assert.equal(f.pages.textContent, '2 linking pages');
-  assert.equal(f.references.textContent, '3 references');
+  assert.equal(f.pages.textContent, '2 pages');
+  assert.equal(f.references.textContent, ' · 3 referring contexts');
   assert.equal(f.status.textContent, '');
 });
 
@@ -173,8 +174,10 @@ test('zero references and absent sections initialize without losing native discl
   const f = fixture();
   f.disclosure.children = f.disclosure.children.filter(child => !f.groups.includes(child));
   const { init } = setup(f);
-  assert.equal(f.pages.textContent, '0 linking pages');
-  assert.equal(f.references.textContent, '0 references');
+  assert.equal(f.pages.textContent, '0 pages');
+  assert.equal(f.references.textContent, ' · 0 referring contexts');
+  assert.equal(f.references.hidden, true);
+  assert.equal(f.explanation.hidden, true);
   assert.equal(f.disclosure.open, false);
   init(new Element());
 });
@@ -203,8 +206,8 @@ test('descendant inclusion retains its ancestor chain and hides unrelated branch
   assert.equal(f.matching.hidden, false);
   assert.equal(f.unrelated.hidden, true);
   assert.equal(f.entries[0].hidden, false);
-  assert.equal(f.references.textContent, '2 of 3 references');
-  assert.equal(f.pages.textContent, '2 of 2 linking pages');
+  assert.equal(f.references.textContent, ' · 2 of 3 referring contexts');
+  assert.equal(f.pages.textContent, '2 of 2 pages');
   assert.equal(f.intermediate.open, false);
 });
 
@@ -218,7 +221,7 @@ test('matching parent remains while excluded descendant hides; reset restores ev
   assert.equal(f.intermediate.hidden, false);
   assert.equal(f.matching.hidden, false);
   assert.equal(f.unrelated.hidden, true);
-  assert.equal(f.references.textContent, '1 of 3 references');
+  assert.equal(f.references.textContent, ' · 1 of 3 referring contexts');
   choose(f, 'b.html', 'exclude');
   assert.equal(f.parent.hidden, false);
   assert.equal(f.matching.hidden, true);
@@ -227,7 +230,7 @@ test('matching parent remains while excluded descendant hides; reset restores ev
   f.reset.fire('click');
   for (const node of [f.parent, f.intermediate, f.matching, f.unrelated]) assert.equal(node.hidden, false);
   assert.deepEqual(visibleEntries(f), [true, true, true]);
-  assert.equal(f.references.textContent, '3 references');
+  assert.equal(f.references.textContent, ' · 3 referring contexts');
   assert.equal(f.intermediate.open, true);
 });
 
@@ -240,8 +243,8 @@ test('node paths determine entry matching and all hidden branches hide their sou
   assert.equal(f.matching.hidden, true);
   assert.equal(f.groups[0].hidden, true);
   assert.equal(f.entries[2].hidden, false);
-  assert.equal(f.pages.textContent, '1 of 2 linking pages');
-  assert.equal(f.references.textContent, '1 of 3 references');
+  assert.equal(f.pages.textContent, '1 of 2 pages');
+  assert.equal(f.references.textContent, ' · 1 of 3 referring contexts');
 });
 
 test('includes must match one node path rather than a union of sibling paths or entry fallback', () => {
@@ -255,5 +258,36 @@ test('includes must match one node path rather than a union of sibling paths or 
   assert.equal(f.matching.hidden, true);
   assert.equal(f.unrelated.hidden, true);
   assert.equal(f.entries[2].hidden, false);
-  assert.equal(f.references.textContent, '1 of 3 references');
+  assert.equal(f.references.textContent, ' · 1 of 3 referring contexts');
+});
+
+
+test('equal totals omit redundant detail while unequal contexts remain explained', () => {
+  const f = fixture();
+  f.groups[0].children = [f.entries[0]];
+  setup(f);
+  assert.equal(f.pages.textContent, '2 pages');
+  assert.equal(f.references.hidden, true);
+  assert.equal(f.explanation.hidden, true);
+  choose(f, 'one.html', 'include');
+  assert.equal(f.pages.textContent, '1 of 2 pages');
+  assert.equal(f.references.hidden, true);
+  assert.equal(f.status.textContent, 'Showing 1 of 2 pages.');
+  f.reset.fire('click');
+  assert.equal(f.references.hidden, true);
+
+  const multi = fixture();
+  multi.disclosure.children = multi.disclosure.children.filter(child => child !== multi.groups[1]);
+  setup(multi);
+  assert.equal(multi.pages.textContent, '1 page');
+  assert.equal(multi.references.textContent, ' · 2 referring contexts');
+  assert.equal(multi.references.hidden, false);
+  assert.equal(multi.explanation.hidden, false);
+  choose(multi, 'b.html', 'include');
+  assert.equal(multi.pages.textContent, '1 of 1 page');
+  assert.equal(multi.references.textContent, ' · 1 of 2 referring contexts');
+  assert.equal(multi.references.hidden, false);
+  multi.reset.fire('click');
+  assert.equal(multi.references.textContent, ' · 2 referring contexts');
+  assert.equal(multi.disclosure.open, false);
 });

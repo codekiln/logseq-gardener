@@ -235,12 +235,18 @@ impl<'a> Backlinks<'a> {
         } else {
             ""
         };
+        let context_hidden = if groups.len() == indices.len() {
+            " hidden"
+        } else {
+            ""
+        };
+        let page_label = if groups.len() == 1 { "page" } else { "pages" };
         let mut html = format!(
-            "<section class=\"linked-references\" data-lsg-backlinks aria-label=\"Linked references\"><details class=\"backlinks-disclosure\"{open}><summary>Linked references — <span data-backlinks-page-count>{} linking pages</span> · <span data-backlinks-reference-count>{} references</span></summary>",
+            "<section class=\"linked-references\" data-lsg-backlinks aria-label=\"Linked references\"><details class=\"backlinks-disclosure\"{open}><summary>Linked references — <span data-backlinks-page-count>{} {page_label}</span><span data-backlinks-reference-count{context_hidden}> · {} referring contexts</span></summary><p data-backlinks-count-explanation{context_hidden}>A context is a referring block or a page’s properties.</p>",
             groups.len(),
             indices.len()
         );
-        html.push_str("<div class=\"backlinks-controls\" data-backlinks-controls hidden><fieldset><legend>Related pages</legend><p>Include every selected page; exclude any selected page.</p><label>Find related pages <input type=\"search\" data-backlinks-search></label><div class=\"backlinks-options\">");
+        html.push_str("<div class=\"backlinks-controls\" data-backlinks-controls hidden><fieldset><legend>Related pages</legend><p>Include or exclude selected related pages.</p><label>Find related pages <input type=\"search\" data-backlinks-search></label><div class=\"backlinks-options\">");
         let mut options = options.into_iter().collect::<Vec<_>>();
         options.sort_by_key(|route| self.titles.get(route).cloned().unwrap_or_default());
         for route in options {

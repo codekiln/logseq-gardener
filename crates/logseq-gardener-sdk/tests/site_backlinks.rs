@@ -83,8 +83,10 @@ fn aliases_repeats_tags_and_source_groups_have_distinct_counts() {
     assert_eq!(report.pages, 7);
     let target = f.page("Notes/Target");
     let refs = section(&target);
-    assert!(refs.contains(">2 linking pages</span>"), "{refs}");
-    assert!(refs.contains(">3 references</span>"), "{refs}");
+    assert!(refs.contains(">2 pages</span>"), "{refs}");
+    assert!(refs.contains("> · 3 referring contexts</span>"), "{refs}");
+    assert!(refs.contains("Include or exclude selected related pages."));
+    assert!(!refs.contains("Include every selected page"));
     assert_eq!(refs.matches("data-backlinks-entry ").count(), 3);
     for name in ["A", "B", "Ancestor", "Topic", "Other", "ChildTopic"] {
         assert!(
@@ -132,8 +134,9 @@ fn properties_are_minimal_and_private_sources_never_supply_metadata() {
     assert_eq!(report.withheld_pages, 1);
     let page = f.page("Notes/Target");
     let refs = section(&page);
-    assert!(refs.contains(">1 linking pages</span>"));
-    assert!(refs.contains(">1 references</span>"));
+    assert!(refs.contains(">1 page</span>"));
+    assert!(refs.contains("data-backlinks-reference-count hidden> · 1 referring contexts</span>"));
+    assert!(refs.contains("data-backlinks-count-explanation hidden>"));
     assert!(refs.contains("Page properties:"));
     assert!(!refs.contains("Ordinary body"));
     for file in all_files(&f.0.join("site")) {
@@ -184,7 +187,7 @@ fn threshold_zero_and_depth_control_copies_without_changing_authored_source() {
     );
     let empty = f.page("Notes");
     assert!(section(&empty).contains("<details class=\"backlinks-disclosure\">"));
-    assert!(section(&empty).contains(">0 linking pages</span>"));
+    assert!(section(&empty).contains(">0 pages</span>"));
 }
 
 #[test]
@@ -197,10 +200,10 @@ fn generated_namespace_targets_accept_only_authored_references_and_alias_ambigui
     f.write("pages/Notes___AmbiguousSource.md", "- [[Ambiguous]]\n");
     f.publish();
     let generated = f.page("Notes/Namespace");
-    assert!(section(&generated).contains(">1 linking pages</span>"));
-    assert!(section(&f.page("Notes/Namespace/Leaf")).contains(">0 linking pages</span>"));
+    assert!(section(&generated).contains(">1 page</span>"));
+    assert!(section(&f.page("Notes/Namespace/Leaf")).contains(">0 pages</span>"));
     for name in ["One", "Two"] {
-        assert!(section(&f.page(&format!("Notes/{name}"))).contains(">0 linking pages</span>"));
+        assert!(section(&f.page(&format!("Notes/{name}"))).contains(">0 pages</span>"));
     }
 }
 
@@ -262,8 +265,9 @@ fn leading_bare_tags_match_and_missing_or_ambiguous_targets_do_not_supply_option
     f.publish();
     let target = f.page("Notes/Target");
     let refs = section(&target);
-    assert!(refs.contains(">1 linking pages</span>"));
-    assert!(refs.contains(">2 references</span>"));
+    assert!(refs.contains(">1 page</span>"));
+    assert!(refs.contains("data-backlinks-reference-count> · 2 referring contexts</span>"));
+    assert!(refs.contains("A context is a referring block or a page’s properties."));
     assert!(!refs.contains("data-backlinks-label=\"Missing"));
     assert!(!refs.contains("data-backlinks-label=\"Shared"));
     for name in ["One", "Two"] {
@@ -291,6 +295,6 @@ fn defaults_open_zero_reference_sections_and_threshold_uses_reference_not_page_c
     assert!(section(&target).contains("<details class=\"backlinks-disclosure\">"));
     let source = f.page("Notes/Source");
     assert!(section(&source).contains("<details class=\"backlinks-disclosure\" open>"));
-    assert!(section(&target).contains(">1 linking pages</span>"));
-    assert!(section(&target).contains(">2 references</span>"));
+    assert!(section(&target).contains(">1 page</span>"));
+    assert!(section(&target).contains("> · 2 referring contexts</span>"));
 }
