@@ -26,12 +26,14 @@ pub(super) struct Backlinks<'a> {
     contexts: Vec<Context<'a>>,
     incoming: BTreeMap<String, Vec<usize>>,
     titles: BTreeMap<String, String>,
+    property_targets: Option<BTreeMap<String, BTreeSet<String>>>,
 }
 
 impl<'a> Backlinks<'a> {
     pub fn new(
         selected: &[(String, String, &'a GardenDocument)],
         names: &PageNameIndex<String>,
+        property_views: Option<&BTreeMap<String, super::properties::PropertyView>>,
         destinations: BTreeMap<String, String>,
     ) -> Self {
         let by_name: BTreeMap<_, _> = destinations
@@ -47,6 +49,12 @@ impl<'a> Backlinks<'a> {
             contexts: Vec::new(),
             incoming: BTreeMap::new(),
             titles: destinations,
+            property_targets: property_views.map(|views| {
+                views
+                    .iter()
+                    .map(|(route, view)| (route.clone(), view.targets.clone()))
+                    .collect()
+            }),
         };
         for (_, route, document) in selected {
             let blocks = &document.parsed.blocks;
@@ -132,7 +140,15 @@ impl<'a> Backlinks<'a> {
                         }
                     }
                 }
-                let direct: BTreeSet<_> = refs.iter().filter_map(|name| resolve(name)).collect();
+                let direct: BTreeSet<_> = if properties {
+                    result
+                        .property_targets
+                        .as_ref()
+                        .map(|targets| targets.get(route).cloned().unwrap_or_default())
+                        .unwrap_or_else(|| refs.iter().filter_map(|name| resolve(name)).collect())
+                } else {
+                    refs.iter().filter_map(|name| resolve(name)).collect()
+                };
                 while parents
                     .last()
                     .is_some_and(|(previous, _)| *previous >= level)
@@ -208,7 +224,7 @@ impl<'a> Backlinks<'a> {
     pub fn render(
         &self,
         target: &str,
-        config: ReferenceConfig,
+        config: &ReferenceConfig,
         names: &PageNameIndex<String>,
         targets: &BTreeMap<String, Option<BlockTarget>>,
         documents: &BTreeMap<String, &GardenDocument>,
@@ -271,15 +287,24 @@ impl<'a> Backlinks<'a> {
                 html.push_str(&format!(
                     "<article data-backlinks-entry data-backlinks-refs=\"{tokens}\">"
                 ));
+                let visible_properties = context.properties
+                    && self
+                        .property_targets
+                        .as_ref()
+                        .and_then(|targets| targets.get(source))
+                        .is_some_and(|targets| targets.contains(target));
                 let href = match context.anchor {
                     Some(start) => format!("{source}#source-block-{start}"),
+                    None if visible_properties => format!("{source}#page-properties"),
                     None => source.to_owned(),
                 };
                 html.push_str(&format!(
                     "<a class=\"backlink-source\" href=\"{}\">Open source {}</a>",
                     render::escape(&href),
-                    if context.properties {
+                    if visible_properties {
                         "properties"
+                    } else if context.properties {
+                        "page"
                     } else {
                         "block"
                     }

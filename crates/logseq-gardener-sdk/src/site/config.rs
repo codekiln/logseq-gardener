@@ -1,4 +1,4 @@
-//! Read the two reference settings without evaluating EDN or following symlinks.
+//! Read publication settings without evaluating EDN or following symlinks.
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -7,16 +7,24 @@ const MAX_BYTES: usize = 1_048_576;
 const MAX_DEPTH: usize = 64;
 const MAX_FORMS: usize = 100_000;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ReferenceConfig {
     pub threshold: i64,
     pub open_depth: i64,
+    pub properties: bool,
+    pub properties_collapsed: bool,
+    pub sequence: bool,
+    pub hidden_properties: Vec<String>,
 }
 impl Default for ReferenceConfig {
     fn default() -> Self {
         Self {
             threshold: 100,
             open_depth: 2,
+            properties: false,
+            properties_collapsed: true,
+            sequence: true,
+            hidden_properties: Vec::new(),
         }
     }
 }
@@ -25,6 +33,7 @@ impl Default for ReferenceConfig {
 enum Form {
     Atom(String),
     Map(Vec<(Form, Form)>),
+    Collection(Vec<Form>),
     Other,
 }
 struct Reader<'a> {
@@ -86,12 +95,15 @@ impl Reader<'_> {
             }
             let value = self.form(depth + 1)?.ok_or("unterminated collection")?;
             count += 1;
-            if map && depth == 0 {
+            if (map && depth == 0) || (!map && depth == 1) {
                 values.push(value);
             }
         }
         if map && count % 2 != 0 {
             return Err("map has an unmatched key");
+        }
+        if !map && depth == 1 {
+            return Ok(Form::Collection(values));
         }
         if !map || depth != 0 {
             return Ok(Form::Other);
@@ -210,6 +222,54 @@ pub(super) fn parse(text: &str) -> (ReferenceConfig, Vec<String>) {
         let Form::Atom(key) = key else {
             continue;
         };
+        let boolean = match key.as_str() {
+            ":publishing/page-properties?" => Some((&mut result.properties, false)),
+            ":publishing/page-properties-collapsed?" => {
+                Some((&mut result.properties_collapsed, true))
+            }
+            ":publishing/page-sequence?" => Some((&mut result.sequence, true)),
+            _ => None,
+        };
+        if let Some((destination, default)) = boolean {
+            match value {
+                Form::Atom(ref v) if v == "true" => *destination = true,
+                Form::Atom(ref v) if v == "false" => *destination = false,
+                _ => {
+                    *destination = default;
+                    diagnostics.push(format!(
+                        "Publication setting {key} is not a boolean; using its default"
+                    ));
+                }
+            }
+            continue;
+        }
+        if key == ":block-hidden-properties" {
+            if let Form::Collection(values) = value {
+                let mut keys = Vec::new();
+                let mut valid = true;
+                for item in values {
+                    match item {
+                        Form::Atom(v) if v.starts_with(':') && v.len() > 1 => {
+                            keys.push(v[1..].to_lowercase())
+                        }
+                        _ => valid = false,
+                    }
+                }
+                if valid {
+                    result.hidden_properties = keys;
+                } else {
+                    diagnostics.push(
+                        "Hidden properties must be a collection of keywords; using the default"
+                            .into(),
+                    );
+                }
+            } else {
+                diagnostics.push(
+                    "Hidden properties must be a collection of keywords; using the default".into(),
+                );
+            }
+            continue;
+        }
         let destination = match key.as_str() {
             ":ref/linked-references-collapsed-threshold" => &mut result.threshold,
             ":ref/default-open-blocks-level" => &mut result.open_depth,
@@ -270,6 +330,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn page_property_booleans_and_hidden_keywords_use_top_level_only() {
+        let (config, diagnostics) = parse(
+            "{:publishing/page-properties? true :publishing/page-properties-collapsed? false :publishing/page-sequence? false :block-hidden-properties #{:Secret :next} :nested {:publishing/page-properties? false}}",
+        );
+        assert!(config.properties);
+        assert!(!config.properties_collapsed);
+        assert!(!config.sequence);
+        assert_eq!(config.hidden_properties, ["secret", "next"]);
+        assert!(diagnostics.is_empty());
+        let (invalid, diagnostics) =
+            parse("{:publishing/page-properties? 1 :block-hidden-properties [1]}");
+        assert!(!invalid.properties);
+        assert!(invalid.hidden_properties.is_empty());
+        assert_eq!(diagnostics.len(), 2);
+        let (nested, _) = parse(
+            "{:nested {:publishing/page-properties? true} :text \":publishing/page-properties? true\"}",
+        );
+        assert!(!nested.properties);
+    }
+
+    #[test]
     fn zero_and_signed_integer_overrides_are_preserved() {
         let (config, diagnostics) = parse(
             "{:ref/linked-references-collapsed-threshold 0 :ref/default-open-blocks-level -3}",
@@ -278,7 +359,8 @@ mod tests {
             config,
             ReferenceConfig {
                 threshold: 0,
-                open_depth: -3
+                open_depth: -3,
+                ..ReferenceConfig::default()
             }
         );
         assert!(diagnostics.is_empty());
@@ -318,7 +400,8 @@ mod tests {
             config,
             ReferenceConfig {
                 threshold: 7,
-                open_depth: 5
+                open_depth: 5,
+                ..ReferenceConfig::default()
             }
         );
         assert!(diagnostics.is_empty(), "{diagnostics:?}");

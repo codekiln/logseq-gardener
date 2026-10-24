@@ -134,3 +134,23 @@ Generated sites follow the reader's system appearance by default. The Appearance
 The shared script applies the initial appearance in the document head and updates it when the system preference changes. Hosts that replace navigation content call `window.logseqGardenerInitTheme(importedNavigation)` after insertion so the new selector reflects the active choice. Repeated initialization is safe and does not replace page content or media players.
 
 Custom stylesheets can set `--lsg-text`, `--lsg-background`, `--lsg-surface`, `--lsg-link`, `--lsg-border`, `--lsg-quote-border`, `--lsg-warning`, `--lsg-focus` and `--lsg-muted`. Put light overrides on `:root` and dark overrides on `:root[data-lsg-theme="dark"]`; an equivalent `@media (prefers-color-scheme: dark)` rule for `:root:not([data-lsg-theme])` supplies the no-JavaScript dark palette. A stylesheet with fixed colors needs matching dark overrides for its own components.
+
+
+## Page properties
+
+Leading page properties are available through an explicit graph opt-in:
+
+```edn
+{:publishing/page-properties? true
+ :publishing/page-properties-collapsed? true
+ :publishing/page-sequence? true
+ :block-hidden-properties #{:private-note :operational-field}}
+```
+
+The defaults are false, true and true respectively. Enabled properties appear in a native Properties disclosure above the source body. Set the collapse option to false to start it open. `#page-properties` targets its keyboard-focusable summary; the shared fragment helper reveals the containing disclosure. Generated namespaces have no invented property section.
+
+Rows retain authored order and the last duplicate value. Ordinary scalar text is escaped. Direct page references and comma-separated bare tags link to canonical selected source pages. Standalone public HTTPS values are clickable. Missing, private, ambiguous or generated-only reference targets omit the entire row, including mixed values. Expressions, block references, asset/file paths, absolute local paths, unsafe schemes and unsupported links are omitted. Explicit opt-in treats remaining scalar values as public metadata, so use `:block-hidden-properties` for author-specific operational fields. The setting accepts collections of keyword keys.
+
+Internal exclusions are `id`, `custom-id`, `custom_id`, `title`, `alias`, `aliases`, `public`, `background-color`, `background_color`, `heading`, `collapsed`, `created-at`, `updated-at`, `last-modified-at`, `created_at`, `updated_at`, `last_modified_at`, `query-table`, `query-properties`, `query-sort-by`, `query-sort-desc`, `filters`, `ls-type`, `hl-type`, `hl-page`, `hl-stamp`, `hl-color`, `todo`, `doing`, `now`, `later`, `done`, `file`, `file-path` and `file-name`; prefixes `logseq.`, `logseq-proxy-` and `publishing/` are also excluded. These exclusions and configured hidden keys apply to enabled property backlinks as well as displayed rows.
+
+Authored `prev` and `next` retain the same generic source-page validation as sequence navigation. A valid neighbor shown in Properties is omitted from the bottom Page sequence region. Other valid neighbors remain available there. Disable `:publishing/page-sequence?` to hide that region entirely; configured hidden neighbor keys also remain hidden. Book, preset and other authored chains use the same behavior.
