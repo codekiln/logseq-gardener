@@ -9,6 +9,7 @@ use super::{SiteError, digest, render::escape};
 pub(super) struct Node {
     pub title: String,
     pub route: String,
+    pub generated: bool,
 }
 
 pub(super) struct Hierarchy {
@@ -36,6 +37,7 @@ impl Hierarchy {
                     Node {
                         title: title.clone(),
                         route: route.clone(),
+                        generated: false,
                     },
                 )
             })
@@ -63,7 +65,14 @@ impl Hierarchy {
             if routes.insert(route.clone(), title.clone()).is_some() {
                 return Err(SiteError::Collision { title });
             }
-            nodes.insert(key, Node { title, route });
+            nodes.insert(
+                key,
+                Node {
+                    title,
+                    route,
+                    generated: true,
+                },
+            );
         }
         Ok(Self { nodes })
     }
@@ -87,7 +96,8 @@ impl Hierarchy {
                     ""
                 };
                 html.push_str(&format!(
-                    "<a{marker} href=\"{}\">{label}</a>",
+                    "<a{marker}{} href=\"{}\">{label}</a>",
+                    super::page_status::link_attributes(node.generated, &node.title),
                     escape(&node.route)
                 ));
             } else {
@@ -96,6 +106,9 @@ impl Hierarchy {
                     escape(label)
                 ));
             }
+        }
+        if let Some(node) = self.nodes.get(&lookup_key(title)) {
+            html.push_str(super::page_status::badge(node.generated));
         }
         html.push_str("</span>");
         html

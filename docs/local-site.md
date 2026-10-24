@@ -120,3 +120,9 @@ The publisher reads these top-level integer settings from `logseq/config.edn`:
 Missing settings use defaults. Unusable config receives a local diagnostic; reading is bounded and never evaluates EDN or follows config-path symlinks. Native disclosures and all unfiltered context remain readable without JavaScript. Filter controls appear when the trusted script initializes them.
 
 A host that replaces page content can call `window.logseqGardenerInitBacklinks(root)` after inserting the new content. The call is idempotent and separate from `logseqGardenerRevealFragment`; it installs section-local filter controls and does not change navigation or media playback.
+
+## Namespace destinations and page sequences
+
+Generated namespace pages show a Namespace notice. Their index and hierarchy entries carry a Namespace badge, and links to these destinations use a dotted underline. Selected source pages keep ordinary page labels, including empty source pages. Namespace status describes the published destination; an unselected source ancestor has the same status as a missing ancestor.
+
+Add leading `prev:: [[Page title]]` or `next:: [[Page title]]` properties to publish Previous and Next navigation after the page content. Each value must be one direct page reference. Titles and unique aliases resolve to the canonical selected source page. Private, excluded, missing, ambiguous, self, and generated-only targets produce no navigation link. The last leading value for each key applies; nested properties and literal code do not supply sequence links. Authors choose the order, and a page can have either neighbor or both.
