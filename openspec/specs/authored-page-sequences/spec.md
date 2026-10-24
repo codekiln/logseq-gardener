@@ -22,7 +22,7 @@ The publisher SHALL read only leading page-level `prev` and `next` properties co
 
 ### Requirement: Present accessible sequence navigation
 
-Pages with valid sequence targets SHALL display a semantic Page sequence navigation region after source content and before Hierarchy. Links SHALL use Previous and Next labels with escaped canonical titles, the corresponding rel attribute, visible keyboard focus, and natural wrapping on narrow screens. Pages without valid targets SHALL omit the region. A selected homepage SHALL retain the same canonical neighbor links. Publication SHALL preserve source files, media, transclusions, routes, and page counts.
+Pages with valid sequence targets SHALL display a semantic Page sequence navigation region after source content and before Hierarchy. Links SHALL use Previous and Next labels with escaped canonical titles, the corresponding rel attribute, visible keyboard focus, and natural wrapping on narrow screens. Pages without valid targets SHALL omit the region. A selected homepage SHALL retain the same canonical neighbor links. Publication SHALL preserve source files, media, transclusions, routes, and page counts. The graph SHALL be able to disable the sequence region. Valid neighbors already displayed as visible prev/next property rows SHALL be omitted from the bottom sequence region to avoid duplicate links; remaining valid neighbors SHALL retain normal navigation.
 
 #### Scenario: One-sided sequence and homepage
 - **WHEN** a homepage or sequence endpoint has one valid neighbor

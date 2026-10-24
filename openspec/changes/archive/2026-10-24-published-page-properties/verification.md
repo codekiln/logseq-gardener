@@ -8,6 +8,8 @@ The summary uses tabindex zero to retain native keyboard reachability. The exist
 
 Full local `mise run ci` passed, including release build, Rust and Node tests, strict specification validation, RuleSync, documentation and release checks. Root independently reviewed selected-only value resolution, whole-row omissions, safe property-derived backlinks, generic sequence reuse and native summary/reveal behavior. All remote checks passed for tested product revision 4a94ead.
 
-## Remaining verification
+## Browser and integration proof
 
-Root owns desktop/mobile browser proof and the final Gitpa build/integration review before deployment. Cleanup issue100 tracks separate specification synchronization and archival after implementation merges.
+Root verified actual Gitpa desktop and mobile-width properties, native keyboard disclosure, generic preset links, dark/light appearance and a property backlink that opens and focuses `#page-properties`. One audio element continued playing through the navigation, and source files remained unchanged. Final consumer review is clear.
+
+Cleanup issue100 tracks separate specification synchronization and archival after merged PR101.
