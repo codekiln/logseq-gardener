@@ -32,6 +32,16 @@ The publisher SHALL derive linked references only from selected visible original
 
 Each generated source or namespace page SHALL have a bottom linked-reference section grouped by originating published page. Its disclosure heading SHALL show the distinct source-page count even while collapsed, including zero. It SHALL show a separate referring-context count when the context and page totals differ, with a short explanation inside the disclosure that a context is a referring block or page properties. Unfiltered equal totals SHALL use the page count alone. Context SHALL retain escaped useful source content, working source-page navigation and available block navigation, bounded descendant rendering, and independent authored disclosures. Copies SHALL not duplicate original anchor IDs. Existing hierarchy, source content, and fragment navigation SHALL remain intact. Property source navigation SHALL target the visible Properties summary only when its safe displayed rows refer to the viewed target; otherwise its source link SHALL identify a page destination.
 
+Groups SHALL use a compact source-page card with one page heading and linked ancestor breadcrumbs. Each source block SHALL appear once across overlapping referring outlines within its group, while genuine context identities, counts and filter predicates remain available. Safe displayed property references SHALL show the relevant validated property rows and a link to the original property section.
+
+#### Scenario: Overlapping referring outlines
+- **WHEN** a referring parent and its descendant both link to the viewed page
+- **THEN** their shared outline appears once with two context identities, working original-source links and the existing related-reference matching behavior
+
+#### Scenario: Safe property context
+- **WHEN** a visible property row links to the viewed page
+- **THEN** its group shows that row and a property-section destination while unrelated or omitted rows remain absent
+
 #### Scenario: Zero references
 - **WHEN** a generated page has no backlinks
 - **THEN** its linked-reference heading displays zero pages and omits redundant context detail
