@@ -106,7 +106,7 @@ fn explicit_sequence_resolves_aliases_to_canonical_titles_and_homepage_routes() 
             < middle.find("<section class=\"linked-references\"").unwrap()
     );
     assert!(middle.contains("<script data-lsg-backlinks-script>"));
-    assert!(middle.contains("Page properties"));
+    assert!(middle.contains("Page reference"));
     assert_eq!(
         fs::read_to_string(f.0.join("site/index.html")).unwrap(),
         middle

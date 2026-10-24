@@ -137,7 +137,7 @@ fn properties_are_minimal_and_private_sources_never_supply_metadata() {
     assert!(refs.contains(">1 page</span>"));
     assert!(refs.contains("data-backlinks-reference-count hidden> · 1 referring contexts</span>"));
     assert!(refs.contains("data-backlinks-count-explanation hidden>"));
-    assert!(refs.contains("Page properties:"));
+    assert!(refs.contains("Page reference</a>"));
     assert!(!refs.contains("Ordinary body"));
     for file in all_files(&f.0.join("site")) {
         for secret in [
@@ -297,4 +297,82 @@ fn defaults_open_zero_reference_sections_and_threshold_uses_reference_not_page_c
     assert!(section(&source).contains("<details class=\"backlinks-disclosure\" open>"));
     assert!(section(&target).contains(">1 page</span>"));
     assert!(section(&target).contains("> · 2 referring contexts</span>"));
+}
+
+#[test]
+fn overlapping_contexts_share_one_outline_and_keep_sources_and_counts() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Target.md", "- Target\n");
+    f.write("pages/Notes___Related.md", "- Related\n");
+    let source = "- Ancestor heading\n  - Parent unique [[Notes/Target]]\n    collapsed:: true\n    - Child unique [[Notes/Target]] [[Notes/Related]]\n      - Grandchild unique\n  - Sibling unique [[Notes/Target]]\n";
+    f.write("pages/Notes___Source.md", source);
+    f.publish();
+    let html = f.page("Notes/Target");
+    let refs = section(&html);
+    assert_eq!(refs.matches("Child unique").count(), 1, "{refs}");
+    assert_eq!(refs.matches("Grandchild unique").count(), 1);
+    assert_eq!(refs.matches("data-backlinks-entry").count(), 3);
+    assert!(refs.contains("3 referring contexts"));
+    assert!(refs.contains("<details class=\"outline-disclosure\"><summary>"));
+    assert!(!refs.contains("Open source block"));
+    let original = f.page("Notes/Source");
+    for text in [
+        "Ancestor heading",
+        "Parent unique",
+        "Child unique",
+        "Sibling unique",
+    ] {
+        let start = source.find(text).unwrap()
+            - if text == "Ancestor heading" {
+                2
+            } else if text == "Child unique" {
+                6
+            } else {
+                4
+            };
+        assert!(
+            refs.contains(&format!("#source-block-{start}")),
+            "{text}: {refs}"
+        );
+        assert!(
+            original.contains(&format!("id=\"source-block-{start}\"")),
+            "{text}: {original}"
+        );
+    }
+    assert_eq!(
+        fs::read_to_string(f.0.join("garden/pages/Notes___Source.md")).unwrap(),
+        source
+    );
+}
+
+#[test]
+fn property_cards_reuse_only_safe_relevant_displayed_rows() {
+    let f = Fixture::new();
+    f.write(
+        "logseq/config.edn",
+        "{:publishing/page-properties? true :block-hidden-properties #{:secret}}",
+    );
+    f.write(
+        "pages/Notes___Target.md",
+        "alias:: [[Target alias]]\n- Target\n",
+    );
+    f.write("pages/Notes___Other.md", "- Other\n");
+    f.write("pages/Notes___Private.md", "public:: false\n- Private\n");
+    f.write("pages/Notes___Source.md", "instrument:: [[Target alias]]\nother:: [[Notes/Other]]\nsecret:: [[Notes/Target]]\nmixed:: [[Notes/Target]], [[Notes/Private]]\nlocal:: /Users/private/audio.wav\n- Body\n");
+    f.publish();
+    let html = f.page("Notes/Target");
+    let refs = section(&html);
+    assert!(refs.contains("<dt>instrument</dt>"));
+    assert!(refs.contains(&format!(
+        "href=\"{}#page-properties\">Page properties",
+        route("Notes/Source")
+    )));
+    assert!(!refs.contains("<dt>other</dt>"));
+    assert!(!refs.contains("<dt>secret</dt>"));
+    assert!(!refs.contains("<dt>mixed</dt>"));
+    assert!(!refs.contains("/Users/private"));
+    assert_eq!(
+        refs.matches("<dl class=\"backlink-properties\">").count(),
+        1
+    );
 }

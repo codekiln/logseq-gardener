@@ -227,6 +227,7 @@ struct RenderMode {
     reference_depth: Option<i64>,
     source_anchors: BTreeSet<usize>,
     reference_paths: BTreeMap<usize, String>,
+    reference_entries: BTreeMap<usize, String>,
 }
 
 pub(super) fn render_document_with_source_anchors(
@@ -255,6 +256,7 @@ pub(super) fn render_document_with_source_anchors(
 pub(super) struct ReferencePresentation {
     pub open_depth: i64,
     pub paths: BTreeMap<usize, String>,
+    pub entries: BTreeMap<usize, String>,
 }
 
 pub(super) fn render_reference_context(
@@ -275,6 +277,7 @@ pub(super) fn render_reference_context(
         RenderMode {
             reference_depth: Some(presentation.open_depth),
             reference_paths: presentation.paths,
+            reference_entries: presentation.entries,
             ..RenderMode::default()
         },
         asset,
@@ -316,6 +319,7 @@ fn render_context(
         source_anchors: mode.source_anchors,
         reference_origin: document.relative_path.clone(),
         reference_paths: mode.reference_paths,
+        reference_entries: mode.reference_entries,
         asset,
     };
     renderer.blocks(&document.parsed.blocks, 0);
@@ -341,6 +345,7 @@ struct Renderer<'a> {
     source_anchors: BTreeSet<usize>,
     reference_origin: PathBuf,
     reference_paths: BTreeMap<usize, String>,
+    reference_entries: BTreeMap<usize, String>,
     asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
 }
 
@@ -423,8 +428,17 @@ impl Renderer<'_> {
                         )
                     })
                     .unwrap_or_default();
+                let source_link = span.as_ref()
+                    .filter(|_| self.source == self.reference_origin)
+                    .and_then(|span| self.reference_entries.get(&span.0))
+                    .map(|href| format!("<a class=\"backlink-source\" href=\"{}\" aria-label=\"Open referring block\" title=\"Open referring block\">↗</a> ", escape(href)));
+                let entry_attribute = if source_link.is_some() {
+                    " data-backlinks-entry"
+                } else {
+                    ""
+                };
                 let item_start = format!(
-                    "<li{}{reference_attributes}>",
+                    "<li{}{reference_attributes}{entry_attribute}>",
                     if collapsed {
                         " class=\"outline-collapsed\""
                     } else {
@@ -468,6 +482,9 @@ impl Renderer<'_> {
                     if flow_label {
                         self.text(&block_label(inline, 0));
                     }
+                }
+                if let Some(link) = source_link {
+                    self.html.push_str(&link);
                 }
                 if !flow_label {
                     self.heading_content(

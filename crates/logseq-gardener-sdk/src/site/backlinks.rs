@@ -19,7 +19,7 @@ struct Context<'a> {
     direct: BTreeSet<String>,
     path: BTreeSet<String>,
     related: BTreeSet<String>,
-    ancestors: Vec<String>,
+    ancestors: Vec<(String, Option<usize>)>,
 }
 
 pub(super) struct Backlinks<'a> {
@@ -27,6 +27,7 @@ pub(super) struct Backlinks<'a> {
     incoming: BTreeMap<String, Vec<usize>>,
     titles: BTreeMap<String, String>,
     property_targets: Option<BTreeMap<String, BTreeSet<String>>>,
+    property_rows: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 impl<'a> Backlinks<'a> {
@@ -49,6 +50,22 @@ impl<'a> Backlinks<'a> {
             contexts: Vec::new(),
             incoming: BTreeMap::new(),
             titles: destinations,
+            property_rows: property_views
+                .map(|views| {
+                    views
+                        .iter()
+                        .map(|(route, view)| {
+                            let mut rows = BTreeMap::<String, String>::new();
+                            for row in &view.rows {
+                                for target in &row.targets {
+                                    rows.entry(target.clone()).or_default().push_str(&row.html);
+                                }
+                            }
+                            (route.clone(), rows)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
             property_targets: property_views.map(|views| {
                 views
                     .iter()
@@ -162,7 +179,7 @@ impl<'a> Backlinks<'a> {
                     path.extend(result.contexts[*index].direct.iter().cloned());
                     let parent = &result.contexts[*index];
                     if let Some(Block::Bullet { inline, .. }) = blocks.get(parent.start) {
-                        ancestors.push(render::block_label(inline, 0));
+                        ancestors.push((render::block_label(inline, 0), parent.anchor));
                     }
                 }
                 let index = result.contexts.len();
@@ -217,7 +234,12 @@ impl<'a> Backlinks<'a> {
             .filter(|context| {
                 context.source == route && context.direct.iter().any(|target| target != route)
             })
-            .filter_map(|context| context.anchor)
+            .flat_map(|context| {
+                context
+                    .anchor
+                    .into_iter()
+                    .chain(context.ancestors.iter().filter_map(|(_, anchor)| *anchor))
+            })
             .collect()
     }
 
@@ -281,7 +303,14 @@ impl<'a> Backlinks<'a> {
         for (source, contexts) in groups {
             let title = render::escape(self.titles.get(source).map_or(source, String::as_str));
             html.push_str(&format!("<section class=\"backlinks-group\" data-backlinks-group=\"{}\"><h3><a href=\"{}\">{title}</a></h3>", render::escape(source), render::escape(source)));
-            for context in contexts {
+            let mut rendered_end = 0;
+            for context in &contexts {
+                if !context.properties && context.start < rendered_end {
+                    continue;
+                }
+                if !context.properties {
+                    rendered_end = context.subtree_end;
+                }
                 let tokens =
                     render::escape(&context.path.iter().cloned().collect::<Vec<_>>().join(" "));
                 html.push_str(&format!(
@@ -298,34 +327,37 @@ impl<'a> Backlinks<'a> {
                     None if visible_properties => format!("{source}#page-properties"),
                     None => source.to_owned(),
                 };
-                html.push_str(&format!(
-                    "<a class=\"backlink-source\" href=\"{}\">Open source {}</a>",
-                    render::escape(&href),
-                    if visible_properties {
-                        "properties"
-                    } else if context.properties {
-                        "page"
-                    } else {
-                        "block"
-                    }
-                ));
                 if context.properties {
-                    let title =
-                        render::escape(self.titles.get(target).map_or(target, String::as_str));
                     html.push_str(&format!(
-                        "<p>Page properties: <a href=\"{}\">{title}</a></p>",
-                        render::escape(target)
+                        "<p class=\"backlink-context\"><a href=\"{}\">{}</a></p>",
+                        render::escape(&href),
+                        if visible_properties {
+                            "Page properties"
+                        } else {
+                            "Page reference"
+                        }
                     ));
-                } else {
-                    if !context.ancestors.is_empty() {
-                        let breadcrumb = context
-                            .ancestors
-                            .iter()
-                            .map(|s| render::escape(s))
-                            .collect::<Vec<_>>()
-                            .join(" / ");
-                        html.push_str(&format!("<p class=\"backlink-context\">{breadcrumb}</p>"));
+                    if let Some(rows) = self
+                        .property_rows
+                        .get(source)
+                        .and_then(|rows| rows.get(target))
+                    {
+                        html.push_str(&format!("<dl class=\"backlink-properties\">{rows}</dl>"));
                     }
+                } else {
+                    html.push_str("<p class=\"backlink-context\">");
+                    for (label, anchor) in &context.ancestors {
+                        let ancestor_href = anchor.map_or_else(
+                            || source.to_owned(),
+                            |start| format!("{source}#source-block-{start}"),
+                        );
+                        html.push_str(&format!(
+                            "<a href=\"{}\">{}</a><span aria-hidden=\"true\"> › </span>",
+                            render::escape(&ancestor_href),
+                            render::escape(label)
+                        ));
+                    }
+                    html.push_str(&format!("<a class=\"backlink-source\" href=\"{}\" aria-label=\"Open referring block in {title}\" title=\"Open referring block\">↗</a></p>", render::escape(&href)));
                     let mut copy = GardenDocument {
                         relative_path: context.document.relative_path.clone(),
                         kind: context.document.kind,
@@ -353,6 +385,19 @@ impl<'a> Backlinks<'a> {
                         documents,
                         render::ReferencePresentation {
                             open_depth: config.open_depth,
+                            entries: contexts
+                                .iter()
+                                .filter(|child| {
+                                    !child.properties
+                                        && child.start > context.start
+                                        && child.start < context.subtree_end
+                                })
+                                .filter_map(|child| {
+                                    child.anchor.map(|start| {
+                                        (start, format!("{source}#source-block-{start}"))
+                                    })
+                                })
+                                .collect(),
                             paths: self
                                 .contexts
                                 .iter()
