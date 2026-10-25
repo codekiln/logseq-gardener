@@ -116,6 +116,7 @@ export function installSearch(window, document) {
     });
     dialog.addEventListener('keydown', event => {
       event.stopPropagation();
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === 'Escape') { event.preventDefault(); close(); return; }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && !event.altKey && !event.shiftKey) { event.preventDefault(); input.focus(); input.select(); return; }
       if (event.key === 'Enter' && document.activeElement === input) { clearTimeout(timer); evaluate(); }

@@ -63,6 +63,25 @@ def main():
                 assert page.locator('#lsg-search-results img').count() == 0
                 assert 'safe <img' in page.locator('#lsg-search-results').inner_text()
                 assert 'PRIVATE_SENTINEL' not in page.locator('#lsg-search-results').inner_text()
+                # IME candidates own composing keys, including legacy keyCode229.
+                field.focus()
+                composition = field.evaluate('''node => {
+                  node.dispatchEvent(new CompositionEvent('compositionstart', {bubbles: true, data: 'に'}));
+                  const cases = [
+                    {key: 'Escape', isComposing: true},
+                    {key: 'ArrowDown', isComposing: true},
+                    {key: 'ArrowUp', keyCode: 229},
+                    {key: 'Enter', isComposing: true}
+                  ];
+                  const outcomes = cases.map(options => {
+                    const event = new KeyboardEvent('keydown', {bubbles: true, cancelable: true, ...options});
+                    node.dispatchEvent(event);
+                    return {prevented: event.defaultPrevented, focused: document.activeElement === node, open: document.querySelector('#lsg-search-dialog').open};
+                  });
+                  node.dispatchEvent(new CompositionEvent('compositionend', {bubbles: true, data: 'に'}));
+                  return outcomes;
+                }''')
+                assert all(not state['prevented'] and state['focused'] and state['open'] for state in composition), composition
                 page.keyboard.press('ArrowDown')
                 expect(results.nth(0)).to_be_focused()
                 page.keyboard.press('ArrowDown')
