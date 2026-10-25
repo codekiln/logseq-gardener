@@ -27,7 +27,7 @@ function element(selectors, extra = {}) {
   return node;
 }
 let state;
-function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system' } = {}) {
+function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false } = {}) {
   state = { focused: null, assigned: null };
   const values = new Map(Object.entries(stored));
   const root = element(['html']);
@@ -45,8 +45,20 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   const input = element(['input']);
   const page = element(['p']);
   const all = [toggle, more, menu, themeItem, systemItem, shade, allPages];
+  if (journals) {
+    const journalsLink = element(['[data-lsg-journals-link]', '.lsg-left-sidebar a']); journalsLink.parent = sidebar; journalsLink.setAttribute('href', 'journals.html');
+    all.push(journalsLink);
+  }
+  if (feed) {
+    const list = element(['[data-lsg-journals]']); list.setAttribute('data-lsg-journals', 'lsg-journals.js');
+    all.push(list);
+  }
   const document = new Events();
   document.documentElement = root;
+  document.readyState = 'loading';
+  state.appended = [];
+  document.createElement = tag => ({ tag });
+  document.head = { append: node => state.appended.push(node) };
   document.querySelector = selector => all.find(node => node.matches(selector)) ?? null;
   document.querySelectorAll = selector => all.filter(node => node.matches(selector));
   Object.defineProperty(document, 'activeElement', { get: () => state.focused });
@@ -66,7 +78,7 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   vm.runInContext(source, vm.createContext({ window, document, Date }));
   const click = target => document.fire('click', { target });
   const key = (k, target = page, extra = {}) => document.fire('keydown', { key: k, target, preventDefault() {}, ...extra });
-  return { root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
+  return { window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
 }
 test('controls appear once the script runs and the sidebar state is saved', () => {
   const f = fixture();
@@ -118,4 +130,18 @@ test('blocked storage keeps the state for the current page', () => {
   const f = fixture({ blocked: true });
   f.click(f.toggle); assert.equal(f.root.getAttribute('data-lsg-left-sidebar'), 'open');
   f.key('t'); f.key('w'); assert.equal(f.root.getAttribute('data-lsg-wide'), 'true');
+});
+test('g j opens the journals feed only when the sidebar links to one', () => {
+  const f = fixture({ journals: true });
+  f.key('g'); f.key('j'); assert.equal(state.assigned, 'journals.html');
+  const plain = fixture();
+  plain.key('g'); plain.key('j'); assert.equal(state.assigned, null);
+});
+test('the journals feed loader is fetched after the page loads', () => {
+  const f = fixture({ feed: true });
+  assert.deepEqual(state.appended, []);
+  f.window.fire('load');
+  assert.deepEqual(state.appended, [{ tag: 'script', src: 'lsg-journals.js' }]);
+  fixture();
+  assert.deepEqual(state.appended, []);
 });

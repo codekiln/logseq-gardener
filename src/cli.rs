@@ -90,6 +90,8 @@ struct PublishArgs {
     #[arg(long)]
     search: bool,
     #[arg(long)]
+    journals: bool,
+    #[arg(long)]
     include: Vec<String>,
     #[arg(long)]
     exclude: Vec<String>,
@@ -195,6 +197,8 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
             stylesheet: args.stylesheet,
             homepage: args.homepage,
             search: args.search.then(SearchOptions::default),
+            journals: args.journals,
+            build_date: None,
         },
     )
     .map_err(|error| Failure {
@@ -204,8 +208,9 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
     let index = output.join("index.html");
     let stdout = match format {
         Format::Human => output::clean(&format!(
-            "Published {} pages and {} assets; withheld {} pages; skipped {} journals; {} diagnostics. Open {}\n",
+            "Published {} pages, {} journals and {} assets; withheld {} pages; skipped {} journals; {} diagnostics. Open {}\n",
             report.pages,
+            report.journals,
             report.assets,
             report.withheld_pages,
             report.skipped_journals,
@@ -214,7 +219,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
         )),
         Format::Json => {
             output::json_document(&json!({"format_version": 1, "command_path": ["publish"],
-            "pages": report.pages, "assets": report.assets, "withheld_pages": report.withheld_pages,
+            "pages": report.pages, "journals": report.journals, "assets": report.assets, "withheld_pages": report.withheld_pages,
             "skipped_journals": report.skipped_journals, "diagnostic_count": report.diagnostics.len(),
             "output_directory": output.to_string_lossy(), "index_path": index.to_string_lossy()}))
         }

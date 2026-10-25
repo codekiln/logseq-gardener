@@ -26,7 +26,7 @@ Open `/private/tmp/garden-site-preview/index.html`. The command selects `My/AI` 
 
 Choose a fresh output directory with an existing parent outside the source garden on each run. Existing output is refused, which also prevents excluded files from a previous run remaining in the site. The publisher leaves source files unchanged. A filesystem write failure may leave partial output in the newly created directory; use a fresh destination after resolving the error.
 
-Use `triple-lowbar` when `logseq/config.edn` sets `:file/name-format :triple-lowbar`; use `legacy` for the default filename format. The command reports publication counts and the index path on standard output and unsupported constructs on standard error. Add `--format json` for a versioned result with `pages`, `assets`, `withheld_pages`, `skipped_journals`, `diagnostic_count`, `output_directory`, and `index_path`. Completed generation with diagnostics exits zero; fatal generation failure exits one with empty stdout, and invalid arguments or selectors exit two. Run `lsg publish help` for offline command documentation. To keep the diagnostic report, append `2> /private/tmp/garden-site-report.txt`.
+Use `triple-lowbar` when `logseq/config.edn` sets `:file/name-format :triple-lowbar`; use `legacy` for the default filename format. The command reports publication counts and the index path on standard output and unsupported constructs on standard error. Add `--format json` for a versioned result with `pages`, `journals`, `assets`, `withheld_pages`, `skipped_journals`, `diagnostic_count`, `output_directory`, and `index_path`. Completed generation with diagnostics exits zero; fatal generation failure exits one with empty stdout, and invalid arguments or selectors exit two. Run `lsg publish help` for offline command documentation. To keep the diagnostic report, append `2> /private/tmp/garden-site-report.txt`.
 
 ## Visibility and references
 
@@ -82,6 +82,12 @@ The path must name a readable regular file with a `.css` extension (case-insensi
 
 SDK callers can use `site::publish_site_with_options` with `SiteOptions { stylesheet: Some(path) }`. The existing `site::publish_site` function continues to use built-in presentation. The `publish_site` SDK example accepts the same optional `--stylesheet PATH` flag.
 
+## Publish journals
+
+Add `--journals` to publish every file under `journals/` as a page. Each journal is titled with `:journal/page-title-format` from `logseq/config.edn` (Logseq's default is `MMM do, yyyy`), so the encode garden's `journals/2026_10_23.md` is `2026-10-23 Fri`. A journal marked `public:: false` is withheld like a page, and a journals file whose name is not a date is skipped with a diagnostic. Links to a journal resolve in the configured format and in `MMM do, yyyy`, `yyyy-MM-dd` and `yyyy_MM_dd`, so `[[Feb 1st, 2025]]` opens `2025-02-01 Sat` and keeps its text. Without `--journals`, journals are counted and skipped.
+
+With journals published, `index.html` becomes Logseq's journals feed and the page list moves to `pages.html`. The feed lists journals dated on or before the build date, newest first: three in `index.html`, then seven in each `journals-2.html`, `journals-3.html` and so on. The build date is the UTC date of `SOURCE_DATE_EPOCH` when it is set and of the system clock otherwise; later-dated journals keep their pages but stay out of the feed. As the reader nears the bottom, `lsg-journals.js` appends the next file's journals; without JavaScript, Earlier opens it. Each journal's Linked References show their page count and load from the journal's page when opened. With `--homepage`, the feed starts at `journals.html`. A garden with `:feature/enable-journals? false` gets journal pages and no feed.
+
 ## Choose a homepage
 
 Add `--homepage "Ghost in the Patch"` to render a uniquely selected visible page or alias at `index.html`. The original page route remains available and the complete page list moves to `pages.html`. The left sidebar's All pages link opens `pages.html`. An unavailable or ambiguous homepage fails before output is created. Omitting `--homepage` retains the generated page index.
@@ -129,11 +135,11 @@ Add leading `prev:: [[Page title]]` or `next:: [[Page title]]` properties to pub
 
 ## Header and left sidebar
 
-Every page has Logseq's header: Toggle left sidebar on the left, Home (on every page except `index.html`) and More on the right. The left sidebar lists All pages, then the garden's favorites from `:favorites` in `logseq/config.edn`, in config order. Each favorite resolves through page titles and aliases and shows the title or alias as the author spelled it; the current page is highlighted. A favorite that names no published page is left out and reported as a diagnostic.
+Every page has Logseq's header: Toggle left sidebar on the left, Home (on every page except `index.html`) and More on the right. The left sidebar lists Journals when a journals feed is published, All pages, then the garden's favorites from `:favorites` in `logseq/config.edn`, in config order. Each favorite resolves through page titles and aliases and shows the title or alias as the author spelled it; the current page is highlighted. A favorite that names no published page is left out and reported as a diagnostic.
 
-The sidebar starts closed. The header button or `t l` toggles it, and the state is saved under `logseq-gardener-left-sidebar` in browser localStorage. From 640px wide the open sidebar is 246px and pushes the page right; on narrower screens it opens over the page and closes when the reader taps the shade, follows a link or presses Escape. `t w` switches between the 810px and 1280px page widths, saved under `logseq-gardener-wide`. `g h` opens Home and `g a` opens All pages. Shortcuts are ignored while typing in a field.
+The sidebar starts closed. The header button or `t l` toggles it, and the state is saved under `logseq-gardener-left-sidebar` in browser localStorage. From 640px wide the open sidebar is 246px and pushes the page right; on narrower screens it opens over the page and closes when the reader taps the shade, follows a link or presses Escape. `t w` switches between the 810px and 1280px page widths, saved under `logseq-gardener-wide`. `g h` opens Home, `g a` opens All pages and `g j` opens the journals feed. Shortcuts are ignored while typing in a field.
 
-The header and sidebar behaviour is in `lsg-shell.js` at the site root, which every page loads with `defer`. Without JavaScript the sidebar stays closed and its button and More stay hidden.
+The header and sidebar behaviour is in `lsg-shell.js` at the site root, which every page loads with `defer`. On feed pages it also loads `lsg-journals.js` after the page has loaded. Without JavaScript the sidebar stays closed and its button and More stay hidden.
 
 ## Appearance
 

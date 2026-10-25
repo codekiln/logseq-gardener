@@ -28,7 +28,7 @@ Logseq's published site opens on the encode garden's journals, newest first, and
 ## Impact
 
 - SDK: a new `journals` module (date formats, journal identity, reference parsing, journal list); `GardenSettings` reads `:journal/page-title-format` and `:journal/file-name-format`; `PageNameIndex` resolves date references to journal routes.
-- Publisher: `publish_site_with_options` in `crates/logseq-gardener-sdk/src/site/mod.rs` selects journals, renders journal pages and the feed, and writes batch files; a new `journals.js` feed loader; `shell.rs` and `shell.js` gain Journals and `g j`.
+- Publisher: `publish_site_with_options` in `crates/logseq-gardener-sdk/src/site/mod.rs` selects journals, renders journal pages and the feed, and writes batch files; a new `lsg-journals.js` feed loader; `shell.rs` and `shell.js` gain Journals and `g j`.
 - CLI: `--journals` on `lsg publish`, help text and JSON report.
 - Parity harness: `parity:build` passes `--journals`; the fixture garden gains journals; `budgets.toml` gains feed budgets; `parity:perf` measures the feed.
 - Gitpa, which calls `lsg publish` without `--journals`, keeps its current output.

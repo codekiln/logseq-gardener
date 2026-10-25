@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::garden_config::{self, Form};
+use crate::journals::{DEFAULT_FILE_NAME_FORMAT, DEFAULT_TITLE_FORMAT, DateFormat};
 use crate::page_names::{PageNameIndex, lookup_key};
 
 /// Logseq features a garden can turn off with `:feature/enable-*?` keys.
@@ -38,13 +39,28 @@ impl Default for FeatureFlags {
     }
 }
 
-/// Favorites and feature flags, in the order and with the defaults Logseq uses.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// Favorites, feature flags and journal formats, with the defaults Logseq uses.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GardenSettings {
     /// Raw `:favorites` entries in config order.
     pub favorites: Vec<String>,
     /// Features the garden enables.
     pub features: FeatureFlags,
+    /// `:journal/page-title-format`, a supported [`DateFormat`] pattern.
+    pub journal_title_format: String,
+    /// `:journal/file-name-format`, a supported [`DateFormat`] pattern.
+    pub journal_file_name_format: String,
+}
+
+impl Default for GardenSettings {
+    fn default() -> Self {
+        Self {
+            favorites: Vec::new(),
+            features: FeatureFlags::default(),
+            journal_title_format: DEFAULT_TITLE_FORMAT.to_owned(),
+            journal_file_name_format: DEFAULT_FILE_NAME_FORMAT.to_owned(),
+        }
+    }
 }
 
 /// A favorite that names a published page.
@@ -92,6 +108,28 @@ impl GardenSettings {
                 ":feature/enable-journals?" => &mut settings.features.journals,
                 ":feature/enable-flashcards?" => &mut settings.features.flashcards,
                 ":feature/enable-whiteboards?" => &mut settings.features.whiteboards,
+                ":journal/page-title-format" | ":journal/file-name-format" => {
+                    let (target, default) = if key == ":journal/page-title-format" {
+                        (&mut settings.journal_title_format, DEFAULT_TITLE_FORMAT)
+                    } else {
+                        (
+                            &mut settings.journal_file_name_format,
+                            DEFAULT_FILE_NAME_FORMAT,
+                        )
+                    };
+                    match value {
+                        Form::Str(pattern) => match DateFormat::parse(&pattern) {
+                            Ok(_) => *target = pattern,
+                            Err(error) => diagnostics.push(format!(
+                                "Journal setting {key} has an {error}; using {default:?}"
+                            )),
+                        },
+                        _ => diagnostics.push(format!(
+                            "Journal setting {key} is not a string; using {default:?}"
+                        )),
+                    }
+                    continue;
+                }
                 ":favorites" => {
                     let entries = match value {
                         Form::Collection(items) => items
@@ -195,6 +233,21 @@ mod tests {
         assert_eq!(settings, GardenSettings::default());
         assert!(diagnostics[0].contains("EDN map"));
         assert_eq!(GardenSettings::parse("{}").0, GardenSettings::default());
+    }
+
+    #[test]
+    fn reads_journal_formats_with_fallbacks() {
+        let (settings, diagnostics) = GardenSettings::parse(
+            r#"{:journal/page-title-format "yyyy-MM-dd EEE" :journal/file-name-format "yyyy_MM_dd"}"#,
+        );
+        assert!(diagnostics.is_empty());
+        assert_eq!(settings.journal_title_format, "yyyy-MM-dd EEE");
+        let (settings, diagnostics) = GardenSettings::parse(
+            r#"{:journal/page-title-format "yyyy QQQ" :journal/file-name-format :yyyy}"#,
+        );
+        assert_eq!(settings, GardenSettings::default());
+        assert!(diagnostics[0].contains(":journal/page-title-format"));
+        assert!(diagnostics[1].contains(":journal/file-name-format"));
     }
 
     #[test]

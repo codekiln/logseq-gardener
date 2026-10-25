@@ -3,6 +3,7 @@
 mod assets;
 mod backlinks;
 mod hierarchy;
+mod journals;
 mod page_status;
 mod properties;
 mod render;
@@ -21,6 +22,7 @@ use std::path::{Path, PathBuf};
 use crate::garden::{DocumentKind, GardenLoadError, load_garden};
 use crate::garden_config as config;
 use crate::garden_settings::{GardenSettings, resolve_favorites};
+use crate::journals::{JournalDate, JournalFormats, journal_identity};
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
 use crate::publishing::NamespaceSelection;
@@ -36,6 +38,11 @@ pub struct SiteOptions {
     pub homepage: Option<String>,
     /// Generate external search artifacts without loading a browser UI.
     pub search: Option<SearchOptions>,
+    /// Publish journals as pages and, unless the garden disables journals, a journals feed.
+    pub journals: bool,
+    /// Date that decides which journals the feed lists; defaults to the UTC date of
+    /// `SOURCE_DATE_EPOCH`, or of the system clock when that is unset.
+    pub build_date: Option<JournalDate>,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -50,11 +57,13 @@ pub struct SiteDiagnostic {
 /// Successful local publication, with diagnostics kept outside generated files.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SiteReport {
-    /// Selected source documents, excluding generated namespace pages and the index.
+    /// Selected page files, excluding journals, generated namespace pages and the index.
     pub pages: usize,
+    /// Published journal files.
+    pub journals: usize,
     /// Number of distinct copied asset files.
     pub assets: usize,
-    /// Journals skipped pending configured date naming.
+    /// Journals skipped because journals were not requested or their names are not dates.
     pub skipped_journals: usize,
     /// Included pages withheld by the private-property or nesting visibility check.
     pub withheld_pages: usize,
@@ -197,6 +206,20 @@ fn html_document(
     route: &str,
     home: bool,
 ) -> String {
+    let main = format!("<h1>{}</h1>{body}", render::escape(title));
+    html_page(title, &main, stylesheet, shell, route, home, "")
+}
+
+/// A complete page whose `<main>` holds `main`; `head` is appended inside `<head>`.
+fn html_page(
+    title: &str,
+    main: &str,
+    stylesheet: Option<&str>,
+    shell: &shell::Shell,
+    route: &str,
+    home: bool,
+    head: &str,
+) -> String {
     let frame = shell.render(route, home);
     let shell_styles = shell::STYLES;
     let shell_script = shell::SCRIPT_ROUTE;
@@ -215,7 +238,7 @@ fn html_document(
     let theme_script = include_str!("theme.js");
     let theme_styles = include_str!("theme.css");
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references>.backlinks-disclosure>summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group{{background:var(--lsg-surface);border-radius:.35rem;padding:.75rem 1rem;margin:1rem 0;overflow-wrap:anywhere}}.backlinks-group article{{margin:.75rem 0}}.backlinks-group h3{{font-size:1rem;margin:0 0 .5rem}}.backlinks-group ul{{padding-left:1.25rem;margin:.35rem 0}}.backlink-context{{font-size:.85rem;color:var(--lsg-text);margin:.35rem 0}}.backlink-source{{font-size:.85rem;text-decoration:none}}.backlink-properties{{margin:.35rem 0}}.linked-references [hidden]{{display:none!important}}{navigation_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script></head><body>{frame}<main><h1>{title}</h1>{body}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references>.backlinks-disclosure>summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group{{background:var(--lsg-surface);border-radius:.35rem;padding:.75rem 1rem;margin:1rem 0;overflow-wrap:anywhere}}.backlinks-group article{{margin:.75rem 0}}.backlinks-group h3{{font-size:1rem;margin:0 0 .5rem}}.backlinks-group ul{{padding-left:1.25rem;margin:.35rem 0}}.backlink-context{{font-size:.85rem;color:var(--lsg-text);margin:.35rem 0}}.backlink-source{{font-size:.85rem;text-decoration:none}}.backlink-properties{{margin:.35rem 0}}.linked-references [hidden]{{display:none!important}}{navigation_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
     )
 }
 
@@ -224,7 +247,7 @@ fn html_document(
 /// Each selected title has a deterministic route. Unique selected titles and aliases
 /// resolve to local page links.
 /// Files containing parsed `public:: false` are withheld in full. Journals are
-/// counted and skipped. Unique explicit outline UUID references link to selected
+/// counted and skipped unless [`SiteOptions::journals`] requests them. Unique explicit outline UUID references link to selected
 /// targets. Selected page and block embeds expand within fixed limits. Ambiguous or unavailable references, embeds, and queries receive fallbacks
 /// and diagnostics. Supported local assets are copied
 /// only when requested by rendered content. Existing output is never replaced.
@@ -265,6 +288,7 @@ pub fn publish_site_with_options(
     let garden = load_garden(source_root).map_err(SiteError::Garden)?;
     let mut report = SiteReport {
         pages: 0,
+        journals: 0,
         assets: 0,
         skipped_journals: 0,
         withheld_pages: 0,
@@ -274,17 +298,38 @@ pub fn publish_site_with_options(
     let mut routes = BTreeMap::new();
     let mut selected = Vec::new();
     let mut withheld_titles = BTreeSet::new();
+    let (settings, settings_diagnostics) = GardenSettings::read(&root);
+    let journal_formats = JournalFormats::from_settings(&settings);
+    let mut journal_dates = BTreeMap::new();
     for document in &garden.documents {
-        if document.kind == DocumentKind::Journal {
-            report.skipped_journals += 1;
-            continue;
-        }
-        let title = page_title(document, format).map_err(SiteError::Title)?;
+        let journal = if document.kind == DocumentKind::Journal {
+            if !options.journals {
+                report.skipped_journals += 1;
+                continue;
+            }
+            match journal_identity(document, &journal_formats) {
+                Ok(identity) => Some(identity),
+                Err(_) => {
+                    report.skipped_journals += 1;
+                    report.diagnostics.push(SiteDiagnostic {
+                        source: document.relative_path.clone(),
+                        message: "Journal skipped: its file name is not a date in the journal file-name format".to_owned(),
+                    });
+                    continue;
+                }
+            }
+        } else {
+            None
+        };
+        let title = match &journal {
+            Some(identity) => identity.title.clone(),
+            None => page_title(document, format).map_err(SiteError::Title)?,
+        };
         let withheld = render::has_private_properties(&document.parsed.blocks);
         if withheld {
             withheld_titles.insert(lookup_key(&title));
         }
-        if !selection.includes(&title) {
+        if journal.is_none() && !selection.includes(&title) {
             continue;
         }
         if withheld {
@@ -301,13 +346,19 @@ pub fn publish_site_with_options(
         {
             return Err(SiteError::Collision { title });
         }
+        if let Some(identity) = journal {
+            journal_dates.insert(route.clone(), identity.date);
+        }
         selected.push((title, route, document));
     }
-    let mut names = PageNameIndex::default();
+    let mut names = PageNameIndex::with_journal_formats(journal_formats);
     let mut aliases = BTreeSet::new();
     let mut spellings = BTreeMap::new();
     for (title, route, document) in &selected {
         names.insert(route.clone(), title, document);
+        if let Some(date) = journal_dates.get(route) {
+            names.insert_journal(route.clone(), *date);
+        }
         aliases.extend(page_aliases(document, title));
         spellings
             .entry(lookup_key(title))
@@ -326,7 +377,13 @@ pub fn publish_site_with_options(
         })
         .transpose()?;
     let has_homepage = homepage_route.is_some();
-    let (settings, settings_diagnostics) = GardenSettings::read(&root);
+    let build_date = options.build_date.unwrap_or_else(journals::build_date);
+    let feed = journals::Feed::plan(
+        &journal_dates,
+        build_date,
+        settings.features.journals,
+        has_homepage,
+    );
     let (favorites, favorite_diagnostics) =
         resolve_favorites(&settings.favorites, &names, &spellings);
     for message in settings_diagnostics.into_iter().chain(favorite_diagnostics) {
@@ -335,7 +392,7 @@ pub fn publish_site_with_options(
             message,
         });
     }
-    let index_route = if has_homepage {
+    let index_route = if has_homepage || feed.home() {
         "pages.html"
     } else {
         "index.html"
@@ -343,6 +400,7 @@ pub fn publish_site_with_options(
     let shell = shell::Shell {
         favorites,
         all_pages: index_route,
+        journals: feed.first_route(),
     };
     let mut homepage_document = None;
     let (reference_config, config_diagnostics) = config::read(&root);
@@ -396,6 +454,7 @@ pub fn publish_site_with_options(
     let mut copied: BTreeMap<String, (PathBuf, Vec<u8>)> = BTreeMap::new();
     let mut documents = BTreeMap::new();
     let mut index = String::from("<ul>");
+    let mut feed_bodies = BTreeMap::new();
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     let mut asset = |source: &Path, url: &str| {
         let resolved = assets::resolve_asset(&root, source, url)?;
@@ -457,10 +516,26 @@ pub fn publish_site_with_options(
                 message,
             });
         }
+        let is_journal = journal_dates.contains_key(&route);
+        if feed.lists(&route) {
+            feed_bodies.insert(
+                route.clone(),
+                (
+                    title.clone(),
+                    properties.html.clone() + &rendered.html,
+                    reference_index.page_count(&route),
+                ),
+            );
+        }
+        let hierarchy_html = if is_journal {
+            String::new()
+        } else {
+            hierarchy.bottom_view(&title)
+        };
         let body = properties.html.clone()
             + &rendered.html
             + &sequence
-            + &hierarchy.bottom_view(&title)
+            + &hierarchy_html
             + &reference_html;
         if homepage_route.as_ref() == Some(&route) {
             homepage_document = Some(html_document(
@@ -476,7 +551,11 @@ pub fn publish_site_with_options(
             route.clone(),
             html_document(&title, &body, stylesheet_route, &shell, &route, false),
         );
-        report.pages += 1;
+        if is_journal {
+            report.journals += 1;
+        } else {
+            report.pages += 1;
+        }
     }
     let mut entries = hierarchy.entries().collect::<Vec<_>>();
     entries.sort_by(|left, right| left.title.cmp(&right.title));
@@ -513,7 +592,7 @@ pub fn publish_site_with_options(
         ));
     }
     index.push_str("</ul>");
-    if report.pages == 0 {
+    if report.pages + report.journals == 0 {
         index.push_str("<p>No pages matched the publication policy.</p>");
     }
     documents.insert(
@@ -529,6 +608,27 @@ pub fn publish_site_with_options(
     );
     if let Some(document) = homepage_document {
         documents.insert("index.html".to_owned(), document);
+    }
+    for (route, body) in feed.render(&feed_bodies) {
+        let home = route == "index.html";
+        documents.insert(
+            route.clone(),
+            html_page(
+                "Journals",
+                &body,
+                stylesheet_route,
+                &shell,
+                &route,
+                home,
+                journals::HEAD,
+            ),
+        );
+    }
+    if !feed.is_empty() {
+        documents.insert(
+            journals::SCRIPT_ROUTE.to_owned(),
+            journals::SCRIPT.to_owned(),
+        );
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
     if let Some(search) = search {

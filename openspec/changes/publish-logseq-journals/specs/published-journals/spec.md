@@ -38,7 +38,7 @@ When journals are published, at least one published journal is dated on or befor
 
 ### Requirement: Load later journals and references on demand
 
-Feed pages SHALL load one shared `journals.js` file from the site root with `defer`. The script SHALL fetch the next batch file when the Earlier link comes within 500px of the viewport, append the batch's journal articles, and point Earlier at the following batch or remove it after the last. On the first opening of a journal's Linked References section, the script SHALL fetch the journal page and show its Linked References content with working filters. A failed fetch SHALL leave the Earlier link and the reference link usable.
+Feed pages SHALL load one shared `lsg-journals.js` file from the site root after the page's `load` event, outside the script loaded before the title. The script SHALL fetch the next batch file when the Earlier link comes within 500px of the viewport, append the batch's journal articles, and point Earlier at the following batch or remove it after the last. On the first opening of a journal's Linked References section, the script SHALL fetch the journal page and show its Linked References content with working filters. A failed fetch SHALL leave the Earlier link and the reference link usable.
 
 #### Scenario: Scrolling the feed
 - **WHEN** a reader scrolls `index.html` to the bottom once
@@ -54,8 +54,8 @@ Feed pages SHALL load one shared `journals.js` file from the site root with `def
 
 ### Requirement: Keep the feed's cost independent of the journal count
 
-`journals.js` SHALL be at most 4 KB uncompressed. The first batch SHALL meet the existing data, script and heap budgets before the title is visible. Adding older journals SHALL leave the first batch's size unchanged. Loading ten batches on the phone profile SHALL keep peak JavaScript heap at or below 20 MB. The `journals.js` size check and the older-journals size check SHALL run in CI through the parity budgets check, and `parity:perf --record` SHALL record the feed rows and the whole-garden build time with journals.
+`lsg-journals.js` SHALL be at most 4 KB uncompressed. The first batch SHALL meet the existing data, script and heap budgets before the title is visible. Adding older journals SHALL leave the first batch's size unchanged. Loading ten batches on the phone profile SHALL keep peak JavaScript heap at or below 20 MB. The `lsg-journals.js` size check and the older-journals size check SHALL run in CI through the parity budgets check, and `parity:perf --record` SHALL record the feed rows and the whole-garden build time with journals.
 
 #### Scenario: Older journals added
 - **WHEN** the parity fixture garden is built again with 1,000 older journals added
-- **THEN** `index.html` and `journals.js` keep the same size and stay within their budgets
+- **THEN** `index.html` and `lsg-journals.js` keep the same size and stay within their budgets

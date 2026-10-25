@@ -23,10 +23,10 @@ Every run writes into a new directory, `target/parity/<UTC time>/`. `parity:comp
 
 | Task | Writes | What it does |
 | --- | --- | --- |
-| `parity:build` | `site/`, `settings.json`, `diagnostics.txt` | Builds a release `lsg` and publishes every page whose top-level namespace `lsg` can select. `settings.json` records the garden commit, the `lsg` version and commit, every option passed, and files whose namespace `lsg` cannot select. |
+| `parity:build` | `site/`, `settings.json`, `diagnostics.txt` | Builds a release `lsg` and publishes every page whose top-level namespace `lsg` can select, with `--journals`. `settings.json` records the garden commit, the `lsg` version and commit, every option passed, and files whose namespace `lsg` cannot select. |
 | `parity:compare` | `logseq/`, `report.md`, `report.json` | Extracts Logseq's build, reads its page list from `static/js/db.gz`, and lists pages present in one build and missing from the other. Logseq-only pages are grouped as journals, reference-only pages, pages hidden by `:hidden`, titles `lsg` cannot select, and other pages. Each other page needs an explanation or a fix. |
 | `parity:screenshots` | `screenshots/index.html` | Captures every page in [`scripts/parity/fixtures.txt`](../../scripts/parity/fixtures.txt) from both builds at 1280 by 800 and at 390 by 844 (`--viewport desktop` or `phone` takes one) in light mode, after scrolling so Logseq draws its Linked References. The index shows the two captures side by side. |
-| `parity:perf` | `perf.md`, `perf.json` | Loads each fixture page from both builds with an empty cache, on a desktop profile and on Lighthouse's mobile profile (four times CPU slowdown, 150 ms round trip, 1.6 Mbps). It records time until the page title is visible, first contentful paint, data and script transferred before the title, and peak JavaScript heap, then types the queries in [`scripts/parity/search-queries.txt`](../../scripts/parity/search-queries.txt) into each build's search. Bold values exceed [`scripts/parity/budgets.toml`](../../scripts/parity/budgets.toml). |
+| `parity:perf` | `perf.md`, `perf.json` | Loads each fixture page from both builds with an empty cache, on a desktop profile and on Lighthouse's mobile profile (four times CPU slowdown, 150 ms round trip, 1.6 Mbps). It records time until the page title is visible, first contentful paint, data and script transferred before the title, and peak JavaScript heap, then types the queries in [`scripts/parity/search-queries.txt`](../../scripts/parity/search-queries.txt) into each build's search. It scrolls each build's journals feed until it shows ten later batches and records the peak heap, and times `lsg publish` on the whole garden with and without `--journals`. Bold values exceed [`scripts/parity/budgets.toml`](../../scripts/parity/budgets.toml). |
 
 The local server compresses text files with gzip, as GitHub Pages does, so transfer sizes match the published sites.
 
@@ -34,7 +34,7 @@ A full `parity:perf` run takes hours, because Logseq's build needs minutes per l
 
 ## The CI check
 
-`mise run parity:budgets` runs in `mise run ci`. It publishes the fixture garden in `tests/fixtures/parity-garden/`, then publishes it again with 2,000 added pages that nothing links to. It fails when a page's first-paint size or script size exceeds the budget, or when a page grows because the garden grew. It also checks the `[shell]` budgets: `lsg-shell.js` and each page's header and sidebar markup must stay within their sizes and keep them when the garden grows.
+`mise run parity:budgets` runs in `mise run ci`. It publishes the fixture garden in `tests/fixtures/parity-garden/`, then publishes it again with 2,000 added pages that nothing links to. It fails when a page's first-paint size or script size exceeds the budget, or when a page grows because the garden grew. It also checks the `[shell]` budgets: `lsg-shell.js` and each page's header and sidebar markup must stay within their sizes and keep them when the garden grows. It publishes the fixture garden once more with 1,000 older journals and checks the `[journals]` budget: `lsg-journals.js` stays within its size, and it and the home page keep their sizes.
 
 ## Change the fixtures or budgets
 

@@ -9,7 +9,7 @@ import common
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures.txt'
 LOGSEQ_ROUTES = {'Home': '#/', 'All pages': '#/all-pages'}
-LSG_ROUTES = {'Home': 'index.html', 'All pages': 'index.html'}
+LSG_ROUTES = {'Home': 'index.html', 'All pages': 'pages.html'}
 TITLE_SELECTORS = {
     'logseq': '.page-title, .journal-title, h1.title',
     'lsg': 'h1',
@@ -67,10 +67,17 @@ class Server:
         self.httpd.server_close()
 
 
-def targets(name, logseq_names, lsg_index):
-    """Return {'logseq': route or None, 'lsg': file or None} for a fixture name."""
+def targets(name, logseq_names, lsg_index, site=None):
+    """Return {'logseq': route or None, 'lsg': file or None} for a fixture name.
+
+    All pages is `pages.html` when the lsg build has one (a journals feed or a homepage
+    holds `index.html`), otherwise `index.html`.
+    """
     if name in LOGSEQ_ROUTES:
-        return {'logseq': LOGSEQ_ROUTES[name], 'lsg': LSG_ROUTES[name]}
+        lsg = LSG_ROUTES[name]
+        if site is not None and not (Path(site) / lsg).exists():
+            lsg = 'index.html'
+        return {'logseq': LOGSEQ_ROUTES[name], 'lsg': lsg}
     key = common.normalize(name)
     lsg = lsg_index.get(key)
     return {

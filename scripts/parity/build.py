@@ -53,7 +53,7 @@ def main():
     lsg = common.lsg_binary()
     selected, skipped = roots(garden / 'pages')
     run = common.new_run_dir()
-    options = ['--filename-format', FILENAME_FORMAT]
+    options = ['--filename-format', FILENAME_FORMAT, '--journals']
     for root in selected:
         options += ['--include', root]
     command = [str(lsg), 'publish', '--graph', str(garden), '--output', str(run / 'site'), *options, '--format', 'json']

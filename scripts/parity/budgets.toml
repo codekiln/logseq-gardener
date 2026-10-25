@@ -19,3 +19,11 @@ search_p95_ms = 100
 [shell]
 script_kb = 6
 frame_kb = 6
+
+# The journals feed on the home page (published-journals). parity:budgets checks script_kb;
+# parity:perf marks the phone heap after the feed has loaded ten batches, and build times
+# with journals more than build_slowdown_pct above the build without them.
+[journals]
+script_kb = 4
+scroll_heap_mb = 20
+build_slowdown_pct = 20

@@ -6,7 +6,10 @@
 """Measure load time, data, script, memory and search latency for both builds."""
 import argparse
 import json
+import subprocess
 import sys
+import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,6 +35,16 @@ SEARCH = {
     'lsg': None,
 }
 KEY_GAP_MS = 300
+# Journal titles in each build's journals feed, and the number of later batches to load.
+FEED_TITLES = {'logseq': '.journal-title', 'lsg': 'a.journal-title'}
+FEED_BATCHES = 10
+FEED_JOURNALS = 3 + 7 * FEED_BATCHES
+# Logseq scrolls #main-content-container; lsg scrolls the window.
+SCROLL_TO_BOTTOM = '''() => {
+  const box = document.querySelector('#main-content-container');
+  if (box) box.scrollTop = box.scrollHeight;
+  window.scrollTo(0, document.documentElement.scrollHeight);
+}'''
 
 PROBE = '''
 (() => {
@@ -164,6 +177,50 @@ def measure_search(browser, url, build, profile, queries):
         context.close()
 
 
+def measure_feed(browser, url, build, profile):
+    """Scroll the journals feed until it shows ten later batches; record the journals shown and peak heap."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS[build])
+    selector = FEED_TITLES[build]
+    try:
+        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        wait_loaded(page, profile)
+        start = time.monotonic()
+        shown = page.locator(selector).count()
+        while shown < FEED_JOURNALS:
+            page.evaluate(SCROLL_TO_BOTTOM)
+            page.mouse.wheel(0, 2000)
+            try:
+                page.wait_for_function(f'document.querySelectorAll({json.dumps(selector)}).length > {shown}',
+                                       timeout=30_000, polling=100)
+            except Exception:  # The feed has no later journals.
+                break
+            shown = page.locator(selector).count()
+        elapsed = (time.monotonic() - start) * 1000
+        page.wait_for_timeout(1000)
+        peak = max(page.evaluate('window.__parity.peak') or 0, heap_now(cdp))
+        return {'journals': shown, 'peak_heap': peak, 'scroll_ms': elapsed}
+    except Exception as error:
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def measure_build(settings):
+    """Seconds to publish the whole garden with and without journals, with the run's lsg options."""
+    lsg = common.lsg_binary()
+    options = settings['lsg_options']
+    rows = []
+    with tempfile.TemporaryDirectory(prefix='lsg-build-time-') as temp:
+        for journals in (False, True):
+            chosen = [o for o in options if o != '--journals'] + (['--journals'] if journals else [])
+            output = Path(temp) / ('with' if journals else 'without')
+            command = [str(lsg), 'publish', '--graph', settings['garden'], '--output', str(output), *chosen]
+            start = time.monotonic()
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            rows.append({'build': 'lsg', 'journals': journals, 'seconds': time.monotonic() - start})
+    return rows
+
+
 def merge(kept, measured, builds, key):
     """Keep earlier rows for builds not measured now, in the order of the new rows."""
     rows = {tuple(r[k] for k in key): r for r in kept if r['build'] not in builds}
@@ -212,6 +269,33 @@ def markdown(results, budgets):
                 text = f'**{text}**'
             cells.append(text)
         lines.append(f"| {row['page']} | {row['profile']} | {row['build']} | " + ' | '.join(cells) + ' |')
+    feed_limit = budgets.get('journals', {}).get('scroll_heap_mb')
+    lines += ['', f'## Journals feed after {FEED_BATCHES} later batches', '',
+              f'The home page scrolled until it shows {FEED_JOURNALS} journals or runs out. '
+              'The phone heap budget applies to `lsg`.', '',
+              '| Profile | Build | Journals shown | Peak JS heap (MB) | Time to load the batches (ms) |',
+              '| --- | --- | ---: | ---: | ---: |']
+    for row in results.get('feed', []):
+        if 'error' in row:
+            lines.append(f"| {row['profile']} | {row['build']} | {row['error']} | | |")
+            continue
+        heap = f"{row['peak_heap'] / 1_000_000:,.1f}"
+        if (row['build'] == 'lsg' and row['profile'] == 'phone' and feed_limit is not None
+                and row['peak_heap'] > feed_limit * 1_000_000):
+            heap = f'**{heap}**'
+        lines.append(f"| {row['profile']} | {row['build']} | {row['journals']} | {heap} | {row['scroll_ms']:,.0f} |")
+    builds = {row['journals']: row['seconds'] for row in results.get('build', [])}
+    if builds:
+        slowdown = budgets.get('journals', {}).get('build_slowdown_pct')
+        lines += ['', '## Whole-garden build time', '',
+                  '`lsg publish` with the run\'s options, once without and once with `--journals`.', '',
+                  '| Build | Seconds |', '| --- | ---: |']
+        for journals, seconds in sorted(builds.items()):
+            text = f'{seconds:,.1f}'
+            if (journals and False in builds and slowdown is not None
+                    and seconds > builds[False] * (1 + slowdown / 100)):
+                text = f'**{text}**'
+            lines.append(f"| {'with' if journals else 'without'} journals | {text} |")
     lines += ['', '## Search latency per keystroke', '',
               '| Profile | Build | Keystrokes | Median (ms) | 95th percentile (ms) |',
               '| --- | --- | ---: | ---: | ---: |']
@@ -258,7 +342,7 @@ def main():
         browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
         servers = {name: server for name, server in (('logseq', logseq), ('lsg', lsg)) if name in builds}
         for name in serve.fixtures(args.fixtures):
-            target = serve.targets(name, names, lsg_index)
+            target = serve.targets(name, names, lsg_index, run / 'site')
             for profile in profiles:
                 for build, server in servers.items():
                     row = {'page': name, 'profile': profile, 'build': build}
@@ -272,15 +356,23 @@ def main():
                     row['loads'] = len(good)
                     pages.append(row)
                     print(json.dumps(row, ensure_ascii=False), flush=True)
+        feed = []
         for profile in profiles:
             for build, server in servers.items():
                 home = server.url + serve.LOGSEQ_ROUTES['Home'] if build == 'logseq' else server.url + 'index.html'
                 row = {'profile': profile, 'build': build, **measure_search(browser, home, build, profile, queries)}
                 search.append(row)
                 print(json.dumps(row), flush=True)
+                row = {'profile': profile, 'build': build, **measure_feed(browser, home, build, profile)}
+                feed.append(row)
+                print(json.dumps(row), flush=True)
         browser.close()
     pages = merge(kept['pages'], pages, builds, ('page', 'profile', 'build'))
     search = merge(kept['search'], search, builds, ('profile', 'build'))
+    feed = merge(kept.get('feed', []), feed, builds, ('profile', 'build'))
+    build_rows = measure_build(settings) if 'lsg' in builds else kept.get('build', [])
+    for row in build_rows:
+        print(json.dumps(row), flush=True)
     garden = Path(settings['garden'])
     results = {
         'summary': {
@@ -292,6 +384,8 @@ def main():
         },
         'pages': pages,
         'search': search,
+        'feed': feed,
+        'build': build_rows,
     }
     (run / 'perf.json').write_text(json.dumps(results, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     text = markdown(results, budgets)

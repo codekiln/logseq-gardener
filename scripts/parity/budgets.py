@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -16,6 +17,8 @@ FIXTURE_GARDEN = common.REPO / 'tests' / 'fixtures' / 'parity-garden'
 FIXTURE_ROOTS = ['Tools']
 FILLER_ROOT = 'Filler'
 FILLER_PAGES = 2000
+OLDER_JOURNALS = 1000
+JOURNALS_SCRIPT = 'lsg-journals.js'
 
 
 class _BlockingResources(html.parser.HTMLParser):
@@ -91,17 +94,43 @@ def check_shell(small_site, large_site, pages, shell):
     return failures
 
 
+def check_journals(small_site, older_site, journals):
+    """Return failure messages for the feed loader and a home page that grew with older journals."""
+    script = small_site / JOURNALS_SCRIPT
+    if not script.exists():
+        return [f'{JOURNALS_SCRIPT}: missing from the build']
+    failures = []
+    size = script.stat().st_size
+    if size > journals['script_kb'] * 1000:
+        failures.append(f'{JOURNALS_SCRIPT}: {size:,} exceeds {journals["script_kb"] * 1000:,}')
+    for name in ('index.html', JOURNALS_SCRIPT):
+        before, after = (small_site / name).stat().st_size, (older_site / name).stat().st_size
+        if before != after:
+            failures.append(f'{name}: size changed from {before:,} to {after:,} '
+                            f'when {OLDER_JOURNALS:,} older journals were added')
+    return failures
+
+
+def add_older_journals(garden, count):
+    """Add journals dated before every fixture journal."""
+    start = date(2000, 1, 1)
+    for offset in range(count):
+        day = start + timedelta(days=offset)
+        (garden / 'journals' / f'{day:%Y_%m_%d}.md').write_text(
+            f'- Older journal {offset} that no fixture page refers to.\n', encoding='utf-8')
+
+
 def profiles(budgets):
     return {name: limits for name, limits in budgets.items() if name in ('desktop', 'phone')}
 
 
 def site_pages(site):
-    return sorted(p.name for p in site.glob('*.html') if p.name not in ('index.html', 'pages.html'))
+    return sorted(p.name for p in site.glob('*.html') if p.name != 'pages.html')
 
 
 def publish(lsg, garden, output, roots):
     command = [str(lsg), 'publish', '--graph', str(garden), '--output', str(output),
-               '--filename-format', 'triple-lowbar']
+               '--filename-format', 'triple-lowbar', '--journals']
     for root in roots:
         command += ['--include', root]
     subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -149,14 +178,21 @@ def main():
         small = {page: page_sizes(temp / 'small', page) for page in site_pages(temp / 'small')}
         large = {page: page_sizes(temp / 'large', page) for page in small if (temp / 'large' / page).exists()}
         shell_failures = check_shell(temp / 'small', temp / 'large', small, budgets['shell'])
+        older = temp / 'older-garden'
+        shutil.copytree(FIXTURE_GARDEN, older)
+        add_older_journals(older, OLDER_JOURNALS)
+        publish(lsg, older, temp / 'older', FIXTURE_ROOTS)
+        journal_failures = check_journals(temp / 'small', temp / 'older', budgets['journals'])
         print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
+        print(f"{JOURNALS_SCRIPT}: {(temp / 'small' / JOURNALS_SCRIPT).stat().st_size:,}")
     for page, (raw, packed, script) in sorted(small.items()):
         print(f'{page}: first paint {raw:,} ({packed:,} gzip), script {script:,}')
-    failures = check(small, large, budgets) + shell_failures
+    failures = check(small, large, budgets) + shell_failures + journal_failures
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)
-    print(f'{len(small)} pages within budget and unchanged with {FILLER_PAGES:,} added pages')
+    print(f'{len(small)} pages within budget and unchanged with {FILLER_PAGES:,} added pages; '
+          f'home page unchanged with {OLDER_JOURNALS:,} older journals')
 
 
 if __name__ == '__main__':

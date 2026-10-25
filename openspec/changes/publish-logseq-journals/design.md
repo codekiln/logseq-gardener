@@ -31,9 +31,9 @@ Two consumers constrain the change. Gitpa (Codex's work) runs `lsg publish` with
 - `parse_journal_reference(name, formats)` tries the configured title format, then `MMM do, yyyy`, `yyyy-MM-dd` and `yyyy_MM_dd`, as Logseq's `date_time_util.cljs` does.
 - `journal_list(garden, formats)` returns every journal's date, title and document, newest first, with errors for unparseable stems.
 
-`PageNameIndex` gains `insert_journal(route, date, title, document)`. `candidates(name)` first tries titles and aliases, then a journal whose date `parse_journal_reference` returns, so every link, embed, favorite and homepage selector resolves dates the same way. `page_title` keeps its current contract for page files.
+`PageNameIndex::with_journal_formats(formats)` creates an index that reads date references with the garden's formats, and `insert_journal(route, date)` registers a journal's date next to the title and aliases that `insert` adds. `candidates(name)` first tries titles and aliases, then a journal whose date `parse_journal_reference` returns, so every link, embed, favorite and homepage selector resolves dates the same way. `page_title` keeps its current contract for page files.
 
-The publisher renders journal pages, the feed and its batch files, the sidebar item and `g j`. Linked References for journals come from the existing `site/backlinks.rs` index; moving that index into the SDK is part of #115.
+The publisher renders journal pages, the feed and its batch files, the sidebar item and `g j`. Linked References for journals come from the existing `site/backlinks.rs` index; moving that index into the SDK is part of #115. That index now keeps each source page's range of reference contexts, so rendering a context scans only its own page's contexts instead of every context in the garden; on the whole encode garden this cut reference rendering from 17 s to under 1 s with byte-identical output, and keeps build time with journals within its budget.
 
 **Selecting journals.** `SiteOptions.journals: bool` and `lsg publish --journals` turn journal publishing on. Each journal then passes through the same `public:: false` check as pages; namespace selectors do not apply because journal titles have no namespace. A file that fails `journal_identity` is skipped with a diagnostic and counted in `skipped_journals`. Journal and page titles share one lookup, so a page file whose title equals a journal title fails with the existing ambiguity error before output is written; the encode garden has none. Journal routes use the existing `p-<digest>.html` scheme.
 
@@ -44,7 +44,7 @@ The publisher renders journal pages, the feed and its batch files, the sidebar i
 - Batch 1 (three journals) is `index.html`, or `journals.html` when `--homepage` holds `index.html`. Batch *n* ≥ 2 (seven journals) is `journals-<n>.html`. Every batch file is a complete page with the shell.
 - Each journal is `<article class="lsg-journal">` holding `<h1><a class="journal-title" href="<route>">title</a></h1>`, the expanded block tree, and, when the journal has references, `<details class="linked-references" data-lsg-journal-refs="<route>">` with the summary `N Linked References` and a link to `<route>#linked-references`. Collapsed blocks keep their authored state, as on journal pages.
 - Below the last article, `<a class="lsg-journals-earlier" href="journals-<n+1>.html">Earlier</a>` appears when a later batch exists.
-- `journals.js` (written once to the site root, loaded with `defer` from feed pages only) watches the Earlier link with an `IntersectionObserver` with a 500px root margin. When it intersects, the script fetches the next batch, parses it with `DOMParser`, appends its articles, and moves the Earlier link to the new batch's target. On the first `toggle` of a journal's Linked References, it fetches the journal page and copies its Linked References content in, then initialises filters with the existing `backlinks.js` functions. A failed fetch leaves the Earlier link and the reference link working.
+- `lsg-journals.js` is written once to the site root. The feed's container names it in `data-lsg-journals`, and `lsg-shell.js` adds it to the page after the `load` event, so it is not part of first paint. It watches the Earlier link with an `IntersectionObserver` with a 500px root margin. When it intersects, the script fetches the next batch, parses it with `DOMParser`, appends its articles, and moves the Earlier link to the new batch's target. On the first `toggle` of a journal's Linked References, it fetches the journal page and copies its Linked References content in, then initialises filters with the existing `backlinks.js` functions. A failed fetch leaves the Earlier link and the reference link working.
 
 **Page index and sidebar.** When the feed holds `index.html`, the complete page index moves to `pages.html`, the same address `--homepage` uses, and the shell's All pages item follows it. Journals is the sidebar's first item, links to the feed's first batch, carries `aria-current="page"` on every feed batch, and uses Tabler's calendar icon. `g j` opens the feed's first batch. Neither appears when no feed is written.
 
@@ -52,7 +52,7 @@ The publisher renders journal pages, the feed and its batch files, the sidebar i
 
 | Measure | Budget |
 | --- | --- |
-| `journals.js`, uncompressed | 4 KB |
+| `lsg-journals.js`, uncompressed | 4 KB |
 | Data before the title is visible on `index.html` (gzip) | 100 KB (existing budget) |
 | Script before the title is visible on `index.html` | 16 KB (existing budget) |
 | Peak JavaScript heap on `index.html` | 10 MB (existing budget) |
@@ -60,14 +60,14 @@ The publisher renders journal pages, the feed and its batch files, the sidebar i
 | `index.html` size change when 1,000 older journals are added | none |
 | Whole-garden build time with `--journals` | recorded in `docs/parity/performance.md`; at most 20% above the build without journals |
 
-Search latency keeps its existing budgets with the 505 journals added to the corpus. `parity:budgets` in CI gains the `journals.js` size check and the 1,000-journal size check on the fixture garden. `parity:perf --record` adds the feed and scroll rows.
+Search latency keeps its existing budgets with the 505 journals added to the corpus. `parity:budgets` in CI gains the `lsg-journals.js` size check and the 1,000-journal size check on the fixture garden. `parity:perf --record` adds the feed and scroll rows.
 
 ## Risks / Trade-offs
 
 - [The build date differs from the reader's date, so the feed's newest journal can be a day off Logseq's] → `SOURCE_DATE_EPOCH` lets a build pin the date; a build from the current commit matches Logseq's build from the same commit.
 - [A heavily referenced journal makes its feed article large] → Reference content loads only when opened; the summary carries just the count.
 - [Appending batches grows the page's DOM on long scrolls] → The ten-batch heap budget bounds it; batch files keep pages separate for readers who use Earlier.
-- [Gitpa replaces `<main>` content] → The feed's markup sits inside `<main>`, and `journals.js` uses event delegation and re-finds the Earlier link on each intersection, so swapped content needs no reinitialisation.
+- [Gitpa replaces `<main>` content] → The feed's markup sits inside `<main>`, and `lsg-journals.js` uses event delegation and re-finds the Earlier link on each intersection, so swapped content needs no reinitialisation.
 - [Publishing journals exposes notes a garden owner meant to keep private] → Journals publish only with `--journals`, and `public:: false` withholds a journal.
 
 ## Resolved Questions
@@ -111,6 +111,10 @@ Decided by the agent without codekiln: no. The format tokens and the weekday cal
 ### 10 - Does the Journals sidebar item appear with `--homepage`?
 
 Decided by the agent without codekiln: yes, linking to `journals.html`. Logseq sends Journals to `#/all-journals` when a default home is set; `journals.html` is the static equivalent and costs nothing extra.
+
+### 11 - When does the feed loader load?
+
+Decided by the agent without codekiln during the apply step: after the page's `load` event, added by `lsg-shell.js`. Loading it with `defer` put 16.3 KB of script before the home page's title, over the existing 16 KB budget. The loader is needed only when the reader scrolls toward Earlier or opens Linked References, which cannot happen before the page has loaded.
 
 ## Open Questions
 
