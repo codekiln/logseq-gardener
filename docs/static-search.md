@@ -1,8 +1,8 @@
 # Static search contract
 
-Enable index generation with `lsg publish … --search`, or set `SiteOptions.search = Some(SearchOptions::default())` in the SDK. Version1 emits selected stored page titles, unique aliases and original bullet inline text. Each page advertises its manifest through `<link rel="lsg-search" href="lsg-search-manifest-REVISION.json" data-revision="REVISION">`. Generation adds no search UI, script loading or corpus fetch to the ordinary page path.
+Enable index generation with `lsg publish … --search`, or set `SiteOptions.search = Some(SearchOptions::default())` in the SDK. Version1 emits selected stored page titles, unique aliases and original bullet inline text. Each page advertises its manifest through `<link rel="lsg-search" href="lsg-search-manifest-REVISION.json" data-revision="REVISION">`. A shared header button and Cmd/Ctrl+K shortcut open a native search dialog. The small controller loads with the page; the manifest, corpus and evaluator load only when search opens.
 
-The accessible dialog follows in [issue95 — search dialog](https://github.com/codekiln/logseq-gardener/issues/95). [Issue96 — search validation](https://github.com/codekiln/logseq-gardener/issues/96) covers representative browser transfer, parsing, query latency and failure/loading states. Its measurements will choose chunking or worker execution. Use the existing `scripts/parity/perf.py` and `scripts/parity/budgets.toml` for those measurements.
+[Issue96 — search validation](https://github.com/codekiln/logseq-gardener/issues/96) covers representative browser transfer, parsing, query latency and failure/loading states. Its measurements will choose chunking or worker execution. Use the existing `scripts/parity/perf.py` and `scripts/parity/budgets.toml` for those measurements.
 
 ## Publication boundary
 
@@ -90,3 +90,23 @@ For SPA navigation, load the resolved page through the host's normal navigation 
 ## Checks
 
 `mise run test` runs Rust publication fixtures and the pure engine tests. The search fixtures inspect the serialized artifacts for private/unselected sentinels, aliases, exclusions, copied content, revision identity, exact anchor existence, repeated deterministic publication and original-source immutability. JavaScript fixtures assert whole result order, Unicode, malformed/oversized input, safe text snippets, incompatible data and host route adaptation. Search adds no separate performance harness.
+
+## Shared dialog and persistent hosts
+
+Search-enabled pages load a content-fingerprinted `lsg-search-ui-*.mjs` controller. The header trigger remains hidden until JavaScript finds valid publication metadata and native dialog support. Cmd/Ctrl+K opens the same dialog, and Escape/Close restores the original invoking control. Arrow keys move through ordinary result anchors; Enter activates a result. Native modal behavior contains Tab focus. Modified/new-tab result links retain browser behavior. Result titles, context and snippets use text nodes. The controller uses shared appearance variables on desktop/mobile and light/dark/system themes.
+
+The dialog distinguishes loading, an empty query, no results and failed publication loading. Failures offer explicit Retry search and Reload page buttons. Loading never reloads automatically. Reopening a loaded publication reuses its prepared index; closing aborts pending requests, and changed revisions invalidate cached results. The loader checks same-origin HTTP(S) artifact paths, response status/redirect behavior, expected revision/version, exact UTF-8 corpus length and the existing pure schema validator. Serve search-enabled output over HTTP(S), including local preview; `file:` pages retain ordinary navigation with the search trigger hidden.
+
+For a persistent host, update the current document's `link[rel="lsg-search"]` from the incoming page before reinitializing. Remove the link when the incoming page has no search publication. Then call:
+
+```javascript
+window.logseqGardenerInitSearch(document, {
+  resolvePage: (canonicalTitle, publishedHref) => readableRouteFor(canonicalTitle)
+});
+```
+
+The optional resolver remains configured on subsequent calls; pass `resolvePage: null` to restore manifest-relative default navigation. Default links resolve beside the manifest, including from nested current pages. The initializer is idempotent, operates on current document metadata, and preserves one body-level dialog outside `main`. A changed/missing publication closes the dialog, invalidates pending/cached data and updates trigger visibility. Hosts can replace `main` normally.
+
+An ordinary result activation closes the dialog before its click bubbles to the host's delegated navigator. The controller does not prevent the anchor's navigation; the host retains its existing player/theme/filter initialization and fragment reveal steps. Hosts should preserve the body-level dialog when replacing page content. The controller uses no audio or theme mutation APIs.
+
+`mise run search:browser-test` runs a generated static publication in pinned Chromium and checks keyboard/focus, safe snippets, mobile/themes, lazy requests/cache, modified links, repeated SPA initialization, metadata invalidation, explicit retry and no-JavaScript fallback. Unit loader fixtures also cover UTF-8 descriptor mismatch, remote/version failures and stale fetch/module completion across close/revision changes. This is a functional test; measured performance remains in the existing parity harness.
