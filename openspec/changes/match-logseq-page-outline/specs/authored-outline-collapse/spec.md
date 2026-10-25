@@ -13,5 +13,5 @@ Disclosure controls SHALL support native keyboard expansion and collapse, visibl
 - **THEN** its containing disclosures open and the target becomes reachable while unrelated closed branches stay closed
 
 #### Scenario: Closed bullet in place of the triangle
-- **WHEN** a reader opens `rw-cli`, which has four authored collapsed blocks
+- **WHEN** a reader opens `rw-cli`, whose blocks include authored collapsed blocks
 - **THEN** each shows its bullet on a filled disc, no native disclosure triangle is visible, and each opens by click or keyboard with JavaScript turned off

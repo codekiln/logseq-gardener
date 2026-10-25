@@ -161,6 +161,23 @@ fn journal_pages_use_journal_titles_aliases_and_date_links() {
 }
 
 #[test]
+fn page_and_feed_outlines_get_the_outline_class_and_references_do_not() {
+    let f = Fixture::new(CONFIG);
+    f.publish();
+    let journal = f.page("OCT_23_FILED");
+    let (page, references) = journal.split_once("id=\"linked-references\"").unwrap();
+    assert!(page.contains("<ul class=\"outline\"><li>"), "{page}");
+    assert!(page.contains("<a class=\"bullet\" href=\"#\"></a>"));
+    assert!(references.contains("TMUX_BODY"));
+    assert!(!references.contains("class=\"outline\""), "{references}");
+    assert!(!references.contains("class=\"bullet\""), "{references}");
+    let feed = f.file("index.html");
+    let article = feed.split("<article class=\"lsg-journal\"").nth(1).unwrap();
+    assert!(article.contains("<ul class=\"outline\">"), "{article}");
+    assert!(f.file("lsg-outline.js").contains("#zoom/"));
+}
+
+#[test]
 fn home_page_feed_lists_three_then_seven_newest_first() {
     let f = Fixture::new(CONFIG);
     for day in 1..=9 {

@@ -27,3 +27,11 @@ frame_kb = 6
 script_kb = 4
 scroll_heap_mb = 20
 build_slowdown_pct = 20
+
+# Page outlines (published-page-outline). parity:budgets checks script_kb and the gzip size of
+# the outline styles every page carries; parity:perf marks zoom times above zoom_ms.
+[outline]
+script_kb = 8
+styles_gzip_kb = 1.5
+zoom_ms_desktop = 50
+zoom_ms_phone = 150

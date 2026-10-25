@@ -19,6 +19,8 @@ FILLER_ROOT = 'Filler'
 FILLER_PAGES = 2000
 OLDER_JOURNALS = 1000
 JOURNALS_SCRIPT = 'lsg-journals.js'
+OUTLINE_SCRIPT = 'lsg-outline.js'
+OUTLINE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'outline.css'
 
 
 class _BlockingResources(html.parser.HTMLParser):
@@ -111,6 +113,21 @@ def check_journals(small_site, older_site, journals):
     return failures
 
 
+def check_outline(site, outline, styles=OUTLINE_STYLES):
+    """Return failure messages for the outline script and the outline styles every page carries."""
+    script = site / OUTLINE_SCRIPT
+    if not script.exists():
+        return [f'{OUTLINE_SCRIPT}: missing from the build']
+    failures = []
+    size = script.stat().st_size
+    if size > outline['script_kb'] * 1000:
+        failures.append(f'{OUTLINE_SCRIPT}: {size:,} exceeds {outline["script_kb"] * 1000:,}')
+    packed = metrics.gzip_size(Path(styles).read_bytes())
+    if packed > outline['styles_gzip_kb'] * 1000:
+        failures.append(f'outline styles: {packed:,} gzip exceed {outline["styles_gzip_kb"] * 1000:,.0f}')
+    return failures
+
+
 def add_older_journals(garden, count):
     """Add journals dated before every fixture journal."""
     start = date(2000, 1, 1)
@@ -184,10 +201,12 @@ def main():
         publish(lsg, older, temp / 'older', FIXTURE_ROOTS)
         journal_failures = check_journals(temp / 'small', temp / 'older', budgets['journals'])
         print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
+        outline_failures = check_outline(temp / 'small', budgets['outline'])
         print(f"{JOURNALS_SCRIPT}: {(temp / 'small' / JOURNALS_SCRIPT).stat().st_size:,}")
+        print(f"{OUTLINE_SCRIPT}: {(temp / 'small' / OUTLINE_SCRIPT).stat().st_size:,}")
     for page, (raw, packed, script) in sorted(small.items()):
         print(f'{page}: first paint {raw:,} ({packed:,} gzip), script {script:,}')
-    failures = check(small, large, budgets) + shell_failures + journal_failures
+    failures = check(small, large, budgets) + shell_failures + journal_failures + outline_failures
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

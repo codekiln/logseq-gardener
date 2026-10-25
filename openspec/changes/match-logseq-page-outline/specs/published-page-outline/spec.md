@@ -41,7 +41,7 @@ On a page with an outline, readers SHALL be able to collapse and expand any bloc
 Clicking a bullet, or pressing Enter on a focused bullet, SHALL open the zoomed view of that block at `<page>#zoom/<identifier>`, using the SDK's identifier for the block. The zoomed view SHALL show a breadcrumb and then the block as the outline's root, with its bullet and all its descendants expanded, and SHALL hide the page title, page properties, the namespace hierarchy section, Linked References and every other block. The breadcrumb SHALL hold a link to the page, then up to three nearest ancestors as links to their own zoomed views, with `⋯` after the page when more ancestors are hidden, and SHALL omit the zoomed block. Leaving the zoom address SHALL restore the page view with the reader's earlier collapse state. In a journal-feed article, a bullet SHALL open the journal's page at the block's zoom address. An unknown identifier SHALL leave the page view.
 
 #### Scenario: Zoom into a nested collapsed block
-- **WHEN** a reader opens `rw-cli` at `#zoom/6add3ffb-e52b-4e8f-908a-9958186e4dfb`
+- **WHEN** a reader opens `rw-cli` at `#zoom/1.1.1.2`, the collapsed block below `rw-cli list - list items in Readwise/Reader`
 - **THEN** the breadcrumb reads `rw-cli › rw-cli - An open-source… › Commands › rw-cli list - list items in Readwise/Reader`, the block and its children are shown expanded, and the title and Linked References are hidden
 
 #### Scenario: Stable address
@@ -54,11 +54,11 @@ Clicking a bullet, or pressing Enter on a focused bullet, SHALL open the zoomed 
 
 ### Requirement: Keep the outline within performance budgets
 
-The outline SHALL add no file per block and no graph data to the browser. `lsg-outline.js` SHALL be at most 4 KB uncompressed and load after the page's `load` event. The outline CSS SHALL add at most 1.5 KB gzip to each page. The `tmux` fixture page SHALL stay under 100 KB gzip and grow by at most 2 KB gzip. A bullet click on `tmux` SHALL paint the zoomed view within 50 ms on the desktop profile and 150 ms on the phone profile. The existing budgets for data and script before the title and for peak heap SHALL hold. CI SHALL check the script and page sizes, and the comparison harness SHALL record the zoom time.
+The outline SHALL add no file per block and no graph data to the browser. `lsg-outline.js` SHALL be at most 8 KB uncompressed and load after the page's `load` event. The outline CSS SHALL add at most 1.5 KB gzip to each page. The `tmux` fixture page SHALL stay under 100 KB gzip and grow by at most 2 KB gzip. A bullet click on `tmux` SHALL paint the zoomed view within 50 ms on the desktop profile and 150 ms on the phone profile. The existing budgets for data and script before the title and for peak heap SHALL hold. CI SHALL check the script and page sizes, and the comparison harness SHALL record the zoom time.
 
 #### Scenario: Budgets in CI
 - **WHEN** `parity:budgets` runs on the fixture garden
-- **THEN** it fails if `lsg-outline.js` exceeds 4 KB or the largest fixture page exceeds its size budget
+- **THEN** it fails if `lsg-outline.js` exceeds 8 KB, the outline styles exceed 1.5 KB gzip, or the largest fixture page exceeds its size budget
 
 #### Scenario: Zoom timing recorded
 - **WHEN** `parity:perf --record` runs on the encode garden

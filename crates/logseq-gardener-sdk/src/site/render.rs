@@ -4,8 +4,29 @@ use std::path::{Path, PathBuf};
 
 use crate::ast::{Block, Inline, ListItem, Url};
 use crate::garden::GardenDocument;
+use crate::outline::{Outline, OutlineBlock, TaskMarker};
 
 const MAX_DEPTH: usize = 64;
+
+/// The same bytes for every block, so the bullets compress to almost nothing;
+/// `lsg-outline.js` resolves the block from the bullet's position.
+const BULLET: &str = "<a class=\"bullet\" href=\"#\"></a>";
+
+struct Task<'a> {
+    marker: Option<TaskMarker>,
+    /// The parser's word, shown as text when it is not a known marker.
+    word: Option<&'a str>,
+    priority: Option<&'a str>,
+}
+
+/// A paragraph of line breaks and spaces, such as a blank line after page properties.
+fn is_blank(inline: &[Inline]) -> bool {
+    inline.iter().all(|node| match node {
+        Inline::Break { .. } | Inline::HardBreak { .. } => true,
+        Inline::Plain { text, .. } => text.trim().is_empty(),
+        _ => false,
+    })
+}
 
 pub(super) struct Rendered {
     pub html: String,
@@ -393,34 +414,39 @@ impl Renderer<'_> {
         // The AST's outline bullets are flat. Track observed levels, without creating
         // empty list items for skipped indentation levels. Continuations remain in li.
         let mut levels: Vec<(u32, bool)> = Vec::new();
+        let outline = Outline::from_blocks(blocks);
+        let mut outline_blocks: Vec<Option<&OutlineBlock>> = vec![None; blocks.len()];
+        for block in &outline.blocks {
+            outline_blocks[block.index] = Some(block);
+        }
+        let root = depth == 0 && !self.embedded;
         for (index, block) in blocks.iter().enumerate() {
             if !self.consume_work() {
                 break;
             }
             if let Block::Bullet {
                 level,
-                size,
                 inline,
                 marker,
-                priority,
                 htags,
                 span,
                 ..
             } = block
             {
+                let Some(item) = outline_blocks[index] else {
+                    unreachable!("every bullet is in the outline")
+                };
                 let collapsed = (self
                     .reference_depth
                     .is_some_and(|limit| i64::from(*level) >= limit)
-                    || matches!(blocks.get(index + 1), Some(Block::Properties { props, .. })
-                    if props.iter().rev().find(|p| p.0.trim().eq_ignore_ascii_case("collapsed"))
-                        .is_some_and(|p| p.1.trim().eq_ignore_ascii_case("true"))))
-                    && blocks[index + 1..]
-                        .iter()
-                        .find_map(|block| match block {
-                            Block::Bullet { level, .. } => Some(level),
-                            _ => None,
-                        })
-                        .is_some_and(|next| next > level);
+                    || item.collapsed)
+                    && item.has_children;
+                let size = item.heading.map(u32::from);
+                let task = Task {
+                    marker: item.marker,
+                    word: marker.as_deref(),
+                    priority: item.priority.as_deref(),
+                };
                 let reference_attributes = span
                     .as_ref()
                     .filter(|_| self.source == self.reference_origin)
@@ -457,7 +483,11 @@ impl Renderer<'_> {
                     self.close_outline_item(levels.last().unwrap().1);
                     self.html.push_str(&item_start);
                 } else if levels.len() < MAX_DEPTH {
-                    self.html.push_str("<ul>");
+                    self.html.push_str(if root && levels.is_empty() {
+                        "<ul class=\"outline\">"
+                    } else {
+                        "<ul>"
+                    });
                     self.html.push_str(&item_start);
                     levels.push((*level, false));
                 } else {
@@ -488,36 +518,26 @@ impl Renderer<'_> {
                         self.text(&block_label(inline, 0));
                     }
                 }
+                if !self.embedded {
+                    self.html.push_str(BULLET);
+                }
                 if let Some(link) = source_link {
                     self.html.push_str(&link);
                 }
                 if !flow_label {
-                    self.heading_content(
-                        *size,
-                        inline,
-                        marker.as_deref(),
-                        priority.as_deref(),
-                        htags,
-                        depth,
-                    );
+                    self.heading_content(size, inline, &task, htags, depth);
                 }
                 if collapsed {
                     self.html.push_str("</summary>");
                 }
                 if flow_label {
-                    self.heading_content(
-                        *size,
-                        inline,
-                        marker.as_deref(),
-                        priority.as_deref(),
-                        htags,
-                        depth,
-                    );
+                    self.heading_content(size, inline, &task, htags, depth);
                 }
                 continue;
             }
             match block {
                 Block::Properties { .. } | Block::Comment { .. } | Block::CommentBlock { .. } => {}
+                Block::Paragraph { inline, .. } if is_blank(inline) => {}
                 Block::Paragraph { inline, .. } => {
                     let tag = if contains_embed(inline, 0) {
                         "div"
@@ -537,14 +557,12 @@ impl Renderer<'_> {
                     htags,
                     ..
                 } => {
-                    self.heading_content(
-                        Some(size.unwrap_or(*level)),
-                        inline,
-                        marker.as_deref(),
-                        priority.as_deref(),
-                        htags,
-                        depth,
-                    );
+                    let task = Task {
+                        marker: marker.as_deref().and_then(TaskMarker::parse),
+                        word: marker.as_deref(),
+                        priority: priority.as_deref(),
+                    };
+                    self.heading_content(Some(size.unwrap_or(*level)), inline, &task, htags, depth);
                 }
                 Block::List { items, .. } => self.list(items, depth + 1),
                 Block::Quote { children, .. } => {
@@ -616,8 +634,7 @@ impl Renderer<'_> {
         &mut self,
         size: Option<u32>,
         inline: &[Inline],
-        marker: Option<&str>,
-        priority: Option<&str>,
+        task: &Task,
         tags: &[String],
         depth: usize,
     ) {
@@ -627,14 +644,48 @@ impl Renderer<'_> {
         if let Some(size) = size {
             self.html.push_str(&format!("<h{size}>"));
         }
-        for prefix in [marker, priority].into_iter().flatten() {
-            self.text(prefix);
-            self.html.push(' ');
+        let struck = matches!(task.marker, Some(TaskMarker::Done | TaskMarker::Canceled));
+        match task.marker {
+            Some(TaskMarker::Done) => self
+                .html
+                .push_str("<input class=\"task-checkbox\" type=\"checkbox\" checked disabled> "),
+            Some(TaskMarker::Canceled) => {}
+            Some(marker) => self.html.push_str(&format!(
+                "<input class=\"task-checkbox\" type=\"checkbox\" disabled> <span class=\"task-marker\">{}</span> ",
+                marker.label()
+            )),
+            None => {
+                if let Some(word) = task.word {
+                    self.text(word);
+                    self.html.push(' ');
+                }
+            }
+        }
+        if let Some(priority) = task.priority {
+            let text = format!("[#{priority}]");
+            if let [route] = self.pages.candidates(priority) {
+                self.html.push_str(&format!(
+                    "<a class=\"priority\" href=\"{}\">{}</a> ",
+                    escape(route),
+                    escape(&text)
+                ));
+            } else {
+                self.html.push_str(&format!(
+                    "<span class=\"priority\">{}</span> ",
+                    escape(&text)
+                ));
+            }
+        }
+        if struck {
+            self.html.push_str("<span class=\"task-done\">");
         }
         self.inlines(inline, depth + 1, false);
         for tag in tags {
             self.html.push(' ');
             self.text(&format!("#{tag}"));
+        }
+        if struck {
+            self.html.push_str("</span>");
         }
         if let Some(size) = size {
             self.html.push_str(&format!("</h{size}>"));
@@ -1138,11 +1189,13 @@ mod tests {
         let rendered = render(
             "- Parent **bold**\n  - Child\n    - Grandchild\n  - Sibling\n- ## Heading\n  ```rust\n  let x = \"<tag>\";\n  ```\n",
         );
-        assert!(rendered.html.contains("<ul><li>Parent <strong>bold</strong><ul><li>Child<ul><li>Grandchild</li></ul></li><li>Sibling"), "{}", rendered.html);
+        let html = rendered.html.replace(BULLET, "");
+        assert!(html.contains("<ul class=\"outline\"><li>Parent <strong>bold</strong><ul><li>Child<ul><li>Grandchild</li></ul></li><li>Sibling"), "{}", rendered.html);
+        assert_eq!(rendered.html.matches(BULLET).count(), 5);
         assert!(rendered.html.contains("<h2>Heading</h2>"));
         assert!(rendered.html.contains("&lt;tag&gt;"));
         assert_eq!(
-            rendered.html.matches("<ul>").count(),
+            rendered.html.matches("<ul").count(),
             rendered.html.matches("</ul>").count()
         );
         assert_eq!(
@@ -1152,13 +1205,54 @@ mod tests {
     }
 
     #[test]
+    fn task_markers_render_like_logseq() {
+        let rendered = render(
+            "- DOING one\n- TODO [#A] two\n- DONE three\n- CANCELLED four\n- LATER [#B] five\n",
+        );
+        let html = rendered.html.replace(BULLET, "");
+        assert!(html.contains("<li><input class=\"task-checkbox\" type=\"checkbox\" disabled> <span class=\"task-marker\">DOING</span> one</li>"), "{html}");
+        assert!(
+            html.contains(
+                "<span class=\"task-marker\">TODO</span> <span class=\"priority\">[#A]</span> two"
+            ),
+            "{html}"
+        );
+        assert!(html.contains("<li><input class=\"task-checkbox\" type=\"checkbox\" checked disabled> <span class=\"task-done\">three</span></li>"), "{html}");
+        assert!(
+            html.contains("<li><span class=\"task-done\">four</span></li>"),
+            "{html}"
+        );
+        let linked = render_document(
+            &document("- LATER [#B] five\n"),
+            &BTreeMap::from([("b".into(), "p-b.html".into())]),
+            &mut |_| Err("not an asset".into()),
+        );
+        assert!(
+            linked
+                .html
+                .contains("<a class=\"priority\" href=\"p-b.html\">[#B]</a> five"),
+            "{}",
+            linked.html
+        );
+    }
+
+    #[test]
+    fn headings_from_property_and_blank_paragraphs() {
+        let rendered = render("title:: Page\n\n- top\n  heading:: true\n\t- # one\n");
+        assert!(!rendered.html.contains("<p><br></p>"), "{}", rendered.html);
+        assert!(!rendered.html.contains("<p>"), "{}", rendered.html);
+        assert!(rendered.html.contains("<h2>top</h2>"), "{}", rendered.html);
+        assert!(rendered.html.contains("<h1>one</h1>"), "{}", rendered.html);
+    }
+
+    #[test]
     fn selected_links_resolve_without_transclusion() {
         let rendered = render(
             "- [[Notes/Other]] [[Notes/Private/Hidden]] ((12345678-1234-1234-1234-123456789abc)) {{embed [[Notes/Private/Hidden]]}}\n",
         );
         assert!(rendered.html.contains("href=\"p-other.html\""));
         assert!(rendered.html.contains("Notes/Private/Hidden"));
-        assert_eq!(rendered.html.matches("<a ").count(), 1);
+        assert_eq!(rendered.html.replace(BULLET, "").matches("<a ").count(), 1);
         assert!(
             rendered
                 .diagnostics

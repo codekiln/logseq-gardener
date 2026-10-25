@@ -39,6 +39,27 @@ KEY_GAP_MS = 300
 FEED_TITLES = {'logseq': '.journal-title', 'lsg': 'a.journal-title'}
 FEED_BATCHES = 10
 FEED_JOURNALS = 3 + 7 * FEED_BATCHES
+# Block zoom: bullets of nested blocks, and the element that shows the zoomed view, per build.
+ZOOM_PAGE = 'tmux'
+ZOOM = {
+    'logseq': ('.block-children .bullet', '.breadcrumb.block-parents'),
+    'lsg': ('ul.outline ul .bullet', 'main[data-lsg-zoomed]'),
+}
+ZOOM_PROBE = '''async ([bullets, done]) => {
+  const all = [...document.querySelectorAll(bullets)];
+  const bullet = all[Math.floor(all.length / 2)];
+  const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+  bullet.scrollIntoView();
+  await frame();
+  const start = performance.now();
+  bullet.click();
+  while (!document.querySelector(done)) {
+    await frame();
+    if (performance.now() - start > 60000) throw new Error('zoomed view did not appear');
+  }
+  await frame();
+  return performance.now() - start;
+}'''
 # Logseq scrolls #main-content-container; lsg scrolls the window.
 SCROLL_TO_BOTTOM = '''() => {
   const box = document.querySelector('#main-content-container');
@@ -205,6 +226,19 @@ def measure_feed(browser, url, build, profile):
         context.close()
 
 
+def measure_zoom(browser, url, build, profile):
+    """Click the bullet of a nested block halfway down the page; time until the zoomed view is painted."""
+    context, page, _ = open_page(browser, profile, serve.TITLE_SELECTORS[build])
+    try:
+        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        wait_loaded(page, profile)
+        return {'zoom_ms': page.evaluate(ZOOM_PROBE, list(ZOOM[build]))}
+    except Exception as error:
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
 def measure_build(settings):
     """Seconds to publish the whole garden with and without journals, with the run's lsg options."""
     lsg = common.lsg_binary()
@@ -296,6 +330,20 @@ def markdown(results, budgets):
                     and seconds > builds[False] * (1 + slowdown / 100)):
                 text = f'**{text}**'
             lines.append(f"| {'with' if journals else 'without'} journals | {text} |")
+    zoom_rows = results.get('zoom', [])
+    if zoom_rows:
+        lines += ['', f'## Block zoom on {ZOOM_PAGE}', '',
+                  'Time from clicking the bullet of a nested block halfway down the page to the zoomed view.', '',
+                  '| Profile | Build | Zoom (ms) |', '| --- | --- | ---: |']
+        for row in zoom_rows:
+            if 'error' in row:
+                lines.append(f"| {row['profile']} | {row['build']} | {row['error']} |")
+                continue
+            text = f"{row['zoom_ms']:,.0f}"
+            limit = budgets.get('outline', {}).get(f"zoom_ms_{row['profile']}")
+            if row['build'] == 'lsg' and limit is not None and row['zoom_ms'] > limit:
+                text = f'**{text}**'
+            lines.append(f"| {row['profile']} | {row['build']} | {text} |")
     lines += ['', '## Search latency per keystroke', '',
               '| Profile | Build | Keystrokes | Median (ms) | 95th percentile (ms) |',
               '| --- | --- | ---: | ---: | ---: |']
@@ -356,7 +404,8 @@ def main():
                     row['loads'] = len(good)
                     pages.append(row)
                     print(json.dumps(row, ensure_ascii=False), flush=True)
-        feed = []
+        feed, zoom = [], []
+        zoom_target = serve.targets(ZOOM_PAGE, names, lsg_index, run / 'site')
         for profile in profiles:
             for build, server in servers.items():
                 home = server.url + serve.LOGSEQ_ROUTES['Home'] if build == 'logseq' else server.url + 'index.html'
@@ -366,10 +415,16 @@ def main():
                 row = {'profile': profile, 'build': build, **measure_feed(browser, home, build, profile)}
                 feed.append(row)
                 print(json.dumps(row), flush=True)
+                if zoom_target[build] is not None:
+                    row = {'profile': profile, 'build': build,
+                           **measure_zoom(browser, server.url + zoom_target[build], build, profile)}
+                    zoom.append(row)
+                    print(json.dumps(row), flush=True)
         browser.close()
     pages = merge(kept['pages'], pages, builds, ('page', 'profile', 'build'))
     search = merge(kept['search'], search, builds, ('profile', 'build'))
     feed = merge(kept.get('feed', []), feed, builds, ('profile', 'build'))
+    zoom = merge(kept.get('zoom', []), zoom, builds, ('profile', 'build'))
     build_rows = measure_build(settings) if 'lsg' in builds else kept.get('build', [])
     for row in build_rows:
         print(json.dumps(row), flush=True)
@@ -385,6 +440,7 @@ def main():
         'pages': pages,
         'search': search,
         'feed': feed,
+        'zoom': zoom,
         'build': build_rows,
     }
     (run / 'perf.json').write_text(json.dumps(results, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')

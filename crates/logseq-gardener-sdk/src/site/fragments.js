@@ -9,6 +9,7 @@
     if (!target) return null;
     for (let parent = target.parentElement; parent; parent = parent.parentElement) {
       if (parent.tagName === "DETAILS") parent.open = true;
+      parent.classList?.remove("folded");
     }
     if (scroll) target.scrollIntoView();
     return target;
