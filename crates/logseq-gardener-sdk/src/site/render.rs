@@ -344,8 +344,11 @@ fn render_context(
         reference_paths: mode.reference_paths,
         reference_entries: mode.reference_entries,
         asset,
+        dialogue: Vec::new(),
+        recordings: Vec::new(),
     };
     renderer.blocks(&document.parsed.blocks, 0);
+    super::dialogue::finalize(&mut renderer.html, &renderer.dialogue, &renderer.recordings);
     Rendered {
         html: renderer.html,
         source_anchors: renderer.emitted_source_anchors,
@@ -354,6 +357,8 @@ fn render_context(
 }
 
 struct Renderer<'a> {
+    dialogue: Vec<super::dialogue::Pending>,
+    recordings: Vec<(usize, String)>,
     html: String,
     diagnostics: Vec<String>,
     pages: &'a crate::page_names::PageNameIndex<String>,
@@ -638,6 +643,7 @@ impl Renderer<'_> {
         tags: &[String],
         depth: usize,
     ) {
+        let dialogue = size.is_none();
         let size = size
             .filter(|_| !contains_embed(inline, 0))
             .map(|size| size.clamp(1, 6));
@@ -679,7 +685,16 @@ impl Renderer<'_> {
         if struck {
             self.html.push_str("<span class=\"task-done\">");
         }
-        self.inlines(inline, depth + 1, false);
+        if dialogue
+            && !self.embedded
+            && task.marker.is_none()
+            && task.word.is_none()
+            && task.priority.is_none()
+        {
+            self.dialogue_inlines(inline, depth + 1);
+        } else {
+            self.inlines(inline, depth + 1, false);
+        }
         for tag in tags {
             self.html.push(' ');
             self.text(&format!("#{tag}"));
@@ -730,6 +745,26 @@ impl Renderer<'_> {
             self.html.push_str(&format!("</{tag}>"));
         }
         self.html.push_str("</tr>");
+    }
+    fn dialogue_inlines(&mut self, nodes: &[Inline], depth: usize) {
+        let Some(candidate) = super::dialogue::recognize(nodes) else {
+            self.inlines(nodes, depth, false);
+            return;
+        };
+        let Inline::Plain { text, .. } = &nodes[candidate.node] else {
+            unreachable!()
+        };
+        self.inlines(&nodes[..candidate.node], depth, false);
+        self.text(&text[..candidate.start]);
+        let start = self.html.len();
+        self.text(&text[candidate.start..candidate.end]);
+        self.dialogue.push(super::dialogue::Pending {
+            start,
+            end: self.html.len(),
+            seconds: candidate.seconds,
+        });
+        self.text(&text[candidate.end..]);
+        self.inlines(&nodes[candidate.node + 1..], depth, false);
     }
     fn inlines(&mut self, nodes: &[Inline], depth: usize, label: bool) {
         if depth > MAX_DEPTH {
@@ -979,11 +1014,17 @@ impl Renderer<'_> {
         };
         let name = escape(&name);
         let remote = is_https_media_url(route);
+        let original = !self.embedded && self.source == self.reference_origin;
+        let recording = route.split('#').next().unwrap_or(route).to_owned();
         let route = escape(route);
         if audio {
             self.html.push_str(&format!(
-                "<audio controls preload=\"none\" aria-label=\"{name}\" src=\"{route}\">{name}</audio> "
+                "<audio controls preload=\"none\" aria-label=\"{name}\" src=\"{route}\""
             ));
+            if original {
+                self.recordings.push((self.html.len(), recording));
+            }
+            self.html.push_str(&format!(">{name}</audio> "));
             if remote {
                 self.html
                     .push_str(&format!("<a href=\"{route}\">Open recording: {name}</a>"));
