@@ -5,6 +5,10 @@
 #USAGE flag "--profiles <list>" help="Comma-separated profiles: desktop, phone (default: both)"
 #USAGE flag "--loads <count>" help="Loads per page, build and profile (default: 3)"
 #USAGE flag "--builds <list>" help="Comma-separated builds to measure: logseq, lsg (default: both); others keep this run's rows"
+#USAGE flag "--search-site <path>" help="Measure shared search only in an existing selected static site"
+#USAGE flag "--search-path <path>" help="Page path inside search-site (default: index.html)"
+#USAGE flag "--search-output <path>" help="JSON output for standalone search measurements"
+#USAGE flag "--search-queries <path>" help="Search query fixture list"
 #USAGE flag "--record" help="Rewrite docs/parity/performance.md with the results"
 set -euo pipefail
 args=()
@@ -13,6 +17,10 @@ if [ -n "${usage_fixtures:-}" ]; then args+=(--fixtures "$usage_fixtures"); fi
 if [ -n "${usage_profiles:-}" ]; then args+=(--profiles "$usage_profiles"); fi
 if [ -n "${usage_loads:-}" ]; then args+=(--loads "$usage_loads"); fi
 if [ -n "${usage_builds:-}" ]; then args+=(--builds "$usage_builds"); fi
+if [ -n "${usage_search_site:-}" ]; then args+=(--search-site "$usage_search_site"); fi
+if [ -n "${usage_search_path:-}" ]; then args+=(--search-path "$usage_search_path"); fi
+if [ -n "${usage_search_output:-}" ]; then args+=(--search-output "$usage_search_output"); fi
+if [ -n "${usage_search_queries:-}" ]; then args+=(--search-queries "$usage_search_queries"); fi
 if [ "${usage_record:-false}" = "true" ]; then args+=(--record); fi
 echo "Checking Playwright's Chromium (downloaded on first use)"
 uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell

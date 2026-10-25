@@ -70,7 +70,7 @@ export function installSearch(window, document) {
   if (window.logseqGardenerInitSearch) { window.logseqGardenerInitSearch(); return; }
   const loader = createSearchLoader();
   let publication = null, resolvePage = null, dialog = null, input, status, list, retry, reload;
-  let invoker = null, restore = true, prepared = null, task = 0, timer = null;
+  let invoker = null, restore = true, prepared = null, task = 0, timer = null, completion = 0;
   const triggerSelector = '[data-lsg-search]';
   const supported = () => typeof window.HTMLDialogElement?.prototype.showModal === 'function';
   const controls = () => [...document.querySelectorAll(triggerSelector)];
@@ -78,7 +78,7 @@ export function installSearch(window, document) {
   function announce(message) { status.textContent = message; }
   function clearResults() { list.replaceChildren(); }
   function error() {
-    clearResults(); prepared = null;
+    clearResults(); prepared = null; dialog.setAttribute('data-lsg-search-state', 'error');
     announce('Search data is unavailable or from another publication. Retry, or reload this page.');
     retry.hidden = false; reload.hidden = false;
   }
@@ -105,9 +105,9 @@ export function installSearch(window, document) {
     reload = make('button', { type: 'button', hidden: '' }, 'Reload page');
     retry.addEventListener('click', () => { loader.cancel(); prepared = null; void load(); });
     reload.addEventListener('click', () => window.location.reload());
-    input.addEventListener('input', () => { clearTimeout(timer); clearResults(); if (prepared) announce('Searching…'); timer = setTimeout(evaluate, 60); });
+    input.addEventListener('input', () => { window.cancelAnimationFrame(timer); clearResults(); if (prepared) { announce('Searching…'); dialog.setAttribute('data-lsg-search-state', 'searching'); } timer = window.requestAnimationFrame(evaluate); });
     dialog.addEventListener('close', () => {
-      task++; clearTimeout(timer); loader.cancel();
+      task++; window.cancelAnimationFrame(timer); loader.cancel(); dialog.setAttribute('data-lsg-search-state', 'closed');
       if (restore) (invoker?.isConnected ? invoker : controls()[0])?.focus();
     });
     dialog.addEventListener('click', event => {
@@ -119,7 +119,7 @@ export function installSearch(window, document) {
       if (event.isComposing || event.keyCode === 229) return;
       if (event.key === 'Escape') { event.preventDefault(); close(); return; }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && !event.altKey && !event.shiftKey) { event.preventDefault(); input.focus(); input.select(); return; }
-      if (event.key === 'Enter' && document.activeElement === input) { clearTimeout(timer); evaluate(); }
+      if (event.key === 'Enter' && document.activeElement === input) { window.cancelAnimationFrame(timer); evaluate(); }
       const choices = anchors();
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         if (!choices.length || ![input, ...choices].includes(document.activeElement)) return;
@@ -134,11 +134,16 @@ export function installSearch(window, document) {
     dialog.append(heading, label, input, status, retry, reload, list);
     document.body.append(dialog);
   }
+  function complete() {
+    dialog.setAttribute('data-lsg-search-state', 'ready');
+    list.setAttribute('data-lsg-search-complete', String(++completion));
+  }
   function evaluate() {
+    window.cancelAnimationFrame(timer); timer = null;
     if (!dialog?.open || !prepared) return;
     clearResults();
     const outcome = prepared.engine.query(prepared.index, input.value);
-    if (outcome.error) { announce('Use up to 256 characters and 16 distinct words.'); return; }
+    if (outcome.error) { announce('Use up to 256 characters and 16 distinct words.'); complete(); return; }
     for (const result of outcome.results) {
       const item = make('li');
       const link = make('a', { href: prepared.engine.resolveResult(result,
@@ -150,11 +155,12 @@ export function installSearch(window, document) {
     }
     announce(!input.value.trim() ? 'Type to search published pages and notes.'
       : outcome.results.length ? `${outcome.results.length} results shown.` : 'No results.');
+    complete();
   }
   async function load() {
     const token = ++task;
     retry.hidden = true; reload.hidden = true; clearResults();
-    announce('Loading search…'); dialog.setAttribute('aria-busy', 'true');
+    announce('Loading search…'); dialog.setAttribute('data-lsg-search-state', 'loading'); dialog.setAttribute('aria-busy', 'true');
     try {
       const data = await loader.load();
       if (token !== task || !dialog.open) return;
@@ -170,7 +176,7 @@ export function installSearch(window, document) {
     catch { /* Invalid metadata keeps ordinary navigation usable. */ }
     const changed = loader.setPublication(next);
     publication = next;
-    if (changed) { task++; prepared = null; clearTimeout(timer); if (dialog) { clearResults(); close(); } }
+    if (changed) { task++; prepared = null; window.cancelAnimationFrame(timer); if (dialog) { clearResults(); close(); } }
     for (const control of controls()) control.hidden = !publication || !supported();
   }
   function open(control) {
@@ -193,4 +199,3 @@ export function installSearch(window, document) {
   window.logseqGardenerInitSearch = initialize;
   initialize();
 }
-if (typeof window !== 'undefined' && typeof document !== 'undefined') installSearch(window, document);

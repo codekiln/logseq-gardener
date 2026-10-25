@@ -31,7 +31,7 @@ def main():
         nested = site / 'nested/page'
         nested.mkdir(parents=True)
         html = (site / 'index.html').read_text()
-        html = html.replace('href="lsg-search-manifest-', 'href="/lsg-search-manifest-').replace('src="lsg-search-ui-', 'src="/lsg-search-ui-')
+        html = html.replace('href="lsg-search-manifest-', 'href="/lsg-search-manifest-').replace('src="lsg-search-ui-', 'src="/lsg-search-ui-').replace('src="lsg-search-start-', 'src="/lsg-search-start-')
         (nested / 'index.html').write_text(html)
         class Quiet(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *_):
@@ -63,7 +63,12 @@ def main():
                 assert page.locator('#lsg-search-results img').count() == 0
                 assert 'safe <img' in page.locator('#lsg-search-results').inner_text()
                 assert 'PRIVATE_SENTINEL' not in page.locator('#lsg-search-results').inner_text()
-                # IME candidates own composing keys, including legacy keyCode229.
+                # One frame evaluates only the newest rapid input; close cancels it.
+                completed = field.evaluate('node => { const list=document.querySelector("#lsg-search-results"); const before=Number(list.dataset.lsgSearchComplete); node.value="obsolete"; node.dispatchEvent(new Event("input", {bubbles:true})); node.value="needle"; node.dispatchEvent(new Event("input", {bubbles:true})); return before; }')
+                page.wait_for_function('(before) => Number(document.querySelector("#lsg-search-results").dataset.lsgSearchComplete) > before', arg=completed)
+                assert page.locator('#lsg-search-results').get_attribute('data-lsg-search-complete') == str(completed + 1)
+                expect(results).to_have_count(4)
+                                # IME candidates own composing keys, including legacy keyCode229.
                 field.focus()
                 composition = field.evaluate('''node => {
                   node.dispatchEvent(new CompositionEvent('compositionstart', {bubbles: true, data: 'に'}));
@@ -189,6 +194,32 @@ def main():
                 expect(page.locator('#lsg-search-results a')).to_have_count(4)
                 context.close()
                 print('search proof: retry complete', flush=True)
+                # Corrupt corpus and offline opens stay actionable and recover on retry.
+                context = browser.new_context()
+                page = context.new_page()
+                page.route('**/lsg-search-*.json', lambda route: route.continue_() if 'manifest-' in route.request.url else route.fulfill(status=200, body='{broken'))
+                page.goto(base + '/index.html')
+                page.locator('[data-lsg-search]').click()
+                expect(page.locator('#lsg-search-status')).to_contain_text('unavailable')
+                expect(page.locator('#lsg-search-results a')).to_have_count(0)
+                page.unroute('**/lsg-search-*.json')
+                page.get_by_role('button', name='Retry search').click()
+                expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                context.close()
+                context = browser.new_context()
+                page = context.new_page()
+                page.goto(base + '/index.html')
+                page.locator('[data-lsg-search]').click()
+                expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                page.keyboard.press('Escape')
+                page.evaluate("const link=document.head.querySelector('[rel=lsg-search]');link.remove();window.logseqGardenerInitSearch();document.head.append(link);window.logseqGardenerInitSearch()")
+                context.set_offline(True)
+                page.locator('[data-lsg-search]').click()
+                expect(page.locator('#lsg-search-status')).to_contain_text('unavailable')
+                context.set_offline(False)
+                page.get_by_role('button', name='Retry search').click()
+                expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                context.close()
                 # Closing during a deferred first fetch cannot publish stale results.
                 context = browser.new_context()
                 page = context.new_page()
@@ -204,6 +235,88 @@ def main():
                 expect(page.locator('#lsg-search-status')).not_to_contain_text('unavailable')
                 context.close()
                 print('search proof: stale close complete', flush=True)
+                # Bootstrap module failure remains retryable; latest host options survive import.
+                context = browser.new_context()
+                page = context.new_page()
+                page.route('**/lsg-search-ui-*.mjs*', lambda route: route.fulfill(status=404, body='missing'))
+                page.goto(base + '/index.html')
+                page.locator('[data-lsg-search]').click()
+                expect(page.get_by_role('status')).to_contain_text('could not load')
+                page.unroute('**/lsg-search-ui-*.mjs*')
+                held = []
+                page.route('**/lsg-search-ui-*.mjs*', lambda route: held.append(route))
+                page.locator('[data-lsg-search]').click()
+                page.wait_for_timeout(100)
+                assert held, 'module retry did not request the controller'
+                page.keyboard.type('gatt')
+                page.evaluate("for(let i=0;i<600;i++)document.dispatchEvent(new KeyboardEvent('keydown',{key:'x',bubbles:true,cancelable:true}))")
+                assert page.url == base + '/index.html'
+                assert page.evaluate('window.logseqGardenerTheme.choice()') == 'system'
+                page.evaluate("window.logseqGardenerInitSearch(document,{resolvePage:()=>'/readable-result/'})")
+                held.pop().continue_()
+                expect(page.locator('#lsg-search-input')).to_be_focused()
+                expect(page.locator('#lsg-search-input')).to_have_value('gatt' + 'x' * 508)
+                page.locator('#lsg-search-input').fill('needle')
+                expect(page.locator('#lsg-search-results a')).to_have_count(4)
+                assert page.locator('#lsg-search-results a').first.get_attribute('href') == '/readable-result/'
+                context.close()
+                # Offline before the first UI import is actionable; prepared reopening stays offline.
+                context = browser.new_context()
+                page = context.new_page()
+                page.goto(base + '/index.html')
+                expect(page.locator('[data-lsg-search]')).to_be_visible()
+                context.set_offline(True)
+                page.locator('[data-lsg-search]').click()
+                expect(page.get_by_role('status')).to_contain_text('could not load')
+                expect(page.locator('main h1')).to_be_visible()
+                context.set_offline(False)
+                page.locator('[data-lsg-search]').click()
+                expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                page.keyboard.press('Escape')
+                context.set_offline(True)
+                page.locator('[data-lsg-search]').click()
+                page.locator('#lsg-search-input').fill('needle')
+                expect(page.locator('#lsg-search-results a')).to_have_count(4)
+                context.close()
+                # Escape restores ordinary page typing/Tab while the module remains held.
+                context = browser.new_context()
+                page = context.new_page()
+                held = []
+                page.route('**/lsg-search-ui-*.mjs*', lambda route: held.append(route))
+                page.goto(base + '/index.html')
+                page.evaluate("const input=document.createElement('input');input.id='page-input';const next=document.createElement('button');next.id='page-next';next.textContent='Next';document.body.append(input,next)")
+                page.locator('#page-input').focus()
+                page.keyboard.press('Control+k')
+                page.wait_for_timeout(100)
+                assert held
+                page.keyboard.press('Escape')
+                page.keyboard.type('ordinary')
+                expect(page.locator('#page-input')).to_have_value('ordinary')
+                page.keyboard.press('Tab')
+                expect(page.locator('#page-next')).to_be_focused()
+                held.pop().continue_()
+                page.wait_for_timeout(100)
+                assert page.locator('#lsg-search-dialog').count() == 0
+                page.locator('[data-lsg-search]').click()
+                expect(page.locator('#lsg-search-input')).to_be_focused()
+                page.keyboard.press('Escape')
+                expect(page.locator('[data-lsg-search]')).to_be_focused()
+                context.close()
+                # A missing publication during module loading cannot be re-enabled by handoff.
+                context = browser.new_context()
+                page = context.new_page()
+                held = []
+                page.route('**/lsg-search-ui-*.mjs*', lambda route: held.append(route))
+                page.goto(base + '/index.html')
+                page.locator('[data-lsg-search]').click()
+                page.wait_for_timeout(100)
+                assert held
+                page.evaluate("document.head.querySelector('[rel=lsg-search]').remove();window.logseqGardenerInitSearch()")
+                held.pop().continue_()
+                page.wait_for_timeout(100)
+                expect(page.locator('[data-lsg-search]')).not_to_be_visible()
+                assert page.locator('#lsg-search-dialog').count() == 0
+                context.close()
                 nojs = browser.new_context(java_script_enabled=False)
                 page = nojs.new_page()
                 page.goto(base + '/index.html')

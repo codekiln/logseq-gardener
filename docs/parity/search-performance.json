@@ -1,0 +1,206 @@
+{
+  "method": {
+    "date": "2026-10-25",
+    "playwright": "1.60.0",
+    "queries": [
+      "music",
+      "needle",
+      "zz-no-match96"
+    ],
+    "key_gap_ms": 300,
+    "samples_per_profile": 1,
+    "completion": "data-lsg-search-complete after rendering",
+    "host": "final Gitpa consumer with deferred legacy compatibility map; no production deployment"
+  },
+  "corpora": {
+    "small": {
+      "corpus": {
+        "pages": 16,
+        "blocks": 128,
+        "decoded_bytes": 32958,
+        "gzip_bytes": 2313,
+        "controller_bytes": 11686,
+        "bootstrap_bytes": 1927
+      },
+      "summary": {
+        "measured": "2026-10-25",
+        "profiles": "desktop, phone"
+      },
+      "pages": [],
+      "search": [
+        {
+          "profile": "desktop",
+          "build": "lsg",
+          "first_open_ms": 79.70000004768372,
+          "first_open_requests": 4,
+          "first_open_transfer": 8613,
+          "first_open_decoded": 51929,
+          "page_load": {
+            "title_ms": 24.100000023841858,
+            "fcp_ms": 32,
+            "data_before_title": 8777,
+            "script_before_title": 15964,
+            "peak_heap": 1690377
+          },
+          "heap_growth": 40040,
+          "eager_search_requests": 0,
+          "warm_open_ms": 15.5,
+          "warm_open_requests": 0,
+          "keystrokes": 24,
+          "unchanged": 0,
+          "p50_ms": 1.100000023841858,
+          "p95_ms": 2.399999976158142
+        },
+        {
+          "profile": "phone",
+          "build": "lsg",
+          "first_open_ms": 846.7999999523163,
+          "first_open_requests": 4,
+          "first_open_transfer": 8613,
+          "first_open_decoded": 51929,
+          "page_load": {
+            "title_ms": 244.29999995231628,
+            "fcp_ms": 252,
+            "data_before_title": 8777,
+            "script_before_title": 15964,
+            "peak_heap": 1740073
+          },
+          "heap_growth": 95088,
+          "eager_search_requests": 0,
+          "warm_open_ms": 29.100000023841858,
+          "warm_open_requests": 0,
+          "keystrokes": 24,
+          "unchanged": 0,
+          "p50_ms": 1.7000000476837158,
+          "p95_ms": 3.0
+        }
+      ]
+    },
+    "large": {
+      "corpus": {
+        "pages": 2048,
+        "blocks": 16384,
+        "decoded_bytes": 4247874,
+        "gzip_bytes": 249400,
+        "controller_bytes": 11686,
+        "bootstrap_bytes": 1927
+      },
+      "summary": {
+        "measured": "2026-10-25",
+        "profiles": "desktop, phone"
+      },
+      "pages": [],
+      "search": [
+        {
+          "profile": "desktop",
+          "build": "lsg",
+          "first_open_ms": 138.69999992847443,
+          "first_open_requests": 4,
+          "first_open_transfer": 255703,
+          "first_open_decoded": 4266849,
+          "page_load": {
+            "title_ms": 39.40000009536743,
+            "fcp_ms": 52,
+            "data_before_title": 30609,
+            "script_before_title": 15964,
+            "peak_heap": 1810701
+          },
+          "heap_growth": 5408668,
+          "eager_search_requests": 0,
+          "warm_open_ms": 23.699999928474426,
+          "warm_open_requests": 0,
+          "keystrokes": 24,
+          "unchanged": 0,
+          "p50_ms": 3.100000023841858,
+          "p95_ms": 11.700000047683716
+        },
+        {
+          "profile": "phone",
+          "build": "lsg",
+          "first_open_ms": 2377.600000023842,
+          "first_open_requests": 4,
+          "first_open_transfer": 255703,
+          "first_open_decoded": 4266849,
+          "page_load": {
+            "title_ms": 229.5,
+            "fcp_ms": 244,
+            "data_before_title": 30609,
+            "script_before_title": 15964,
+            "peak_heap": 1860313
+          },
+          "heap_growth": 8688280,
+          "eager_search_requests": 0,
+          "warm_open_ms": 42.39999997615814,
+          "warm_open_requests": 0,
+          "keystrokes": 24,
+          "unchanged": 0,
+          "p50_ms": 5.399999976158142,
+          "p95_ms": 23.100000023841858
+        }
+      ]
+    },
+    "actual": {
+      "corpus": {
+        "pages": 996,
+        "blocks": 3919,
+        "decoded_bytes": 1332768,
+        "gzip_bytes": 250876,
+        "controller_bytes": 11686,
+        "bootstrap_bytes": 1927
+      },
+      "summary": {
+        "measured": "2026-10-25",
+        "profiles": "desktop, phone"
+      },
+      "pages": [],
+      "search": [
+        {
+          "profile": "desktop",
+          "build": "lsg",
+          "first_open_ms": 136.70000004768372,
+          "first_open_requests": 4,
+          "first_open_transfer": 257179,
+          "first_open_decoded": 1351742,
+          "page_load": {
+            "title_ms": 26.200000047683716,
+            "fcp_ms": 40,
+            "data_before_title": 134587,
+            "script_before_title": 39259,
+            "peak_heap": 1777200
+          },
+          "heap_growth": 4087480,
+          "eager_search_requests": 0,
+          "warm_open_ms": 12.199999928474426,
+          "warm_open_requests": 0,
+          "keystrokes": 24,
+          "unchanged": 0,
+          "p50_ms": 2.0,
+          "p95_ms": 5.200000047683716
+        },
+        {
+          "profile": "phone",
+          "build": "lsg",
+          "first_open_ms": 2357.600000023842,
+          "first_open_requests": 4,
+          "first_open_transfer": 257179,
+          "first_open_decoded": 1351742,
+          "page_load": {
+            "title_ms": 401.2999999523163,
+            "fcp_ms": 412,
+            "data_before_title": 131119,
+            "script_before_title": 28499,
+            "peak_heap": 1996625
+          },
+          "heap_growth": 2979936,
+          "eager_search_requests": 0,
+          "warm_open_ms": 19.300000071525574,
+          "warm_open_requests": 0,
+          "keystrokes": 24,
+          "unchanged": 0,
+          "p50_ms": 2.799999952316284,
+          "p95_ms": 11.299999952316284
+        }
+      ]
+    }
+  }
+}

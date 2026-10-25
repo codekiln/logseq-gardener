@@ -645,9 +645,16 @@ pub fn publish_site_with_options(
         let revision = manifest["revision"].as_str().expect("revision");
         let controller = include_str!("search-ui.mjs");
         let controller_route = format!("lsg-search-ui-{}.mjs", digest(controller));
+        let startup = include_str!("search-start.mjs")
+            .lines()
+            .map(str::trim)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .replace("__LSG_SEARCH_UI__", &controller_route);
+        let startup_route = format!("lsg-search-start-{}.mjs", digest(&startup));
         let styles = include_str!("search-ui.css");
         let link = format!(
-            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script type=\"module\" src=\"{controller_route}\"></script>"
+            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script type=\"module\" src=\"{startup_route}\"></script>"
         );
         for (route, html) in &mut documents {
             if route.ends_with(".html") {
@@ -656,6 +663,7 @@ pub fn publish_site_with_options(
         }
         documents.extend(artifacts);
         documents.insert(controller_route, controller.to_owned());
+        documents.insert(startup_route, startup);
     }
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     for (route, html) in documents {
