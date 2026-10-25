@@ -35,3 +35,14 @@ script_kb = 8
 styles_gzip_kb = 1.5
 zoom_ms_desktop = 50
 zoom_ms_phone = 150
+
+# Search corpora stay lazy. Corpus gzip is a reproducible offline level6 estimate.
+[search]
+bootstrap_kb = 2
+corpus_decoded_mb = 8
+corpus_gzip_kb = 1000
+first_open_desktop_ms = 2000
+first_open_phone_ms = 10000
+heap_growth_mb = 30
+warm_open_desktop_ms = 100
+warm_open_phone_ms = 200

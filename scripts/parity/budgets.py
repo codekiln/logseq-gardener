@@ -26,8 +26,9 @@ OUTLINE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site'
 class _BlockingResources(html.parser.HTMLParser):
     """Collect the inline scripts and the local styles and scripts a page loads before rendering."""
 
-    def __init__(self):
+    def __init__(self, all_scripts=False):
         super().__init__(convert_charrefs=False)
+        self.all_scripts = all_scripts
         self.files = []
         self.inline_script = 0
         self._in_script = False
@@ -36,7 +37,7 @@ class _BlockingResources(html.parser.HTMLParser):
         attrs = dict(attrs)
         if tag == 'script':
             if attrs.get('src'):
-                if 'async' not in attrs and 'defer' not in attrs and attrs.get('type') != 'module':
+                if self.all_scripts or ('async' not in attrs and 'defer' not in attrs and attrs.get('type') != 'module'):
                     self.files.append(attrs['src'])
             else:
                 self._in_script = True
@@ -145,9 +146,11 @@ def site_pages(site):
     return sorted(p.name for p in site.glob('*.html') if p.name != 'pages.html')
 
 
-def publish(lsg, garden, output, roots):
+def publish(lsg, garden, output, roots, search=False):
     command = [str(lsg), 'publish', '--graph', str(garden), '--output', str(output),
                '--filename-format', 'triple-lowbar', '--journals']
+    if search:
+        command.append('--search')
     for root in roots:
         command += ['--include', root]
     subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -177,6 +180,22 @@ def check(small, large, budgets):
     return failures
 
 
+def check_search(site, limits, profiles):
+    """Conservative initial script accounting includes deferred/module scripts too."""
+    failures = []
+    startup = next(site.glob('lsg-search-start-*.mjs'))
+    if startup.stat().st_size > limits['bootstrap_kb'] * 1000:
+        failures.append('search bootstrap exceeds its initial-script budget')
+    for page in site_pages(site):
+        parser = _BlockingResources(all_scripts=True)
+        parser.feed((site / page).read_text(encoding='utf-8'))
+        script = parser.inline_script + sum((site / p).stat().st_size for p in parser.files if p.endswith(('.js', '.mjs')))
+        limit = min(p['script_before_title_kb'] for p in profiles.values()) * 1000
+        if script > limit:
+            failures.append(f'{page}: initial search-enabled script {script:,} exceeds {limit:,}')
+    return failures
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--lsg', default=str(common.lsg_binary()), help='lsg binary (default: the release build)')
@@ -199,6 +218,8 @@ def main():
         shutil.copytree(FIXTURE_GARDEN, older)
         add_older_journals(older, OLDER_JOURNALS)
         publish(lsg, older, temp / 'older', FIXTURE_ROOTS)
+        publish(lsg, FIXTURE_GARDEN, temp / 'search', FIXTURE_ROOTS, search=True)
+        search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets))
         journal_failures = check_journals(temp / 'small', temp / 'older', budgets['journals'])
         print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
         outline_failures = check_outline(temp / 'small', budgets['outline'])
@@ -206,7 +227,7 @@ def main():
         print(f"{OUTLINE_SCRIPT}: {(temp / 'small' / OUTLINE_SCRIPT).stat().st_size:,}")
     for page, (raw, packed, script) in sorted(small.items()):
         print(f'{page}: first paint {raw:,} ({packed:,} gzip), script {script:,}')
-    failures = check(small, large, budgets) + shell_failures + journal_failures + outline_failures
+    failures = check(small, large, budgets) + shell_failures + journal_failures + outline_failures + search_failures
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

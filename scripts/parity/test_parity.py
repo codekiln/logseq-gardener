@@ -156,7 +156,7 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
-        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline'})
+        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'search'})
         self.assertEqual(set(loaded['outline']), {'script_kb', 'styles_gzip_kb', 'zoom_ms_desktop', 'zoom_ms_phone'})
         self.assertEqual(set(loaded['shell']), {'script_kb', 'frame_kb'})
         self.assertEqual(set(loaded['journals']), {'script_kb', 'scroll_heap_mb', 'build_slowdown_pct'})
@@ -166,6 +166,35 @@ class MetricsTest(unittest.TestCase):
 
 
 class PerfMergeTest(unittest.TestCase):
+    def test_shared_ready_and_completion_are_explicit(self):
+        self.assertIn('[open]', perf.SEARCH['lsg']['ready'])
+        self.assertEqual(perf.SEARCH['lsg']['complete'], 'data-lsg-search-complete')
+
+    def test_initial_search_budget_includes_module_and_deferred_scripts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            (site / 'lsg-search-start-test.mjs').write_text('x' * 100)
+            (site / 'deferred.js').write_text('x' * 100)
+            (site / 'index.html').write_text('<script type="module" src="lsg-search-start-test.mjs"></script><script defer src="deferred.js"></script>')
+            self.assertEqual(len(budgets.check_search(site, {'bootstrap_kb': 2}, {'desktop': {'script_before_title_kb': .15}})), 1)
+            self.assertEqual(budgets.check_search(site, {'bootstrap_kb': 2}, {'desktop': {'script_before_title_kb': .3}}), [])
+
+
+    def test_standalone_validation_rejects_missing_completion_and_nonfinite_latency(self):
+        report = {'corpus': {'decoded_bytes': 100, 'gzip_bytes': 50, 'bootstrap_bytes': 100},
+                  'search': [{'profile': 'desktop', 'first_open_ms': 100, 'warm_open_ms': 20,
+                              'heap_growth': 1000, 'eager_search_requests': 0, 'warm_open_requests': 0,
+                              'keystrokes': 4, 'unchanged': 0, 'p95_ms': 5}]}
+        limits = metrics.load_budgets()
+        self.assertEqual(perf.search_failures(report, limits), [])
+        report['search'][0]['unchanged'] = 1
+        self.assertTrue(perf.search_failures(report, limits))
+        report['search'][0]['unchanged'] = 0
+        report['search'][0]['p95_ms'] = None
+        self.assertTrue(perf.search_failures(report, limits))
+        report['search'][0] = {'profile': 'desktop', 'error': 'not ready'}
+        self.assertTrue(perf.search_failures(report, limits))
+
     def test_keeps_rows_of_builds_not_measured(self):
         kept = [{'page': 'tmux', 'profile': 'desktop', 'build': 'logseq', 'title_ms': 15000},
                 {'page': 'tmux', 'profile': 'desktop', 'build': 'lsg', 'title_ms': 40}]
