@@ -1,6 +1,6 @@
 ## Why
 
-Logseq's published site wraps every page in the same frame: a header with a left-sidebar toggle, Home and a More menu; a left sidebar with All pages and the garden's favorites; and a main column at most 810px wide in Logseq's colours. An `lsg` page has a plain link row and an Appearance selector above a 55rem column, so readers who know the encode garden's Logseq site lose the favorites and the familiar layout ([app shell analysis](../../../docs/parity/app-shell.md), [Issue #109 — Match Logseq's header, sidebars, More menu and theme toggle](https://github.com/codekiln/logseq-gardener/issues/109)).
+Logseq's published site wraps every page in the same frame: a header with a left-sidebar toggle, Home and a More menu; a left sidebar with All pages and the garden's favorites; and a main column at most 810px wide in Logseq's colours. An `lsg` page has a plain link row and an Appearance selector above a 55rem column, so readers who know the encode garden's Logseq site lose the favorites and the familiar layout ([app shell analysis](../../../../docs/parity/app-shell.md), [Issue #109 — Match Logseq's header, sidebars, More menu and theme toggle](https://github.com/codekiln/logseq-gardener/issues/109)).
 
 ## What Changes
 
