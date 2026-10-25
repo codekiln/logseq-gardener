@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use logseq_gardener_sdk::{
     page_titles::FilenameFormat,
     publishing::NamespaceSelection,
-    site::{SiteOptions, publish_site_with_options},
+    site::{SearchOptions, SiteOptions, publish_site_with_options},
 };
 use serde_json::json;
 use std::path::PathBuf;
@@ -87,6 +87,8 @@ struct PublishArgs {
     stylesheet: Option<PathBuf>,
     #[arg(long)]
     homepage: Option<String>,
+    #[arg(long)]
+    search: bool,
     #[arg(long)]
     include: Vec<String>,
     #[arg(long)]
@@ -192,6 +194,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
         &SiteOptions {
             stylesheet: args.stylesheet,
             homepage: args.homepage,
+            search: args.search.then(SearchOptions::default),
         },
     )
     .map_err(|error| Failure {

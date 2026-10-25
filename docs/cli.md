@@ -44,3 +44,5 @@ Successful results go to stdout; diagnostics go to stderr. Invalid invocations l
 Successful JSON has `command_path: ["publish"]`, `pages`, `assets`, `withheld_pages`, `skipped_journals`, `diagnostic_count`, `output_directory`, and `index_path`. Selected unsupported content produces a completed site and exit zero with local diagnostics on stderr. Fatal SDK errors leave stdout empty and exit one. Invalid selectors and arguments exit two.
 
 The optional `publish --stylesheet PATH` selects a local CSS file loaded after built-in styles on every generated page. The file must be readable, regular, have a `.css` extension, and use a path without symlink components. Invalid stylesheet input returns one before output creation. See [Customize appearance](local-site.md#customize-appearance) for copying and browser resource behavior.
+
+The optional `publish --search` emits a versioned external manifest, corpus and pure evaluator. Generated pages advertise the manifest without loading the corpus. See [Static search](static-search.md) for supported content, exclusions and the consumer API.

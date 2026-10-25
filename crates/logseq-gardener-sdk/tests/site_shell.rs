@@ -42,6 +42,7 @@ impl Fixture {
             &SiteOptions {
                 stylesheet: None,
                 homepage: homepage.map(str::to_owned),
+                ..SiteOptions::default()
             },
         )
         .unwrap()

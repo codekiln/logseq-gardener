@@ -9,6 +9,7 @@ const MAX_DEPTH: usize = 64;
 
 pub(super) struct Rendered {
     pub html: String,
+    pub source_anchors: BTreeSet<usize>,
     pub diagnostics: Vec<String>,
 }
 
@@ -312,6 +313,7 @@ fn render_context(
         documents,
         source: document.relative_path.clone(),
         active: vec![route.to_owned()],
+        emitted_source_anchors: BTreeSet::new(),
         remaining_expansions: 128,
         remaining_work: 10_000,
         embedded: mode.reference_depth.is_some(),
@@ -325,6 +327,7 @@ fn render_context(
     renderer.blocks(&document.parsed.blocks, 0);
     Rendered {
         html: renderer.html,
+        source_anchors: renderer.emitted_source_anchors,
         diagnostics: renderer.diagnostics,
     }
 }
@@ -338,6 +341,7 @@ struct Renderer<'a> {
     documents: &'a BTreeMap<String, &'a GardenDocument>,
     source: PathBuf,
     active: Vec<String>,
+    emitted_source_anchors: BTreeSet<usize>,
     remaining_expansions: usize,
     remaining_work: usize,
     embedded: bool,
@@ -466,6 +470,7 @@ impl Renderer<'_> {
                     && let Some(span) = span
                     && self.source_anchors.contains(&span.0)
                 {
+                    self.emitted_source_anchors.insert(span.0);
                     self.html
                         .push_str(&format!("<span id=\"source-block-{}\"></span>", span.0));
                 }
