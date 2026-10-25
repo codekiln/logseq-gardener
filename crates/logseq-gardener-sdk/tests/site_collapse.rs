@@ -51,13 +51,14 @@ impl Drop for Fixture {
     }
 }
 const DISCLOSURE: &str = "<details class=\"outline-disclosure\">";
+const BULLET: &str = "<a class=\"bullet\" href=\"#\"></a>";
 
 #[test]
 fn nested_closed_outlines_keep_skipped_levels_and_following_siblings_separate() {
     let f = Fixture::new();
     f.write("pages/Notes___Start.md", "- Dialogue\n  collapsed:: true\n      - Outer child\n        collapsed:: true\n            - Inner transcript\n      - Outer sibling\n- Following sibling\n");
     f.publish();
-    let html = f.html("Notes/Start");
+    let html = f.html("Notes/Start").replace(BULLET, "");
     assert!(html.contains(&format!("{DISCLOSURE}<summary>Dialogue</summary><ul><li class=\"outline-collapsed\">{DISCLOSURE}<summary>Outer child</summary><ul><li>Inner transcript</li></ul></details></li><li>Outer sibling</li></ul></details></li><li>Following sibling")), "{html}");
     assert_eq!(html.matches(DISCLOSURE).count(), 2);
     assert!(!html.contains("outline-disclosure\" open"));

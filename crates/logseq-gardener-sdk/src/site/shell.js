@@ -92,6 +92,15 @@
     };
     if (document.readyState === 'complete') load(); else window.addEventListener('load', load, { once: true });
   }
+  // Reader collapse and block zoom wait for load too. Load it on every page, because a
+  // host can swap an outline into a page that started without one.
+  const outlineSrc = (document.currentScript?.src || 'lsg-shell.js').replace(/lsg-shell\.js$/, 'lsg-outline.js');
+  const outline = () => {
+    const script = document.createElement('script');
+    script.src = outlineSrc;
+    document.head.append(script);
+  };
+  if (document.readyState === 'complete') outline(); else window.addEventListener('load', outline, { once: true });
   for (const control of document.querySelectorAll('[data-lsg-left-toggle],[data-lsg-more]')) control.hidden = false;
   $('[data-lsg-left-toggle]')?.setAttribute('aria-expanded', String(isOpen()));
 })();

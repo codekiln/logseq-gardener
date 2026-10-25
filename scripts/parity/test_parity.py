@@ -156,7 +156,8 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
-        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals'})
+        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline'})
+        self.assertEqual(set(loaded['outline']), {'script_kb', 'styles_gzip_kb', 'zoom_ms_desktop', 'zoom_ms_phone'})
         self.assertEqual(set(loaded['shell']), {'script_kb', 'frame_kb'})
         self.assertEqual(set(loaded['journals']), {'script_kb', 'scroll_heap_mb', 'build_slowdown_pct'})
         for profile in budgets.profiles(loaded).values():
@@ -207,6 +208,18 @@ class BudgetCheckTest(unittest.TestCase):
             budgets.add_older_journals(garden, 3)
             self.assertEqual(sorted(p.name for p in (garden / 'journals').iterdir()),
                              ['2000_01_01.md', '2000_01_02.md', '2000_01_03.md'])
+
+    def test_outline_script_and_styles(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            styles = site / 'outline.css'
+            styles.write_text('.outline{}' * 50, encoding='utf-8')
+            self.assertEqual(budgets.check_outline(site, {'script_kb': 8, 'styles_gzip_kb': 1.5}, styles),
+                             ['lsg-outline.js: missing from the build'])
+            (site / budgets.OUTLINE_SCRIPT).write_text('x' * 100, encoding='utf-8')
+            self.assertEqual(budgets.check_outline(site, {'script_kb': 8, 'styles_gzip_kb': 1.5}, styles), [])
+            failures = budgets.check_outline(site, {'script_kb': 0.05, 'styles_gzip_kb': 0.001}, styles)
+            self.assertEqual(len(failures), 2)
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

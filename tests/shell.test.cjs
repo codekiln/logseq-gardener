@@ -137,11 +137,13 @@ test('g j opens the journals feed only when the sidebar links to one', () => {
   const plain = fixture();
   plain.key('g'); plain.key('j'); assert.equal(state.assigned, null);
 });
-test('the journals feed loader is fetched after the page loads', () => {
+test('the journals feed and outline scripts are fetched after the page loads', () => {
   const f = fixture({ feed: true });
   assert.deepEqual(state.appended, []);
   f.window.fire('load');
-  assert.deepEqual(state.appended, [{ tag: 'script', src: 'lsg-journals.js' }]);
-  fixture();
+  assert.deepEqual(state.appended, [{ tag: 'script', src: 'lsg-journals.js' }, { tag: 'script', src: 'lsg-outline.js' }]);
+  const plain = fixture();
   assert.deepEqual(state.appended, []);
+  plain.window.fire('load');
+  assert.deepEqual(state.appended, [{ tag: 'script', src: 'lsg-outline.js' }]);
 });

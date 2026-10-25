@@ -46,13 +46,13 @@ The publisher renders the markup, CSS, script, checkboxes and zoomed view. It re
 
 Clearing the hash, Back, or the page link restores the page view. An identifier that matches no block leaves the page view and logs nothing. The same view works in a journal page. In the journals feed, a bullet opens the journal's own page at the block's `#zoom/` address.
 
-**Loading.** `lsg-outline.js` is written once to the site root. `lsg-shell.js` adds it after the `load` event when `main` holds an `.outline`, as it adds `lsg-journals.js`, so it is outside the 16 KB pre-title script budget. A page opened at a `#zoom/` address shows the whole page until the script runs; on the `tmux` page that is the first frame after `load`.
+**Loading.** `lsg-outline.js` is written once to the site root. `lsg-shell.js` adds it after the `load` event on every page, as it adds `lsg-journals.js`, so it is outside the 16 KB pre-title script budget. A page opened at a `#zoom/` address shows the whole page until the script runs; on the `tmux` page that is the first frame after `load`.
 
 **Budgets.** Measured by the [comparison harness](../../specs/parity-comparison-harness/spec.md) on the encode garden, desktop and phone profiles:
 
 | Measure | Budget |
 | --- | --- |
-| `lsg-outline.js`, uncompressed | 4 KB |
+| `lsg-outline.js`, uncompressed | 8 KB |
 | Outline CSS added to every page, gzip | 1.5 KB |
 | `tmux` page, gzip | under 100 KB (existing budget), at most 2 KB above today |
 | Data and script before the title is visible | existing budgets (100 KB, 16 KB) |
@@ -97,6 +97,22 @@ Decided by the agent without codekiln: `h` of the block's depth plus one, capped
 ### 7 - Do journal-feed articles zoom?
 
 Decided by the agent without codekiln: no. Feed bullets get the look but open the journal's own page at the zoom address instead of zooming in the feed; the feed appends batches, and zooming there would have to restore a long, growing list.
+
+### 8 - How large may `lsg-outline.js` be?
+
+Decided by the agent without codekiln during the apply step: 8 KB uncompressed, up from the proposed 4 KB. The readable script with collapse, zoom, breadcrumb and restore is 6.9 KB; it loads after `load`, so it adds nothing before the title, and shrinking it by hand would make it harder to read than the repository's other scripts.
+
+### 9 - Which pages load `lsg-outline.js`?
+
+Decided by the agent without codekiln during the apply step: every page, after `load`. Gitpa swaps outlines into pages that started without one, and the browser caches the one file after its first use.
+
+### 10 - What does the zoom fixture on `rw-cli` use as its address?
+
+Decided by the agent without codekiln during the apply step: the position path `1.1.1.2`. The UUID `6add3ffb-e52b-4e8f-908a-9958186e4dfb` in the analysis is one Logseq generated for that build; it is not in `pages/rw-cli.md`, so no static build can reproduce it. Zooming `rw-cli` at `#zoom/1.1.1.2` shows the breadcrumb Logseq shows.
+
+### 11 - What about `collapsed:: true` written after a block's children?
+
+Decided by the agent without codekiln during the apply step: left for a follow-up. Two of `rw-cli`'s four collapsed blocks put the property after their first child, at the parent's indentation; Logseq attaches it to the parent, and the parser attaches it to the child, which has no children, so `lsg` shows those two blocks open. Fixing it means attaching properties by indentation in the parser boundary, which is wider than this change.
 
 ## Open Questions
 

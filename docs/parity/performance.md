@@ -87,6 +87,19 @@ The home page scrolled until it shows 73 journals or runs out. The phone heap bu
 | without journals | 4.9 |
 | with journals | 4.1 |
 
+## Block zoom on tmux
+
+Time from clicking the bullet of a nested block halfway down the page to the zoomed view.
+
+| Profile | Build | Zoom (ms) |
+| --- | --- | ---: |
+| desktop | logseq | 165 |
+| desktop | lsg | 16 |
+| phone | logseq | 258 |
+| phone | lsg | 25 |
+
+Measured on 2026-10-25 with one load per build and profile (`parity:perf --fixtures` naming `tmux`, run `20261025T065337Z`); the other sections are from the last full run.
+
 ## Search latency per keystroke
 
 | Profile | Build | Keystrokes | Median (ms) | 95th percentile (ms) |

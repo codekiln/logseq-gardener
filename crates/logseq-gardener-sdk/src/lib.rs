@@ -26,6 +26,9 @@ pub mod page_titles;
 /// Generate a selected garden as local HTML.
 pub mod site;
 
+/// Block depth, ancestry, task markers, headings and stable block identifiers.
+pub mod outline;
+
 /// Journal dates, titles and date references.
 pub mod journals;
 
