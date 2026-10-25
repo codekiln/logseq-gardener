@@ -82,7 +82,12 @@ fn value(
             return None;
         }
         let url = escape(text);
-        return Some((format!("<a href=\"{url}\">{url}</a>"), BTreeSet::new()));
+        return Some((
+            format!(
+                "<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"{url}\">{url}</a>"
+            ),
+            BTreeSet::new(),
+        ));
     }
     if text.contains('\\')
         || text

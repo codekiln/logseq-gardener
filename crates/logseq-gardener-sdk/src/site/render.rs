@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 
 use crate::ast::{Block, Inline, ListItem, Url};
 use crate::garden::GardenDocument;
+use crate::garden_config::Form;
+use crate::inline_references::tag_page_name;
 use crate::outline::{Outline, OutlineBlock, TaskMarker};
 
 const MAX_DEPTH: usize = 64;
@@ -246,10 +248,17 @@ pub(super) fn render_document_with_embeds(
 
 #[derive(Default)]
 struct RenderMode {
+    hide_brackets: bool,
     reference_depth: Option<i64>,
     source_anchors: BTreeSet<usize>,
     reference_paths: BTreeMap<usize, String>,
     reference_entries: BTreeMap<usize, String>,
+}
+
+/// How a page's own outline renders: which blocks keep source anchors, and brackets.
+pub(super) struct PageRender {
+    pub source_anchors: BTreeSet<usize>,
+    pub show_brackets: bool,
 }
 
 pub(super) fn render_document_with_source_anchors(
@@ -258,7 +267,7 @@ pub(super) fn render_document_with_source_anchors(
     targets: &BTreeMap<String, Option<BlockTarget>>,
     route: &str,
     documents: &BTreeMap<String, &GardenDocument>,
-    source_anchors: BTreeSet<usize>,
+    page: PageRender,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
     render_context(
@@ -268,7 +277,8 @@ pub(super) fn render_document_with_source_anchors(
         route,
         documents,
         RenderMode {
-            source_anchors,
+            source_anchors: page.source_anchors,
+            hide_brackets: !page.show_brackets,
             ..RenderMode::default()
         },
         asset,
@@ -277,6 +287,7 @@ pub(super) fn render_document_with_source_anchors(
 
 pub(super) struct ReferencePresentation {
     pub open_depth: i64,
+    pub show_brackets: bool,
     pub paths: BTreeMap<usize, String>,
     pub entries: BTreeMap<usize, String>,
 }
@@ -298,6 +309,7 @@ pub(super) fn render_reference_context(
         documents,
         RenderMode {
             reference_depth: Some(presentation.open_depth),
+            hide_brackets: !presentation.show_brackets,
             reference_paths: presentation.paths,
             reference_entries: presentation.entries,
             ..RenderMode::default()
@@ -339,6 +351,7 @@ fn render_context(
         remaining_work: 10_000,
         embedded: mode.reference_depth.is_some(),
         reference_depth: mode.reference_depth,
+        show_brackets: !mode.hide_brackets,
         source_anchors: mode.source_anchors,
         reference_origin: document.relative_path.clone(),
         reference_paths: mode.reference_paths,
@@ -372,6 +385,7 @@ struct Renderer<'a> {
     remaining_work: usize,
     embedded: bool,
     reference_depth: Option<i64>,
+    show_brackets: bool,
     source_anchors: BTreeSet<usize>,
     reference_origin: PathBuf,
     reference_paths: BTreeMap<usize, String>,
@@ -822,6 +836,7 @@ impl Renderer<'_> {
                     label: text,
                     image,
                     full,
+                    metadata,
                     ..
                 } => {
                     if label {
@@ -829,7 +844,7 @@ impl Renderer<'_> {
                         self.diagnostic("Nested link or image rendered as literal label");
                         self.text(full);
                     } else {
-                        self.link(url, text, *image, depth + 1);
+                        self.link(url, text, *image, metadata, depth + 1);
                     }
                 }
                 Inline::NestedLink { content, .. } => {
@@ -839,19 +854,13 @@ impl Renderer<'_> {
                         self.page_link(content, &[], depth + 1);
                     }
                 }
-                Inline::Tag { children, .. } => {
-                    self.html.push('#');
-                    self.inlines(children, depth + 1, label);
-                }
+                Inline::Tag { children, .. } => self.tag(children, label),
                 Inline::Macro { name, args, .. }
                     if name.eq_ignore_ascii_case("embed") && !label =>
                 {
                     self.embed(args, depth + 1);
                 }
-                Inline::Macro { name, args, .. } => self.literal(
-                    "macro (including embeds and queries)",
-                    &format!("{{{{{name} {}}}}}", args.join(", ")),
-                ),
+                Inline::Macro { name, args, .. } => self.macro_fallback(name, args),
                 Inline::ExportSnippet { name, content, .. } => {
                     self.literal("export snippet", &format!("@@{name}: {content}@@"))
                 }
@@ -975,11 +984,8 @@ impl Renderer<'_> {
     }
     fn page_link(&mut self, target: &str, label: &[Inline], depth: usize) {
         let candidates = self.pages.candidates(target);
-        if let [route] = candidates {
-            self.html
-                .push_str(&format!("<a href=\"{}\">", escape(route)));
-            self.label(label, target, depth);
-            self.html.push_str("</a>");
+        let route = if let [route] = candidates {
+            Some(route.clone())
         } else {
             let reason = if candidates.len() > 1 {
                 "Ambiguous selected page reference"
@@ -987,12 +993,91 @@ impl Renderer<'_> {
                 "Unresolved or excluded page reference"
             };
             self.diagnostic(format!("{reason}: {target}"));
-            self.html.push_str("<span class=\"unresolved\">");
-            self.label(label, target, depth);
+            None
+        };
+        // Logseq's faint `[[` `]]` come from the stylesheet, which saves their bytes on
+        // every reference; `no-brackets` turns them off for a garden that hides them.
+        self.html.push_str(&format!(
+            "<span class=\"page-reference{}{}\">",
+            if route.is_some() { "" } else { " unresolved" },
+            if self.show_brackets {
+                ""
+            } else {
+                " no-brackets"
+            }
+        ));
+        match &route {
+            Some(route) => self
+                .html
+                .push_str(&format!("<a href=\"{}\">", escape(route))),
+            None => self.html.push_str("<span>"),
+        }
+        self.label(label, target, depth);
+        self.html.push_str(if route.is_some() {
+            "</a></span>"
+        } else {
+            "</span></span>"
+        });
+    }
+    fn tag(&mut self, children: &[Inline], label: bool) {
+        let name = tag_page_name(children);
+        let text = format!("#{name}");
+        if label {
+            // Inside a link label a tag stays text: anchors cannot nest.
+            self.text(&text);
+            return;
+        }
+        let candidates = self.pages.candidates(&name);
+        if let [route] = candidates {
+            self.html
+                .push_str(&format!("<a class=\"tag\" href=\"{}\">", escape(route)));
+            self.text(&text);
+            self.html.push_str("</a>");
+        } else {
+            let reason = if candidates.len() > 1 {
+                "Ambiguous selected tag"
+            } else {
+                "Unresolved or excluded tag"
+            };
+            self.diagnostic(format!("{reason}: {name}"));
+            self.html.push_str("<span class=\"tag\">");
+            self.text(&text);
             self.html.push_str("</span>");
         }
     }
-    fn media(&mut self, route: &str, label: &[Inline], fallback: &str, depth: usize) -> bool {
+    fn macro_fallback(&mut self, name: &str, args: &[String]) {
+        let source = if args.is_empty() {
+            format!("{{{{{name}}}}}")
+        } else {
+            format!("{{{{{name} {}}}}}", args.join(", "))
+        };
+        match name.to_ascii_lowercase().as_str() {
+            // Other parity issues own these macros; they keep the literal fallback.
+            "embed" | "query" | "video" | "youtube" | "youtube-timestamp" | "cards" | "cloze"
+            | "namespace" | "tweet" => {
+                self.literal("macro (including embeds and queries)", &source)
+            }
+            // Renderers need plugins, which a published site does not load.
+            "renderer" => self.diagnostic(format!("Renderer macro omitted: {source}")),
+            _ => {
+                self.diagnostic(format!("Unsupported macro {name}; shown as a warning"));
+                self.html.push_str(&format!(
+                    "<span class=\"warning\" title=\"Unsupported macro name: {}\">",
+                    escape(name)
+                ));
+                self.text(&source);
+                self.html.push_str("</span>");
+            }
+        }
+    }
+    fn media(
+        &mut self,
+        route: &str,
+        label: &[Inline],
+        fallback: &str,
+        metadata: &str,
+        depth: usize,
+    ) -> bool {
         let path = route.split(['?', '#']).next().unwrap_or(route);
         let path = if let Some((_, remainder)) = path.split_once("://") {
             remainder.split_once('/').map_or("", |(_, path)| path)
@@ -1033,13 +1118,18 @@ impl Renderer<'_> {
                     .push_str(&format!("<a href=\"{route}\" download>{name}</a>"));
             }
         } else {
-            self.html
-                .push_str(&format!("<img src=\"{route}\" alt=\"{name}\">"));
+            let mut size = String::new();
+            for (attribute, value) in image_size(metadata) {
+                size.push_str(&format!(" {attribute}=\"{value}\""));
+            }
+            self.html.push_str(&format!(
+                "<img src=\"{route}\" alt=\"{name}\" title=\"{name}\" loading=\"lazy\"{size}>"
+            ));
         }
         true
     }
 
-    fn link(&mut self, url: &Url, label: &[Inline], image: bool, depth: usize) {
+    fn link(&mut self, url: &Url, label: &[Inline], image: bool, metadata: &str, depth: usize) {
         if let Url::PageRef { v } = url {
             if image {
                 self.diagnostic("Page image reference unsupported");
@@ -1089,13 +1179,18 @@ impl Renderer<'_> {
         let allowed = matches!(scheme, Some("http" | "https" | "mailto"))
             && !destination.chars().any(char::is_control);
         if image && is_https_media_url(&destination) {
-            if !self.media(&destination, label, &destination, depth) {
+            if !self.media(&destination, label, &destination, metadata, depth) {
                 self.diagnostic(format!("Unsupported remote media: {destination}"));
                 self.label(label, &destination, depth);
             }
         } else if allowed && !image {
+            let external = if scheme == Some("mailto") {
+                ""
+            } else {
+                " class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\""
+            };
             self.html
-                .push_str(&format!("<a href=\"{}\">", escape(&destination)));
+                .push_str(&format!("<a{external} href=\"{}\">", escape(&destination)));
             self.label(label, &destination, depth);
             self.html.push_str("</a>");
         } else if scheme.is_some() || destination.starts_with("//") {
@@ -1104,7 +1199,7 @@ impl Renderer<'_> {
         } else {
             match (self.asset)(&self.source, &destination) {
                 Ok(route) => {
-                    if image && self.media(&route, label, &destination, depth) {
+                    if image && self.media(&route, label, &destination, metadata, depth) {
                         return;
                     }
                     if image {
@@ -1136,6 +1231,30 @@ fn is_https_media_url(destination: &str) -> bool {
     };
     let authority = remainder.split(['/', '?', '#']).next().unwrap_or_default();
     scheme.eq_ignore_ascii_case("https") && !authority.is_empty() && !authority.contains('@')
+}
+
+/// Read an image's `{:width …, :height …}` map without evaluating it, keeping
+/// positive integer values only.
+fn image_size(metadata: &str) -> Vec<(&'static str, u32)> {
+    let metadata = metadata.trim();
+    if metadata.is_empty() {
+        return Vec::new();
+    }
+    let Ok(pairs) = crate::garden_config::top_level(metadata) else {
+        return Vec::new();
+    };
+    let mut size = Vec::new();
+    for attribute in ["width", "height"] {
+        let key = format!(":{attribute}");
+        let value = pairs.iter().find_map(|(k, v)| match (k, v) {
+            (Form::Atom(k), Form::Atom(v)) if *k == key => v.parse::<u32>().ok(),
+            _ => None,
+        });
+        if let Some(value) = value.filter(|value| *value > 0) {
+            size.push((attribute, value));
+        }
+    }
+    size
 }
 
 fn is_audio(path: &str) -> bool {
@@ -1342,9 +1461,9 @@ mod tests {
         );
         assert_eq!(requested, ["../assets/photo.png"]);
         assert!(
-            rendered
-                .html
-                .contains("<img src=\"assets/a.png\" alt=\"photo\">")
+            rendered.html.contains(
+                "<img src=\"assets/a.png\" alt=\"photo\" title=\"photo\" loading=\"lazy\">"
+            )
         );
     }
 
@@ -1468,12 +1587,12 @@ mod tests {
         assert!(
             rendered
                 .html
-                .contains("<img src=\"https://media.example/art.gif\" alt=\"Artwork\">")
+                .contains("<img src=\"https://media.example/art.gif\" alt=\"Artwork\" title=\"Artwork\" loading=\"lazy\">")
         );
         assert!(
             rendered
                 .html
-                .contains("<a href=\"https://media.example/song.mp3\">Download</a>")
+                .contains("<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://media.example/song.mp3\">Download</a>")
         );
         assert!(
             rendered.diagnostics.is_empty(),
@@ -1594,7 +1713,7 @@ mod tests {
         assert!(
             rendered
                 .html
-                .contains("<a href=\"https://example.org\">reader@example.org</a>")
+                .contains("<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://example.org\">reader@example.org</a>")
         );
         assert!(rendered.diagnostics.is_empty());
     }
@@ -1682,6 +1801,139 @@ mod tests {
                 .diagnostics
                 .iter()
                 .any(|d| d.contains("Nested link"))
+        );
+    }
+
+    fn render_with(source: &str, pages: &[(&str, &str)], show_brackets: bool) -> Rendered {
+        let document = document(source);
+        let mut names = crate::page_names::PageNameIndex::default();
+        let mut without_aliases = document.clone();
+        without_aliases.parsed.blocks.clear();
+        for (title, route) in pages {
+            names.insert((*route).to_owned(), title, &without_aliases);
+        }
+        super::render_document_with_source_anchors(
+            &document,
+            &names,
+            &BTreeMap::new(),
+            "p-test.html",
+            &BTreeMap::new(),
+            super::PageRender {
+                source_anchors: BTreeSet::new(),
+                show_brackets,
+            },
+            &mut |_, _| Ok("assets/a.png".into()),
+        )
+    }
+
+    #[test]
+    fn page_references_render_with_brackets_unless_turned_off() {
+        let pages = [("tmux/Config", "p-config.html")];
+        let source = "- [[tmux/Config]] and [label]([[tmux/Config]]) and [[Missing]]\n";
+        let on = render_with(source, &pages, true).html;
+        assert!(on.contains(
+            "<span class=\"page-reference\"><a href=\"p-config.html\">tmux/Config</a></span>"
+        ));
+        assert!(
+            on.contains(
+                "<span class=\"page-reference\"><a href=\"p-config.html\">label</a></span>"
+            )
+        );
+        assert!(
+            on.contains("<span class=\"page-reference unresolved\"><span>Missing</span></span>")
+        );
+        assert!(!on.contains("no-brackets"));
+        let off = render_with(source, &pages, false).html;
+        assert!(off.contains(
+            "<span class=\"page-reference no-brackets\"><a href=\"p-config.html\">tmux/Config</a></span>"
+        ));
+        assert!(off.contains(
+            "<span class=\"page-reference unresolved no-brackets\"><span>Missing</span></span>"
+        ));
+    }
+
+    #[test]
+    fn tags_link_to_their_pages() {
+        let pages = [
+            ("Keyshort", "p-keyshort.html"),
+            ("multi word", "p-multi.html"),
+        ];
+        let rendered = render_with(
+            "- #Keyshort #[[multi word]] #card [see #Keyshort](https://example.com)\n",
+            &pages,
+            true,
+        );
+        let html = rendered.html;
+        assert!(html.contains("<a class=\"tag\" href=\"p-keyshort.html\">#Keyshort</a>"));
+        assert!(html.contains("<a class=\"tag\" href=\"p-multi.html\">#multi word</a>"));
+        assert!(html.contains("<span class=\"tag\">#card</span>"));
+        assert_eq!(html.matches("class=\"tag\"").count(), 3, "{html}");
+        assert!(
+            rendered
+                .diagnostics
+                .iter()
+                .any(|d| d == "Unresolved or excluded tag: card")
+        );
+    }
+
+    #[test]
+    fn outside_links_open_in_a_new_tab_and_mailto_is_unchanged() {
+        let html = render_with(
+            "- [tmux](https://github.com/tmux/tmux) [plain](http://example.com) [mail](mailto:a@example.com)\n",
+            &[],
+            true,
+        )
+        .html;
+        assert!(html.contains(
+            "<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://github.com/tmux/tmux\">tmux</a>"
+        ));
+        assert!(html.contains(
+            "<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"http://example.com\">plain</a>"
+        ));
+        assert!(html.contains("<a href=\"mailto:a@example.com\">mail</a>"));
+    }
+
+    #[test]
+    fn image_size_maps_become_attributes() {
+        let html = render_with(
+            "- ![diagram](../assets/a.png){:height 265, :width 231}\n- ![wide](../assets/b.png){:width 900}\n- ![bad](../assets/c.png){:width \"big\" :height -4}\n- ![junk](../assets/d.png){:width\n",
+            &[],
+            true,
+        )
+        .html;
+        assert!(html.contains(
+            "<img src=\"assets/a.png\" alt=\"diagram\" title=\"diagram\" loading=\"lazy\" width=\"231\" height=\"265\">"
+        ));
+        assert!(html.contains("alt=\"wide\" title=\"wide\" loading=\"lazy\" width=\"900\">"));
+        assert!(html.contains("alt=\"bad\" title=\"bad\" loading=\"lazy\">"));
+        assert!(!html.contains("width=\"big\""));
+    }
+
+    #[test]
+    fn unknown_macros_show_warnings_and_owned_macros_keep_fallbacks() {
+        let rendered = render_with(
+            "- {{pdf x}}\n- {{Foo a, b}}\n- {{renderer :x}}\n- {{query (todo now)}}\n",
+            &[],
+            true,
+        );
+        let html = &rendered.html;
+        assert!(html.contains(
+            "<span class=\"warning\" title=\"Unsupported macro name: pdf\">{{pdf x}}</span>"
+        ));
+        assert!(html.contains("title=\"Unsupported macro name: Foo\">{{Foo a, b}}</span>"));
+        assert!(!html.contains("renderer"));
+        assert!(html.contains("<code>{{query (todo now)}}</code>"));
+        assert!(
+            rendered
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("Renderer macro omitted"))
+        );
+        assert!(
+            rendered
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("Unsupported macro pdf"))
         );
     }
 }

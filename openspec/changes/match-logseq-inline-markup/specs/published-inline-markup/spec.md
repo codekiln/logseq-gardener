@@ -2,7 +2,7 @@
 
 ### Requirement: Render page references like Logseq
 
-The publisher SHALL render each page reference, plain or labelled, as a link to the referenced page inside `span.page-reference`. When the garden's brackets are on, `[[` before the link and `]]` after it SHALL render in `span.bracket` elements in a grey colour at opacity 0.3; when brackets are off, no bracket elements SHALL render. The link text SHALL be the reference as typed, or its label. The link SHALL use Logseq's page-reference colour for the active theme, normal weight, no underline, and the reference SHALL show a faint background with a 3px radius on hover. A reference that resolves to no published page or to several SHALL keep the same brackets and text without a link, and keep its diagnostic.
+The publisher SHALL render each page reference, plain or labelled, as a link to the referenced page inside `span.page-reference`. When the garden's brackets are on, `[[` before the link and `]]` after it SHALL show in a grey colour at opacity 0.3, drawn by the stylesheet on `span.page-reference` rather than written as elements, so they add no bytes per reference; when brackets are off, the reference SHALL carry class `no-brackets` and show no brackets. The link text SHALL be the reference as typed, or its label. The link SHALL use Logseq's page-reference colour for the active theme, normal weight, no underline, and the reference SHALL show a faint background with a 3px radius on hover. A reference that resolves to no published page or to several SHALL keep the same brackets and text without a link, and keep its diagnostic.
 
 #### Scenario: Brackets on
 - **WHEN** the `tmux` page references `[[tmux/Config]]`
@@ -14,7 +14,7 @@ The publisher SHALL render each page reference, plain or labelled, as a link to 
 
 #### Scenario: Brackets off
 - **WHEN** a garden sets `:ui/show-brackets? false`
-- **THEN** its page references render as links inside `span.page-reference` with no bracket elements
+- **THEN** its page references render as links inside `span.page-reference.no-brackets` and show no brackets
 
 #### Scenario: Unpublished target
 - **WHEN** a reference names a page with no published file
@@ -22,7 +22,7 @@ The publisher SHALL render each page reference, plain or labelled, as a link to 
 
 ### Requirement: Render tags as links
 
-The publisher SHALL render `#tag` and `#[[multi word]]` as `a.tag` linking to the page the SDK names for the tag, with text `#` followed by the tag text as typed and no brackets. Tags SHALL use Logseq's tag colour for the active theme, 0.96em font size, opacity 0.8, `0 4px` padding and a 4px radius, and on hover full opacity and an underline. A tag whose page is unpublished or ambiguous SHALL render `span.tag` with the same look and text, without a link, and keep its diagnostic.
+The publisher SHALL render `#tag` and `#[[multi word]]` as `a.tag` linking to the page the SDK names for the tag, with text `#` followed by the tag text as typed and no brackets. Tags SHALL use Logseq's tag colour for the active theme, 0.9em font size, opacity 0.8, `0 2px` padding and a 4px radius, and on hover full opacity and an underline. A tag whose page is unpublished or ambiguous SHALL render `span.tag` with the same look and text, without a link, and keep its diagnostic.
 
 #### Scenario: Tag link
 - **WHEN** the `1Password/Quick Access` page is published and contains `#Keyshort`
@@ -49,8 +49,8 @@ The publisher SHALL render links to `http` and `https` addresses as `a.external-
 The publisher SHALL render bold at weight 600, keep italic, strikethrough and highlight in their current elements, and give highlights Logseq's highlight colours for the active theme. Inline code SHALL use Logseq's monospace font stack (`"Fira Code"` first), 0.8em font size, Logseq's code background for the active theme, the surrounding text colour, `3px 5px` padding and a 4px radius.
 
 #### Scenario: Highlight
-- **WHEN** `ICMC/25/d2/1100 Concert n06/05 Luminiferous Aether` is opened in both builds in the same browser
-- **THEN** the computed background, colour, padding and radius of its highlighted phrase match Logseq's
+- **WHEN** `ICMC/25/d2/1100 Concert n06/05 Luminiferous Aether` is opened
+- **THEN** its highlighted phrase has Logseq's built-in highlight: a `#fef3ac` fill, `#262626` text, `2px 4px` padding and a 3px radius
 
 #### Scenario: Inline code
 - **WHEN** `1Password/Quick Access` is opened

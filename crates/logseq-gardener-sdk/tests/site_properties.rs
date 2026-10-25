@@ -89,6 +89,7 @@ fn book_and_preset_properties_keep_order_scalars_aliases_and_avoid_duplicate_seq
     assert!(props.contains("<dt>finished</dt><dd>false</dd>"));
     assert!(props.contains("A &amp; B &lt; C"));
     assert!(props.contains("href=\"https://media.example/preset.mbp?x=1&amp;y=2\""));
+    assert!(props.contains("<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://media.example/preset.mbp"));
     assert!(props.contains(&format!(
         "href=\"{}\">Visible/Book/One",
         route("Visible/Book/One")

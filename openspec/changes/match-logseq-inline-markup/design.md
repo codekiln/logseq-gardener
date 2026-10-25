@@ -28,7 +28,7 @@ Everything Logseq does here is markup and CSS, so parity costs no JavaScript and
 
 The publisher renders the markup, styles and image attributes, and the macro chip.
 
-**Page references.** `page_link` writes `<span class="page-reference">`, then `<span class="bracket">[[</span>` when brackets are on, then the existing `<a href>` or, for an unresolved or ambiguous name, a `<span>` with the label, then the closing bracket. The `unresolved` class moves to the outer span so existing styles and tests keep their hook. Links keep their `href`, unlike Logseq's click-routed anchors, so they work without JavaScript and in Gitpa. Labelled references go through the same path.
+**Page references.** `page_link` writes `<span class="page-reference">` around the existing `<a href>` or, for an unresolved or ambiguous name, a `<span>` with the label. The `unresolved` class moves to the outer span. The stylesheet draws `[[` and `]]` with `::before` and `::after`; a garden with brackets off gets `no-brackets` on each reference and no brackets. Writing the brackets as `span.bracket` elements, as Logseq does, added 1.1 KB gzip to `tmux` and pushed its growth past the 2 KB budget. Links keep their `href`, unlike Logseq's click-routed anchors, so they work without JavaScript and in Gitpa. Labelled references go through the same path.
 
 **Tags.** `Inline::Tag` resolves `tag_page_name` with `candidates`; one candidate writes `<a class="tag" href="…">#…</a>` with the children as the text, otherwise `<span class="tag">#…</span>` and the existing unresolved diagnostic. Inside a link label (`label == true`) a tag stays text, as nested links are not allowed.
 
@@ -38,7 +38,7 @@ The publisher renders the markup, styles and image attributes, and the macro chi
 
 **Macros.** `Inline::Macro` dispatches on the lower-cased name: `embed` as today; the owned names (`query`, `video`, `youtube`, `youtube-timestamp`, `cards`, `cloze`, `namespace`, `tweet`) through `literal` as today; `renderer` writes nothing and a diagnostic; any other name writes `<span class="warning" title="Unsupported macro name: <name>">{{name a, b}}</span>` and the existing diagnostic. Logseq's outer `div.macro` is left out for the same reason as the image wrapper.
 
-**Styles.** A new `site/inline.css` is inlined into every page next to the outline styles. It styles `.page-reference`, `.bracket`, `.page-reference a`, `.tag`, `.external-link`, `strong`, `mark`, `code` outside `pre`, `img` and `.warning`, using theme tokens added to `site/theme.css`: `--lsg-ref`, `--lsg-tag`, `--lsg-external`, `--lsg-bracket`, `--lsg-code-bg`, `--lsg-mark-bg`, `--lsg-mark-fg`, `--lsg-warning-bg` and `--lsg-warning-fg`. Light values are the analysis's live measurements; dark values come from Logseq's dark theme variables in `logseq/og`'s `common.css` and are checked against the `gh-pages` build in dark mode during Apply. The font stack is `"Fira Code", monospace`; the build ships no font file, so readers without Fira Code see their monospace font.
+**Styles.** A new `site/inline.css` is inlined into every page next to the outline styles. It styles `.page-reference` and its `::before` and `::after` brackets, `.page-reference a`, `.tag`, `.external-link`, `strong`, `mark`, `code` outside `pre`, `img` and `.warning`, using theme tokens added to `site/theme.css`: `--lsg-ref`, `--lsg-ref-hover`, `--lsg-tag`, `--lsg-external`, `--lsg-bracket`, `--lsg-code-bg`, `--lsg-mark-bg`, `--lsg-mark-fg`, `--lsg-warning-bg` and `--lsg-warning-fg`. Light values are the analysis's live measurements. Dark values are Logseq's built-in dark variables from the `gh-pages` build's `style.css`: `#8abbbb` for page references, Radix indigo `#849dff` for tags and outside links, Radix slate `#202425` for inline code, and `#946800` and `#f9e68c` for warnings. Apply compared both themes with the `gh-pages` build; the remaining dark differences come from the garden's custom theme (question 8). The font stack is `"Fira Code", monospace`; the build ships no font file, so readers without Fira Code see their monospace font.
 
 **Highlight colour.** The build's stylesheet sets `mark` to a `#fef3ac` fill with `#262626` text, `2px 4px` padding and a 3px radius; one browser showed an amber underline instead. Apply uses `parity:screenshots` (Playwright's Chromium) on the `ICMC/…/Luminiferous Aether` fixture and matches what Logseq's build shows there, recording the result in `verification.md`.
 
@@ -92,11 +92,15 @@ Decided by the agent without codekiln: it renders nothing, with a build diagnost
 
 ### 8 - Which highlight style is Logseq's?
 
-Decided by the agent without codekiln: whichever Logseq's build shows in Playwright's Chromium on the highlight fixture, measured during Apply. The stylesheet rule (a pale yellow fill) is the expected answer; the amber underline seen once in another browser has no rule in the build's stylesheets.
+Decided by the agent without codekiln: Logseq's built-in rule, a `#fef3ac` fill with `#262626` text. Measured during Apply, the `gh-pages` build shows a 4px amber underline in Playwright's Chromium too, but that rule comes from `pengx17/logseq-dev-theme`, which the garden's `logseq/custom.css` imports. The same theme gives tags a 2px border and 0.8em text and gives dark-theme links `#a3cef1` and `#6096ba`. `lsg`'s built-in styles follow Logseq's own stylesheet; the garden's theme reaches an `lsg` site through `--stylesheet logseq/custom.css`, and its selectors now match because `lsg` writes Logseq's class names.
 
 ### 9 - Where does inline markup styling apply?
 
 Decided by the agent without codekiln: everywhere inline text renders, including page properties, the journals feed and Linked References contexts. Logseq uses the same inline renderer in all of them.
+
+### 10 - Are brackets elements or stylesheet content?
+
+Decided by the agent without codekiln: stylesheet content. `span.bracket` elements cost 1,132 bytes gzip on `tmux`, which put the page 2,562 bytes above its size before this change, over the 2 KB budget. Drawn with `::before` and `::after`, the brackets look the same and the page grows 1,465 bytes. A reader copying text no longer copies the brackets.
 
 ## Open Questions
 

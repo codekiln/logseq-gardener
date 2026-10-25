@@ -369,8 +369,8 @@ fn selected_media_renders_without_leaking_private_or_excluded_recordings() {
     let html = String::from_utf8_lossy(page);
     assert_eq!(html.matches("<audio controls").count(), 4);
     assert!(html.contains("aria-label=\"Local recording\""));
-    assert!(html.contains("<img src=\"https://media.example/selected.gif\" alt=\"Artwork\">"));
-    assert!(html.contains("<a href=\"https://media.example/download.mp3\">Plain download</a>"));
+    assert!(html.contains("<img src=\"https://media.example/selected.gif\" alt=\"Artwork\" title=\"Artwork\" loading=\"lazy\">"));
+    assert!(html.contains("<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://media.example/download.mp3\">Plain download</a>"));
     assert!(html.contains(" download>Local recording</a>"));
     assert!(html.contains(
         "<a href=\"https://media.example/selected.mp3\">Open recording: Remote recording</a>"
