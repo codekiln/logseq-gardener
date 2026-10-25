@@ -1,6 +1,6 @@
 ## Context
 
-The [inline markup analysis](../../../docs/parity/inline-markup.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `8bc3391`) with an `lsg` build from `581a7a4`. The text matches; the markup and styles do not. The inline renderer is `Renderer::inlines` in `crates/logseq-gardener-sdk/src/site/render.rs`: page references become bare `<a href>` or `span.unresolved`, `Inline::Tag` writes `#` and the text, outside links get no class or target, images drop the parser's `metadata` string (`{:height 265, :width 231}`), and every macro other than `embed` goes through `literal`, which writes `<code>` and a diagnostic.
+The [inline markup analysis](../../../../docs/parity/inline-markup.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `8bc3391`) with an `lsg` build from `581a7a4`. The text matches; the markup and styles do not. The inline renderer is `Renderer::inlines` in `crates/logseq-gardener-sdk/src/site/render.rs`: page references become bare `<a href>` or `span.unresolved`, `Inline::Tag` writes `#` and the text, outside links get no class or target, images drop the parser's `metadata` string (`{:height 265, :width 231}`), and every macro other than `embed` goes through `literal`, which writes `<code>` and a diagnostic.
 
 Everything Logseq does here is markup and CSS, so parity costs no JavaScript and no graph data. The one size risk is the `tmux` page: 96 KB gzip before the title against the 100 KB budget, and bracket spans add about 70 bytes per reference before compression.
 
@@ -42,7 +42,7 @@ The publisher renders the markup, styles and image attributes, and the macro chi
 
 **Highlight colour.** The build's stylesheet sets `mark` to a `#fef3ac` fill with `#262626` text, `2px 4px` padding and a 3px radius; one browser showed an amber underline instead. Apply uses `parity:screenshots` (Playwright's Chromium) on the `ICMC/…/Luminiferous Aether` fixture and matches what Logseq's build shows there, recording the result in `verification.md`.
 
-**Budgets.** Measured by the [comparison harness](../../specs/parity-comparison-harness/spec.md):
+**Budgets.** Measured by the [comparison harness](../../../specs/parity-comparison-harness/spec.md):
 
 | Measure | Budget |
 | --- | --- |

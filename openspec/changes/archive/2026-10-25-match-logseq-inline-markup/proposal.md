@@ -1,6 +1,6 @@
 ## Why
 
-Logseq's published site marks up inline text so readers can tell a page reference from a tag, an outside link, code and an unsupported macro at a glance. `lsg` publishes the same text, but tags and unknown macros come out as plain text or code, page references lose their `[[` `]]` brackets, outside links look like page links and open in the same tab, and images ignore their authored size ([inline markup analysis](../../../docs/parity/inline-markup.md), [Issue #112 — Match Logseq's inline markup: links, tags, emphasis, images and macros](https://github.com/codekiln/logseq-gardener/issues/112)).
+Logseq's published site marks up inline text so readers can tell a page reference from a tag, an outside link, code and an unsupported macro at a glance. `lsg` publishes the same text, but tags and unknown macros come out as plain text or code, page references lose their `[[` `]]` brackets, outside links look like page links and open in the same tab, and images ignore their authored size ([inline markup analysis](../../../../docs/parity/inline-markup.md), [Issue #112 — Match Logseq's inline markup: links, tags, emphasis, images and macros](https://github.com/codekiln/logseq-gardener/issues/112)).
 
 ## What Changes
 
