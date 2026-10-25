@@ -444,6 +444,7 @@ pub fn publish_site_with_options(
             .entries()
             .map(|node| (node.route.clone(), node.title.clone()))
             .collect(),
+        settings.show_brackets,
     );
     let selected_documents = selected
         .iter()
@@ -509,8 +510,10 @@ pub fn publish_site_with_options(
             &targets,
             &route,
             &selected_documents,
-            source_anchors,
-            settings.show_brackets,
+            render::PageRender {
+                source_anchors,
+                show_brackets: settings.show_brackets,
+            },
             &mut asset,
         );
         if let Some(search) = &mut search {
@@ -522,7 +525,6 @@ pub fn publish_site_with_options(
             &names,
             &targets,
             &selected_documents,
-            settings.show_brackets,
             &mut asset,
         );
         for message in rendered
@@ -586,7 +588,6 @@ pub fn publish_site_with_options(
                 &names,
                 &targets,
                 &selected_documents,
-                settings.show_brackets,
                 &mut asset,
             );
             documents.insert(

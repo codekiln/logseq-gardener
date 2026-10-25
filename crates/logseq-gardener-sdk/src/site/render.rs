@@ -255,14 +255,19 @@ struct RenderMode {
     reference_entries: BTreeMap<usize, String>,
 }
 
+/// How a page's own outline renders: which blocks keep source anchors, and brackets.
+pub(super) struct PageRender {
+    pub source_anchors: BTreeSet<usize>,
+    pub show_brackets: bool,
+}
+
 pub(super) fn render_document_with_source_anchors(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
     targets: &BTreeMap<String, Option<BlockTarget>>,
     route: &str,
     documents: &BTreeMap<String, &GardenDocument>,
-    source_anchors: BTreeSet<usize>,
-    show_brackets: bool,
+    page: PageRender,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
     render_context(
@@ -272,8 +277,8 @@ pub(super) fn render_document_with_source_anchors(
         route,
         documents,
         RenderMode {
-            source_anchors,
-            hide_brackets: !show_brackets,
+            source_anchors: page.source_anchors,
+            hide_brackets: !page.show_brackets,
             ..RenderMode::default()
         },
         asset,
@@ -1813,8 +1818,10 @@ mod tests {
             &BTreeMap::new(),
             "p-test.html",
             &BTreeMap::new(),
-            BTreeSet::new(),
-            show_brackets,
+            super::PageRender {
+                source_anchors: BTreeSet::new(),
+                show_brackets,
+            },
             &mut |_, _| Ok("assets/a.png".into()),
         )
     }

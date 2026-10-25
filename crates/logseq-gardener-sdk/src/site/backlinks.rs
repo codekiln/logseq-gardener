@@ -30,6 +30,7 @@ pub(super) struct Backlinks<'a> {
     titles: BTreeMap<String, String>,
     property_targets: Option<BTreeMap<String, BTreeSet<String>>>,
     property_rows: BTreeMap<String, BTreeMap<String, String>>,
+    show_brackets: bool,
 }
 
 impl<'a> Backlinks<'a> {
@@ -38,6 +39,7 @@ impl<'a> Backlinks<'a> {
         names: &PageNameIndex<String>,
         property_views: Option<&BTreeMap<String, super::properties::PropertyView>>,
         destinations: BTreeMap<String, String>,
+        show_brackets: bool,
     ) -> Self {
         let by_name: BTreeMap<_, _> = destinations
             .iter()
@@ -53,6 +55,7 @@ impl<'a> Backlinks<'a> {
             by_source: BTreeMap::new(),
             incoming: BTreeMap::new(),
             titles: destinations,
+            show_brackets,
             property_rows: property_views
                 .map(|views| {
                     views
@@ -265,7 +268,6 @@ impl<'a> Backlinks<'a> {
         names: &PageNameIndex<String>,
         targets: &BTreeMap<String, Option<BlockTarget>>,
         documents: &BTreeMap<String, &GardenDocument>,
-        show_brackets: bool,
         asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
     ) -> (String, Vec<String>) {
         let indices = self.incoming.get(target).map_or(&[][..], Vec::as_slice);
@@ -401,7 +403,7 @@ impl<'a> Backlinks<'a> {
                         documents,
                         render::ReferencePresentation {
                             open_depth: config.open_depth,
-                            show_brackets,
+                            show_brackets: self.show_brackets,
                             entries: contexts
                                 .iter()
                                 .filter(|child| {
