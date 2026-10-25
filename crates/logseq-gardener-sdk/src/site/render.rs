@@ -789,10 +789,13 @@ impl Renderer<'_> {
             .mode
             .and_then(|mode| super::code::highlight(code, &mode))
             .unwrap_or_else(|| code.split('\n').map(escape).collect());
-        let digits = lines.len().to_string().len().max(2);
-        self.html.push_str(&format!(
-            "<pre class=\"lsg-code\" style=\"--lsg-code-digits:{digits}\"><code>"
-        ));
+        // The gutter fits two digits unless the block has 100 lines or more.
+        match lines.len().to_string().len() {
+            ..=2 => self.html.push_str("<pre class=\"lsg-code\"><code>"),
+            digits => self.html.push_str(&format!(
+                "<pre class=\"lsg-code\" style=\"--lsg-code-digits:{digits}\"><code>"
+            )),
+        }
         for (index, line) in lines.iter().enumerate() {
             if index > 0 {
                 self.html.push('\n');
@@ -1998,7 +2001,7 @@ mod tests {
             "- a\n\t- b\n\t  ```rust\n\t  fn main() {\n\t      let x = \"s\";\n\t  }\n\t  ```\n",
         )
         .html;
-        assert!(html.contains("<div class=\"cp__fenced-code-block\" data-lang=\"rust\"><div class=\"extensions__code\"><div class=\"extensions__code-lang\">rust</div><pre class=\"lsg-code\" style=\"--lsg-code-digits:2\"><code><span class=\"line\"><span class=\"cm-keyword\">fn </span>"), "{html}");
+        assert!(html.contains("<div class=\"cp__fenced-code-block\" data-lang=\"rust\"><div class=\"extensions__code\"><div class=\"extensions__code-lang\">rust</div><pre class=\"lsg-code\"><code><span class=\"line\"><span class=\"cm-keyword\">fn </span>"), "{html}");
         assert!(
             html.contains("<span class=\"line\">    <span class=\"cm-keyword\">let "),
             "{html}"

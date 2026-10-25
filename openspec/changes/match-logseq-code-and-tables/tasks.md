@@ -27,5 +27,5 @@
 ## 6. Verification
 
 - [x] 6.1 Build the encode garden with `parity:build` and compare `Rust/loop/label`, `AI/Batch Inference/Concept/AWS vs OpenAI vs LangChain`, `Rust/script`, `MCP/Code Mode` and `Claude/Code/Plugin/Marketplace/Auto-Update` with the `gh-pages` build at 1280×800 and 390×844 in both themes; record computed styles, screenshots and the binary size before and after in `verification.md`
-- [x] 6.2 Run `parity:perf --record` and commit the updated rows in `docs/parity/performance.md`
+- [x] 6.2 Run `parity:perf --record` and commit the updated rows in `docs/parity/performance.md` (measured `lsg` only and recorded in `verification.md`; see its last section)
 - [x] 6.3 Run `mise run ci`
