@@ -1,0 +1,9 @@
+# Verification
+
+[Issue95 — accessible shared search](https://github.com/codekiln/logseq-gardener/issues/95) builds on the merged selected-source contract. [Cleanup142 — sync and archive](https://github.com/codekiln/logseq-gardener/issues/142) is a native implementation child for the separate post-merge OpenSpec cleanup.
+
+Independent loader tests cover no eager fetch/import, cache/concurrent opens, manifest-relative artifact URLs, same-origin/version/revision/UTF-8 length validation, HTTP/JSON errors, explicit retry, abort-on-close and stale module completion across revision changes. The existing pure engine and Rust publication/privacy/anchor fixtures remain in the standard test suite.
+
+The generated-publication Chromium proof runs through `mise run search:browser-test`. It covers labelled input, Cmd/Ctrl+K, arrows/Enter/Escape/Tab/focus restoration, safe literal snippets, empty/no-match status, cached reopen, modified new-tab links,390px layout, light/dark/system variables, nested-page default URLs, repeated initialization and delegated SPA navigation with persistent state, changed/missing publication metadata, failed-load retry, closing a deferred first fetch and no-JavaScript hidden controls. The dialog remains outside main and closes before host navigation observes its click.
+
+`mise run ci` passed, including formatting, Clippy, Rust/CLI/JavaScript tests, optimized release builds, parity budgets, strict OpenSpec validation, parser baseline, generated-config check, notices, docs, CLI conformance and release configuration. Final controller/input changes are additionally covered by the browser proof and loader tests; the final optimized exporter is rebuilt before review. The controller is content-fingerprinted independently of the unchanged corpus/evaluator format. Representative transfer/query performance belongs to issue96 and the existing parity harness.

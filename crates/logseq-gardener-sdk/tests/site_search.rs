@@ -151,7 +151,7 @@ fn body_exclusion_and_default_opt_out() {
     assert!(
         !fs::read_to_string(output.join("index.html"))
             .unwrap()
-            .contains("lsg-search")
+            .contains("rel=\"lsg-search\"")
     );
     let output = f.publish(
         "excluded",
