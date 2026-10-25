@@ -24,5 +24,5 @@
 ## 5. Verification
 
 - [x] 5.1 Build the encode garden with `parity:build` and compare `tmux`, `1Password/Quick Access`, `1Password/Dev/Connect Server`, `ICMC/25/d2/1100 Concert n06/05 Luminiferous Aether` and `LangSmith/26/09/29 Tue - Deep Agents/1045 Engine Workshop/Take-Aways` with the `gh-pages` build at 1280×800 and 390×844 in both themes; record computed styles and screenshots in `verification.md`, including the highlight result
-- [ ] 5.2 Run `parity:perf --record` and commit the updated rows in `docs/parity/performance.md`
+- [x] 5.2 Run `parity:perf --record` and commit the updated rows in `docs/parity/performance.md`
 - [ ] 5.3 Run `mise run ci`
