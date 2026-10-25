@@ -6,6 +6,7 @@ use unicode_normalization::UnicodeNormalization;
 
 use crate::ast::{Block, Inline, Url};
 use crate::garden::GardenDocument;
+use crate::journals::{JournalDate, JournalFormats, parse_journal_reference};
 
 /// Lookup spelling shared by titles, aliases and queries.
 ///
@@ -95,35 +96,62 @@ fn alias_names(document: &GardenDocument) -> Vec<String> {
 #[derive(Debug, Clone)]
 pub struct PageNameIndex<T> {
     names: BTreeMap<String, Vec<T>>,
+    journals: BTreeMap<JournalDate, Vec<T>>,
+    journal_formats: JournalFormats,
 }
 
 impl<T> Default for PageNameIndex<T> {
     fn default() -> Self {
         Self {
             names: BTreeMap::new(),
+            journals: BTreeMap::new(),
+            journal_formats: JournalFormats::default(),
         }
     }
 }
 
 impl<T: Ord + Clone> PageNameIndex<T> {
+    /// An empty index that reads journal references with the garden's formats.
+    pub fn with_journal_formats(journal_formats: JournalFormats) -> Self {
+        Self {
+            journal_formats,
+            ..Self::default()
+        }
+    }
+
     /// Insert the title and leading aliases for one stored page.
     pub fn insert(&mut self, id: T, title: &str, document: &GardenDocument) {
         for name in std::iter::once(lookup_key(title)).chain(page_aliases(document, title)) {
             if name.is_empty() {
                 continue;
             }
-            let candidates = self.names.entry(name).or_default();
-            if let Err(position) = candidates.binary_search(&id) {
-                candidates.insert(position, id.clone());
-            }
+            insert_sorted(self.names.entry(name).or_default(), id.clone());
         }
     }
 
+    /// Let references written as `date` in any accepted journal format find `id`.
+    ///
+    /// Insert the journal's title and aliases with [`Self::insert`] as well.
+    pub fn insert_journal(&mut self, id: T, date: JournalDate) {
+        insert_sorted(self.journals.entry(date).or_default(), id);
+    }
+
     /// Return sorted distinct candidates: empty means unavailable, one is unique,
-    /// and multiple candidates are ambiguous. No filesystem access is performed.
+    /// and multiple candidates are ambiguous. A query that names no title or alias
+    /// falls back to the journal with the date it spells, as Logseq resolves
+    /// `[[Feb 1st, 2025]]`. No filesystem access is performed.
     pub fn candidates(&self, query: &str) -> &[T] {
-        self.names
-            .get(&lookup_key(query))
+        if let Some(candidates) = self.names.get(&lookup_key(query)) {
+            return candidates;
+        }
+        parse_journal_reference(query, &self.journal_formats)
+            .and_then(|date| self.journals.get(&date))
             .map_or(&[], Vec::as_slice)
+    }
+}
+
+fn insert_sorted<T: Ord>(candidates: &mut Vec<T>, id: T) {
+    if let Err(position) = candidates.binary_search(&id) {
+        candidates.insert(position, id);
     }
 }

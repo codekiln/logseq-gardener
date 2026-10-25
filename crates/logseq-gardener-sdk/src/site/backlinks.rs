@@ -24,6 +24,8 @@ struct Context<'a> {
 
 pub(super) struct Backlinks<'a> {
     contexts: Vec<Context<'a>>,
+    /// The contiguous range of `contexts` each source page produced.
+    by_source: BTreeMap<String, std::ops::Range<usize>>,
     incoming: BTreeMap<String, Vec<usize>>,
     titles: BTreeMap<String, String>,
     property_targets: Option<BTreeMap<String, BTreeSet<String>>>,
@@ -48,6 +50,7 @@ impl<'a> Backlinks<'a> {
         };
         let mut result = Self {
             contexts: Vec::new(),
+            by_source: BTreeMap::new(),
             incoming: BTreeMap::new(),
             titles: destinations,
             property_rows: property_views
@@ -224,16 +227,17 @@ impl<'a> Backlinks<'a> {
                 }
                 descendants.push(index);
             }
+            result
+                .by_source
+                .insert(route.clone(), first_context..result.contexts.len());
         }
         result
     }
 
     pub fn source_anchors(&self, route: &str) -> BTreeSet<usize> {
-        self.contexts
+        self.contexts[self.by_source.get(route).cloned().unwrap_or_default()]
             .iter()
-            .filter(|context| {
-                context.source == route && context.direct.iter().any(|target| target != route)
-            })
+            .filter(|context| context.direct.iter().any(|target| target != route))
             .flat_map(|context| {
                 context
                     .anchor
@@ -241,6 +245,17 @@ impl<'a> Backlinks<'a> {
                     .chain(context.ancestors.iter().filter_map(|(_, anchor)| *anchor))
             })
             .collect()
+    }
+
+    /// Number of distinct pages that refer to `target`.
+    pub fn page_count(&self, target: &str) -> usize {
+        self.incoming
+            .get(target)
+            .into_iter()
+            .flatten()
+            .map(|&index| self.contexts[index].source.as_str())
+            .collect::<BTreeSet<_>>()
+            .len()
     }
 
     pub fn render(
@@ -280,7 +295,7 @@ impl<'a> Backlinks<'a> {
         };
         let page_label = if groups.len() == 1 { "page" } else { "pages" };
         let mut html = format!(
-            "<section class=\"linked-references\" data-lsg-backlinks aria-label=\"Linked references\"><details class=\"backlinks-disclosure\"{open}><summary>Linked references — <span data-backlinks-page-count>{} {page_label}</span><span data-backlinks-reference-count{context_hidden}> · {} referring contexts</span></summary><p data-backlinks-count-explanation{context_hidden}>A context is a referring block or a page’s properties.</p>",
+            "<section class=\"linked-references\" id=\"linked-references\" data-lsg-backlinks aria-label=\"Linked references\"><details class=\"backlinks-disclosure\"{open}><summary>Linked references — <span data-backlinks-page-count>{} {page_label}</span><span data-backlinks-reference-count{context_hidden}> · {} referring contexts</span></summary><p data-backlinks-count-explanation{context_hidden}>A context is a referring block or a page’s properties.</p>",
             groups.len(),
             indices.len()
         );
@@ -398,28 +413,21 @@ impl<'a> Backlinks<'a> {
                                     })
                                 })
                                 .collect(),
-                            paths: self
-                                .contexts
-                                .iter()
-                                .filter(|child| {
-                                    child.source == context.source
-                                        && child.start >= context.start
-                                        && child.start < context.subtree_end
+                            paths: self.contexts
+                                [self.by_source.get(source).cloned().unwrap_or_default()]
+                            .iter()
+                            .filter(|child| {
+                                child.start >= context.start && child.start < context.subtree_end
+                            })
+                            .filter_map(|child| {
+                                child.anchor.map(|start| {
+                                    (
+                                        start,
+                                        child.path.iter().cloned().collect::<Vec<_>>().join(" "),
+                                    )
                                 })
-                                .filter_map(|child| {
-                                    child.anchor.map(|start| {
-                                        (
-                                            start,
-                                            child
-                                                .path
-                                                .iter()
-                                                .cloned()
-                                                .collect::<Vec<_>>()
-                                                .join(" "),
-                                        )
-                                    })
-                                })
-                                .collect(),
+                            })
+                            .collect(),
                         },
                         asset,
                     );

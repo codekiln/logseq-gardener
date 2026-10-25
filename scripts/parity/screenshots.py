@@ -100,7 +100,7 @@ def main():
             context = browser.new_context(viewport=viewport, color_scheme='light')
             page = context.new_page()
             for number, name in enumerate(serve.fixtures(args.fixtures), 1):
-                target = serve.targets(name, names, lsg_index)
+                target = serve.targets(name, names, lsg_index, run / 'site')
                 row = {'name': f'{name} ({label}, {viewport["width"]} by {viewport["height"]})'}
                 for build, server in (('logseq', logseq), ('lsg', lsg)):
                     if target[build] is None:

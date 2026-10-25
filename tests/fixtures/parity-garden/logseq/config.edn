@@ -1,3 +1,4 @@
 {:file/name-format :triple-lowbar
  :publishing/all-pages-public? true
+ :journal/page-title-format "yyyy-MM-dd EEE"
  :favorites ["terminal multiplexer" "Tools/Editor" "Tools/Missing"]}

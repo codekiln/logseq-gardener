@@ -55,6 +55,18 @@ impl fmt::Display for PageTitleError {
 
 impl Error for PageTitleError {}
 
+/// The last case-insensitive `title` property of the leading properties block.
+pub(crate) fn title_property(document: &GardenDocument) -> Option<String> {
+    let Some(Block::Properties { props, .. }) = document.parsed.blocks.first() else {
+        return None;
+    };
+    props
+        .iter()
+        .rev()
+        .find(|property| property.0.eq_ignore_ascii_case("title"))
+        .map(|property| property.1.clone())
+}
+
 /// Derive a display title without changing the document or reading the filesystem.
 ///
 /// The caller must supply the graph's filename convention. A leading parsed
@@ -96,13 +108,8 @@ pub fn page_title(
             .is_some_and(|name| name.as_encoded_bytes().starts_with(b"contents."));
     let title = if is_contents {
         "Contents".to_owned()
-    } else if let Some(Block::Properties { props, .. }) = document.parsed.blocks.first()
-        && let Some(property) = props
-            .iter()
-            .rev()
-            .find(|property| property.0.eq_ignore_ascii_case("title"))
-    {
-        property.1.clone()
+    } else if let Some(title) = title_property(document) {
+        title
     } else {
         match format {
             FilenameFormat::Legacy => {

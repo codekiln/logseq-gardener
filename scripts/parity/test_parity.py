@@ -67,7 +67,11 @@ class TitleMappingTest(unittest.TestCase):
         self.assertEqual(serve.targets('Tmux', {'tmux'}, index), {'logseq': '#/page/tmux', 'lsg': 'p-1.html'})
         self.assertEqual(serve.targets('2026-10-23 Fri', {'2026-10-23 fri'}, index),
                          {'logseq': '#/page/2026-10-23%20fri', 'lsg': None})
-        self.assertEqual(serve.targets('All pages', set(), index), {'logseq': '#/all-pages', 'lsg': 'index.html'})
+        self.assertEqual(serve.targets('All pages', set(), index), {'logseq': '#/all-pages', 'lsg': 'pages.html'})
+        with tempfile.TemporaryDirectory() as site:
+            self.assertEqual(serve.targets('All pages', set(), index, site)['lsg'], 'index.html')
+            (Path(site) / 'pages.html').write_text('', encoding='utf-8')
+            self.assertEqual(serve.targets('All pages', set(), index, site)['lsg'], 'pages.html')
 
 
 class BuildTest(unittest.TestCase):
@@ -152,8 +156,9 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
-        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell'})
+        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals'})
         self.assertEqual(set(loaded['shell']), {'script_kb', 'frame_kb'})
+        self.assertEqual(set(loaded['journals']), {'script_kb', 'scroll_heap_mb', 'build_slowdown_pct'})
         for profile in budgets.profiles(loaded).values():
             self.assertEqual(set(profile), {'data_before_title_kb', 'script_before_title_kb', 'title_ms',
                                             'peak_heap_mb', 'search_p95_ms'})
@@ -185,6 +190,23 @@ class BudgetCheckTest(unittest.TestCase):
         failures = budgets.check({'p-1.html': (900_000, 150_000, 20_000)}, {'p-1.html': (900_000, 150_000, 20_000)},
                                  self.limits)
         self.assertEqual(len(failures), 2)
+
+    def test_journals_script_and_home_page(self):
+        with tempfile.TemporaryDirectory() as temp:
+            small, older = Path(temp) / 'small', Path(temp) / 'older'
+            for site, home in ((small, 'x' * 100), (older, 'x' * 120)):
+                site.mkdir()
+                (site / budgets.JOURNALS_SCRIPT).write_text('y' * 50, encoding='utf-8')
+                (site / 'index.html').write_text(home, encoding='utf-8')
+            failures = budgets.check_journals(small, older, {'script_kb': 0.04})
+            self.assertEqual(len(failures), 2)
+            self.assertIn('index.html: size changed from 100 to 120', failures[1])
+            self.assertEqual(budgets.check_journals(small, small, {'script_kb': 4}), [])
+            garden = Path(temp) / 'garden'
+            (garden / 'journals').mkdir(parents=True)
+            budgets.add_older_journals(garden, 3)
+            self.assertEqual(sorted(p.name for p in (garden / 'journals').iterdir()),
+                             ['2000_01_01.md', '2000_01_02.md', '2000_01_03.md'])
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

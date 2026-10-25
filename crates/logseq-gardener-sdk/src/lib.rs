@@ -26,6 +26,9 @@ pub mod page_titles;
 /// Generate a selected garden as local HTML.
 pub mod site;
 
+/// Journal dates, titles and date references.
+pub mod journals;
+
 /// Favorites and feature flags from the garden's `logseq/config.edn`.
 pub mod garden_settings;
 

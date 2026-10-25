@@ -47,6 +47,7 @@
     tw: toggleWide,
     gh: () => window.location.assign('index.html'),
     ga: () => go('[data-lsg-all-pages]'),
+    gj: () => go('[data-lsg-journals-link]'),
   };
   document.addEventListener('click', event => {
     const target = event.target;
@@ -81,6 +82,16 @@
     pending = key === 't' || key === 'g' ? key : '';
     pendingAt = now;
   });
+  // The journals feed loader is not needed for first paint; fetch it once the page has loaded.
+  const feed = $('[data-lsg-journals]');
+  if (feed) {
+    const load = () => {
+      const script = document.createElement('script');
+      script.src = feed.getAttribute('data-lsg-journals');
+      document.head.append(script);
+    };
+    if (document.readyState === 'complete') load(); else window.addEventListener('load', load, { once: true });
+  }
   for (const control of document.querySelectorAll('[data-lsg-left-toggle],[data-lsg-more]')) control.hidden = false;
   $('[data-lsg-left-toggle]')?.setAttribute('aria-expanded', String(isOpen()));
 })();
