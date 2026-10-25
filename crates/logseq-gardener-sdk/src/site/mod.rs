@@ -6,7 +6,9 @@ mod hierarchy;
 mod page_status;
 mod properties;
 mod render;
+mod search;
 mod sequence;
+pub use search::SearchOptions;
 mod shell;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -32,6 +34,8 @@ pub struct SiteOptions {
     pub stylesheet: Option<PathBuf>,
     /// Unique selected page title or alias shown at index.html; page list moves to pages.html.
     pub homepage: Option<String>,
+    /// Generate external search artifacts without loading a browser UI.
+    pub search: Option<SearchOptions>,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -384,6 +388,10 @@ pub fn publish_site_with_options(
                 .or_insert(Some(target));
         }
     }
+    let mut search = options
+        .search
+        .as_ref()
+        .map(|options| search::Search::new(&selected, &names, &targets, options));
     // Only selected source reaches the renderer and may request asset contents.
     let mut copied: BTreeMap<String, (PathBuf, Vec<u8>)> = BTreeMap::new();
     let mut documents = BTreeMap::new();
@@ -415,15 +423,22 @@ pub fn publish_site_with_options(
         } else {
             String::new()
         };
+        let mut source_anchors = reference_index.source_anchors(&route);
+        if let Some(search) = &search {
+            source_anchors.extend(search.anchors.get(&route).into_iter().flatten().copied());
+        }
         let rendered = render::render_document_with_source_anchors(
             document,
             &names,
             &targets,
             &route,
             &selected_documents,
-            reference_index.source_anchors(&route),
+            source_anchors,
             &mut asset,
         );
+        if let Some(search) = &mut search {
+            search.admit(&route, &rendered.source_anchors);
+        }
         let (reference_html, reference_diagnostics) = reference_index.render(
             &route,
             &reference_config,
@@ -516,6 +531,25 @@ pub fn publish_site_with_options(
         documents.insert("index.html".to_owned(), document);
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
+    if let Some(search) = search {
+        let artifacts = search.artifacts();
+        let manifest_route = artifacts
+            .keys()
+            .find(|route| route.starts_with("lsg-search-manifest-"))
+            .expect("search manifest");
+        let manifest: serde_json::Value =
+            serde_json::from_str(&artifacts[manifest_route]).expect("search manifest JSON");
+        let revision = manifest["revision"].as_str().expect("revision");
+        let link = format!(
+            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\">"
+        );
+        for (route, html) in &mut documents {
+            if route.ends_with(".html") {
+                *html = html.replacen("</head>", &(link.clone() + "</head>"), 1);
+            }
+        }
+        documents.extend(artifacts);
+    }
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     for (route, html) in documents {
         let path = output.join(route);

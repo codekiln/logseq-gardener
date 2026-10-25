@@ -20,7 +20,9 @@ pub(super) struct PropertyView {
 fn internal(key: &str) -> bool {
     matches!(
         key,
-        "id" | "custom-id"
+        "search-exclude"
+            | "id"
+            | "custom-id"
             | "custom_id"
             | "title"
             | "alias"

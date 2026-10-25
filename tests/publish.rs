@@ -466,3 +466,30 @@ fn cli_homepage_selects_alias_and_rejects_withheld_targets() {
     assert_eq!(result.status.code(), Some(1));
     assert!(!rejected.exists());
 }
+
+#[test]
+fn search_flag_emits_only_opt_in_external_artifacts() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- Searchable original text\n");
+    let output = f.0.join("search");
+    let result = f.publish(&output, &["--include", "Notes", "--search"]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let emitted = files(&output);
+    let manifests: Vec<_> = emitted
+        .keys()
+        .filter(|path| path.to_string_lossy().starts_with("lsg-search-manifest-"))
+        .collect();
+    assert_eq!(manifests.len(), 1);
+    assert!(
+        emitted
+            .keys()
+            .any(|path| path.to_string_lossy().starts_with("lsg-search-engine-"))
+    );
+    assert!(
+        String::from_utf8_lossy(&emitted[Path::new("index.html")]).contains("rel=\"lsg-search\"")
+    );
+}

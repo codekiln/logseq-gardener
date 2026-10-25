@@ -74,6 +74,8 @@ name = "logseq-gardener-sdk"
 version = "0.0.0"
 dependencies = [
  "lsdoc",
+ "serde",
+ "serde_json",
  "unicode-normalization",
 ]
 
