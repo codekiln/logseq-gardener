@@ -34,6 +34,6 @@
 
 - [x] 6.1 Build the encode garden with `parity:build` and compare the home page, `2026-10-23 Fri`, `2019-08-07 Wed` and `Docker/For Mac/How to Install into Zsh` with the `gh-pages` build at 1280×800 and 390×844; record screenshots and the feed's journal order in `verification.md`
 - [x] 6.2 Run `parity:compare` and record that the journals group drops from 534 to the 28 link-only dates
-- [ ] 6.3 Run `parity:perf --record` and commit the new rows in `docs/parity/performance.md`
+- [x] 6.3 Run `parity:perf --record` and commit the new rows in `docs/parity/performance.md`
 - [x] 6.4 Check a Gitpa build without `--journals`: output unchanged apart from the shell's existing markup
 - [x] 6.5 Run `mise run ci`

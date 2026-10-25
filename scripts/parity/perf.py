@@ -39,6 +39,12 @@ KEY_GAP_MS = 300
 FEED_TITLES = {'logseq': '.journal-title', 'lsg': 'a.journal-title'}
 FEED_BATCHES = 10
 FEED_JOURNALS = 3 + 7 * FEED_BATCHES
+# Logseq scrolls #main-content-container; lsg scrolls the window.
+SCROLL_TO_BOTTOM = '''() => {
+  const box = document.querySelector('#main-content-container');
+  if (box) box.scrollTop = box.scrollHeight;
+  window.scrollTo(0, document.documentElement.scrollHeight);
+}'''
 
 PROBE = '''
 (() => {
@@ -181,7 +187,8 @@ def measure_feed(browser, url, build, profile):
         start = time.monotonic()
         shown = page.locator(selector).count()
         while shown < FEED_JOURNALS:
-            page.evaluate('window.scrollTo(0, document.documentElement.scrollHeight)')
+            page.evaluate(SCROLL_TO_BOTTOM)
+            page.mouse.wheel(0, 2000)
             try:
                 page.wait_for_function(f'document.querySelectorAll({json.dumps(selector)}).length > {shown}',
                                        timeout=30_000, polling=100)
