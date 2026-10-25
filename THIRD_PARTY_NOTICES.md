@@ -22,6 +22,10 @@ The published site's header and sidebar draw the `menu-2`, `home`, `dots` and `f
 
 The SDK uses [lsdoc 0.5.8 at 32e63ef0](https://github.com/martinkoutecky/lsdoc/tree/32e63ef095c711d6d9947257bf5fd07d540fa59d) as an unmodified Rust dependency for Markdown parsing. It is distributed under AGPL-3.0-only. Its supplied license text is included in [Third-party dependency licenses](THIRD_PARTY_LICENSES.txt), and its exact Cargo source revision is recorded in [the source inventory](docs/dependency-sources.json).
 
+## Syntax grammars
+
+The SDK highlights fenced code with the TextMate grammars that [two-face 0.5.2](https://codeberg.org/CosmicHarper/two-face) bundles, curated from the [`bat` project](https://github.com/sharkdp/bat) 0.26.1. The grammars are compiled into the `lsg` binary without changes; only the colours they produce reach published pages, as CodeMirror class names. Each grammar keeps its own license, mostly MIT, BSD or Apache-2.0. two-face's acknowledgement listing, with every grammar's license text, is in [licenses/two-face-grammars.md](licenses/two-face-grammars.md); preserve it when redistributing the SDK or the `lsg` binary.
+
 ## Cargo dependencies
 
 [docs/dependencies.md](docs/dependencies.md) explains the CLI's direct dependencies. [The source inventory](docs/dependency-sources.json) records each locked package's version, source, checksum, and declared license. [Third-party dependency licenses](THIRD_PARTY_LICENSES.txt) contains the upstream license and NOTICE text for locked packages. No dependency source has been modified or incorporated into the project's Rust modules.

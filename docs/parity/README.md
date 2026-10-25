@@ -34,7 +34,7 @@ A full `parity:perf` run takes hours, because Logseq's build needs minutes per l
 
 ## The CI check
 
-`mise run parity:budgets` runs in `mise run ci`. It publishes the fixture garden in `tests/fixtures/parity-garden/`, then publishes it again with 2,000 added pages that nothing links to. It fails when a page's first-paint size or script size exceeds the budget, or when a page grows because the garden grew. It also checks the `[shell]` budgets: `lsg-shell.js` and each page's header and sidebar markup must stay within their sizes and keep them when the garden grows. It publishes the fixture garden once more with 1,000 older journals and checks the `[journals]` budget: `lsg-journals.js` stays within its size, and it and the home page keep their sizes.
+`mise run parity:budgets` runs in `mise run ci`. It publishes the fixture garden in `tests/fixtures/parity-garden/`, then publishes it again with 2,000 added pages that nothing links to. It fails when a page's first-paint size or script size exceeds the budget, or when a page grows because the garden grew. It also checks the `[shell]` budgets: `lsg-shell.js` and each page's header and sidebar markup must stay within their sizes and keep them when the garden grows. It publishes the fixture garden once more with 1,000 older journals and checks the `[journals]` budget: `lsg-journals.js` stays within its size, and it and the home page keep their sizes. The `[code]` budget limits the code and table styles every page carries and the growth of the largest fixture page with fenced code. `parity:perf --baseline-lsg <binary>` also times a whole-garden build with another `lsg`, such as one built before a feature, and marks a slowdown above `[code]` `build_slowdown_pct`.
 
 ## Change the fixtures or budgets
 

@@ -26,6 +26,9 @@ pub mod page_titles;
 /// Generate a selected garden as local HTML.
 pub mod site;
 
+/// Fenced code text without outline indentation, and the fence language's mode.
+pub mod code_blocks;
+
 /// Block depth, ancestry, task markers, headings and stable block identifiers.
 pub mod outline;
 

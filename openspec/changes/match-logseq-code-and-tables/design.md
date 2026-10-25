@@ -26,7 +26,7 @@ Logseq highlights code with CodeMirror 5, part of the roughly 35 MB of JavaScrip
 
 The publisher maps each `LogseqMode` to a grammar, highlights at build time, and renders the markup and styles.
 
-**Highlighter.** `syntect` with its pure-Rust regex engine reads TextMate grammars; `two-face` supplies grammars that `syntect`'s defaults lack (TOML, TypeScript, Dockerfile and others in the analysis's table). The publisher maps TextMate scopes to CodeMirror token classes by prefix, for example `keyword` and `storage` to `cm-keyword`, `string` to `cm-string`, `constant.numeric` to `cm-number`, `entity.name.function` to `cm-def`, `keyword.operator` to `cm-operator`, `entity.name.type` and `support.type` to `cm-type`, `comment` to `cm-comment`, and `variable` to `cm-variable`. Adjacent tokens with the same class merge into one span. The mapping lives in `site/code.rs` with a test per language in the analysis's table.
+**Highlighter.** `syntect` with its pure-Rust regex engine reads TextMate grammars; `two-face` supplies grammars that `syntect`'s defaults lack (TOML, TypeScript, Dockerfile and others in the analysis's table). The publisher maps TextMate scopes to CodeMirror token classes by prefix, for example `keyword` and `storage` to `cm-keyword`, `string` to `cm-string`, `constant.numeric` to `cm-number`, `entity.name.function` to `cm-def`, `keyword.operator` to `cm-operator`, `entity.name.type` and `support.type` to `cm-type`, `comment` to `cm-comment`, and `variable` to `cm-variable`. Adjacent tokens with the same class merge into one span. Where CodeMirror leaves a token plain that a grammar marks, the mapping follows CodeMirror: Shell command names (`variable.function`) stay plain. The mapping lives in `site/code.rs` with a test per language in the analysis's table.
 
 Alternatives considered: tree-sitter grammars, which need a C compiler and one crate per language; and a hand-written tokenizer, which would cover fewer languages less accurately and need its own maintenance. `syntect` is widely used for static sites (`zola`, `bat`) and needs no build-time toolchain beyond Rust.
 
@@ -64,6 +64,7 @@ Logseq's inner `ui-fenced-code-editor` and CodeMirror wrapper `div`s are left ou
 
 - [Grammar and theme data make the `lsg` binary larger] → `two-face` loads only the syntaxes named in the mode table; Apply records the binary size before and after in `verification.md`.
 - [TextMate grammars split tokens differently from CodeMirror modes, so some tokens get a different colour from Logseq's] → The scope mapping is tested per language, and Apply compares the fixture pages with the `gh-pages` build and adjusts the mapping where colours differ on common tokens.
+- [Highlighting makes the whole-garden build slower] → The publisher highlights each distinct block once, across the machine's cores, before it renders pages, and reuses the markup wherever the block appears again.
 - [Token spans make code-heavy pages larger] → Spans repeat a few class names and compress well; the page-growth budget fails CI before a page nears the first-paint limit.
 - [Dark colours are read from source, not measured] → Apply checks them against the `gh-pages` build in dark mode before merging.
 

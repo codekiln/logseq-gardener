@@ -54,3 +54,14 @@ warm_open_phone_ms = 200
 styles_gzip_kb = 1
 largest_page_baseline_gzip_kb = 7.479
 largest_page_growth_kb = 2
+
+# Fenced code and tables (published-code-and-tables). parity:budgets checks the gzip size of the
+# code and table styles every page carries, and that the largest fixture page with fenced code
+# grows by at most page_growth_gzip_kb over its gzip size before highlighting (Tools/Code, 8,010
+# bytes with lsg 78d6a56 on 2026-10-25). parity:perf --baseline-lsg marks a whole-garden build
+# more than build_slowdown_pct slower than the baseline binary's.
+[code]
+styles_gzip_kb = 1.5
+largest_page_baseline_gzip_kb = 8.010
+page_growth_gzip_kb = 10
+build_slowdown_pct = 20
