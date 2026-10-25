@@ -6,6 +6,7 @@ use serde::Serialize;
 use super::render::{BlockTarget, outline_targets};
 use crate::ast::{Block, Inline, Url};
 use crate::garden::GardenDocument;
+use crate::inline_references::tag_page_name;
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings};
 
 /// Opt-in source-search settings. Publication selection and privacy still apply.
@@ -74,7 +75,7 @@ fn plain(nodes: &[Inline], names: &PageNameIndex<String>, depth: usize) -> Strin
             }
             // Tags are references too: an unavailable name must never become a term.
             Inline::Tag { children, .. } => {
-                let value = plain(children, names, depth + 1);
+                let value = tag_page_name(children);
                 if names.candidates(&value).len() == 1 {
                     text.push_str(&value);
                 } else {

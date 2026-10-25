@@ -156,7 +156,7 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
-        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'search'})
+        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'search'})
         self.assertEqual(set(loaded['outline']), {'script_kb', 'styles_gzip_kb', 'zoom_ms_desktop', 'zoom_ms_phone'})
         self.assertEqual(set(loaded['shell']), {'script_kb', 'frame_kb'})
         self.assertEqual(set(loaded['journals']), {'script_kb', 'scroll_heap_mb', 'build_slowdown_pct'})
@@ -249,6 +249,18 @@ class BudgetCheckTest(unittest.TestCase):
             self.assertEqual(budgets.check_outline(site, {'script_kb': 8, 'styles_gzip_kb': 1.5}, styles), [])
             failures = budgets.check_outline(site, {'script_kb': 0.05, 'styles_gzip_kb': 0.001}, styles)
             self.assertEqual(len(failures), 2)
+
+    def test_inline_styles_and_largest_page_growth(self):
+        with tempfile.TemporaryDirectory() as temp:
+            styles = Path(temp) / 'inline.css'
+            styles.write_text('.tag{}' * 20, encoding='utf-8')
+            limits = {'styles_gzip_kb': 1, 'largest_page_baseline_gzip_kb': 7, 'largest_page_growth_kb': 2}
+            pages = {'p-1.html': (100, 8_000, 0), 'p-2.html': (100, 6_000, 0)}
+            self.assertEqual(budgets.check_inline(pages, limits, styles), [])
+            pages['p-2.html'] = (100, 9_500, 0)
+            failures = budgets.check_inline(pages, {**limits, 'styles_gzip_kb': 0.001}, styles)
+            self.assertEqual(len(failures), 2)
+            self.assertIn('p-2.html', failures[1])
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

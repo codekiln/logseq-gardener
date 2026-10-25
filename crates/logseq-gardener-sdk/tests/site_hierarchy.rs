@@ -143,7 +143,7 @@ fn missing_parents_are_indexed_navigation_pages_without_source_lookup() {
         route("Instruments/Synth/Preset")
     )));
     assert!(leaf.contains("LEAF_NOTES"));
-    assert!(leaf.contains("class=\"unresolved\">Instruments/Synth"));
+    assert!(leaf.contains("class=\"page-reference unresolved\"><span>Instruments/Synth"));
     assert!(
         report
             .diagnostics

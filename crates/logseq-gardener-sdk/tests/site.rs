@@ -583,7 +583,7 @@ fn aliases_use_selected_visible_candidates_and_preserve_source() {
         "href=\"{}\">Source label</a>",
         route("Publish/Chosen")
     )));
-    assert!(html.contains("<span class=\"unresolved\">Clash</span>"));
+    assert!(html.contains("<span class=\"page-reference unresolved\"><span>Clash</span>"));
     assert!(
         report
             .diagnostics
@@ -591,7 +591,9 @@ fn aliases_use_selected_visible_candidates_and_preserve_source() {
             .any(|d| d.message == "Ambiguous selected page reference: Clash")
     );
     for unavailable in ["PrivateOnly", "ExcludedOnly", "Nested", "Literal"] {
-        assert!(html.contains(&format!("<span class=\"unresolved\">{unavailable}</span>")));
+        assert!(html.contains(&format!(
+            "<span class=\"page-reference unresolved\"><span>{unavailable}</span>"
+        )));
     }
     assert_eq!(report.assets, 0);
     for content in generated.values() {

@@ -46,3 +46,11 @@ first_open_phone_ms = 10000
 heap_growth_mb = 30
 warm_open_desktop_ms = 100
 warm_open_phone_ms = 200
+
+# Inline markup (published-inline-markup). parity:budgets checks the gzip size of the inline
+# styles every page carries, and that the largest fixture page grows by at most
+# largest_page_growth_kb over its gzip size before inline markup (7,479 bytes on 2026-10-25).
+[inline]
+styles_gzip_kb = 1
+largest_page_baseline_gzip_kb = 7.479
+largest_page_growth_kb = 2

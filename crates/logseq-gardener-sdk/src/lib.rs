@@ -38,5 +38,8 @@ pub mod garden_settings;
 /// Bounded EDN reading for `logseq/config.edn`.
 mod garden_config;
 
+/// The page a tag points at.
+pub mod inline_references;
+
 /// Stored page names and alias candidate lookup.
 pub mod page_names;

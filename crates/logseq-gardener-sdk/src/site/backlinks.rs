@@ -265,6 +265,7 @@ impl<'a> Backlinks<'a> {
         names: &PageNameIndex<String>,
         targets: &BTreeMap<String, Option<BlockTarget>>,
         documents: &BTreeMap<String, &GardenDocument>,
+        show_brackets: bool,
         asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
     ) -> (String, Vec<String>) {
         let indices = self.incoming.get(target).map_or(&[][..], Vec::as_slice);
@@ -400,6 +401,7 @@ impl<'a> Backlinks<'a> {
                         documents,
                         render::ReferencePresentation {
                             open_depth: config.open_depth,
+                            show_brackets,
                             entries: contexts
                                 .iter()
                                 .filter(|child| {

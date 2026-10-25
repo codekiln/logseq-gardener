@@ -105,7 +105,7 @@ fn rich_summary_and_descendant_media_keep_safe_content_and_assets() {
         .split_once("</summary>")
         .unwrap()
         .0;
-    assert!(summary.contains("<h3><strong>Dialogue</strong> <a href=\"https://example.com/?q=a&amp;b=c\">Reference</a>"),"{html}");
+    assert!(summary.contains("<h3><strong>Dialogue</strong> <a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://example.com/?q=a&amp;b=c\">Reference</a>"),"{html}");
     assert!(!summary.contains("<unsafe>"));
     assert!(html.contains("<img src=\"assets/"));
     assert!(html.contains("<audio controls preload=\"none\""));

@@ -50,6 +50,8 @@ pub struct GardenSettings {
     pub journal_title_format: String,
     /// `:journal/file-name-format`, a supported [`DateFormat`] pattern.
     pub journal_file_name_format: String,
+    /// `:ui/show-brackets?`: page references show `[[` and `]]` unless this is `false`.
+    pub show_brackets: bool,
 }
 
 impl Default for GardenSettings {
@@ -59,6 +61,7 @@ impl Default for GardenSettings {
             features: FeatureFlags::default(),
             journal_title_format: DEFAULT_TITLE_FORMAT.to_owned(),
             journal_file_name_format: DEFAULT_FILE_NAME_FORMAT.to_owned(),
+            show_brackets: true,
         }
     }
 }
@@ -108,6 +111,19 @@ impl GardenSettings {
                 ":feature/enable-journals?" => &mut settings.features.journals,
                 ":feature/enable-flashcards?" => &mut settings.features.flashcards,
                 ":feature/enable-whiteboards?" => &mut settings.features.whiteboards,
+                ":ui/show-brackets?" => {
+                    match value {
+                        Form::Atom(ref v) if v == "true" => settings.show_brackets = true,
+                        Form::Atom(ref v) if v == "false" => settings.show_brackets = false,
+                        _ => {
+                            settings.show_brackets = true;
+                            diagnostics.push(format!(
+                                "UI setting {key} is not a boolean; showing brackets"
+                            ));
+                        }
+                    }
+                    continue;
+                }
                 ":journal/page-title-format" | ":journal/file-name-format" => {
                     let (target, default) = if key == ":journal/page-title-format" {
                         (&mut settings.journal_title_format, DEFAULT_TITLE_FORMAT)
@@ -248,6 +264,27 @@ mod tests {
         assert_eq!(settings, GardenSettings::default());
         assert!(diagnostics[0].contains(":journal/page-title-format"));
         assert!(diagnostics[1].contains(":journal/file-name-format"));
+    }
+
+    #[test]
+    fn reads_bracket_setting() {
+        assert!(GardenSettings::parse("{}").0.show_brackets);
+        assert!(
+            GardenSettings::parse("{;; :ui/show-brackets? false\n}")
+                .0
+                .show_brackets
+        );
+        let (settings, diagnostics) = GardenSettings::parse("{:ui/show-brackets? false}");
+        assert!(!settings.show_brackets && diagnostics.is_empty());
+        assert!(
+            GardenSettings::parse("{:ui/show-brackets? true}")
+                .0
+                .show_brackets
+        );
+        let (settings, diagnostics) = GardenSettings::parse(r#"{:ui/show-brackets? "no"}"#);
+        assert!(settings.show_brackets);
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].contains(":ui/show-brackets?"));
     }
 
     #[test]

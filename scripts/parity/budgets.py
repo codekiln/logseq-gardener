@@ -21,6 +21,7 @@ OLDER_JOURNALS = 1000
 JOURNALS_SCRIPT = 'lsg-journals.js'
 OUTLINE_SCRIPT = 'lsg-outline.js'
 OUTLINE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'outline.css'
+INLINE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'inline.css'
 
 
 class _BlockingResources(html.parser.HTMLParser):
@@ -129,6 +130,21 @@ def check_outline(site, outline, styles=OUTLINE_STYLES):
     return failures
 
 
+def check_inline(pages, inline, styles=INLINE_STYLES):
+    """Return failure messages for the inline styles and growth of the largest fixture page."""
+    failures = []
+    packed = metrics.gzip_size(Path(styles).read_bytes())
+    if packed > inline['styles_gzip_kb'] * 1000:
+        failures.append(f'inline styles: {packed:,} gzip exceed {inline["styles_gzip_kb"] * 1000:,.0f}')
+    if pages:
+        page, (_, largest, _) = max(pages.items(), key=lambda item: item[1][1])
+        limit = (inline['largest_page_baseline_gzip_kb'] + inline['largest_page_growth_kb']) * 1000
+        if largest > limit:
+            failures.append(f'{page}: first paint {largest:,} gzip grew more than '
+                            f'{inline["largest_page_growth_kb"] * 1000:,.0f} over the inline baseline')
+    return failures
+
+
 def add_older_journals(garden, count):
     """Add journals dated before every fixture journal."""
     start = date(2000, 1, 1)
@@ -227,7 +243,10 @@ def main():
         print(f"{OUTLINE_SCRIPT}: {(temp / 'small' / OUTLINE_SCRIPT).stat().st_size:,}")
     for page, (raw, packed, script) in sorted(small.items()):
         print(f'{page}: first paint {raw:,} ({packed:,} gzip), script {script:,}')
-    failures = check(small, large, budgets) + shell_failures + journal_failures + outline_failures + search_failures
+    inline_failures = check_inline(small, budgets['inline'])
+    print(f'inline styles: {metrics.gzip_size(INLINE_STYLES.read_bytes()):,} gzip')
+    failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
+                + inline_failures + search_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)
