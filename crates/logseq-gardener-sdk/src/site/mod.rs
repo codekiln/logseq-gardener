@@ -652,9 +652,10 @@ pub fn publish_site_with_options(
             .join("\n")
             .replace("__LSG_SEARCH_UI__", &controller_route);
         let startup_route = format!("lsg-search-start-{}.mjs", digest(&startup));
+        let start_after_paint = r#"(()=>{const f=(_,o)=>Object.assign(f.options??={},o);window.logseqGardenerInitSearch=f;const u=new URL('__STARTUP__',document.querySelector('[rel=lsg-search]').href);document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.type='module';s.src=u;s.onerror=()=>{if(!document.querySelector('[rel=lsg-search]'))return;const t=document.createElement('span');t.id='lsg-search-load';t.setAttribute('role','status');t.textContent='Search unavailable. Reload this page to retry search.';document.body.append(t)};document.head.append(s)})),{once:true})})();"#.replace("__STARTUP__", &startup_route);
         let styles = include_str!("search-ui.css");
         let link = format!(
-            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script type=\"module\" src=\"{startup_route}\"></script>"
+            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script data-lsg-search-start>{start_after_paint}</script>"
         );
         for (route, html) in &mut documents {
             if route.ends_with(".html") {

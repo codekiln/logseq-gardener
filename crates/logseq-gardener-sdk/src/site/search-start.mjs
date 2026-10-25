@@ -1,4 +1,4 @@
-let o={},p=false,h=false,w,c,a=0,q='';
+let o=window.logseqGardenerInitSearch?.options||{},p=false,h=false,w,c,a=0,q='';
 const d=document,s='[data-lsg-search]',B=()=>d.querySelectorAll(s),id=()=>{const l=d.head.querySelector('[rel=lsg-search]');return l?.href+':'+l?.dataset.revision;};
 function i(r,u={}){o={...o,...u};const v=id();if(v!==c){h=false;q='';}c=v;for(const b of B())b.hidden=!d.head.querySelector('[rel=lsg-search]')||location.protocol==='file:'||!window.HTMLDialogElement?.prototype.showModal;}
 window.logseqGardenerInitSearch=i;i();

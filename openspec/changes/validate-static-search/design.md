@@ -10,7 +10,7 @@ Shared search already has selected-source privacy, revisioned artifacts, safe re
 
 ## Decisions
 
-Use one cancellable animation frame for pending input. Clear stale results immediately, evaluate only the newest field value, and expose ready/error/loading/searching state plus a monotonically increasing completed-result marker. Measure that completion marker after DOM/status updates, including empty/unchanged results. Retain the existing metric and report unchanged keystrokes explicitly.
+Preserve the upstream outline loader and its budgets. A synchronous host-options shim loads the search starter after two animation frames, keeping its approximately 2 KB outside the initial script path while retaining pre-starter host configuration. Use one cancellable animation frame for pending input. Clear stale results immediately, evaluate only the newest field value, and expose ready/error/loading/searching state plus a monotonically increasing completed-result marker. Measure that completion marker after DOM/status updates, including empty/unchanged results. Retain the existing metric and report unchanged keystrokes explicitly.
 
 Extend `scripts/parity/perf.py` and its profiles/probe/result writer. A standalone search-site option serves an existing selected publication without requiring a separate Logseq export or unrelated feed/build measurements. Record no eager search artifacts, first-open readiness/transfer/decoded size, prepared heap growth, and warm reopen requests/readiness. Keep representative results in focused documentation with disclosed corpus counts and reproduction commands.
 

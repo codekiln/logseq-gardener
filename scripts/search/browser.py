@@ -235,6 +235,39 @@ def main():
                 expect(page.locator('#lsg-search-status')).not_to_contain_text('unavailable')
                 context.close()
                 print('search proof: stale close complete', flush=True)
+                # Missing post-paint starter leaves the page usable and explains recovery.
+                context = browser.new_context()
+                page = context.new_page()
+                page.route('**/lsg-search-start-*.mjs', lambda route: route.fulfill(status=404, body='missing'))
+                page.goto(base + '/index.html')
+                expect(page.get_by_role('status')).to_contain_text('Reload this page to retry search')
+                expect(page.locator('main h1')).to_be_visible()
+                expect(page.locator('[data-lsg-search]')).not_to_be_visible()
+                assert page.url == base + '/index.html'
+                context.close()
+                # Host init before and during the post-paint starter import survives handoff.
+                context = browser.new_context()
+                context.add_init_script('''() => {
+                  let api, first = true;
+                  Object.defineProperty(window, 'logseqGardenerInitSearch', {configurable:true,
+                    get: () => api, set: value => {api=value;if(first){first=false;value(document,{resolvePage:()=>'/before-starter/'});}}
+                  });
+                }''')
+                page = context.new_page()
+                starter = []
+                page.route('**/lsg-search-start-*.mjs', lambda route: starter.append(route))
+                page.goto(base + '/index.html')
+                page.wait_for_timeout(100)
+                assert starter
+                expect(page.locator('[data-lsg-search]')).not_to_be_visible()
+                page.evaluate("window.logseqGardenerInitSearch(document,{resolvePage:()=>'/during-starter/'})")
+                starter.pop().continue_()
+                expect(page.locator('[data-lsg-search]')).to_be_visible()
+                page.locator('[data-lsg-search]').click()
+                page.locator('#lsg-search-input').fill('needle')
+                expect(page.locator('#lsg-search-results a')).to_have_count(4)
+                assert page.locator('#lsg-search-results a').first.get_attribute('href') == '/during-starter/'
+                context.close()
                 # Bootstrap module failure remains retryable; latest host options survive import.
                 context = browser.new_context()
                 page = context.new_page()

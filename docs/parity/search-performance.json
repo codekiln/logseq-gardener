@@ -1,6 +1,7 @@
 {
   "method": {
     "date": "2026-10-25",
+    "base": "cbad7796f2bddd1842a1f5d5b8aac7a870e62e41",
     "playwright": "1.60.0",
     "queries": [
       "music",
@@ -10,7 +11,7 @@
     "key_gap_ms": 300,
     "samples_per_profile": 1,
     "completion": "data-lsg-search-complete after rendering",
-    "host": "final Gitpa consumer with deferred legacy compatibility map; no production deployment"
+    "host": "current-outline consumer with native hash bridge and deferred legacy map; no production deployment"
   },
   "corpora": {
     "small": {
@@ -20,7 +21,8 @@
         "decoded_bytes": 32958,
         "gzip_bytes": 2313,
         "controller_bytes": 11686,
-        "bootstrap_bytes": 1927
+        "bootstrap_bytes": 1969,
+        "initial_shim_bytes": 661
       },
       "summary": {
         "measured": "2026-10-25",
@@ -31,48 +33,48 @@
         {
           "profile": "desktop",
           "build": "lsg",
-          "first_open_ms": 79.70000004768372,
+          "first_open_ms": 177.40000009536743,
           "first_open_requests": 4,
           "first_open_transfer": 8613,
           "first_open_decoded": 51929,
           "page_load": {
-            "title_ms": 24.100000023841858,
-            "fcp_ms": 32,
-            "data_before_title": 8777,
-            "script_before_title": 15964,
-            "peak_heap": 1690377
+            "title_ms": 69,
+            "fcp_ms": 76,
+            "data_before_title": 8878,
+            "script_before_title": 15273,
+            "peak_heap": 2533504
           },
-          "heap_growth": 40040,
+          "heap_growth": 44232,
           "eager_search_requests": 0,
-          "warm_open_ms": 15.5,
+          "warm_open_ms": 23.799999952316284,
           "warm_open_requests": 0,
           "keystrokes": 24,
           "unchanged": 0,
-          "p50_ms": 1.100000023841858,
-          "p95_ms": 2.399999976158142
+          "p50_ms": 1.5999999046325684,
+          "p95_ms": 5.099999904632568
         },
         {
           "profile": "phone",
           "build": "lsg",
-          "first_open_ms": 846.7999999523163,
+          "first_open_ms": 863.3000000715256,
           "first_open_requests": 4,
           "first_open_transfer": 8613,
           "first_open_decoded": 51929,
           "page_load": {
-            "title_ms": 244.29999995231628,
-            "fcp_ms": 252,
-            "data_before_title": 8777,
-            "script_before_title": 15964,
-            "peak_heap": 1740073
+            "title_ms": 229.29999995231628,
+            "fcp_ms": 236,
+            "data_before_title": 8878,
+            "script_before_title": 15273,
+            "peak_heap": 2518098
           },
-          "heap_growth": 95088,
+          "heap_growth": 77896,
           "eager_search_requests": 0,
-          "warm_open_ms": 29.100000023841858,
+          "warm_open_ms": 31.899999976158142,
           "warm_open_requests": 0,
           "keystrokes": 24,
           "unchanged": 0,
-          "p50_ms": 1.7000000476837158,
-          "p95_ms": 3.0
+          "p50_ms": 2.3000000715255737,
+          "p95_ms": 6.5
         }
       ]
     },
@@ -83,7 +85,8 @@
         "decoded_bytes": 4247874,
         "gzip_bytes": 249400,
         "controller_bytes": 11686,
-        "bootstrap_bytes": 1927
+        "bootstrap_bytes": 1969,
+        "initial_shim_bytes": 661
       },
       "summary": {
         "measured": "2026-10-25",
@@ -94,48 +97,48 @@
         {
           "profile": "desktop",
           "build": "lsg",
-          "first_open_ms": 138.69999992847443,
+          "first_open_ms": 148.5,
           "first_open_requests": 4,
           "first_open_transfer": 255703,
           "first_open_decoded": 4266849,
           "page_load": {
-            "title_ms": 39.40000009536743,
-            "fcp_ms": 52,
-            "data_before_title": 30609,
-            "script_before_title": 15964,
-            "peak_heap": 1810701
+            "title_ms": 43,
+            "fcp_ms": 56,
+            "data_before_title": 30836,
+            "script_before_title": 15273,
+            "peak_heap": 1840942
           },
-          "heap_growth": 5408668,
+          "heap_growth": 5323952,
           "eager_search_requests": 0,
-          "warm_open_ms": 23.699999928474426,
+          "warm_open_ms": 21.399999976158142,
           "warm_open_requests": 0,
           "keystrokes": 24,
           "unchanged": 0,
-          "p50_ms": 3.100000023841858,
-          "p95_ms": 11.700000047683716
+          "p50_ms": 2.899999976158142,
+          "p95_ms": 10.399999976158142
         },
         {
           "profile": "phone",
           "build": "lsg",
-          "first_open_ms": 2377.600000023842,
+          "first_open_ms": 2379.899999976158,
           "first_open_requests": 4,
           "first_open_transfer": 255703,
           "first_open_decoded": 4266849,
           "page_load": {
-            "title_ms": 229.5,
-            "fcp_ms": 244,
-            "data_before_title": 30609,
-            "script_before_title": 15964,
-            "peak_heap": 1860313
+            "title_ms": 226.10000002384186,
+            "fcp_ms": 236,
+            "data_before_title": 30836,
+            "script_before_title": 15273,
+            "peak_heap": 2166573
           },
-          "heap_growth": 8688280,
+          "heap_growth": 8728420,
           "eager_search_requests": 0,
-          "warm_open_ms": 42.39999997615814,
+          "warm_open_ms": 47.800000071525574,
           "warm_open_requests": 0,
           "keystrokes": 24,
           "unchanged": 0,
-          "p50_ms": 5.399999976158142,
-          "p95_ms": 23.100000023841858
+          "p50_ms": 3.8000000715255737,
+          "p95_ms": 21.600000023841858
         }
       ]
     },
@@ -146,7 +149,8 @@
         "decoded_bytes": 1332768,
         "gzip_bytes": 250876,
         "controller_bytes": 11686,
-        "bootstrap_bytes": 1927
+        "bootstrap_bytes": 1969,
+        "initial_shim_bytes": 661
       },
       "summary": {
         "measured": "2026-10-25",
@@ -157,48 +161,48 @@
         {
           "profile": "desktop",
           "build": "lsg",
-          "first_open_ms": 136.70000004768372,
+          "first_open_ms": 137.5,
           "first_open_requests": 4,
           "first_open_transfer": 257179,
           "first_open_decoded": 1351742,
           "page_load": {
-            "title_ms": 26.200000047683716,
-            "fcp_ms": 40,
-            "data_before_title": 134587,
-            "script_before_title": 39259,
-            "peak_heap": 1777200
+            "title_ms": 31,
+            "fcp_ms": 48,
+            "data_before_title": 134839,
+            "script_before_title": 39148,
+            "peak_heap": 1803055
           },
-          "heap_growth": 4087480,
+          "heap_growth": 4125708,
           "eager_search_requests": 0,
-          "warm_open_ms": 12.199999928474426,
+          "warm_open_ms": 15.800000071525574,
           "warm_open_requests": 0,
           "keystrokes": 24,
           "unchanged": 0,
-          "p50_ms": 2.0,
-          "p95_ms": 5.200000047683716
+          "p50_ms": 2.0999999046325684,
+          "p95_ms": 7.399999976158142
         },
         {
           "profile": "phone",
           "build": "lsg",
-          "first_open_ms": 2357.600000023842,
+          "first_open_ms": 2345.6999999284744,
           "first_open_requests": 4,
           "first_open_transfer": 257179,
           "first_open_decoded": 1351742,
           "page_load": {
-            "title_ms": 401.2999999523163,
-            "fcp_ms": 412,
-            "data_before_title": 131119,
-            "script_before_title": 28499,
-            "peak_heap": 1996625
+            "title_ms": 404.89999997615814,
+            "fcp_ms": 416,
+            "data_before_title": 131205,
+            "script_before_title": 27808,
+            "peak_heap": 1959525
           },
-          "heap_growth": 2979936,
+          "heap_growth": 4421464,
           "eager_search_requests": 0,
-          "warm_open_ms": 19.300000071525574,
+          "warm_open_ms": 26.899999976158142,
           "warm_open_requests": 0,
           "keystrokes": 24,
           "unchanged": 0,
-          "p50_ms": 2.799999952316284,
-          "p95_ms": 11.299999952316284
+          "p50_ms": 3.600000023841858,
+          "p95_ms": 9.199999928474426
         }
       ]
     }

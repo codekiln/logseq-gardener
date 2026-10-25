@@ -8,6 +8,7 @@ import argparse
 import gzip
 import json
 import math
+import re
 import subprocess
 import sys
 import tempfile
@@ -439,7 +440,8 @@ def search_corpus(site):
     return {'pages': len(corpus['pages']), 'blocks': len(corpus['content']),
             'decoded_bytes': len(raw), 'gzip_bytes': len(gzip.compress(raw, 6)),
             'controller_bytes': next(Path(site).glob('lsg-search-ui-*.mjs')).stat().st_size,
-            'bootstrap_bytes': next(Path(site).glob('lsg-search-start-*.mjs')).stat().st_size}
+            'bootstrap_bytes': next(Path(site).glob('lsg-search-start-*.mjs')).stat().st_size,
+            'initial_shim_bytes': len(re.search(r'<script data-lsg-search-start>(.*?)</script>', (Path(site) / 'index.html').read_text(encoding='utf-8'), re.S).group(1).encode('utf-8'))}
 
 
 def main():
