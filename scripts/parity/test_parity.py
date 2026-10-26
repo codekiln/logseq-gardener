@@ -111,6 +111,7 @@ class CompareTest(unittest.TestCase):
             page('2026-10-23 fri', '2026-10-23 Fri', True, True),
             page('ref', 'Ref', False, False),
             page('secret', 'Secret', False, True),
+            page('a/ /b', 'A/ /B', False, True),
             page('a/ b', 'A/ B', False, True),
             page('other', 'Other', False, True),
         ]
@@ -118,8 +119,8 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(groups['journals'], ['2026-10-23 Fri'])
         self.assertEqual(groups['reference_only'], ['Ref'])
         self.assertEqual(groups['hidden'], ['Secret'])
-        self.assertEqual(groups['unselectable'], ['A/ B'])
-        self.assertEqual(groups['other'], ['Other'])
+        self.assertEqual(groups['unselectable'], ['A/ /B'])
+        self.assertEqual(groups['other'], ['A/ B', 'Other'])
         self.assertEqual(groups['lsg_only'], [{'title': 'LSG Only', 'hidden_in_logseq': False}])
 
     def test_journal_wins_over_reference_only(self):
