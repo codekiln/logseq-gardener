@@ -156,7 +156,9 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
-        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'search'})
+        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search'})
+        self.assertEqual(set(loaded['code']), {'styles_gzip_kb', 'largest_page_baseline_gzip_kb',
+                                               'page_growth_gzip_kb', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['outline']), {'script_kb', 'styles_gzip_kb', 'zoom_ms_desktop', 'zoom_ms_phone'})
         self.assertEqual(set(loaded['shell']), {'script_kb', 'frame_kb'})
         self.assertEqual(set(loaded['journals']), {'script_kb', 'scroll_heap_mb', 'build_slowdown_pct'})
@@ -261,6 +263,23 @@ class BudgetCheckTest(unittest.TestCase):
             failures = budgets.check_inline(pages, {**limits, 'styles_gzip_kb': 0.001}, styles)
             self.assertEqual(len(failures), 2)
             self.assertIn('p-2.html', failures[1])
+
+    def test_code_styles_and_largest_code_page_growth(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            styles = site / 'code.css'
+            styles.write_text('.cm-keyword{}' * 20, encoding='utf-8')
+            (site / 'p-1.html').write_text('<div class="cp__fenced-code-block"></div>', encoding='utf-8')
+            (site / 'p-2.html').write_text('<p>no code</p>', encoding='utf-8')
+            limits = {'styles_gzip_kb': 1.5, 'largest_page_baseline_gzip_kb': 8, 'page_growth_gzip_kb': 10}
+            pages = {'p-1.html': (100, 9_000, 0), 'p-2.html': (100, 30_000, 0)}
+            self.assertEqual(budgets.check_code(site, pages, limits, styles), [])
+            pages['p-1.html'] = (100, 18_500, 0)
+            failures = budgets.check_code(site, pages, {**limits, 'styles_gzip_kb': 0.001}, styles)
+            self.assertEqual(len(failures), 2)
+            self.assertIn('p-1.html', failures[1])
+            self.assertEqual(budgets.check_code(site, {'p-2.html': pages['p-2.html']}, limits, styles),
+                             ['no fixture page has fenced code'])
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

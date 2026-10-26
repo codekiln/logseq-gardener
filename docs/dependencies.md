@@ -4,4 +4,6 @@ The CLI depends on Clap to parse arguments and report usage errors. It uses Serd
 
 The SDK also uses Serde and serde_json to serialize its versioned selected-source search artifacts. These reuse the already locked serialization packages.
 
+The publisher colours fenced code during the build, so published pages carry coloured HTML instead of an editor script. [syntect](https://github.com/trishume/syntect) reads TextMate grammars, with only its parsing, pure-Rust `fancy-regex` engine and grammar-dump features enabled, so the build needs no C compiler. [two-face](https://github.com/CosmicHorrorDev/two-face) supplies the grammar set `bat` uses, which adds TOML, TypeScript, Dockerfile and other languages the encode garden writes that syntect's defaults lack. The grammars add about 3.3 MB to the `lsg` binary.
+
 Those are the project's direct dependencies. Cargo.lock records the packages they bring in, including packages used only on some platforms. To trace why a locked package is present, run `cargo tree -i <package>` from the repository root. For the exact versions, sources, checksums, and declared licenses used in distribution, see the [dependency source inventory](dependency-sources.json). The [licensing guide](licensing.md) explains how the inventory and license files are maintained.

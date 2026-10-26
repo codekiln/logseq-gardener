@@ -1,1 +1,1 @@
-- Tools I use: [[Tools/tmux]], [[Tools/Editor]] and [[Tools/Notes]].
+- Tools I use: [[Tools/tmux]], [[Tools/Editor]], [[Tools/Notes]] and [[Tools/Code]].

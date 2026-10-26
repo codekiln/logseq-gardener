@@ -345,6 +345,7 @@ fn render_context(
         anchors,
         documents,
         source: document.relative_path.clone(),
+        text_source: &document.source,
         active: vec![route.to_owned()],
         emitted_source_anchors: BTreeSet::new(),
         remaining_expansions: 128,
@@ -379,6 +380,8 @@ struct Renderer<'a> {
     anchors: BTreeMap<usize, String>,
     documents: &'a BTreeMap<String, &'a GardenDocument>,
     source: PathBuf,
+    /// The text of the document whose blocks are rendering, for code indentation.
+    text_source: &'a str,
     active: Vec<String>,
     emitted_source_anchors: BTreeSet<usize>,
     remaining_expansions: usize,
@@ -598,20 +601,37 @@ impl Renderer<'_> {
                     self.blocks(children, depth + 1);
                     self.html.push_str("</aside>");
                 }
-                Block::Src { code, .. } | Block::Example { code, .. } => {
-                    self.html.push_str("<pre><code>");
-                    self.text(code);
-                    self.html.push_str("</code></pre>");
+                Block::Src { lang, .. } => {
+                    let code =
+                        crate::code_blocks::code_text(self.text_source, block).unwrap_or_default();
+                    self.fenced_code(lang, &code);
+                }
+                Block::Example { .. } => {
+                    let code =
+                        crate::code_blocks::code_text(self.text_source, block).unwrap_or_default();
+                    self.html.push_str("<pre class=\"pre-wrap-white-space\">");
+                    self.text(&code);
+                    self.html.push_str("</pre>");
                 }
                 Block::Table { header, rows, .. } => {
-                    self.html.push_str("<table>");
-                    if let Some(header) = header {
-                        self.row(header, "th", depth);
+                    let columns = header.iter().chain(rows).map(Vec::len).max().unwrap_or(0);
+                    self.html.push_str(
+                        "<div class=\"table-wrapper\"><table class=\"table-auto\"><colgroup>",
+                    );
+                    for _ in 0..columns {
+                        self.html.push_str("<col class=\"org-left\">");
                     }
+                    self.html.push_str("</colgroup>");
+                    if let Some(header) = header {
+                        self.html.push_str("<thead>");
+                        self.row(header, "th scope=\"col\"", depth);
+                        self.html.push_str("</thead>");
+                    }
+                    self.html.push_str("<tbody>");
                     for row in rows {
                         self.row(row, "td", depth);
                     }
-                    self.html.push_str("</table>");
+                    self.html.push_str("</tbody></table></div>");
                 }
                 Block::Hr { .. } => self.html.push_str("<hr>"),
                 Block::FootnoteDef { name, inline, .. } => {
@@ -751,12 +771,48 @@ impl Renderer<'_> {
             self.html.push_str(&format!("</{previous}>"));
         }
     }
+    /// A fenced block in Logseq's markup: the language label, then one `span.line` per
+    /// code line with CodeMirror token spans when the language has a mode.
+    fn fenced_code(&mut self, lang: &str, code: &str) {
+        let language = crate::code_blocks::code_language(lang);
+        match &language.label {
+            Some(label) => self.html.push_str(&format!(
+                "<div class=\"cp__fenced-code-block\" data-lang=\"{}\"><div class=\"extensions__code\"><div class=\"extensions__code-lang\">{}</div>",
+                escape(label),
+                escape(label)
+            )),
+            None => self
+                .html
+                .push_str("<div class=\"cp__fenced-code-block\"><div class=\"extensions__code\">"),
+        }
+        let lines = language
+            .mode
+            .and_then(|mode| super::code::highlight(code, &mode))
+            .unwrap_or_else(|| code.split('\n').map(escape).collect());
+        // The gutter fits two digits unless the block has 100 lines or more.
+        match lines.len().to_string().len() {
+            ..=2 => self.html.push_str("<pre class=\"lsg-code\"><code>"),
+            digits => self.html.push_str(&format!(
+                "<pre class=\"lsg-code\" style=\"--lsg-code-digits:{digits}\"><code>"
+            )),
+        }
+        for (index, line) in lines.iter().enumerate() {
+            if index > 0 {
+                self.html.push('\n');
+            }
+            self.html.push_str("<span class=\"line\">");
+            self.html.push_str(line);
+            self.html.push_str("</span>");
+        }
+        self.html.push_str("</code></pre></div></div>");
+    }
     fn row(&mut self, row: &[Vec<Inline>], tag: &str, depth: usize) {
         self.html.push_str("<tr>");
+        let name = tag.split(' ').next().unwrap_or(tag);
         for cell in row {
-            self.html.push_str(&format!("<{tag}>"));
+            self.html.push_str(&format!("<{tag} class=\"org-left\">"));
             self.inlines(cell, depth + 1, false);
-            self.html.push_str(&format!("</{tag}>"));
+            self.html.push_str(&format!("</{name}>"));
         }
         self.html.push_str("</tr>");
     }
@@ -967,11 +1023,13 @@ impl Renderer<'_> {
         self.remaining_expansions -= 1;
         self.active.push(identity);
         let previous_source = std::mem::replace(&mut self.source, document.relative_path.clone());
+        let previous_text = std::mem::replace(&mut self.text_source, &document.source);
         let previous_embedded = std::mem::replace(&mut self.embedded, true);
         self.html.push_str("<section class=\"transclusion\">");
         self.blocks(blocks, depth + 1);
         self.html.push_str("</section>");
         self.source = previous_source;
+        self.text_source = previous_text;
         self.embedded = previous_embedded;
         self.active.pop();
     }
@@ -1934,6 +1992,69 @@ mod tests {
                 .diagnostics
                 .iter()
                 .any(|d| d.contains("Unsupported macro pdf"))
+        );
+    }
+
+    #[test]
+    fn fenced_code_has_label_lines_and_tokens_without_outline_indentation() {
+        let html = render(
+            "- a\n\t- b\n\t  ```rust\n\t  fn main() {\n\t      let x = \"s\";\n\t  }\n\t  ```\n",
+        )
+        .html;
+        assert!(html.contains("<div class=\"cp__fenced-code-block\" data-lang=\"rust\"><div class=\"extensions__code\"><div class=\"extensions__code-lang\">rust</div><pre class=\"lsg-code\"><code><span class=\"line\"><span class=\"cm-keyword\">fn </span>"), "{html}");
+        assert!(
+            html.contains("<span class=\"line\">    <span class=\"cm-keyword\">let "),
+            "{html}"
+        );
+        assert!(
+            html.contains("<span class=\"cm-string\">&quot;s&quot;</span>"),
+            "{html}"
+        );
+        assert_eq!(html.matches("<span class=\"line\">").count(), 3);
+        assert!(!html.contains("\t"), "{html}");
+    }
+
+    #[test]
+    fn fenced_code_without_a_language_has_no_label() {
+        let html = render("- a\n  ```\n  plain <x>\n  ```\n").html;
+        assert!(html.contains("<div class=\"cp__fenced-code-block\"><div class=\"extensions__code\"><pre class=\"lsg-code\""), "{html}");
+        assert!(
+            html.contains("<span class=\"line\">plain &lt;x&gt;</span>"),
+            "{html}"
+        );
+        assert!(!html.contains("extensions__code-lang"));
+    }
+
+    #[test]
+    fn plain_mode_languages_keep_their_label_without_tokens() {
+        let html = render("- a\n  ```mermaid\n  graph TD\n  A --> B\n  ```\n").html;
+        assert!(html.contains("data-lang=\"mermaid\""), "{html}");
+        assert!(html.contains("<div class=\"extensions__code-lang\">mermaid</div>"));
+        assert!(
+            html.contains("<span class=\"line\">A --&gt; B</span>"),
+            "{html}"
+        );
+        assert!(!html.contains("cm-"), "{html}");
+    }
+
+    #[test]
+    fn example_blocks_render_as_wrapped_text() {
+        let html = render("- #+BEGIN_EXAMPLE\n  a long example line\n  #+END_EXAMPLE\n").html;
+        assert!(
+            html.contains("<pre class=\"pre-wrap-white-space\">a long example line</pre>"),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn tables_have_a_wrapper_head_body_and_left_cells() {
+        let html =
+            render("- | Context | Meaning |\n  |:-:|--:|\n  | `a` | b |\n  | c | d |\n").html;
+        assert!(html.contains("<div class=\"table-wrapper\"><table class=\"table-auto\"><colgroup><col class=\"org-left\"><col class=\"org-left\"></colgroup><thead><tr><th scope=\"col\" class=\"org-left\">Context</th><th scope=\"col\" class=\"org-left\">Meaning</th></tr></thead><tbody><tr><td class=\"org-left\"><code>a</code></td>"), "{html}");
+        assert!(html.contains("</tr></tbody></table></div>"), "{html}");
+        assert!(
+            !html.contains("center") && !html.contains("right"),
+            "{html}"
         );
     }
 }

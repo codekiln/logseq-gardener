@@ -22,6 +22,8 @@ JOURNALS_SCRIPT = 'lsg-journals.js'
 OUTLINE_SCRIPT = 'lsg-outline.js'
 OUTLINE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'outline.css'
 INLINE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'inline.css'
+CODE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'code.css'
+CODE_MARKER = 'cp__fenced-code-block'
 
 
 class _BlockingResources(html.parser.HTMLParser):
@@ -145,6 +147,24 @@ def check_inline(pages, inline, styles=INLINE_STYLES):
     return failures
 
 
+def check_code(site, pages, code, styles=CODE_STYLES):
+    """Return failure messages for the code styles and growth of the largest fixture page with code."""
+    failures = []
+    packed = metrics.gzip_size(Path(styles).read_bytes())
+    if packed > code['styles_gzip_kb'] * 1000:
+        failures.append(f'code styles: {packed:,} gzip exceed {code["styles_gzip_kb"] * 1000:,.0f}')
+    with_code = {page: sizes for page, sizes in pages.items()
+                 if CODE_MARKER in (site / page).read_text(encoding='utf-8')}
+    if not with_code:
+        return failures + ['no fixture page has fenced code']
+    page, (_, largest, _) = max(with_code.items(), key=lambda item: item[1][1])
+    limit = (code['largest_page_baseline_gzip_kb'] + code['page_growth_gzip_kb']) * 1000
+    if largest > limit:
+        failures.append(f'{page}: first paint {largest:,} gzip grew more than '
+                        f'{code["page_growth_gzip_kb"] * 1000:,.0f} over the code baseline')
+    return failures
+
+
 def add_older_journals(garden, count):
     """Add journals dated before every fixture journal."""
     start = date(2000, 1, 1)
@@ -239,14 +259,16 @@ def main():
         journal_failures = check_journals(temp / 'small', temp / 'older', budgets['journals'])
         print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
         outline_failures = check_outline(temp / 'small', budgets['outline'])
+        code_failures = check_code(temp / 'small', small, budgets['code'])
         print(f"{JOURNALS_SCRIPT}: {(temp / 'small' / JOURNALS_SCRIPT).stat().st_size:,}")
         print(f"{OUTLINE_SCRIPT}: {(temp / 'small' / OUTLINE_SCRIPT).stat().st_size:,}")
     for page, (raw, packed, script) in sorted(small.items()):
         print(f'{page}: first paint {raw:,} ({packed:,} gzip), script {script:,}')
     inline_failures = check_inline(small, budgets['inline'])
     print(f'inline styles: {metrics.gzip_size(INLINE_STYLES.read_bytes()):,} gzip')
+    print(f'code styles: {metrics.gzip_size(CODE_STYLES.read_bytes()):,} gzip')
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
-                + inline_failures + search_failures)
+                + inline_failures + code_failures + search_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

@@ -274,8 +274,12 @@ def measure_zoom(browser, url, build, profile):
         context.close()
 
 
-def measure_build(settings):
-    """Seconds to publish the whole garden with and without journals, with the run's lsg options."""
+def measure_build(settings, baseline=None):
+    """Seconds to publish the whole garden with and without journals, with the run's lsg options.
+
+    With a baseline binary, such as an lsg built before a feature, also time it with the run's
+    options so the feature's build slowdown can be checked.
+    """
     lsg = common.lsg_binary()
     options = settings['lsg_options']
     rows = []
@@ -283,11 +287,19 @@ def measure_build(settings):
         for journals in (False, True):
             chosen = [o for o in options if o != '--journals'] + (['--journals'] if journals else [])
             output = Path(temp) / ('with' if journals else 'without')
-            command = [str(lsg), 'publish', '--graph', settings['garden'], '--output', str(output), *chosen]
-            start = time.monotonic()
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            rows.append({'build': 'lsg', 'journals': journals, 'seconds': time.monotonic() - start})
+            rows.append({'build': 'lsg', 'journals': journals,
+                         'seconds': time_publish(lsg, settings['garden'], output, chosen)})
+        if baseline:
+            rows.append({'build': 'lsg', 'baseline': str(baseline), 'journals': '--journals' in options,
+                         'seconds': time_publish(baseline, settings['garden'], Path(temp) / 'baseline', options)})
     return rows
+
+
+def time_publish(lsg, garden, output, options):
+    command = [str(lsg), 'publish', '--graph', garden, '--output', str(output), *options]
+    start = time.monotonic()
+    subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return time.monotonic() - start
 
 
 def merge(kept, measured, builds, key):
@@ -353,7 +365,7 @@ def markdown(results, budgets):
                 and row['peak_heap'] > feed_limit * 1_000_000):
             heap = f'**{heap}**'
         lines.append(f"| {row['profile']} | {row['build']} | {row['journals']} | {heap} | {row['scroll_ms']:,.0f} |")
-    builds = {row['journals']: row['seconds'] for row in results.get('build', [])}
+    builds = {row['journals']: row['seconds'] for row in results.get('build', []) if 'baseline' not in row}
     if builds:
         slowdown = budgets.get('journals', {}).get('build_slowdown_pct')
         lines += ['', '## Whole-garden build time', '',
@@ -365,6 +377,17 @@ def markdown(results, budgets):
                     and seconds > builds[False] * (1 + slowdown / 100)):
                 text = f'**{text}**'
             lines.append(f"| {'with' if journals else 'without'} journals | {text} |")
+    for row in results.get('build', []):
+        if 'baseline' not in row or row['journals'] not in builds:
+            continue
+        slowdown = budgets.get('code', {}).get('build_slowdown_pct')
+        current = builds[row['journals']]
+        text = f'{current:,.1f}'
+        if slowdown is not None and current > row['seconds'] * (1 + slowdown / 100):
+            text = f'**{text}**'
+        lines += ['', f"Against the baseline `{Path(row['baseline']).name}` with the same options: "
+                  f"{row['seconds']:,.1f} seconds, this build {text} seconds "
+                  f"({(current / row['seconds'] - 1) * 100:+.0f}%)."]
     zoom_rows = results.get('zoom', [])
     if zoom_rows:
         lines += ['', f'## Block zoom on {ZOOM_PAGE}', '',
@@ -457,6 +480,8 @@ def main():
     parser.add_argument('--search-output', type=Path, help='JSON destination for standalone search measurements')
     parser.add_argument('--search-queries', type=Path, default=QUERIES, help='Query fixture list for search measurements')
     parser.add_argument('--record', action='store_true', help='rewrite docs/parity/performance.md')
+    parser.add_argument('--baseline-lsg', type=Path,
+                        help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
     from playwright.sync_api import sync_playwright
 
@@ -532,7 +557,7 @@ def main():
     search = merge(kept['search'], search, builds, ('profile', 'build'))
     feed = merge(kept.get('feed', []), feed, builds, ('profile', 'build'))
     zoom = merge(kept.get('zoom', []), zoom, builds, ('profile', 'build'))
-    build_rows = measure_build(settings) if 'lsg' in builds else kept.get('build', [])
+    build_rows = measure_build(settings, args.baseline_lsg) if 'lsg' in builds else kept.get('build', [])
     for row in build_rows:
         print(json.dumps(row), flush=True)
     garden = Path(settings['garden'])
