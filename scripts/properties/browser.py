@@ -31,7 +31,7 @@ def main():
             (graph / 'logseq').mkdir()
             (graph / 'logseq/config.edn').write_text('{:publishing/page-properties? true :publishing/page-properties-collapsed? ' + collapsed + '}')
             (graph / 'pages/Notes.md').write_text('- Page without properties\n')
-            (graph / 'pages/Notes___One.md').write_text('rating:: 4\nsecret:: [[Private]]\n- Original content\n')
+            (graph / 'pages/Notes___One.md').write_text('rating:: 4\nsecret:: [[Private]]\n- Original content\n\t- Child content\n')
             (graph / 'pages/Notes___Two.md').write_text('rating:: 5\n- More content\n')
             before = {p: p.read_bytes() for p in graph.rglob('*.md')}
             subprocess.run([str(args.binary.resolve()), 'publish', '--graph', str(graph), '--output', str(root / name), '--filename-format', 'triple-lowbar', '--include', 'Notes', '--search'], check=True, capture_output=True)
@@ -171,6 +171,7 @@ def main():
                 held[0].continue_()
                 page.wait_for_function('!window.logseqGardenerInitProperties.k')
                 page.wait_for_function('(key)=>JSON.parse(localStorage.getItem(key)).open', arg=key)
+                page.unroute_all(behavior='ignoreErrors')
                 # Search and theme remain available alongside the preference controller.
                 page.locator('[data-lsg-search]').click()
                 expect(page.locator('#lsg-search-input')).to_be_focused()
@@ -179,6 +180,18 @@ def main():
                 expect(page.locator('html')).to_have_attribute('data-lsg-theme', 'dark')
                 page.evaluate("window.logseqGardenerTheme.set('light')")
                 expect(page.locator('html')).to_have_attribute('data-lsg-theme', 'light')
+                page.goto(base + one)
+                arrow = page.locator('.outline .lsg-arrow').first
+                expect(arrow).to_have_attribute('aria-expanded', 'true')
+                arrow.click()
+                expect(arrow).to_have_attribute('aria-expanded', 'false')
+                expect(details).to_have_attribute('open', '')
+                page.locator('.outline .bullet').first.click()
+                expect(page.locator('main')).to_have_attribute('data-lsg-zoomed', '')
+                expect(page.locator('.page-properties')).not_to_be_visible()
+                page.evaluate("history.pushState({},'',location.pathname);dispatchEvent(new HashChangeEvent('hashchange'))")
+                expect(page.locator('.page-properties')).to_be_visible()
+                expect(details).to_have_attribute('open', '')
                 assert not errors, errors
                 context.close()
                 blocked = browser.new_context()

@@ -10,7 +10,7 @@ Non-goals: none.
 
 ## Decisions
 
-Use one localStorage entry containing a boolean open choice and lastSeen time. Scope its key to the directory of the generated properties asset, resolved from a head link. This keeps readable nested host routes in the same site while separating gardens on different base paths. Expire entries after 30 days without visits; invalid or future timestamps also fall back to the configured default.
+Use one localStorage entry containing a boolean open choice and last-seen time. Scope its key to the directory of the generated properties asset, resolved from a head link. This keeps readable nested host routes in the same site while separating gardens on different base paths. Expire entries after 30 days without visits; invalid or future timestamps also fall back to the configured default.
 
 A small synchronous head reader validates the entry; the controller renews it after paint and on each host visit. An inline call inside each generated Properties disclosure applies the choice before its contents are parsed. Native activation while the module is loading is queued and saved when the controller arrives. The full controller loads after paint and provides idempotent `logseqGardenerInitProperties(root=document)` for replaced content. A host calls this after adopting its URL and before fragment reveal. Repeated initialization leaves already initialized disclosures alone. Native user activation writes the choice; programmatic fragment opening leaves the remembered preference unchanged.
 
