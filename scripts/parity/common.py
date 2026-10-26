@@ -81,7 +81,7 @@ class _IndexLinks(html.parser.HTMLParser):
 
     def handle_endtag(self, tag):
         if tag == 'a' and self._href:
-            self.links[''.join(self._text).strip()] = self._href
+            self.links[''.join(self._text)] = self._href
             self._href = None
 
 

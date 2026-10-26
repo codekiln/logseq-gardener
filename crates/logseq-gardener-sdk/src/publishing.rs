@@ -79,11 +79,13 @@ impl NamespaceSelection {
 
     /// Whether a valid logical page name is included and not excluded.
     ///
-    /// Malformed candidates return false. This method does not load or modify
+    /// Candidates follow Logseq's page names: a segment may begin or end with
+    /// spaces, as in `Q/Info / Warning`. Candidates with an empty segment or a
+    /// control character return false. This method does not load or modify
     /// garden files, evaluate page properties, or expand references.
     #[must_use]
     pub fn includes(&self, page_name: &str) -> bool {
-        valid_name(page_name)
+        valid_page_name(page_name)
             && self
                 .included
                 .iter()
@@ -99,6 +101,11 @@ fn valid_name(name: &str) -> bool {
     name.split('/').all(|segment| {
         !segment.is_empty() && segment.trim() == segment && !segment.chars().any(char::is_control)
     })
+}
+
+fn valid_page_name(name: &str) -> bool {
+    name.split('/')
+        .all(|segment| !segment.trim().is_empty() && !segment.chars().any(char::is_control))
 }
 
 fn in_namespace(page_name: &str, root: &str) -> bool {
@@ -182,9 +189,23 @@ mod tests {
     #[test]
     fn malformed_candidates_are_unselected() {
         let policy = NamespaceSelection::new(&["My"], &[]).unwrap();
-        for name in ["My/", "My//AI", "My/ Secret", "My/AI\n", ""] {
+        for name in ["My/", "My//AI", "My/AI\n", ""] {
             assert!(!policy.includes(name), "{name:?}");
         }
+    }
+
+    #[test]
+    fn candidate_segments_keep_surrounding_spaces() {
+        let policy = NamespaceSelection::new(&["Obsidian"], &["Obsidian/Private"]).unwrap();
+        for name in [
+            "Obsidian/Q/Info / Warning / Danger",
+            "Obsidian/Q/With /rename, can I resume?",
+            "Obsidian/ Spaced ",
+        ] {
+            assert!(policy.includes(name), "{name:?}");
+        }
+        assert!(!policy.includes("Obsidian/Private/ Note"));
+        assert!(!policy.includes("Obsidian /Q"));
     }
 
     #[test]

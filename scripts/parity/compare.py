@@ -50,7 +50,8 @@ def hidden_titles(garden, patterns):
 
 
 def selectable(title):
-    return all(build.valid_root(segment) for segment in title.split('/'))
+    """Apply lsg's page-name rules: a segment may keep surrounding spaces, as in Logseq."""
+    return all(segment.strip() and build.valid_root(segment.strip()) for segment in title.split('/'))
 
 
 def group_pages(logseq_pages, lsg_titles, hidden):
