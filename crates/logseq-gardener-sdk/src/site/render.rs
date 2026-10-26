@@ -7,12 +7,18 @@ use crate::garden::GardenDocument;
 use crate::garden_config::Form;
 use crate::inline_references::tag_page_name;
 use crate::outline::{Outline, OutlineBlock, TaskMarker};
+use crate::transclusion::{
+    EmbedOutcome, EmbedPage, Embeds, Nesting, ReferenceOutcome, ReferenceTargets, Transclusion,
+};
 
 const MAX_DEPTH: usize = 64;
 
 /// The same bytes for every block, so the bullets compress to almost nothing;
 /// `lsg-outline.js` resolves the block from the bullet's position.
 const BULLET: &str = "<a class=\"bullet\" href=\"#\"></a>";
+
+/// Logseq's page glyph at the start of a page embed's header.
+const PAGE_ICON: &str = "<svg class=\"page-icon\" viewBox=\"0 0 14 20\" width=\"16\" height=\"20\" aria-hidden=\"true\"><path d=\"M2 .5h4.8l6.7 7.2V18a1.5 1.5 0 0 1-1.5 1.5H2A1.5 1.5 0 0 1 .5 18V2A1.5 1.5 0 0 1 2 .5z\" fill=\"currentColor\" opacity=\".35\"/><path d=\"M7 5.5V0l7 7.5H9a2 2 0 0 1-2-2z\" fill=\"currentColor\"/></svg>";
 
 struct Task<'a> {
     marker: Option<TaskMarker>,
@@ -79,14 +85,6 @@ pub(super) fn has_private_properties(blocks: &[Block]) -> bool {
     private(blocks, 0)
 }
 
-/// Only published outlines supply labels and destinations.
-#[derive(Clone)]
-pub(super) struct BlockTarget {
-    pub route: String,
-    pub start: usize,
-    pub label: String,
-}
-
 pub(super) fn uuid(value: &str) -> Option<String> {
     let value = value.trim();
     if value.len() != 36
@@ -101,82 +99,6 @@ pub(super) fn uuid(value: &str) -> Option<String> {
         return None;
     }
     Some(value.to_ascii_lowercase())
-}
-
-pub(super) fn outline_targets(blocks: &[Block]) -> Vec<(String, usize, String)> {
-    fn visit(blocks: &[Block], result: &mut Vec<(String, usize, String)>, depth: usize) {
-        if depth > MAX_DEPTH {
-            return;
-        }
-        for (i, block) in blocks.iter().enumerate() {
-            if let Block::Bullet {
-                inline,
-                span: Some(span),
-                ..
-            } = block
-                && let Some(Block::Properties { props, .. }) = blocks.get(i + 1)
-            {
-                let property = ["custom-id", "custom_id", "id"]
-                    .into_iter()
-                    .find_map(|key| {
-                        props
-                            .iter()
-                            .rev()
-                            .find(|p| p.0.trim().eq_ignore_ascii_case(key))
-                    });
-                if let Some(id) = property.and_then(|p| uuid(&p.1)) {
-                    let label = block_label(inline, 0)
-                        .split_whitespace()
-                        .collect::<Vec<_>>()
-                        .join(" ");
-                    let mut label = label.chars().take(160).collect::<String>();
-                    if label.chars().count() == 160 {
-                        label.push('…');
-                    }
-                    result.push((id, span.0, label));
-                }
-            }
-            match block {
-                Block::Quote { children, .. } | Block::Custom { children, .. } => {
-                    visit(children, result, depth + 1)
-                }
-                _ => {}
-            }
-        }
-    }
-    let mut result = Vec::new();
-    visit(blocks, &mut result, 0);
-    result
-}
-
-/// The parser stores outline bullets flat; include continuations and descendants.
-fn outline_subtree(blocks: &[Block], start: usize, depth: usize) -> Option<&[Block]> {
-    if depth > MAX_DEPTH {
-        return None;
-    }
-    for (index, block) in blocks.iter().enumerate() {
-        if let Block::Bullet {
-            span: Some(span),
-            level,
-            ..
-        } = block
-            && span.0 == start
-        {
-            let end = blocks[index + 1..]
-                .iter()
-                .position(
-                    |block| matches!(block, Block::Bullet { level: next, .. } if next <= level),
-                )
-                .map_or(blocks.len(), |offset| index + 1 + offset);
-            return Some(&blocks[index..end]);
-        }
-        if let Block::Quote { children, .. } | Block::Custom { children, .. } = block
-            && let Some(found) = outline_subtree(children, start, depth + 1)
-        {
-            return Some(found);
-        }
-    }
-    None
 }
 
 /// Embedded outlines are flow content, so their ancestors cannot be phrasing-only.
@@ -230,9 +152,9 @@ pub(super) fn block_label(nodes: &[Inline], depth: usize) -> String {
 pub(super) fn render_document_with_embeds(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
-    targets: &BTreeMap<String, Option<BlockTarget>>,
+    targets: &ReferenceTargets<String>,
     route: &str,
-    documents: &BTreeMap<String, &GardenDocument>,
+    documents: &BTreeMap<String, EmbedPage>,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
     render_context(
@@ -264,9 +186,9 @@ pub(super) struct PageRender {
 pub(super) fn render_document_with_source_anchors(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
-    targets: &BTreeMap<String, Option<BlockTarget>>,
+    targets: &ReferenceTargets<String>,
     route: &str,
-    documents: &BTreeMap<String, &GardenDocument>,
+    documents: &BTreeMap<String, EmbedPage>,
     page: PageRender,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
@@ -295,9 +217,9 @@ pub(super) struct ReferencePresentation {
 pub(super) fn render_reference_context(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
-    targets: &BTreeMap<String, Option<BlockTarget>>,
+    targets: &ReferenceTargets<String>,
     route: &str,
-    documents: &BTreeMap<String, &GardenDocument>,
+    documents: &BTreeMap<String, EmbedPage>,
     presentation: ReferencePresentation,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
@@ -321,21 +243,17 @@ pub(super) fn render_reference_context(
 fn render_context(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
-    targets: &BTreeMap<String, Option<BlockTarget>>,
+    targets: &ReferenceTargets<String>,
     route: &str,
-    documents: &BTreeMap<String, &GardenDocument>,
+    documents: &BTreeMap<String, EmbedPage>,
     mode: RenderMode,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
-    let anchors = outline_targets(&document.parsed.blocks)
+    let page = route.to_owned();
+    let anchors = crate::transclusion::page_targets(&document.parsed.blocks)
         .into_iter()
-        .filter_map(|(id, start, _)| {
-            targets
-                .get(&id)
-                .and_then(Option::as_ref)
-                .filter(|target| target.route == route && target.start == start)
-                .map(|_| (start, id))
-        })
+        .filter(|(id, start, _)| targets.owns(id, &page, *start))
+        .map(|(id, start, _)| (start, id))
         .collect();
     let mut renderer = Renderer {
         html: String::new(),
@@ -346,7 +264,9 @@ fn render_context(
         documents,
         source: document.relative_path.clone(),
         text_source: &document.source,
-        active: vec![route.to_owned()],
+        page,
+        chain: Vec::new(),
+        in_reference: false,
         emitted_source_anchors: BTreeSet::new(),
         remaining_expansions: 128,
         remaining_work: 10_000,
@@ -376,13 +296,18 @@ struct Renderer<'a> {
     html: String,
     diagnostics: Vec<String>,
     pages: &'a crate::page_names::PageNameIndex<String>,
-    targets: &'a BTreeMap<String, Option<BlockTarget>>,
+    targets: &'a ReferenceTargets<String>,
     anchors: BTreeMap<usize, String>,
-    documents: &'a BTreeMap<String, &'a GardenDocument>,
+    documents: &'a BTreeMap<String, EmbedPage<'a>>,
     source: PathBuf,
     /// The text of the document whose blocks are rendering, for code indentation.
     text_source: &'a str,
-    active: Vec<String>,
+    /// The page being rendered, which a page embed of itself shows only as a header.
+    page: String,
+    /// The references and embeds being expanded around the current content.
+    chain: Vec<Nesting<String>>,
+    /// Inside a block reference's link: page references and tags render without anchors.
+    in_reference: bool,
     emitted_source_anchors: BTreeSet<usize>,
     remaining_expansions: usize,
     remaining_work: usize,
@@ -540,7 +465,7 @@ impl Renderer<'_> {
                         self.text(&block_label(inline, 0));
                     }
                 }
-                if !self.embedded {
+                if !self.embedded || self.embed_level() > 0 {
                     self.html.push_str(BULLET);
                 }
                 if let Some(link) = source_link {
@@ -681,8 +606,17 @@ impl Renderer<'_> {
         let size = size
             .filter(|_| !contains_embed(inline, 0))
             .map(|size| size.clamp(1, 6));
+        // Inside a reference's link a heading stays phrasing content.
+        let heading = |size: u32, close: bool, reference: bool| match (reference, close) {
+            (true, false) => {
+                format!("<span class=\"block-ref-heading\" role=\"heading\" aria-level=\"{size}\">")
+            }
+            (true, true) => "</span>".to_owned(),
+            (false, false) => format!("<h{size}>"),
+            (false, true) => format!("</h{size}>"),
+        };
         if let Some(size) = size {
-            self.html.push_str(&format!("<h{size}>"));
+            self.html.push_str(&heading(size, false, self.in_reference));
         }
         let struck = matches!(task.marker, Some(TaskMarker::Done | TaskMarker::Canceled));
         match task.marker {
@@ -703,7 +637,7 @@ impl Renderer<'_> {
         }
         if let Some(priority) = task.priority {
             let text = format!("[#{priority}]");
-            if let [route] = self.pages.candidates(priority) {
+            if let (false, [route]) = (self.in_reference, self.pages.candidates(priority)) {
                 self.html.push_str(&format!(
                     "<a class=\"priority\" href=\"{}\">{}</a> ",
                     escape(route),
@@ -721,6 +655,7 @@ impl Renderer<'_> {
         }
         if dialogue
             && !self.embedded
+            && !self.in_reference
             && task.marker.is_none()
             && task.word.is_none()
             && task.priority.is_none()
@@ -737,7 +672,7 @@ impl Renderer<'_> {
             self.html.push_str("</span>");
         }
         if let Some(size) = size {
-            self.html.push_str(&format!("</h{size}>"));
+            self.html.push_str(&heading(size, true, self.in_reference));
         }
     }
     fn list(&mut self, items: &[ListItem], depth: usize) {
@@ -911,6 +846,12 @@ impl Renderer<'_> {
                     }
                 }
                 Inline::Tag { children, .. } => self.tag(children, label),
+                Inline::Macro { name, .. }
+                    if name.eq_ignore_ascii_case("embed") && self.in_reference =>
+                {
+                    // An outline cannot sit inside the reference's link.
+                    self.diagnostic("Embed inside a block reference's first line left out");
+                }
                 Inline::Macro { name, args, .. }
                     if name.eq_ignore_ascii_case("embed") && !label =>
                 {
@@ -949,7 +890,7 @@ impl Renderer<'_> {
                             || address.chars().any(|c| c.is_control() || c.is_whitespace())
                         {
                             self.literal("email syntax", &address);
-                        } else if label {
+                        } else if label || self.in_reference {
                             self.text(&address);
                         } else {
                             // Keep address delimiters out of mailto query/header syntax.
@@ -971,67 +912,116 @@ impl Renderer<'_> {
             }
         }
     }
+    /// How many embeds enclose the current content; 0 on the page's own outline.
+    fn embed_level(&self) -> usize {
+        self.chain
+            .iter()
+            .filter(|level| matches!(level, Nesting::Embed { .. }))
+            .count()
+    }
+    /// A page embed's header: the page icon and the page's name, linked when published.
+    fn embed_header(&mut self, title: &str, route: Option<&str>) {
+        self.html.push_str("<section class=\"embed-header\">");
+        self.html.push_str(PAGE_ICON);
+        match route {
+            Some(route) => {
+                self.html
+                    .push_str(&format!("<a href=\"{}\">", escape(route)));
+                self.text(title);
+                self.html.push_str("</a>");
+            }
+            None => {
+                self.html.push_str("<span>");
+                self.text(title);
+                self.html.push_str("</span>");
+            }
+        }
+        self.html.push_str("</section>");
+    }
     fn embed(&mut self, args: &[String], depth: usize) {
         let argument = args.join(", ");
         let argument = argument.trim();
-        let fallback = format!("{{{{embed {argument}}}}}");
-        let resolved = if let Some(page) = argument
-            .strip_prefix("[[")
-            .and_then(|v| v.strip_suffix("]]"))
-        {
-            match self.pages.candidates(page) {
-                [route] => Some((route.clone(), None)),
-                _ => None,
+        let level = self.embed_level() + 1;
+        let embeds = Embeds {
+            pages: self.pages,
+            targets: self.targets,
+            documents: self.documents,
+        };
+        match embeds.embed(argument, &self.page, &self.chain) {
+            EmbedOutcome::TooDeep(kind) => {
+                let message = match kind {
+                    Transclusion::Embed => "Embed depth is too deep",
+                    Transclusion::Reference => "Block ref nesting is too deep",
+                };
+                self.diagnostic(format!("{message}: {{{{embed {argument}}}}}"));
+                self.html
+                    .push_str(&format!("<p class=\"warning\">{message}</p>"));
             }
-        } else if let Some(id) = argument
-            .strip_prefix("((")
-            .and_then(|v| v.strip_suffix("))"))
-            .and_then(uuid)
-        {
-            self.targets
-                .get(&id)
-                .and_then(Option::as_ref)
-                .map(|target| (target.route.clone(), Some(target.start)))
-        } else {
-            None
-        };
-        let Some((route, start)) = resolved else {
-            self.literal("embed macro target (unavailable or ambiguous)", &fallback);
-            return;
-        };
-        let Some(document) = self.documents.get(&route).copied() else {
-            self.literal("embed macro target (unavailable)", &fallback);
-            return;
-        };
-        let identity = start.map_or_else(|| route.clone(), |start| format!("{route}#{start}"));
-        if self.active.contains(&identity) || self.active.len() >= 16 || depth > MAX_DEPTH {
-            self.literal("embed macro cycle or depth limit", &fallback);
-            return;
+            EmbedOutcome::Unavailable => {
+                self.diagnostic(format!(
+                    "Unavailable or ambiguous embed macro target: {{{{embed {argument}}}}}"
+                ));
+            }
+            EmbedOutcome::MissingPage { name } => {
+                self.diagnostic(format!(
+                    "Unavailable or ambiguous embed macro target: {{{{embed {argument}}}}}"
+                ));
+                self.html.push_str(&format!(
+                    "<div class=\"embed-page\" data-level=\"{level}\">"
+                ));
+                self.embed_header(&name, None);
+                self.html.push_str("</div>");
+            }
+            EmbedOutcome::SelfEmbed { page, title } => {
+                self.diagnostic(format!(
+                    "Page embeds itself or an enclosing embed: {{{{embed {argument}}}}}"
+                ));
+                self.html.push_str(&format!(
+                    "<div class=\"embed-page\" data-level=\"{level}\">"
+                ));
+                self.embed_header(title, Some(&page));
+                self.html.push_str("</div>");
+            }
+            EmbedOutcome::Outline {
+                page,
+                title,
+                start,
+                document,
+                blocks,
+            } => {
+                if self.remaining_expansions == 0 || self.remaining_work == 0 {
+                    self.literal(
+                        "embed macro expansion budget",
+                        "[transclusion work limit reached]",
+                    );
+                    return;
+                }
+                self.remaining_expansions -= 1;
+                match title {
+                    Some(title) => {
+                        self.html.push_str(&format!(
+                            "<div class=\"embed-page\" data-level=\"{level}\">"
+                        ));
+                        self.embed_header(title, Some(&page));
+                        self.html.push_str("<div class=\"blocks-container\">");
+                    }
+                    None => self.html.push_str(&format!(
+                        "<div class=\"embed-block\" data-level=\"{level}\"><div>"
+                    )),
+                }
+                self.chain.push(Nesting::Embed { page, start });
+                let previous_source =
+                    std::mem::replace(&mut self.source, document.relative_path.clone());
+                let previous_text = std::mem::replace(&mut self.text_source, &document.source);
+                let previous_embedded = std::mem::replace(&mut self.embedded, true);
+                self.blocks(blocks, depth + 1);
+                self.source = previous_source;
+                self.text_source = previous_text;
+                self.embedded = previous_embedded;
+                self.chain.pop();
+                self.html.push_str("</div></div>");
+            }
         }
-        if self.remaining_expansions == 0 || self.remaining_work == 0 {
-            self.literal("embed macro expansion budget", &fallback);
-            return;
-        }
-        let blocks = match start {
-            Some(start) => outline_subtree(&document.parsed.blocks, start, 0),
-            None => Some(document.parsed.blocks.as_slice()),
-        };
-        let Some(blocks) = blocks else {
-            self.literal("embed macro outline target (unavailable)", &fallback);
-            return;
-        };
-        self.remaining_expansions -= 1;
-        self.active.push(identity);
-        let previous_source = std::mem::replace(&mut self.source, document.relative_path.clone());
-        let previous_text = std::mem::replace(&mut self.text_source, &document.source);
-        let previous_embedded = std::mem::replace(&mut self.embedded, true);
-        self.html.push_str("<section class=\"transclusion\">");
-        self.blocks(blocks, depth + 1);
-        self.html.push_str("</section>");
-        self.source = previous_source;
-        self.text_source = previous_text;
-        self.embedded = previous_embedded;
-        self.active.pop();
     }
     fn label(&mut self, label: &[Inline], fallback: &str, depth: usize) {
         if label.is_empty() {
@@ -1041,6 +1031,16 @@ impl Renderer<'_> {
         }
     }
     fn page_link(&mut self, target: &str, label: &[Inline], depth: usize) {
+        if self.in_reference {
+            self.html.push_str(if self.show_brackets {
+                "<span class=\"page-reference\"><span>"
+            } else {
+                "<span class=\"page-reference no-brackets\"><span>"
+            });
+            self.label(label, target, depth);
+            self.html.push_str("</span></span>");
+            return;
+        }
         let candidates = self.pages.candidates(target);
         let route = if let [route] = candidates {
             Some(route.clone())
@@ -1083,6 +1083,12 @@ impl Renderer<'_> {
         if label {
             // Inside a link label a tag stays text: anchors cannot nest.
             self.text(&text);
+            return;
+        }
+        if self.in_reference {
+            self.html.push_str("<span class=\"tag\">");
+            self.text(&text);
+            self.html.push_str("</span>");
             return;
         }
         let candidates = self.pages.candidates(&name);
@@ -1198,29 +1204,64 @@ impl Renderer<'_> {
             return;
         }
         if let Url::BlockRef { v } = url {
-            if !image
-                && let Some(target) = uuid(v).and_then(|id| {
-                    self.targets
-                        .get(&id)
-                        .and_then(Option::as_ref)
-                        .map(|target| (id, target))
-                })
-            {
-                let (id, target) = target;
-                self.html.push_str(&format!(
-                    "<a href=\"{}#block-{id}\">",
-                    escape(&target.route)
-                ));
-                let fallback = if target.label.is_empty() {
-                    format!("(({v}))")
-                } else {
-                    target.label.clone()
-                };
-                self.label(label, &fallback, depth);
-                self.html.push_str("</a>");
-            } else {
-                self.diagnostic(format!("Unavailable or ambiguous block reference: {v}"));
-                self.label(label, &format!("(({v}))"), depth);
+            let targets = self.targets;
+            match targets.reference(v, &self.chain) {
+                ReferenceOutcome::Resolved(target) if !image => {
+                    let anchor = !self.in_reference;
+                    if anchor {
+                        self.html.push_str(&format!(
+                            "<a class=\"block-ref-link\" href=\"{}#block-{}\">",
+                            escape(&target.page),
+                            uuid(v).unwrap_or_default()
+                        ));
+                    }
+                    self.html.push_str("<span class=\"block-ref\">");
+                    if label.is_empty() {
+                        let content = &target.content;
+                        let task = Task {
+                            marker: content.marker,
+                            word: None,
+                            priority: None,
+                        };
+                        self.chain.push(Nesting::Reference);
+                        let previous = std::mem::replace(&mut self.in_reference, true);
+                        self.heading_content(
+                            content.heading.map(u32::from),
+                            &content.inline,
+                            &task,
+                            &[],
+                            depth,
+                        );
+                        if !content.body.is_empty()
+                            && let Some(owner) = self.documents.get(&target.page)
+                        {
+                            let previous_text =
+                                std::mem::replace(&mut self.text_source, &owner.document.source);
+                            self.blocks(&content.body, depth + 1);
+                            self.text_source = previous_text;
+                        }
+                        self.in_reference = previous;
+                        self.chain.pop();
+                    } else {
+                        self.inlines(label, depth, true);
+                    }
+                    self.html.push_str("</span>");
+                    if anchor {
+                        self.html.push_str("</a>");
+                    }
+                }
+                ReferenceOutcome::TooDeep => {
+                    self.diagnostic(format!("Block ref nesting is too deep: (({v}))"));
+                    self.html
+                        .push_str("<span class=\"warning\">Block ref nesting is too deep</span>");
+                }
+                _ => {
+                    self.diagnostic(format!("Unavailable or ambiguous block reference: {v}"));
+                    self.html
+                        .push_str("<span class=\"warning\" title=\"Block ref invalid\">");
+                    self.text(&format!("(({v}))"));
+                    self.html.push_str("</span>");
+                }
             }
             return;
         }
@@ -1232,6 +1273,11 @@ impl Renderer<'_> {
             },
             Url::PageRef { .. } | Url::BlockRef { .. } => unreachable!(),
         };
+        if self.in_reference {
+            // Anchors cannot nest inside the reference's own link.
+            self.label(label, &destination, depth);
+            return;
+        }
         let lower = destination.to_ascii_lowercase();
         let scheme = lower.split_once(':').map(|(scheme, _)| scheme);
         let allowed = matches!(scheme, Some("http" | "https" | "mailto"))
@@ -1380,7 +1426,7 @@ mod tests {
         super::render_document_with_embeds(
             document,
             &names,
-            &BTreeMap::new(),
+            &ReferenceTargets::default(),
             "p-test.html",
             &BTreeMap::new(),
             &mut |_, url| asset(url),
@@ -1483,7 +1529,12 @@ mod tests {
                 .iter()
                 .any(|d| d.contains("block reference"))
         );
-        assert!(rendered.diagnostics.iter().any(|d| d.contains("macro")));
+        assert!(
+            rendered
+                .diagnostics
+                .iter()
+                .any(|d| d.contains("embed macro target"))
+        );
     }
 
     #[test]
@@ -1873,7 +1924,7 @@ mod tests {
         super::render_document_with_source_anchors(
             &document,
             &names,
-            &BTreeMap::new(),
+            &ReferenceTargets::default(),
             "p-test.html",
             &BTreeMap::new(),
             super::PageRender {

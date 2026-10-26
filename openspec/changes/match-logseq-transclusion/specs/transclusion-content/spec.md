@@ -2,7 +2,7 @@
 
 ### Requirement: Resolve a block reference to its display content
 
-The SDK SHALL resolve a block reference to the content Logseq shows for it: the target block's first line as inline nodes, its task marker and its heading level. Properties, the rest of the block's body and its children SHALL be left out. The CLI, the language server and the publisher SHALL read reference content through this operation. The target index SHALL contain only selected visible pages, as the selected block navigation spec requires.
+The SDK SHALL resolve a block reference to the content Logseq shows for it: the target block's first line as inline nodes, its task marker and its heading level. Properties, the rest of the block's body and its children SHALL be left out, except that a block whose first line is empty SHALL show its body without properties, as Logseq does. The CLI, the language server and the publisher SHALL read reference content through this operation. The target index SHALL contain only selected visible pages, as the selected block navigation spec requires.
 
 #### Scenario: Task with a page reference
 - **WHEN** a reference on `Claude/Code` points at a `DONE` block whose first line holds a page reference
@@ -18,11 +18,11 @@ The SDK SHALL resolve a block reference to the content Logseq shows for it: the 
 
 ### Requirement: Register quote bullets as reference targets
 
-The SDK SHALL register a bullet whose content is a quote and that carries a valid `id::` as a reference target. Its display content SHALL be empty, because the quote is the block's body.
+The SDK SHALL register a bullet whose content is a quote and that carries a valid `id::` as a reference target. Its display content SHALL be the quote, because the first line is empty and Logseq then shows the block's body.
 
 #### Scenario: Reference to a quote bullet
 - **WHEN** `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` references a bullet `- > …` with `id::` on the next line
-- **THEN** the reference resolves with empty display content and no diagnostic
+- **THEN** the reference resolves to the quote as its display content, with no diagnostic
 
 ### Requirement: Resolve an embed to its target outline
 

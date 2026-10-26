@@ -10,5 +10,7 @@ Contrando
 AI/E/WS/25/d1
 GitP/A/Session/24/11/19-Tue
 2026-10-23 Fri
+AI/Coding/History
+VSCode/Proj/24t3/LearnVSCode/03 Basic Python
 Home
 All pages

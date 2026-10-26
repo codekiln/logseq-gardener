@@ -55,7 +55,20 @@ fn page_alias_and_repeated_block_embeds_render_subtrees_and_original_links() {
     let report = f.publish();
     let html = f.html("Notes/Start");
     assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
-    assert_eq!(html.matches("Parent <strong>strong</strong>").count(), 3);
+    // Two block embeds, the page embed and the reference's first line.
+    assert_eq!(html.matches("Parent <strong>strong</strong>").count(), 4);
+    assert_eq!(
+        html.matches("<div class=\"embed-block\" data-level=\"1\">")
+            .count(),
+        2
+    );
+    assert_eq!(
+        html.matches("<div class=\"embed-page\" data-level=\"1\">")
+            .count(),
+        1
+    );
+    assert!(html.contains("<section class=\"embed-header\">"));
+    assert!(html.contains("<span class=\"block-ref\">Parent <strong>strong</strong></span>"));
     assert_eq!(html.matches("Child content").count(), 3);
     assert_eq!(html.matches("Sibling content").count(), 1);
     assert!(!html.contains("id=\"block-"));
@@ -114,7 +127,17 @@ fn private_excluded_missing_and_ambiguous_targets_keep_fallbacks() {
     ] {
         assert!(!html.contains(sentinel));
     }
-    assert_eq!(html.matches("{{embed").count(), 5);
+    // Page embeds keep their well and the name from the macro; the block embed shows nothing.
+    assert!(!html.contains("{{embed"));
+    assert_eq!(html.matches("class=\"embed-page\"").count(), 4);
+    assert_eq!(html.matches("class=\"blocks-container\"").count(), 0);
+    assert!(!html.contains("class=\"embed-block\""));
+    for name in ["Notes/Private", "Notes/Excluded", "Absent", "Shared"] {
+        assert!(
+            html.contains(&format!("<span>{name}</span></section>")),
+            "{name}"
+        );
+    }
     assert!(report.diagnostics.len() >= 5);
 }
 #[test]
@@ -131,13 +154,16 @@ fn cycles_and_expansion_budgets_terminate_with_diagnostics() {
     );
     f.write("pages/Notes___Leaf.md", "- Leaf body\n");
     let report = f.publish();
-    assert!(f.html("Notes/Start").contains("Retained content"));
+    let start = f.html("Notes/Start");
+    assert!(start.contains("Retained content"));
+    // The page embedding itself shows only its header, linked to the page.
+    assert!(start.contains("</svg><a href=\"p-"));
     assert_eq!(f.html("Notes/Repeated").matches("Leaf body").count(), 128);
     assert!(
         report
             .diagnostics
             .iter()
-            .any(|d| d.message.contains("cycle or depth"))
+            .any(|d| d.message.contains("embeds itself"))
     );
     assert!(
         report
@@ -155,13 +181,13 @@ fn paragraph_and_heading_embeds_accept_flow_content() {
     f.publish();
     let html = f.html("Notes/Start");
     assert_eq!(
-        html.matches("<section class=\"transclusion\">").count(),
+        html.matches("<div class=\"embed-page\"").count(),
         2,
         "{html}"
     );
     assert!(!html.contains("<p>Before"));
-    assert!(!html.contains("<h1><section"));
-    assert!(!html.contains("<strong><section"));
+    assert!(!html.contains("<h1><div"));
+    assert!(!html.contains("<strong><div"));
 }
 #[test]
 fn total_embedded_node_work_is_bounded() {
@@ -176,4 +202,52 @@ fn total_embedded_node_work_is_bounded() {
             .any(|d| d.message.contains("total-work budget"))
     );
     assert!(f.html("Notes/Start").matches("Embedded body").count() < 6_000);
+}
+
+#[test]
+fn seven_nested_page_embeds_stop_at_the_sixth_level() {
+    let f = Fixture::new();
+    for level in 1..=7 {
+        let next = if level < 7 {
+            format!(
+                "- Level {level}\n- {{{{embed [[Notes/L{}]]}}}}\n",
+                level + 1
+            )
+        } else {
+            "- Level 7\n".to_owned()
+        };
+        f.write(&format!("pages/Notes___L{level}.md"), &next);
+    }
+    let report = f.publish();
+    let html = f.html("Notes/L1");
+    for level in 2..=6 {
+        assert!(html.contains(&format!("Level {level}")), "level {level}");
+        assert!(html.contains(&format!("data-level=\"{}\"", level - 1)));
+    }
+    assert!(!html.contains("Level 7"));
+    assert!(html.contains("<p class=\"warning\">Embed depth is too deep</p>"));
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("Embed depth is too deep"))
+    );
+}
+
+#[test]
+fn embedded_blocks_have_bullets_and_keep_their_collapse() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Start.md", "- {{embed [[Notes/Leaf]]}}\n");
+    f.write(
+        "pages/Notes___Leaf.md",
+        "- Parent\n  collapsed:: true\n  id:: 12345678-1234-1234-1234-123456789abc\n  - Hidden child\n",
+    );
+    f.publish();
+    let html = f.html("Notes/Start");
+    let well = &html[html.find("<div class=\"embed-page\"").unwrap()..];
+    assert!(well.contains("<a class=\"bullet\" href=\"#\"></a>"));
+    assert!(
+        well.contains("<li class=\"outline-collapsed\"><details class=\"outline-disclosure\">")
+    );
+    assert!(!html.contains("id=\"block-"));
 }
