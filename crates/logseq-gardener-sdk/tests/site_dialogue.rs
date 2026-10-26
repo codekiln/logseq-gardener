@@ -39,7 +39,26 @@ impl Fixture {
             .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
                 (h ^ u64::from(*b)).wrapping_mul(0x100000001b3)
             });
-        fs::read_to_string(self.0.join(format!("site/p-{hash:016x}.html"))).unwrap()
+        let mut html = fs::read_to_string(self.0.join(format!("site/p-{hash:016x}.html"))).unwrap();
+        // Reference sections load these fragments; their copies must stay inert too.
+        let stem = format!("p-{hash:016x}-");
+        let mut fragments: Vec<_> = fs::read_dir(self.0.join("site/_refs"))
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(&stem)
+            })
+            .collect();
+        fragments.sort();
+        for fragment in fragments {
+            html.push_str(&fs::read_to_string(fragment).unwrap());
+        }
+        html
     }
 }
 impl Drop for Fixture {

@@ -10,7 +10,7 @@ Every published page SHALL show, after its outline, the sections that apply in t
 
 ### Requirement: Load section bodies when opened
 
-A page's HTML SHALL hold each reference section's header and counts, and no groups. The publisher SHALL write linked and unlinked groups to fragment files under the page's output, in group order with about 50 groups per file, plus a data file for filtering. Opening a section SHALL fetch its first file and fetch later files as the reader nears the end. Without scripts, each section SHALL offer a link to its first fragment, and each fragment SHALL be a readable page linking to the next. Fragments SHALL follow the same rendering, anchor and withholding rules as page content. Fragment navigation to a referring block SHALL still open the block on its source page.
+A page's HTML SHALL hold each reference section's header and counts, and no groups. The publisher SHALL write linked and unlinked groups to fragment files in the site's `_refs/` directory, in group order with about 50 groups per file, with the section's data for counting and filtering in its first file. Opening a section SHALL fetch its first file and fetch later files as the reader nears the end. Without scripts, each section SHALL offer a link to its first fragment, and each fragment SHALL be a readable page linking to the next. Fragments SHALL follow the same rendering, anchor and withholding rules as page content. Fragment navigation to a referring block SHALL still open the block on its source page.
 
 #### Scenario: First paint independent of references
 - **WHEN** the encode garden is built

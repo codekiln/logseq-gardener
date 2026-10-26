@@ -49,3 +49,6 @@ pub mod inline_references;
 
 /// Stored page names and alias candidate lookup.
 pub mod page_names;
+
+/// Linked references, filters, tagged pages and unlinked mentions from one index.
+pub mod references;

@@ -66,14 +66,32 @@ impl Fixture {
         self.publish_with(journals(None)).unwrap()
     }
 
+    /// The page whose own HTML contains `marker`, followed by its reference fragments.
     fn page(&self, marker: &str) -> String {
-        fs::read_dir(self.0.join("site"))
+        let site = self.0.join("site");
+        let (name, mut html) = fs::read_dir(&site)
             .unwrap()
             .flatten()
             .filter(|entry| entry.file_name().to_string_lossy().starts_with("p-"))
-            .map(|entry| fs::read_to_string(entry.path()).unwrap())
-            .find(|html| html.contains(marker))
-            .unwrap_or_else(|| panic!("no page contains {marker}"))
+            .map(|entry| {
+                let name = entry.file_name().into_string().unwrap();
+                (name, fs::read_to_string(entry.path()).unwrap())
+            })
+            .find(|(_, html)| html.contains(marker))
+            .unwrap_or_else(|| panic!("no page contains {marker}"));
+        let stem = format!("{}-", name.trim_end_matches(".html"));
+        let mut fragments: Vec<_> = fs::read_dir(site.join("_refs"))
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|entry| entry.file_name().to_string_lossy().starts_with(&stem))
+            .map(|entry| entry.path())
+            .collect();
+        fragments.sort();
+        for fragment in fragments {
+            html.push_str(&fs::read_to_string(fragment).unwrap());
+        }
+        html
     }
 
     fn file(&self, name: &str) -> String {
@@ -170,7 +188,15 @@ fn page_and_feed_outlines_get_the_outline_class_and_references_do_not() {
     assert!(page.contains("<a class=\"bullet\" href=\"#\"></a>"));
     assert!(references.contains("TMUX_BODY"));
     assert!(!references.contains("class=\"outline\""), "{references}");
-    assert!(!references.contains("class=\"bullet\""), "{references}");
+    // Copied blocks keep bullets, which open the block on its own page instead of zooming.
+    assert!(
+        references.contains("<ul class=\"refs-outline\">"),
+        "{references}"
+    );
+    assert!(
+        !references.contains("<a class=\"bullet\" href=\"#\">"),
+        "{references}"
+    );
     let feed = f.file("index.html");
     let article = feed.split("<article class=\"lsg-journal\"").nth(1).unwrap();
     assert!(article.contains("<ul class=\"outline\">"), "{article}");

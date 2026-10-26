@@ -2,7 +2,7 @@
 
 ### Requirement: Answer linked references from one shared index
 
-The SDK SHALL provide a reference index over selected visible documents that the CLI, the language server and the publisher share. For a page it SHALL return the blocks whose references include the page, one of its aliases, or a namespace child of it, leaving out blocks on the page itself and counting each block once. A reference to `A/B/C` SHALL also count as a reference to `A/B` and `A`. Page links, tags, embed page targets and page-reference property values SHALL supply references; property names, literal code, comments, external links and pure block references SHALL supply none. A page's leading properties SHALL count as one block. Withheld sources SHALL contribute nothing.
+The SDK SHALL provide a reference index over selected visible documents that the CLI, the language server and the publisher share. For a page it SHALL return the blocks whose references include the page, one of its aliases, or a namespace child of it, leaving out blocks on the page itself and counting each block once. A reference to `A/B/C` SHALL also count as a reference to `A/B` and `A`, even when `A/B/C` has no page; an alias name SHALL add no namespace parent. Page links, tags, embed page targets and page-reference property values SHALL supply references; property names, literal code, comments, external links and pure block references SHALL supply none. A page's leading properties SHALL count as one block. Withheld sources SHALL contribute nothing.
 
 #### Scenario: Namespace parent
 - **WHEN** a block links to `[[mise/Config]]`
@@ -18,7 +18,7 @@ The SDK SHALL provide a reference index over selected visible documents that the
 
 ### Requirement: Answer filter questions
 
-The index SHALL return each referring block's path references (the block, its ancestors and its page) and, for a set of blocks, the related pages referenced by those blocks, their ancestors or their children with counts, most frequent first and ties by title, leaving out the viewed page. It SHALL return a page's starting filter from its `filters::` property: names mapped to `true` are includes, names mapped to `false` are excludes, and names that do not resolve to a published page are dropped.
+The index SHALL return each referring block's path references (the block, its ancestors and its page) and, for a set of blocks, the related pages with counts, most frequent first and ties by title, leaving out the viewed page: each block whose parent is not in the set adds its path references once and each descendant's references, and a block whose parent is in the set adds nothing. It SHALL return a page's starting filter from its `filters::` property: names mapped to `true` are includes, names mapped to `false` are excludes, and names that do not resolve to a published page are dropped.
 
 #### Scenario: Related pages follow the blocks
 - **WHEN** the related pages are requested for the `mise` blocks that refer to `Diataxis/How To`
@@ -30,7 +30,7 @@ The index SHALL return each referring block's path references (the block, its an
 
 ### Requirement: Answer tagged pages and unlinked mentions
 
-The index SHALL return the pages whose `tags::` name a page or its alias, sorted by lower-cased title. It SHALL return the blocks whose text mentions the page's title or an alias, case-insensitively, where the text before the match is not a letter, digit, `#` or `[[` and the text after it is not a letter or digit, ignoring logbooks and code and leaving out blocks on the page itself. It SHALL find the mentions of every page in one pass over the block text.
+The index SHALL return the pages whose `tags::` name a page or its alias, sorted by lower-cased title. It SHALL return the blocks whose text mentions the page's title or an alias, case-insensitively, where the text before the match is not a letter, digit, `#` or `[[` and the text after it is not a letter or digit, ignoring logbooks and leaving out blocks on the page itself. It SHALL find the mentions of every page in one pass over the block text.
 
 #### Scenario: Tagged pages
 - **WHEN** the tagged pages of `Term` are requested

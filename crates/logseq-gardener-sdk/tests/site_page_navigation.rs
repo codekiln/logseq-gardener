@@ -42,6 +42,26 @@ impl Fixture {
     fn html(&self, title: &str) -> String {
         fs::read_to_string(self.0.join("site").join(route(title))).unwrap()
     }
+    /// The reference fragment files the page loads when a reader opens a section.
+    fn fragments(&self, title: &str) -> String {
+        let stem = format!("{}-", route(title).trim_end_matches(".html"));
+        let mut paths: Vec<_> = fs::read_dir(self.0.join("site/_refs"))
+            .unwrap()
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(&stem)
+            })
+            .collect();
+        paths.sort();
+        paths
+            .into_iter()
+            .map(|path| fs::read_to_string(path).unwrap())
+            .collect()
+    }
 }
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -99,14 +119,14 @@ fn explicit_sequence_resolves_aliases_to_canonical_titles_and_homepage_routes() 
                 .unwrap()
     );
     assert!(middle.contains("<audio controls"));
-    assert!(
-        middle
-            .find("<section class=\"namespace-hierarchy\"")
-            .unwrap()
-            < middle.find("<section class=\"linked-references\"").unwrap()
-    );
-    assert!(middle.contains("<script data-lsg-backlinks-script>"));
-    assert!(middle.contains("Page reference"));
+    // Logseq's order: Linked References, Hierarchy, Unlinked References.
+    let linked = middle.find("data-refs=\"linked\"").unwrap();
+    let hierarchy = middle
+        .find("<section class=\"namespace-hierarchy\"")
+        .unwrap();
+    assert!(linked < hierarchy);
+    assert!(hierarchy < middle.find("data-refs=\"unlinked\"").unwrap());
+    assert!(f.fragments("Visible/Middle").contains("Page reference"));
     let home = fs::read_to_string(f.0.join("site/index.html")).unwrap();
     assert_eq!(
         &home[home.find("<main>").unwrap()..],
@@ -184,7 +204,11 @@ fn namespace_status_preserves_index_names_and_selected_empty_pages() {
         generated.contains("class=\"namespace-link\" aria-label=\"Visible/Branch (Namespace)\"")
     );
     assert!(generated.contains("text-decoration-style:dotted"));
-    assert!(generated.contains("<section class=\"linked-references\""));
+    assert!(
+        !generated.contains("data-refs=\"linked\""),
+        "no references, no section"
+    );
+    assert!(generated.contains("data-refs=\"unlinked\""));
     assert!(
         !f.html("Visible/Empty")
             .contains("<p class=\"namespace-notice\"")

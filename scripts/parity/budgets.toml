@@ -71,3 +71,18 @@ build_slowdown_pct = 20
 # first-paint budget above covers embedded outlines.
 [transclusion]
 styles_gzip_kb = 1
+
+# Pages tagged with, Linked References and Unlinked References (published-reference-sections).
+# parity:budgets checks script_kb, styles_gzip_kb and every fragment file's gzip size; parity:perf
+# marks the time to the first group after opening a section, a filter change on the desktop, the
+# phone heap after opening both sections on mise and scrolling to the end, and a whole-garden build
+# more than build_slowdown_pct slower than the --baseline-lsg binary's.
+[references]
+script_kb = 6
+styles_gzip_kb = 1
+fragment_gzip_kb = 100
+open_ms_desktop = 300
+open_ms_phone = 1500
+open_heap_mb = 20
+filter_ms = 50
+build_slowdown_pct = 25

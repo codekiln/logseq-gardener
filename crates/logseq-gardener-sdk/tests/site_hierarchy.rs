@@ -50,9 +50,9 @@ impl Fixture {
         .unwrap()
     }
     fn all_html(&self) -> String {
-        fs::read_dir(self.0.join("site"))
-            .unwrap()
-            .map(|entry| fs::read_to_string(entry.unwrap().path()).unwrap())
+        files(&self.0.join("site"))
+            .into_values()
+            .map(|bytes| String::from_utf8(bytes).unwrap())
             .collect()
     }
 }
@@ -61,6 +61,24 @@ impl Drop for Fixture {
         fs::remove_dir_all(&self.0).unwrap();
     }
 }
+/// Every file under `root`, including the reference fragments in `_refs/`, by path.
+fn files(root: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+    let mut result = std::collections::BTreeMap::new();
+    let mut pending = vec![root.to_owned()];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                let relative = path.strip_prefix(root).unwrap().to_owned();
+                result.insert(relative, fs::read(path).unwrap());
+            }
+        }
+    }
+    result
+}
+
 fn route(title: &str) -> String {
     let hash = title
         .as_bytes()
@@ -351,16 +369,7 @@ fn generated_spelling_and_output_do_not_depend_on_source_filename_order() {
         assert!(has_route(&fixture.0, "Tree"));
         assert!(!has_route(&fixture.0, "tree"));
     }
-    let contents = |fixture: &Fixture| {
-        fs::read_dir(fixture.0.join("site"))
-            .unwrap()
-            .map(|entry| {
-                let entry = entry.unwrap();
-                (entry.file_name(), fs::read(entry.path()).unwrap())
-            })
-            .collect::<std::collections::BTreeMap<_, _>>()
-    };
-    assert_eq!(contents(&f), contents(&g));
+    assert_eq!(files(&f.0.join("site")), files(&g.0.join("site")));
 }
 
 #[test]
