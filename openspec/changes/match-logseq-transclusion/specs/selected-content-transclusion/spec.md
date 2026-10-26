@@ -14,7 +14,7 @@ Transclusion lookup SHALL contain only selected visible pages and their eligible
 
 ### Requirement: Bound expansion and preserve document identity
 
-The publisher SHALL count references and embeds on one nesting counter limited to 5 levels, as Logseq does, and SHALL bound total expansion work per output document. An embed or reference past the nesting limit SHALL render `p.warning` reading `Embed depth is too deep` or `Block ref nesting is too deep` with a local diagnostic. A page embed of the page itself or of a page already being embedded SHALL render only its header. Budget-exhausting expansion SHALL produce a visible fallback and local diagnostic. Repeated embeds SHALL produce valid HTML without duplicate IDs. Ordinary block references SHALL retain links to the original page and anchor.
+The publisher SHALL count references and embeds on one nesting counter limited to 5 levels, as Logseq does, and SHALL bound total expansion work per output document. An embed past the nesting limit SHALL render `p.warning` reading `Embed depth is too deep`, and a reference past it SHALL render `span.warning` reading `Block ref nesting is too deep`, each with a local diagnostic. A page embed of the page itself or of a page already being embedded SHALL render only its header. Budget-exhausting expansion SHALL produce a visible fallback and local diagnostic. Repeated embeds SHALL produce valid HTML without duplicate IDs. Ordinary block references SHALL retain links to the original page and anchor.
 
 #### Scenario: Recursive page embeds
 - **WHEN** selected pages embed each other directly or through block descendants

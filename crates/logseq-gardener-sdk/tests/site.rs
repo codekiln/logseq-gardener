@@ -487,12 +487,14 @@ fn block_links_resolve_selected_nested_ids_without_exposing_other_targets() {
     );
     assert!(target.contains(&format!("id=\"block-{id}\"")), "{target}");
     assert!(
-        start.contains("Nested target &amp; &lt;unsafe&gt; Notes/Other"),
+        start.contains("<span class=\"block-ref\">Nested <strong>target</strong> &amp; &lt;unsafe&gt; <span class=\"page-reference\"><span>Notes/Other</span></span></span>"),
         "{start}"
     );
     for unavailable in [duplicate, excluded, private, root] {
         assert!(!start.contains(&format!("#block-{unavailable}")));
-        assert!(start.contains(&format!("(({unavailable}))")));
+        assert!(start.contains(&format!(
+            "<span class=\"warning\" title=\"Block ref invalid\">(({unavailable}))</span>"
+        )));
     }
     for contents in files(&fixture.output()).values() {
         let text = String::from_utf8_lossy(contents);
@@ -521,7 +523,7 @@ fn block_links_resolve_selected_nested_ids_without_exposing_other_targets() {
 }
 
 #[test]
-fn block_reference_labels_are_bounded_plain_text_and_ids_follow_property_precedence() {
+fn block_references_show_the_first_line_and_ids_follow_property_precedence() {
     let fixture = Fixture::new();
     let id = "12345678-1234-1234-1234-123456789abc";
     fixture.write(
@@ -543,9 +545,19 @@ fn block_reference_labels_are_bounded_plain_text_and_ids_follow_property_precede
     )
     .unwrap();
     let start = html(&fixture.output(), "Notes/Start");
-    assert!(start.contains(&format!("{}…</a>", "a".repeat(160))));
+    // The whole first line, as Logseq shows it; the embed inside it is left out.
+    assert!(
+        start.contains(&format!(
+            "<span class=\"block-ref\">{} {{}} </span></a>",
+            "a".repeat(220)
+        )),
+        "{start}"
+    );
     assert!(!start.contains("Notes/Hidden"));
-    assert!(start.contains("My label</a>"), "{start}");
+    assert!(
+        start.contains("<span class=\"block-ref\">My label</span></a>"),
+        "{start}"
+    );
     assert!(html(&fixture.output(), "Notes/Target").contains(&format!("id=\"block-{id}\"")));
     assert_eq!(report.assets, 0);
 }
@@ -833,4 +845,62 @@ fn email_autolinks_publish_without_assets_or_private_addresses() {
         assert!(!String::from_utf8_lossy(contents).contains("private-sentinel"));
     }
     assert_eq!(files(&fixture.garden()), before);
+}
+
+#[test]
+fn block_references_render_tasks_quotes_and_nesting_like_logseq() {
+    let fixture = Fixture::new();
+    let done = "12345678-1234-1234-1234-123456789ab1";
+    let quote = "12345678-1234-1234-1234-123456789ab2";
+    let heading = "12345678-1234-1234-1234-123456789ab3";
+    let looped = "12345678-1234-1234-1234-123456789ab4";
+    fixture.write(
+        "garden/pages/Notes___Start.md",
+        format!("- (({done}))\n- (({quote}))\n- (({heading}))\n- (({looped}))\n"),
+    );
+    fixture.write(
+        "garden/pages/Notes___Target.md",
+        format!(
+            "- DONE figure out [[Notes/Start]] #tag\n  id:: {done}\n  second line\n  - child text\n- > quoted words\n  id:: {quote}\n- ## Setup\n  id:: {heading}\n- again (({looped}))\n  id:: {looped}\n"
+        ),
+    );
+    let report = publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &NamespaceSelection::new(&["Notes"], &[]).unwrap(),
+    )
+    .unwrap();
+    let start = html(&fixture.output(), "Notes/Start");
+    assert!(start.contains(&format!(
+        "<a class=\"block-ref-link\" href=\"{}#block-{done}\"><span class=\"block-ref\"><input class=\"task-checkbox\" type=\"checkbox\" checked disabled> <span class=\"task-done\">figure out <span class=\"page-reference\"><span>Notes/Start</span></span> <span class=\"tag\">#tag</span></span></span></a>",
+        route("Notes/Target")
+    )), "{start}");
+    let outline = start
+        .split("<main>")
+        .nth(1)
+        .unwrap()
+        .split("class=\"linked-references\"")
+        .next()
+        .unwrap();
+    assert!(!outline.contains("second line") && !outline.contains("child text"));
+    // A first line that is only a quote shows the quote, as Logseq shows a block's body.
+    assert!(
+        start.contains(&format!(
+            "#block-{quote}\"><span class=\"block-ref\"><blockquote><p>quoted words"
+        )),
+        "{start}"
+    );
+    assert!(html(&fixture.output(), "Notes/Target").contains(&format!("id=\"block-{quote}\"")));
+    assert!(start.contains("<span class=\"block-ref\"><span class=\"block-ref-heading\" role=\"heading\" aria-level=\"2\">Setup</span></span>"));
+    // A reference to itself expands to Logseq's limit of five, then warns.
+    assert_eq!(outline.matches("again ").count(), 5, "{start}");
+    assert!(start.contains("<span class=\"warning\">Block ref nesting is too deep</span>"));
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("Block ref nesting is too deep"))
+    );
+    assert!(!report.diagnostics.iter().any(|d| d.message.contains(quote)));
 }

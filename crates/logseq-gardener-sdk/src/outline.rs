@@ -172,17 +172,7 @@ impl Outline {
                 }
             };
             let depth = levels.len() + 1;
-            let props = match source.get(index + 1) {
-                Some(Block::Properties { props, .. }) => props.as_slice(),
-                _ => &[],
-            };
-            let property = |key: &str| {
-                props
-                    .iter()
-                    .rev()
-                    .find(|p| p.0.trim().eq_ignore_ascii_case(key))
-                    .map(|p| p.1.trim())
-            };
+            let property = |key: &str| bullet_property(source, index, key);
             let heading = size.map(|n| n.clamp(1, 6) as u8).or_else(|| {
                 property("heading").and_then(|value| {
                     if value.eq_ignore_ascii_case("true") {
@@ -242,7 +232,26 @@ impl Outline {
     }
 }
 
-fn uuid(value: &str) -> Option<String> {
+/// A property of the bullet at `index`, from the block after it, or after its quote
+/// when the bullet's content is a quote (`- > …` with `id::` on the next line).
+pub(crate) fn bullet_property<'a>(source: &'a [Block], index: usize, key: &str) -> Option<&'a str> {
+    let next = match (source.get(index), source.get(index + 1)) {
+        (Some(Block::Bullet { inline, .. }), Some(Block::Quote { .. })) if inline.is_empty() => {
+            index + 2
+        }
+        _ => index + 1,
+    };
+    let Some(Block::Properties { props, .. }) = source.get(next) else {
+        return None;
+    };
+    props
+        .iter()
+        .rev()
+        .find(|p| p.0.trim().eq_ignore_ascii_case(key))
+        .map(|p| p.1.trim())
+}
+
+pub(crate) fn uuid(value: &str) -> Option<String> {
     let value = value.trim();
     (value.len() == 36
         && value.bytes().enumerate().all(|(i, c)| {

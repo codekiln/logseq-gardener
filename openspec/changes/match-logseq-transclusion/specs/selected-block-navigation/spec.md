@@ -15,7 +15,7 @@ The publisher SHALL emit stable local anchors for valid explicit hyphenated UUID
 
 #### Scenario: Reference a quote bullet
 - **WHEN** a selected page references a valid ID on a bullet whose content is a quote
-- **THEN** the generated link resolves to that bullet's anchor and displays no target text
+- **THEN** the generated link resolves to that bullet's anchor and displays the quote
 
 ### Requirement: Preserve unavailable reference fallbacks
 

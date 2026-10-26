@@ -111,7 +111,7 @@ fn rich_summary_and_descendant_media_keep_safe_content_and_assets() {
     assert!(html.contains("<audio controls preload=\"none\""));
     assert!(
         html.contains(&format!(
-            "<section class=\"transclusion\"><ul><li class=\"outline-collapsed\">{DISCLOSURE}<summary>Embedded parent</summary>"
+            "<div class=\"blocks-container\"><ul><li class=\"outline-collapsed\">{DISCLOSURE}<summary><a class=\"bullet\" href=\"#\"></a>Embedded parent</summary>"
         )),
         "{html}"
     );
@@ -138,11 +138,13 @@ fn flow_embed_parent_retains_content_outside_phrasing_summary() {
     assert!(!summary.contains("<section") && !summary.contains("<ul"));
     assert!(summary.contains("[unsupported content] [embedded content]"));
     assert!(
-        html.contains("</summary>Before [unsupported content] <section class=\"transclusion\">"),
+        html.contains(
+            "</summary>Before [unsupported content] <div class=\"embed-page\" data-level=\"1\">"
+        ),
         "{html}"
     );
     assert!(html.contains("Embedded content") && html.contains("Own child"));
-    assert!(!html.contains("<strong>Before <section"));
+    assert!(!html.contains("<strong>Before <div"));
 }
 
 #[test]

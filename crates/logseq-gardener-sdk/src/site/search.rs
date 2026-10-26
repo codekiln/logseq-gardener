@@ -3,11 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
-use super::render::{BlockTarget, outline_targets};
 use crate::ast::{Block, Inline, Url};
 use crate::garden::GardenDocument;
 use crate::inline_references::tag_page_name;
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings};
+use crate::transclusion::{ReferenceTargets, page_targets};
 
 /// Opt-in source-search settings. Publication selection and privacy still apply.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -106,7 +106,7 @@ impl Search {
     pub fn new(
         selected: &[(String, String, &GardenDocument)],
         names: &PageNameIndex<String>,
-        targets: &BTreeMap<String, Option<BlockTarget>>,
+        targets: &ReferenceTargets<String>,
         options: &SearchOptions,
     ) -> Self {
         let mut search = Self {
@@ -133,14 +133,9 @@ impl Search {
             if excluded.contains(&lookup_key(title)) {
                 continue;
             }
-            let uuid_by_start: BTreeMap<_, _> = outline_targets(&document.parsed.blocks)
+            let uuid_by_start: BTreeMap<_, _> = page_targets(&document.parsed.blocks)
                 .into_iter()
-                .filter(|(id, start, _)| {
-                    targets
-                        .get(id)
-                        .and_then(Option::as_ref)
-                        .is_some_and(|t| &t.route == route && t.start == *start)
-                })
+                .filter(|(id, start, _)| targets.owns(id, route, *start))
                 .map(|(id, start, _)| (start, id))
                 .collect();
             search.bullets(

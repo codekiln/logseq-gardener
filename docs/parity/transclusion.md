@@ -15,7 +15,7 @@ Measured on 2026-10-25 against the `gh-pages` build of garden commit `7736d6f` (
 | Block embed `{{embed ((uuid))}}` | 164 | 73 |
 | Page embed `{{embed [[Page]]}}` | 803 | 256 |
 
-In the `lsg` build, 74 block references and 7 embeds fall back with a diagnostic. 13 of the 19 distinct unresolved references point at an `id::` that exists nowhere in the garden. The other 6 point at bullets whose content is a quote (`- > …` with `id::` on the next line); `lsg` registers no target for them. Logseq resolves those references but shows them empty, because a quote is the block's body and a reference shows only the title.
+In the `lsg` build, 74 block references and 7 embeds fall back with a diagnostic. 13 of the 19 distinct unresolved references point at an `id::` that exists nowhere in the garden. The other 6 point at bullets whose content is a quote (`- > …` with `id::` on the next line); `lsg` registers no target for them. Logseq resolves those references and shows the quote, because a reference shows a block's body when its title is empty.
 
 ## What Logseq's published site shows
 
@@ -41,7 +41,7 @@ Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = 
 - **Labelled references** show the label's markup inside `span.block-ref` instead of the block ([`block.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/block.cljs#L882-L886)). The garden has none.
 - **Click** opens the referenced block as its own page, `#/page/<uuid>`; shift-click opens it in the right sidebar ([`block.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/block.cljs#L893-L923)).
 - **Hover** shows, after 1 second, a 735px popover with a breadcrumb and the block with its children ([`block.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/block.cljs#L925-L940)).
-- **Unknown uuid:** `span.warning` titled `Block ref invalid`, showing `((uuid))` ([`block.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/block.cljs#L942-L945)). A reference to a block whose content is only a quote shows an empty underlined span; on `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` both references render this way.
+- **Unknown uuid:** `span.warning` titled `Block ref invalid`, showing `((uuid))` ([`block.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/block.cljs#L942-L945)). A reference to a block whose title is empty, such as a bullet whose content is only a quote, shows the block's body ([`block.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/block.cljs#L2278-L2284)); on `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` both references show their quotes.
 
 ### Block embeds
 
@@ -99,7 +99,7 @@ Each gap names a check the Apply step can run against the fixture pages.
 - 2. **Reference style.** `span.block-ref` in the body colour with a `0.5px dashed` bottom border in the link colour, `2px 0` padding and `cursor: alias`, in both themes. Check: computed values on `Claude/Code` match the list above.
 - 3. **Reference destination.** A click goes to the referenced block. Logseq opens the block as its own page; `lsg` links to the block's anchor on its page, which already exists. Check: the link reaches the block on `Claude/Code`.
 - 4. **Invalid reference.** An unknown uuid shows `span.warning` titled `Block ref invalid` with `((uuid))`, and keeps its diagnostic. Check: a test garden reference to a missing uuid.
-- 5. **Quote targets.** A bullet whose content is a quote and that carries `id::` is a reference target; a reference to it shows the empty underlined span Logseq shows. Check: the two references on `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` resolve with no diagnostic.
+- 5. **Quote targets.** A bullet whose content is a quote and that carries `id::` is a reference target; a reference to it shows the quote, as Logseq does. Check: the two references on `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` resolve with no diagnostic.
 - 6. **Embed wells.** Block and page embeds render Logseq's well: background, 8px radius, 8px margin, `12px 8px` padding, in both themes. Check: computed values on `Spotify/Tool/TUI` and `AI/Coding/History`.
 - 7. **Embedded outlines.** Embedded blocks render as a normal outline with bullets and collapse arrows, honouring each block's `collapsed::`, with unique ids. Check: the `Spotify/Tool/TUI` embed shows bullets; collapsing an embedded block works.
 - 8. **Page embed header.** A header with the page icon and a bold 19.2px link to the embedded page. Check: `AI/Coding/History` shows one header per embed, linking to each phase page.
@@ -121,7 +121,7 @@ Each gap names a check the Apply step can run against the fixture pages.
 | `Spotify/Tool/TUI` | A block embed of a heading block with links and children |
 | `AI/Coding/History` | Page embeds of pages that embed pages: two levels of shading |
 | `Py/Zen of Python` | Many page embeds on one page |
-| `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` | References to quote blocks, which Logseq shows empty |
+| `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` | References to quote blocks, which Logseq shows as the quote |
 | `VSCode/Proj/24t3/LearnVSCode/03 Basic Python` | 60 block references and 6 block embeds on one page |
 
 ## Out of scope

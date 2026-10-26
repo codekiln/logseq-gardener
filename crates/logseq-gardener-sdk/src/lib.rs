@@ -41,6 +41,9 @@ pub mod garden_settings;
 /// Bounded EDN reading for `logseq/config.edn`.
 mod garden_config;
 
+/// Block references and embeds: what they show and Logseq's nesting limit.
+pub mod transclusion;
+
 /// The page a tag points at.
 pub mod inline_references;
 

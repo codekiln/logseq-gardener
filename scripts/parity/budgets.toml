@@ -65,3 +65,9 @@ styles_gzip_kb = 1.5
 largest_page_baseline_gzip_kb = 8.010
 page_growth_gzip_kb = 10
 build_slowdown_pct = 20
+
+# Block references and embeds (published-transclusion). parity:budgets checks the gzip size of the
+# transclusion styles every page carries, and that some fixture page holds an embed well so the
+# first-paint budget above covers embedded outlines.
+[transclusion]
+styles_gzip_kb = 1

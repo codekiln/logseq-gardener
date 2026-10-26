@@ -156,7 +156,9 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
-        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search'})
+        self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
+                                       'transclusion'})
+        self.assertEqual(set(loaded['transclusion']), {'styles_gzip_kb'})
         self.assertEqual(set(loaded['code']), {'styles_gzip_kb', 'largest_page_baseline_gzip_kb',
                                                'page_growth_gzip_kb', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['outline']), {'script_kb', 'styles_gzip_kb', 'zoom_ms_desktop', 'zoom_ms_phone'})
@@ -280,6 +282,18 @@ class BudgetCheckTest(unittest.TestCase):
             self.assertIn('p-1.html', failures[1])
             self.assertEqual(budgets.check_code(site, {'p-2.html': pages['p-2.html']}, limits, styles),
                              ['no fixture page has fenced code'])
+
+    def test_transclusion_styles_and_an_embedding_fixture(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            styles = site / 'transclusion.css'
+            styles.write_text('.block-ref{}' * 20, encoding='utf-8')
+            (site / 'p-1.html').write_text('<div class="embed-page" data-level="1"></div>', encoding='utf-8')
+            (site / 'p-2.html').write_text('<p>no embed</p>', encoding='utf-8')
+            self.assertEqual(budgets.check_transclusion(site, ['p-1.html', 'p-2.html'], {'styles_gzip_kb': 1}, styles), [])
+            failures = budgets.check_transclusion(site, ['p-2.html'], {'styles_gzip_kb': 0.001}, styles)
+            self.assertEqual(len(failures), 2)
+            self.assertEqual(failures[1], 'no fixture page has an embed')
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

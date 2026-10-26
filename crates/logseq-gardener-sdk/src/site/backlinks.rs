@@ -3,10 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use super::config::ReferenceConfig;
-use super::render::{self, BlockTarget};
+use super::render;
 use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::page_names::{PageNameIndex, lookup_key};
+use crate::transclusion::{EmbedPage, ReferenceTargets};
 
 struct Context<'a> {
     source: String,
@@ -266,8 +267,8 @@ impl<'a> Backlinks<'a> {
         target: &str,
         config: &ReferenceConfig,
         names: &PageNameIndex<String>,
-        targets: &BTreeMap<String, Option<BlockTarget>>,
-        documents: &BTreeMap<String, &GardenDocument>,
+        targets: &ReferenceTargets<String>,
+        documents: &BTreeMap<String, EmbedPage>,
         asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
     ) -> (String, Vec<String>) {
         let indices = self.incoming.get(target).map_or(&[][..], Vec::as_slice);

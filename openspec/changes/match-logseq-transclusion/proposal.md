@@ -5,7 +5,7 @@ Logseq's published site shows a block reference as the referenced block's first 
 ## What Changes
 
 - The SDK resolves a block reference to its display content: the target's first line as inline nodes, its task marker and heading level, with properties, body and children left out. It also gives an embed's target outline and applies Logseq's shared nesting limit of 5 for references and embeds. The CLI, the language server and the publisher read references the same way.
-- A bullet whose content is a quote and that carries `id::` becomes a reference target, as in Logseq. A reference to it shows an empty underlined span.
+- A bullet whose content is a quote and that carries `id::` becomes a reference target, as in Logseq. A reference to it shows the quote, because Logseq shows a block's body when its first line is empty.
 - A block reference renders as `span.block-ref` inside its link: the first line with its markup and checkbox, the body text colour, a `0.5px` dashed underline in the link colour and `cursor: alias`. Clicking it still opens the block's anchor on its page.
 - An unknown or unavailable block reference renders as `span.warning` titled `Block ref invalid`, showing `((uuid))`, and keeps its diagnostic.
 - Block and page embeds render as Logseq's wells: background, 8px radius, 8px margin and padding, holding the target as a normal outline with bullets and collapse arrows that honour each block's `collapsed::`. A page embed adds a header with the page icon and a bold link to the page. Each nested well takes Logseq's next shade, in both themes.

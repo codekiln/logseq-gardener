@@ -2,7 +2,7 @@
 
 ### Requirement: Render block references like Logseq
 
-The publisher SHALL render a resolved block reference as a link to the block's anchor on its page, holding `span.block-ref` with the SDK's display content: the first line through the inline renderer, a task checkbox for a task marker with the done style for `DONE`, and an inline heading at 1rem for a heading block. The reference SHALL use the body text colour, a `0.5px` dashed bottom border in the link colour, `2px 0` padding and `cursor: alias`, in both themes. A labelled reference SHALL show its label inside `span.block-ref`.
+The publisher SHALL render a resolved block reference as a link to the block's anchor on its page, holding `span.block-ref` with the SDK's display content: the first line through the inline renderer, a task checkbox for a task marker with the done style for `DONE`, and an inline heading at 1rem for a heading block, as `span.block-ref-heading` with `role="heading"` and its `aria-level`. The reference SHALL use the body text colour, a `0.5px` dashed bottom border in the link colour, `2px 0` padding and `cursor: alias`, in both themes. A labelled reference SHALL show its label inside `span.block-ref`.
 
 #### Scenario: Done task reference
 - **WHEN** a reader opens `Claude/Code`
@@ -34,7 +34,7 @@ The publisher SHALL render a block embed as `div.embed-block` and a page embed a
 
 ### Requirement: Shade nested embeds
 
-Each nested well SHALL take Logseq's next shade, from level 2 to level 6, then repeat levels 4, 5 and 6, in both themes.
+Each nested well SHALL take Logseq's next shade, from level 2 to level 5, the deepest level the nesting limit allows, in both themes.
 
 #### Scenario: Second level
 - **WHEN** a reader opens `AI/Coding/History` in the light theme
@@ -42,7 +42,7 @@ Each nested well SHALL take Logseq's next shade, from level 2 to level 6, then r
 
 ### Requirement: Render unavailable embeds like Logseq
 
-The publisher SHALL render nothing for an unavailable block embed, the well and header with no body for a page embed whose page has no published file, and only the header for a self embed. A page that is not published SHALL appear in the header as text, without a link. Each case SHALL keep its diagnostic. Past the nesting limit, the publisher SHALL render `p.warning` reading `Embed depth is too deep` or `Block ref nesting is too deep`.
+The publisher SHALL render nothing for an unavailable block embed, the well and header with no body for a page embed whose page has no published file, and only the header for a self embed. A page that is not published SHALL appear in the header as text, without a link. Each case SHALL keep its diagnostic. Past the nesting limit, the publisher SHALL render `p.warning` reading `Embed depth is too deep` for an embed and `span.warning` reading `Block ref nesting is too deep` for a block reference.
 
 #### Scenario: Unknown block embed
 - **WHEN** a test garden page embeds an unknown uuid
@@ -54,8 +54,8 @@ The publisher SHALL render nothing for an unavailable block embed, the well and 
 
 ### Requirement: Keep transclusion within budgets
 
-The transclusion styles every page carries SHALL stay within 1 KB gzip. Transclusion SHALL add no script beyond the outline script. The fixture page that embeds the most SHALL stay within the 100 KB first-paint budget. `parity:budgets` SHALL check these in CI.
+The transclusion styles every page carries SHALL stay within 1 KB gzip. Transclusion SHALL add no script beyond the outline script. The fixture page that embeds the most SHALL stay within the 100 KB first-paint budget. `parity:budgets` SHALL check the style size in CI and SHALL fail when no fixture page holds an embed.
 
 #### Scenario: Budget check
 - **WHEN** CI runs `parity:budgets`
-- **THEN** it fails if the transclusion styles exceed 1 KB gzip or an embedding fixture page exceeds 100 KB gzip
+- **THEN** it fails if the transclusion styles exceed 1 KB gzip, if no fixture page holds an embed, or if an embedding fixture page exceeds 100 KB gzip
