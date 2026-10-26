@@ -1,0 +1,9 @@
+# Disclosure control verification
+
+Full `mise run ci` passed, including strict OpenSpec validation, RuleSync, release checks and unchanged publication budgets. The controller is 7,927 bytes under its 8,000-byte limit. Nine focused controller tests cover stable ownership before hover, nested activation, ordinary and authored state, native fragment reveal, repeated initialization, replacement/feed outlines, zoom, Back restoration and unknown routes.
+
+The release was published against an unchanged generic nested fixture. Native Space activation worked before hover. Activating the authored H1 button outside its summary opened the disclosure once. Continuous pointer movement from nested H3 text through the gutter reached its own button; clicking folded H3 alone while H1 and H2 remained open. Hit-testing 37 samples along that path retained the H3 owner.
+
+Plain and H1–H6 controls are 24px square with zero difference between arrow and bullet vertical centers. Nested authored H1/H2/H3 controls also share their bullet centers. At 390px width, the first arrow's full target lies within the viewport (left 1px, right 25px), and the page does not overflow horizontally. Native authored disclosures retain their source markup and work without the helper. Fragment-driven native and reader-collapse changes refresh accessible state without recreating buttons.
+
+Hosts can call window.logseqGardenerInitOutline(importedMain) before route and focus hooks. Repeated calls keep the existing controls and collapse state; a narrow observer covers added journal content. Source content and source block identifiers remain unchanged. The separate [cleanup child](https://github.com/codekiln/logseq-gardener/issues/180) is a verified native child of the implementation issue. Independent implementation review remains pending.

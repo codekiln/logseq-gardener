@@ -73,6 +73,7 @@ class Element extends Node {
   append(...nodes) { for (let n of nodes) { if (typeof n === 'string') n = new Text(n); n.remove(); n.parentElement = this; this.childNodes.push(n); } }
   prepend(...nodes) { for (let n of nodes.reverse()) { if (typeof n === 'string') n = new Text(n); n.remove(); n.parentElement = this; this.childNodes.unshift(n); } }
   contains(n) { for (; n; n = n.parentElement) if (n === this) return true; return false; }
+  matches(s) { return matches(this, s); }
   closest(s) { for (let n = this; n; n = n.parentElement) if (matches(n, s)) return n; return null; }
   descendants() { return this.children.flatMap((c) => [c, ...c.descendants()]); }
   querySelectorAll(s) { return this.descendants().filter((n) => matches(n, s, this)); }
@@ -93,15 +94,23 @@ function page(main, hash = '') {
     createComment: () => new Comment(),
     addEventListener: (type, fn) => { listeners.document[type] = fn; },
     querySelector: (s) => root.querySelector(s),
+    querySelectorAll: (s) => root.querySelectorAll(s),
+    body: root.querySelector('body'),
     getElementById: (id) => root.querySelectorAll('span').find((n) => n.id === id) ?? null,
   };
   const window = { addEventListener: (type, fn) => { listeners.window[type] = fn; }, scrollTo() {} };
   doc = { root };
-  vm.runInNewContext(source, { document, window, location });
+  let observe;
+  class MutationObserver { constructor(callback) { observe=callback; } observe() {} }
+  const run = () => vm.runInNewContext(source, { document, window, location, MutationObserver });
+  run();
   const go = (next) => { location.hash = next; listeners.window.hashchange(); };
   const click = (target, extra = {}) => { const event = { target, prevented: false, offsetX: 99, preventDefault() { this.prevented = true; }, ...extra }; listeners.document.click(event); return event; };
-  const hover = (target) => listeners.document.mouseover({ target });
-  return { main, location, go, click, hover };
+  const hover = (target) => listeners.document.mouseover?.({ target });
+  const changed = (target) => observe([{type:'attributes',target}]);
+  const added = (target, node) => observe([{type:'childList',target,addedNodes:[node]}]);
+  const toggled = (target) => listeners.document.toggle({target});
+  return { main, location, go, click, hover, changed, added, toggled, init:window.logseqGardenerInitOutline, rerun:run };
 }
 
 function fixture() {
@@ -161,7 +170,6 @@ test('a page opened at a zoom address zooms, and an unknown address keeps the pa
 test('the arrow folds and unfolds ordinary and authored collapsed blocks', () => {
   const f = fixture();
   const state = page(f.main);
-  state.hover(f.two);
   const arrow = f.two.querySelector('.lsg-arrow');
   assert.ok(arrow);
   assert.equal(arrow.getAttribute('aria-expanded'), 'true');
@@ -171,9 +179,10 @@ test('the arrow folds and unfolds ordinary and authored collapsed blocks', () =>
   state.click(arrow);
   assert.equal(f.two.classList.contains('folded'), false);
   state.hover(f.collapsed.querySelector('summary'));
-  assert.equal(f.collapsed.querySelector('.lsg-arrow'), arrow);
-  assert.equal(arrow.getAttribute('aria-expanded'), 'false');
-  state.click(arrow);
+  const closedArrow = f.collapsed.querySelector('.lsg-arrow');
+  assert.notEqual(closedArrow, arrow);
+  assert.equal(closedArrow.getAttribute('aria-expanded'), 'false');
+  state.click(closedArrow);
   assert.equal(f.collapsed.querySelector('details').open, true);
   state.hover(f.leaf);
   assert.equal(f.leaf.querySelector('.lsg-arrow'), null);
@@ -201,4 +210,43 @@ test('content swapped into main zooms without setup, and feed bullets open the j
   const feed = page(h('main', {}, article));
   feed.click(entry.querySelector('.bullet'));
   assert.equal(feed.location.href, 'p-day.html#zoom/2');
+});
+
+
+test('controls exist before hover and retain their owner across nested gutter movement', () => {
+  const f=fixture(), state=page(f.main);
+  const parent=f.one.querySelector(':scope>.lsg-arrow'), nested=f.two.querySelector(':scope>.lsg-arrow');
+  assert.ok(parent); assert.ok(nested); assert.notEqual(parent,nested);
+  assert.equal(nested.tagName,'BUTTON'); assert.equal(nested.type,'button');
+  assert.equal(nested.getAttribute('aria-label'),'Toggle children');
+  for (const target of [f.two, f.one.querySelector(':scope>ul'), nested, f.one]) state.hover(target);
+  assert.equal(nested.parentElement,f.two); assert.equal(parent.parentElement,f.one);
+  state.click(nested); assert.equal(f.two.classList.contains('folded'),true); assert.equal(f.one.classList.contains('folded'),false);
+  state.init(f.main); state.init(f.two); state.rerun();
+  assert.equal(f.two.querySelectorAll(':scope>.lsg-arrow').length,1);
+  assert.equal(f.two.querySelector(':scope>.lsg-arrow'),nested);
+  assert.equal(nested.getAttribute('aria-expanded'),'false');
+});
+
+test('fragment-driven folded and native disclosure reveals refresh accessible state', () => {
+  const f=fixture(), state=page(f.main);
+  const arrow=f.two.querySelector(':scope>.lsg-arrow');
+  state.click(arrow); f.two.classList.remove('folded'); state.changed(f.two);
+  assert.equal(arrow.getAttribute('aria-expanded'),'true');
+  const details=f.collapsed.querySelector('details'), closed=f.collapsed.querySelector(':scope>.lsg-arrow');
+  assert.equal(closed.getAttribute('aria-expanded'),'false');
+  details.open=true; state.toggled(details); assert.equal(closed.getAttribute('aria-expanded'),'true');
+  details.open=false; state.toggled(details); assert.equal(closed.getAttribute('aria-expanded'),'false');
+});
+
+test('replacement and appended journal outlines receive one stable control without hover', () => {
+  const f=fixture(), state=page(f.main), replacement=fixture();
+  f.main.replaceWith(replacement.main); state.init(replacement.main);
+  assert.ok(replacement.two.querySelector(':scope>.lsg-arrow'));
+  const entry=item('Later journal parent',item('Journal child'));
+  const article=h('article',{class:'lsg-journal'},h('ul',{class:'outline'},entry));
+  replacement.main.append(article); state.added(replacement.main,article);
+  const arrow=entry.querySelector(':scope>.lsg-arrow'); assert.ok(arrow);
+  state.added(entry,arrow); assert.equal(entry.querySelectorAll(':scope>.lsg-arrow').length,1);
+  state.click(arrow); assert.equal(entry.classList.contains('folded'),true);
 });

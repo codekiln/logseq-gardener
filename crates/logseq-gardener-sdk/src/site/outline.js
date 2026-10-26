@@ -1,12 +1,11 @@
-// Reader collapse and block zoom for published outlines. Loaded after the page's load
-// event; works on the page already loaded and keeps no state beyond the open tab.
+// Reader collapse and block zoom, loaded after page load.
 (() => {
+  if (window.logseqGardenerInitOutline) { window.logseqGardenerInitOutline(); return; }
   const ZOOM = '#zoom/';
   const lists = (li) => li.querySelectorAll(':scope>ul,:scope>details>ul');
   const kids = (li) => [...lists(li)].flatMap((ul) => [...ul.children]);
   const roots = (box) => [...box.querySelectorAll(':scope>ul.outline>li')];
-  // The block above an item, null at the top level, undefined outside a page outline
-  // (for example inside an embed).
+  // null at the top level; undefined outside the source outline.
   function parentItem(li) {
     const ul = li.parentElement;
     if (ul?.tagName !== 'UL') return undefined;
@@ -46,18 +45,24 @@
   }
   const closed = (li) => li.classList.contains('folded') || li.querySelector(':scope>details')?.open === false;
 
-  const arrow = document.createElement('button');
-  arrow.type = 'button';
-  arrow.className = 'lsg-arrow';
-  arrow.setAttribute('aria-label', 'Toggle children');
-  arrow.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 6l4 4 4-4z" fill="currentColor"/></svg>';
-  const arrowState = (li) => arrow.setAttribute('aria-expanded', String(!closed(li)));
-  document.addEventListener('mouseover', (event) => {
-    const li = event.target.closest?.('.outline li');
-    if (!li || li === arrow.parentElement || !kids(li).length) return;
-    li.prepend(arrow);
-    arrowState(li);
-  });
+  const arrows = new WeakMap();
+  const arrowState = (li) => arrows.get(li)?.setAttribute('aria-expanded', String(!closed(li)));
+  function controls(root) {
+    const items = [...(root.matches?.('.outline li') ? [root] : []), ...root.querySelectorAll('.outline li')];
+    for (const li of items) {
+      if (!kids(li).length || !li.querySelector(':scope>.bullet,:scope>details>summary>.bullet')) continue;
+      if (!arrows.has(li)) {
+        const arrow = document.createElement('button');
+        arrow.type = 'button';
+        arrow.className = 'lsg-arrow';
+        arrow.setAttribute('aria-label', 'Toggle children');
+        arrow.innerHTML = '<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d="M4 6l4 4 4-4z" fill="currentColor"/></svg>';
+        arrows.set(li, arrow);
+        li.prepend(arrow);
+      }
+      arrowState(li);
+    }
+  }
 
   let zoomed = null;
   function unzoom() {
@@ -70,6 +75,7 @@
     for (const [node, open, folded] of states) {
       if (node.tagName === 'DETAILS') node.open = open;
       else node.classList.toggle('folded', folded);
+      arrowState(node.tagName === 'DETAILS' ? node.parentElement : node);
     }
   }
   function label(li) {
@@ -110,6 +116,7 @@
     for (const [node] of states) {
       if (node.tagName === 'DETAILS') node.open = true;
       else node.classList.remove('folded');
+      arrowState(node.tagName === 'DETAILS' ? node.parentElement : node);
     }
     const mark = document.createComment('lsg-zoom');
     li.replaceWith(mark);
@@ -132,7 +139,8 @@
   }
 
   document.addEventListener('click', (event) => {
-    if (event.target.closest?.('.lsg-arrow')) {
+    const arrow = event.target.closest?.('.lsg-arrow');
+    if (arrow && arrows.get(arrow.parentElement) === arrow) {
       event.preventDefault();
       toggle(arrow.parentElement);
       return;
@@ -159,6 +167,16 @@
       if (li.tagName === 'LI') toggle(li);
     }
   });
+  document.addEventListener('toggle', event => {
+    if (event.target.tagName === 'DETAILS') arrowState(event.target.parentElement);
+  }, true);
+  window.logseqGardenerInitOutline = (root = document) => { controls(root); route(); };
   window.addEventListener('hashchange', route);
-  route();
+  window.logseqGardenerInitOutline();
+  new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === 'attributes') arrowState(record.target);
+      else if ([...record.addedNodes].some(node => node.nodeType === 1 && !node.classList.contains('lsg-arrow'))) controls(record.target);
+    }
+  }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
 })();
