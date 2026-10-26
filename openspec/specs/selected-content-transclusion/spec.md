@@ -22,23 +22,27 @@ The publisher SHALL render page embed macros using uniquely resolved selected vi
 
 ### Requirement: Preserve publication visibility during expansion
 
-Transclusion lookup SHALL contain only selected visible pages and their eligible outline targets. Missing, invalid, ambiguous, excluded, or private targets SHALL retain an escaped visible source fallback and a local diagnostic. Expansion SHALL introduce no withheld target text, asset, URL, or destination into generated output.
+Transclusion lookup SHALL contain only selected visible pages and their eligible outline targets. A missing, invalid, ambiguous, excluded, or private block embed target SHALL render nothing in place of the embed. A page embed whose target is missing, ambiguous, excluded, or private SHALL render the embed well and a header holding the page name as escaped text from the source macro, with no link and no body. Each case SHALL emit a local diagnostic. Expansion SHALL introduce no withheld target text, asset, URL, or destination into generated output.
 
 #### Scenario: Withheld target sentinel
 - **WHEN** a selected page embeds an excluded or private page or block containing unique text and media sentinels
-- **THEN** every sentinel is absent from generated output and the source embed receives a fallback and diagnostic
+- **THEN** every sentinel is absent from generated output and the embed receives a diagnostic
 
 #### Scenario: Ambiguous embed
 - **WHEN** a page alias or normalized outline UUID has multiple selected visible owners
-- **THEN** the embed remains a visible fallback with a diagnostic and exposes no candidate content
+- **THEN** the embed renders as unavailable with a diagnostic and exposes no candidate content
 
 ### Requirement: Bound expansion and preserve document identity
 
-The publisher SHALL bound transclusion depth and total expansion work per output document. Recursive or budget-exhausting expansion SHALL produce a visible fallback and local diagnostic. Repeated embeds SHALL produce valid HTML without duplicate IDs. Ordinary block references SHALL retain links to the original page and anchor.
+The publisher SHALL count references and embeds on one nesting counter limited to 5 levels, as Logseq does, and SHALL bound total expansion work per output document. An embed past the nesting limit SHALL render `p.warning` reading `Embed depth is too deep`, and a reference past it SHALL render `span.warning` reading `Block ref nesting is too deep`, each with a local diagnostic. A page embed of the page itself or of a page already being embedded SHALL render only its header. Budget-exhausting expansion SHALL produce a visible fallback and local diagnostic. Repeated embeds SHALL produce valid HTML without duplicate IDs. Ordinary block references SHALL retain links to the original page and anchor.
 
 #### Scenario: Recursive page embeds
 - **WHEN** selected pages embed each other directly or through block descendants
-- **THEN** generation terminates with readable retained content and a fallback diagnostic at the recursion boundary
+- **THEN** generation terminates with readable retained content, the recursive embed renders only its header, and a diagnostic is reported
+
+#### Scenario: Depth limit
+- **WHEN** a selected page chains seven nested page embeds
+- **THEN** the first five levels expand and the sixth renders `Embed depth is too deep` with a diagnostic
 
 #### Scenario: Repeated block embeds
 - **WHEN** a selected page embeds the same outline UUID more than once

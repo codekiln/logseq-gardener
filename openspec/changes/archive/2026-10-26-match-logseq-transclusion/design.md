@@ -1,6 +1,6 @@
 ## Context
 
-The [transclusion analysis](../../../docs/parity/transclusion.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `7736d6f`) with an `lsg` build from `54a2b52`. The garden has 506 block references, 164 block embeds and 803 page embeds. In `crates/logseq-gardener-sdk/src/site/render.rs`, `outline_targets` builds the reference index and flattens each target's label to plain text; `link` writes that text inside `<a href="<page>#block-<uuid>">`; `embed` wraps the target blocks in an unstyled `<section class="transclusion">`. Unavailable targets show their source as code. No CSS styles references or embeds.
+The [transclusion analysis](../../../../docs/parity/transclusion.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `7736d6f`) with an `lsg` build from `54a2b52`. The garden has 506 block references, 164 block embeds and 803 page embeds. In `crates/logseq-gardener-sdk/src/site/render.rs`, `outline_targets` builds the reference index and flattens each target's label to plain text; `link` writes that text inside `<a href="<page>#block-<uuid>">`; `embed` wraps the target blocks in an unstyled `<section class="transclusion">`. Unavailable targets show their source as code. No CSS styles references or embeds.
 
 Logseq computes all of this in the browser from the whole graph. `lsg` resolves references and embeds during the build, so a page arrives with its references and embeds already in its HTML.
 
@@ -49,7 +49,7 @@ A block embed uses `div.embed-block` with an inner `div` and no header. `data-le
 
 **Styles.** A new `site/transclusion.css`, inlined into every page after the code styles, styles references, wells, headers and shades; the existing `.warning` rule from the inline styles covers the warnings. Theme tokens `--lsg-embed-1` through `--lsg-embed-5` join `site/theme.css` for both themes, measured on the `gh-pages` build with Logseq's own theme toggle. The reference underline and the page embed link use the existing `--lsg-ref` token: in the light theme it equals Logseq's `rgb(16,107,163)`; in the dark theme Logseq's `rgb(163,206,241)` comes from the theme the garden's `logseq/custom.css` imports, which `lsg` loads only through `--stylesheet`.
 
-**Budgets.** Measured by the [comparison harness](../../specs/parity-comparison-harness/spec.md):
+**Budgets.** Measured by the [comparison harness](../../../specs/parity-comparison-harness/spec.md):
 
 | Measure | Budget |
 | --- | --- |
