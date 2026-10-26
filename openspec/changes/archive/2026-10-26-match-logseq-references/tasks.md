@@ -3,7 +3,7 @@
 - [x] 1.1 Add the `references` module with `ReferenceIndex::build` from per-document contributions, moving the reference collection out of `site/backlinks.rs`; add namespace-parent expansion and drop property names; unit-test aliases, namespace parents, withheld sources and replacing one document's contribution
 - [x] 1.2 Add `path_refs`, `related` and `starting_filter`; unit-test ordering, ties, `filters::` with includes, excludes, unknown names and `{}`
 - [x] 1.3 Add `tagged_with`; unit-test alias tags and lower-cased ordering
-- [x] 1.4 Add the `aho-corasick` dependency through the [dependency notice process](../../../docs/licensing.md) and implement `unlinked` with Logseq's match rule in one pass; unit-test the boundary cases from the reference-index spec
+- [x] 1.4 Add the `aho-corasick` dependency through the [dependency notice process](../../../../docs/licensing.md) and implement `unlinked` with Logseq's match rule in one pass; unit-test the boundary cases from the reference-index spec
 
 ## 2. Markup and fragments
 

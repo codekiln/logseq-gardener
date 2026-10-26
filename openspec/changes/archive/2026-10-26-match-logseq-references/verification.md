@@ -54,7 +54,7 @@ Screenshots of `mise` and `tmux` in both builds were taken at both sizes and the
 | References styles, gzip | — | 976 bytes |
 | Whole-garden build, this Mac (`parity:perf`'s timing) | 5.2 s | 8.1 s |
 
-On `mise`, opening Linked References shows its first group in 22 ms on the desktop profile and 346 ms on the phone profile (budgets 300 and 1,500); a filter change takes 46 ms on the desktop (budget 50); after opening both sections and scrolling to the end, the phone heap peaks at 3.4 MB (budget 20). The rows are in [`docs/parity/performance.md`](../../../docs/parity/performance.md). Only `lsg` was measured: the full `parity:perf` run spends about 20 seconds on each Logseq page load and would have taken over four hours, so the page-load rows keep their earlier values.
+On `mise`, opening Linked References shows its first group in 22 ms on the desktop profile and 346 ms on the phone profile (budgets 300 and 1,500); a filter change takes 46 ms on the desktop (budget 50); after opening both sections and scrolling to the end, the phone heap peaks at 3.4 MB (budget 20). The rows are in [`docs/parity/performance.md`](../../../../docs/parity/performance.md). Only `lsg` was measured: the full `parity:perf` run spends about 20 seconds on each Logseq page load and would have taken over four hours, so the page-load rows keep their earlier values.
 
 `parity:budgets` passes: script, styles, every fixture fragment under 100 KB gzip, and every fixture page unchanged when 2,000 pages are added.
 

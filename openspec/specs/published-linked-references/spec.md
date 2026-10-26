@@ -6,93 +6,97 @@ Show published readers which pages refer to the current page, with safe source c
 
 ### Requirement: Index authored references from published sources
 
-The publisher SHALL derive linked references only from selected visible original documents. It SHALL resolve page identities through existing selected-title and alias rules, deduplicate repeated links within a referring context, and omit self-page references. Parsed page links, tags, embed page targets, and authored page-reference property values SHALL supply references; literal code, comments, external links, generated navigation, and pure block UUID references SHALL not manufacture page backlinks. Missing or ambiguous identities SHALL supply no result or filter option. Safe generated namespace destinations MAY receive authored references without entering source alias, embed, or homepage lookup.
+The publisher SHALL take linked references from the SDK reference index, which derives them only from selected visible original documents. Page identities SHALL resolve through existing selected-title and alias rules. Each referring block SHALL count once per target, and self-page references SHALL be omitted. Parsed page links, tags, embed page targets, and authored page-reference property values SHALL supply references, and a reference to a namespace child SHALL also count for each of its namespace ancestors; property names, literal code, comments, external links, generated navigation, and pure block UUID references SHALL not manufacture page backlinks. Missing or ambiguous identities SHALL supply no result or filter option. Safe generated namespace destinations SHALL receive the references of their namespace children and MAY receive authored references without entering source alias, embed, or homepage lookup.
 
 #### Scenario: Repeated references and aliases
 - **WHEN** one source block links twice to a selected target and once to its unique alias
-- **THEN** it contributes one reference context and one linking page for that target
+- **THEN** it contributes one referring block for that target
 
-#### Scenario: Several blocks on one page
-- **WHEN** two blocks on one published page refer to a target
-- **THEN** the target reports one distinct linking page and two reference contexts
+#### Scenario: Namespace child
+- **WHEN** a block links to `[[mise/Config]]`
+- **THEN** the block appears in the linked references of `mise` and counts toward its total
 
 #### Scenario: Tags and authored properties
 - **WHEN** published source refers to a selected target through a tag or a page-reference property value
-- **THEN** the appropriate source context supplies a backlink, and leading properties are labelled as page properties
+- **THEN** the appropriate source block supplies a backlink, and leading properties appear as the page's property block
 
 #### Scenario: Literal and generated content
-- **WHEN** a target appears only in literal code, comments, generated hierarchy links, or a pure block UUID reference
+- **WHEN** a target appears only in literal code, comments, generated hierarchy links, a property name, or a pure block UUID reference
 - **THEN** those occurrences supply no page backlink
 
 #### Scenario: Withheld source and identities
 - **WHEN** private or excluded sources contain unique text, references, or related-page names
-- **THEN** none of their text, names, counts, filter options, or metadata enters backlink output or scripts
+- **THEN** none of their text, names, counts, filter options, or metadata enters backlink output, fragments or scripts
 
 ### Requirement: Show grouped context and explicit counts
 
-Each generated source or namespace page SHALL have a bottom linked-reference section grouped by originating published page. Its disclosure heading SHALL show the distinct source-page count even while collapsed, including zero. It SHALL show a separate referring-context count when the context and page totals differ, with a short explanation inside the disclosure that a context is a referring block or page properties. Unfiltered equal totals SHALL use the page count alone. Context SHALL retain escaped useful source content, working source-page navigation and available block navigation, bounded descendant rendering, and independent authored disclosures. Copies SHALL not duplicate original anchor IDs. Existing hierarchy, source content, and fragment navigation SHALL remain intact. Property source navigation SHALL target the visible Properties summary only when its safe displayed rows refer to the viewed target; otherwise its source link SHALL identify a page destination.
+A page with at least one linked reference SHALL have a Linked References section whose heading reads `N Linked References`, or `1 Linked Reference`, where N counts referring blocks; with any filter active it SHALL read `F of N Linked References`. The heading SHALL be 16px at weight 500 and remain readable while collapsed. A page with no linked references SHALL have no Linked References section.
 
-Groups SHALL use a compact source-page card with one page heading and linked ancestor breadcrumbs. Each source block SHALL appear once across overlapping referring outlines within its group, while genuine context identities, counts and filter predicates remain available. Safe displayed property references SHALL show the relevant validated property rows and a link to the original property section.
+Groups SHALL be one per referring page: journals first, newest first, then other pages by lower-cased title. Within a group, blocks whose parent is the page SHALL come first, then document order. Each group SHALL be a foldable card, open by default, with the surface background, 4px radius, 16px padding and `8px 0` margin, headed by a plain link to the page at 16px and weight 400 with no brackets, followed by a muted `Alias` label when the page is an alias of the target. Each referring block SHALL render with bullets and its children, as in the page outline. Each source block SHALL appear once across overlapping referring outlines within its group. Copies SHALL not duplicate original anchor IDs, and labels and source-relative media SHALL render normally.
 
-#### Scenario: Overlapping referring outlines
-- **WHEN** a referring parent and its descendant both link to the viewed page
-- **THEN** their shared outline appears once with two context identities, working original-source links and the existing related-reference matching behavior
+A referring block below the top level SHALL have a breadcrumb of its nearest three ancestors, with `⋯` replacing older ones, excluding the page. Each crumb SHALL be the ancestor's first line through the inline renderer and SHALL link to the ancestor's anchor on its page. Crumbs SHALL be separated by a chevron icon at 50% opacity, at 16px body text with `8px 0 8px 24px` margin. A referring property block SHALL show its safe displayed rows that refer to the target.
 
-#### Scenario: Safe property context
-- **WHEN** a visible property row links to the viewed page
-- **THEN** its group shows that row and a property-section destination while unrelated or omitted rows remain absent
+#### Scenario: Count text
+- **WHEN** a reader opens `tmux`
+- **THEN** the heading reads `795 Linked References`
 
 #### Scenario: Zero references
-- **WHEN** a generated page has no backlinks
-- **THEN** its linked-reference heading displays zero pages and omits redundant context detail
+- **WHEN** a reader opens `Microfreak/UG/07 Filter/Asset/01-The-Analogue-Filter`
+- **THEN** the page has no Linked References section
+
+#### Scenario: Journal order
+- **WHEN** a reader opens Linked References on `mise`
+- **THEN** the first groups are `2026-10-19 Mon`, `2026-10-04 Sun` and `2026-09-10 Thu`, and journal groups precede every other group
+
+#### Scenario: Shortened breadcrumb
+- **WHEN** a referring block on `mise` has eight ancestors
+- **THEN** its breadcrumb shows `⋯` followed by its three nearest ancestors with their inline markup
 
 #### Scenario: Referring block navigation
-- **WHEN** a displayed reference came from an outline block
-- **THEN** its source link opens that block in the original page, and fragment navigation opens only the containing disclosures
+- **WHEN** a reader follows a crumb or a referring block's destination
+- **THEN** the browser opens that block on its original page, and fragment navigation opens only the containing disclosures
 
 #### Scenario: Repeated context and media
-- **WHEN** a source block is copied into linked-reference sections
-- **THEN** its labels and source-relative media retain normal rendering while original anchor IDs remain unique on each output page
-
-#### Scenario: Equal and unequal totals
-- **WHEN** one source page has two referring contexts
-- **THEN** the heading shows one page and two referring contexts, while a page with one context shows only one page
+- **WHEN** a source block is copied into linked-reference fragments
+- **THEN** its labels and source-relative media retain normal rendering while original anchor IDs remain unique
 
 ### Requirement: Filter by related published pages
 
-Enhanced pages SHALL provide labelled related-page include/exclude controls, individual removal, reset, and option search. A reference SHALL match every included related page and no excluded related page, using current and ancestor reference identities including its source page. Related options SHALL derive only from published identities in matching context paths or descendants, excluding the viewed target. Search SHALL narrow options rather than replace these predicates. Filtering SHALL hide empty source groups and display filtered versus total source-page counts. It SHALL also display filtered versus total referring-context counts when visible counts or original totals differ. Counts SHALL remain readable when collapsed. The filter instruction SHALL read “Include or exclude selected related pages.” Controls SHALL support native keyboard and narrow-screen use. Without JavaScript, native disclosures and unfiltered content SHALL remain readable.
+The Linked References header SHALL carry a `Filter` control with a funnel icon at 60% opacity with no filter, in the success colour when every filter is an include, the error colour when every filter is an exclude, and the warning colour when mixed. Activating it SHALL open a dialog with the title `Filter`, the hint `Click to include and shift-click to exclude. Click again to remove.`, `Includes:` and `Excludes:` rows of active filters, a search input with the placeholder `Search in linked pages`, and a chip for every related page with a superscript count, most frequent first. Click or Enter SHALL include a chip, shift-click or Shift+Enter SHALL exclude it, and activating an active chip SHALL remove it; each chip's accessible name SHALL state its state. Typing SHALL narrow the chips by fuzzy match. Chips and counts SHALL come from the blocks the current filter keeps.
+
+A block SHALL match when its path references include every included page and none of the excluded pages; matching blocks keep their ancestors for context, and empty groups SHALL hide. A page's `filters::` property SHALL set the starting filter, already reflected in the first-paint heading and icon. Filter changes SHALL last for the visit through `sessionStorage` scoped to the site and page, and SHALL last for the page view when storage is unavailable. The dialog SHALL work with the keyboard and on narrow screens. Without scripts, the unfiltered fragments SHALL remain readable.
+
+#### Scenario: Starting filter
+- **WHEN** a reader opens `mise`
+- **THEN** the heading reads `4 of 589 Linked References` and the funnel is green
+
+#### Scenario: Options follow the filter
+- **WHEN** a reader opens the filter dialog on `mise` with `Diataxis/How To` included
+- **THEN** the chips start with `Diataxis` 4 and `AWS` 2, and after removing the include they start with `mise/Config` 106
 
 #### Scenario: Combined inclusion and exclusion
 - **WHEN** two related pages are included and a third is excluded
 - **THEN** only references containing both includes and no exclude remain visible
 
-#### Scenario: Ancestor reference
-- **WHEN** a matching block has a related-page link in its parent
-- **THEN** the block can match an include filter for that related page
-
-#### Scenario: Partial source group and reset
-- **WHEN** filtering retains one of two references from a source page
-- **THEN** that page counts once and only the retained reference counts, and reset restores every group and clears controls
+#### Scenario: Keyboard exclude
+- **WHEN** a keyboard user focuses a chip and presses Shift+Enter
+- **THEN** the chip moves to the Excludes row and the funnel turns to the error colour
 
 #### Scenario: No filtered results
 - **WHEN** no reference matches the active filters
-- **THEN** the section shows zero filtered counts against the original totals and a readable no-results status
+- **THEN** the heading reads `0 of N Linked References` and the section shows a readable no-results status
 
-#### Scenario: Replaced host content
-- **WHEN** a host replaces page content and initializes linked-reference controls again
-- **THEN** the new section works and repeated initialization creates no duplicate handlers or player/navigation side effects
-
-#### Scenario: Filtered distinction and reset
-- **WHEN** filtering retains one context from an original two-page, three-context result
-- **THEN** the collapsed heading shows one of two pages and one of three referring contexts, and reset restores the original counts
+#### Scenario: Empty filters property
+- **WHEN** a reader opens `McKinsey`, which has `filters:: {}`
+- **THEN** the linked references start unfiltered
 
 ### Requirement: Honor graph reference disclosure settings
 
-The publisher SHALL read integer `:ref/linked-references-collapsed-threshold` and `:ref/default-open-blocks-level` from the graph's top-level `logseq/config.edn` map, defaulting to 100 and 2. Linked-reference sections SHALL start collapsed when the reference-context count reaches the threshold; zero SHALL collapse every section while preserving its heading. Reference-context parents at or beyond the configured open depth SHALL start closed, and authored collapse SHALL also remain effective. Config reading SHALL be bounded, read-only, and ignore commented, discarded, string, or nested-map lookalikes. Missing or unusable settings SHALL retain defaults with useful diagnostics for unusable input.
+The publisher SHALL read integer `:ref/linked-references-collapsed-threshold` and `:ref/default-open-blocks-level` from the graph's top-level `logseq/config.edn` map, defaulting to 100 and 2. A Linked References section SHALL start collapsed when its referring-block count reaches the threshold; zero SHALL collapse every section while preserving its heading. Referring-block parents at or beyond the configured open depth SHALL start closed, and authored collapse SHALL also remain effective. Config reading SHALL be bounded, read-only, and ignore commented, discarded, string, or nested-map lookalikes. Missing or unusable settings SHALL retain defaults with useful diagnostics for unusable input.
 
 #### Scenario: Threshold zero
 - **WHEN** the graph sets the collapse threshold to zero
-- **THEN** sections with zero or more references start closed and show their counts
+- **THEN** every Linked References section starts closed and shows its count
 
 #### Scenario: Open depth and authored collapse
 - **WHEN** open depth is two and a reference contains nested parents plus an authored collapsed parent

@@ -1,6 +1,6 @@
 ## Why
 
-Below each page's outline, Logseq's published site shows Pages tagged with, Linked References, Hierarchy and Unlinked References. Its linked references count referring blocks, include references to the page's namespace children, put journals first, and filter through a funnel icon and a dialog of chips. `lsg` publishes linked references with a different count, order, look and filter, and has no Pages tagged with or Unlinked References section ([references analysis](../../../docs/parity/references.md), [Issue #115 — Match Logseq's linked references, filters, unlinked references and tagged pages](https://github.com/codekiln/logseq-gardener/issues/115)).
+Below each page's outline, Logseq's published site shows Pages tagged with, Linked References, Hierarchy and Unlinked References. Its linked references count referring blocks, include references to the page's namespace children, put journals first, and filter through a funnel icon and a dialog of chips. `lsg` publishes linked references with a different count, order, look and filter, and has no Pages tagged with or Unlinked References section ([references analysis](../../../../docs/parity/references.md), [Issue #115 — Match Logseq's linked references, filters, unlinked references and tagged pages](https://github.com/codekiln/logseq-gardener/issues/115)).
 
 Matching Logseq's counting makes the sections larger, and they are already 99% of the largest `lsg` pages. The section bodies therefore move out of the page and load when a reader opens them, so a page's first paint stays the same size however often other pages mention it.
 
@@ -34,7 +34,7 @@ Matching Logseq's counting makes the sections larger, and they are already 99% o
 
 ## Impact
 
-- SDK: a new `references` module beside `page_names` and `outline`; the reference index moves out of `site/backlinks.rs`; a new `aho-corasick` dependency for the unlinked-mention pass, which follows the [dependency notice process](../../../docs/licensing.md).
+- SDK: a new `references` module beside `page_names` and `outline`; the reference index moves out of `site/backlinks.rs`; a new `aho-corasick` dependency for the unlinked-mention pass, which follows the [dependency notice process](../../../../docs/licensing.md).
 - Publisher: `site/backlinks.rs` and `site/backlinks.js` are rewritten for the new markup, dialog and fragment loading; new `site/references.css`; new fragment files under each page's output; the section order in `site/render.rs` and `site/mod.rs`; `site/properties.rs` keeps hiding `filters::`.
 - Parity harness: `scripts/parity/budgets.toml` gains a `[references]` table checked by `parity:budgets` and marked by `parity:perf`.
 - Gitpa receives the same sections in swapped `<main>` content; the references script initializes again after a swap, as the current one does.
