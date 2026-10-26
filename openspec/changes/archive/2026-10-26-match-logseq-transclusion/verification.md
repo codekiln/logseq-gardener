@@ -66,7 +66,7 @@ Six encode-garden pages were over 100 KB gzip before this change and still are (
 
 ## Performance
 
-`mise run parity:perf` on the same run (Logseq one load per page, `lsg` three) is recorded in [`docs/parity/performance.md`](../../../docs/parity/performance.md); `AI/Coding/History` and `VSCode/Proj/24t3/LearnVSCode/03 Basic Python` now appear there. The run header names `b490d68`, the branch's base, because the build ran from the uncommitted branch tree.
+`mise run parity:perf` on the same run (Logseq one load per page, `lsg` three) is recorded in [`docs/parity/performance.md`](../../../../docs/parity/performance.md); `AI/Coding/History` and `VSCode/Proj/24t3/LearnVSCode/03 Basic Python` now appear there. The run header names `b490d68`, the branch's base, because the build ran from the uncommitted branch tree.
 
 | Page | Profile | Logseq title (ms) | `lsg` title (ms) | `lsg` data before title (KB gzip) | `lsg` peak heap (MB) |
 | --- | --- | ---: | ---: | ---: | ---: |

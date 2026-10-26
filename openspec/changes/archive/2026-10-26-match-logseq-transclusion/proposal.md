@@ -1,6 +1,6 @@
 ## Why
 
-Logseq's published site shows a block reference as the referenced block's first line, with its markup and task checkbox, above a dashed underline, and shows embeds as shaded, rounded wells holding a full outline with bullets; a page embed adds a header that links to the page. `lsg` resolves the same targets but shows a reference as a plain link with the text flattened, and an embed as an unstyled list with no bullets, header or shading ([transclusion analysis](../../../docs/parity/transclusion.md), [Issue #114 — Match Logseq's block references and block and page embeds](https://github.com/codekiln/logseq-gardener/issues/114)).
+Logseq's published site shows a block reference as the referenced block's first line, with its markup and task checkbox, above a dashed underline, and shows embeds as shaded, rounded wells holding a full outline with bullets; a page embed adds a header that links to the page. `lsg` resolves the same targets but shows a reference as a plain link with the text flattened, and an embed as an unstyled list with no bullets, header or shading ([transclusion analysis](../../../../docs/parity/transclusion.md), [Issue #114 — Match Logseq's block references and block and page embeds](https://github.com/codekiln/logseq-gardener/issues/114)).
 
 ## What Changes
 
