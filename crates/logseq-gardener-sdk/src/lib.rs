@@ -52,3 +52,6 @@ pub mod page_names;
 
 /// Linked references, filters, tagged pages and unlinked mentions from one index.
 pub mod references;
+
+/// Namespace hierarchy rows from page titles and aliases, shared by every caller.
+pub mod namespaces;

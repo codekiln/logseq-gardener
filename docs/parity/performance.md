@@ -3,7 +3,7 @@
 - measured: 2026-10-26
 - garden commit: 0ce74d6
 - gh-pages commit: 8132c95
-- lsg: 0.0.0 (b490d68); the build time and reference sections: this change on 84e9278, measured `lsg` only
+- lsg: 0.0.0 (b490d68); the build time and Hierarchy: this change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278
 - profiles: desktop, phone
 - loads per page, logseq: 1
 - loads per page, lsg: 3
@@ -92,10 +92,10 @@ The home page scrolled until it shows 73 journals or runs out. The phone heap bu
 
 | Build | Seconds |
 | --- | ---: |
-| without journals | 8.3 |
-| with journals | 8.1 |
+| without journals | 10.4 |
+| with journals | 10.5 |
 
-Against the baseline `lsg` with the same options: 5.2 seconds, this build **8.1** seconds (+56%).
+Against the baseline `lsg` with the same options: 10.8 seconds, this build 10.5 seconds (-3%).
 
 ## Block zoom on tmux
 
@@ -116,6 +116,15 @@ Time from clicking a section header to its first group, time from clicking a fil
 | --- | ---: | ---: | ---: | ---: | ---: |
 | desktop | 22 | 46 | 12 | 449 | 4.1 |
 | phone | 346 | 96 | 243 | 449 | 3.4 |
+
+## Hierarchy on Microfreak
+
+Rows in the page before scrolling, rows after scrolling the list to its end, and the peak JS heap.
+
+| Profile | Rows in the page | Rows after scrolling | Peak JS heap (MB) |
+| --- | ---: | ---: | ---: |
+| desktop | 100 | 1,394 | 3.0 |
+| phone | 100 | 1,394 | 3.1 |
 
 ## Search latency per keystroke
 

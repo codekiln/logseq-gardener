@@ -50,6 +50,9 @@ ZOOM = {
     'logseq': ('.block-children .bullet', '.breadcrumb.block-parents'),
     'lsg': ('ul.outline ul .bullet', 'main[data-lsg-zoomed]'),
 }
+# Hierarchy: the page whose long Hierarchy list is scrolled to the end.
+HIERARCHY_PAGE = 'Microfreak'
+HIERARCHY_ROWS = 'document.querySelectorAll(".page-hierarchy .namespaces > li").length'
 # Reference sections: the page whose sections are opened, filtered and scrolled to the end.
 REFERENCES_PAGE = 'mise'
 REFERENCES_OPEN = '''async (kind) => {
@@ -336,6 +339,31 @@ def measure_references(browser, url, profile):
         context.close()
 
 
+def measure_hierarchy(browser, url, profile):
+    """Scroll the Hierarchy list to its end, loading every fragment file, and read the peak heap."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
+    try:
+        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        wait_loaded(page, profile)
+        result = {'inline_rows': page.evaluate(HIERARCHY_ROWS)}
+        # Each scroll to the end loads at most one more file; stop when none arrives.
+        for _ in range(100):
+            before = page.evaluate(HIERARCHY_ROWS)
+            page.evaluate(SCROLL_TO_BOTTOM)
+            try:
+                page.wait_for_function(f'{HIERARCHY_ROWS} > {before}', timeout=5_000, polling=100)
+            except Exception:  # Every file has loaded.
+                break
+        page.wait_for_timeout(1000)
+        result['rows'] = page.evaluate(HIERARCHY_ROWS)
+        result['peak_heap'] = max(page.evaluate('window.__parity.peak') or 0, heap_now(cdp))
+        return result
+    except Exception as error:
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
 def measure_build(settings, baseline=None):
     """Seconds to publish the whole garden with and without journals, with the run's lsg options.
 
@@ -442,7 +470,9 @@ def markdown(results, budgets):
     for row in results.get('build', []):
         if 'baseline' not in row or row['journals'] not in builds:
             continue
-        slowdown = budgets.get('references', budgets.get('code', {})).get('build_slowdown_pct')
+        # The latest feature's budget: Hierarchy, then reference sections, then code.
+        slowdown = next((budgets[table]['build_slowdown_pct'] for table in ('hierarchy', 'references', 'code')
+                         if 'build_slowdown_pct' in budgets.get(table, {})), None)
         current = builds[row['journals']]
         text = f'{current:,.1f}'
         if slowdown is not None and current > row['seconds'] * (1 + slowdown / 100):
@@ -490,6 +520,22 @@ def markdown(results, budgets):
                      limits.get('open_heap_mb') if row['profile'] == 'phone' else None),
             ]
             lines.append(f"| {row['profile']} | " + ' | '.join(cells) + ' |')
+    hierarchy_rows = results.get('hierarchy', [])
+    if hierarchy_rows:
+        heap_limit = budgets.get('hierarchy', {}).get('scroll_heap_mb')
+        lines += ['', f'## Hierarchy on {HIERARCHY_PAGE}', '',
+                  'Rows in the page before scrolling, rows after scrolling the list to its end, and the peak '
+                  'JS heap.', '',
+                  '| Profile | Rows in the page | Rows after scrolling | Peak JS heap (MB) |',
+                  '| --- | ---: | ---: | ---: |']
+        for row in hierarchy_rows:
+            if 'error' in row:
+                lines.append(f"| {row['profile']} | {row['error']} | | |")
+                continue
+            heap = f"{row['peak_heap'] / 1_000_000:,.1f}"
+            if row['profile'] == 'phone' and heap_limit is not None and row['peak_heap'] > heap_limit * 1_000_000:
+                heap = f'**{heap}**'
+            lines.append(f"| {row['profile']} | {row['inline_rows']:,} | {row['rows']:,} | {heap} |")
     lines += ['', '## Search latency per keystroke', '',
               '| Profile | Build | Keystrokes | Unchanged | Median (ms) | 95th percentile (ms) |',
               '| --- | --- | ---: | ---: | ---: | ---: |']
@@ -624,7 +670,8 @@ def main():
                     row['loads'] = len(good)
                     pages.append(row)
                     print(json.dumps(row, ensure_ascii=False), flush=True)
-        feed, zoom, references = [], [], []
+        feed, zoom, references, hierarchy = [], [], [], []
+        hierarchy_target = serve.targets(HIERARCHY_PAGE, names, lsg_index, run / 'site')
         zoom_target = serve.targets(ZOOM_PAGE, names, lsg_index, run / 'site')
         references_target = serve.targets(REFERENCES_PAGE, names, lsg_index, run / 'site')
         for profile in profiles:
@@ -641,6 +688,11 @@ def main():
                            **measure_references(browser, server.url + references_target['lsg'], profile)}
                     references.append(row)
                     print(json.dumps(row), flush=True)
+                if build == 'lsg' and hierarchy_target['lsg'] is not None:
+                    row = {'profile': profile, 'build': build,
+                           **measure_hierarchy(browser, server.url + hierarchy_target['lsg'], profile)}
+                    hierarchy.append(row)
+                    print(json.dumps(row), flush=True)
                 if zoom_target[build] is not None:
                     row = {'profile': profile, 'build': build,
                            **measure_zoom(browser, server.url + zoom_target[build], build, profile)}
@@ -652,6 +704,7 @@ def main():
     feed = merge(kept.get('feed', []), feed, builds, ('profile', 'build'))
     zoom = merge(kept.get('zoom', []), zoom, builds, ('profile', 'build'))
     references = merge(kept.get('references', []), references, builds, ('profile', 'build'))
+    hierarchy = merge(kept.get('hierarchy', []), hierarchy, builds, ('profile', 'build'))
     build_rows = measure_build(settings, args.baseline_lsg) if 'lsg' in builds else kept.get('build', [])
     for row in build_rows:
         print(json.dumps(row), flush=True)
@@ -669,6 +722,7 @@ def main():
         'feed': feed,
         'zoom': zoom,
         'references': references,
+        'hierarchy': hierarchy,
         'build': build_rows,
     }
     (run / 'perf.json').write_text(json.dumps(results, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
