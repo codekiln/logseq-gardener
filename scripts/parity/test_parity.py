@@ -159,7 +159,10 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
-                                       'transclusion', 'references'})
+                                       'transclusion', 'references', 'all_pages'})
+        self.assertEqual(set(loaded['all_pages']), {'paging_page_gzip_kb', 'growth_kb', 'script_gzip_kb',
+                                                    'list_gzip_kb', 'sort_heap_mb', 'search_ms_desktop',
+                                                    'search_ms_phone', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['references']), {'script_kb', 'styles_gzip_kb', 'fragment_gzip_kb',
                                                      'open_ms_desktop', 'open_ms_phone', 'open_heap_mb',
                                                      'filter_ms', 'build_slowdown_pct'})
@@ -318,6 +321,30 @@ class BudgetCheckTest(unittest.TestCase):
             failures = budgets.check_references(site, limits, styles)
             self.assertEqual(len(failures), 1)
             self.assertIn('_refs/p-2-linked-1.html', failures[0])
+
+    def test_all_pages_paging_growth_script_and_list(self):
+        limits = {'desktop': {'data_before_title_kb': 100, 'script_before_title_kb': 16},
+                  'phone': {'data_before_title_kb': 100, 'script_before_title_kb': 16},
+                  'all_pages': {'paging_page_gzip_kb': 1, 'growth_kb': 1, 'script_gzip_kb': 1, 'list_gzip_kb': 1}}
+        with tempfile.TemporaryDirectory() as temp:
+            small, large = Path(temp) / 'small', Path(temp) / 'large'
+            for site, rows in ((small, 40), (large, 40)):
+                (site / '_pages').mkdir(parents=True)
+                (site / 'pages.html').write_text('<tr></tr>' * rows, encoding='utf-8')
+                (site / budgets.ALL_PAGES_SCRIPT).write_text('x' * 100, encoding='utf-8')
+                (site / budgets.ALL_PAGES_LIST).write_text('[]', encoding='utf-8')
+            (small / 'pages-2.html').write_text('<p>small</p>', encoding='utf-8')
+            (small / 'p-1.html').write_text('<p>page</p>', encoding='utf-8')
+            self.assertEqual(budgets.check_all_pages(small, large, limits), [])
+            self.assertEqual(budgets.site_pages(small), ['p-1.html'])
+            (small / 'pages-3.html').write_bytes(os.urandom(3000))
+            (large / 'pages.html').write_text('<tr></tr>' * 400, encoding='utf-8')
+            (small / 'p-1.html').write_text(f'<script src="{budgets.ALL_PAGES_SCRIPT}"></script>', encoding='utf-8')
+            failures = budgets.check_all_pages(small, large, limits)
+            self.assertEqual(len(failures), 3, failures)
+            self.assertIn('pages-3.html', failures[0])
+            self.assertIn('grew', failures[1])
+            self.assertIn('loaded outside All pages', failures[2])
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

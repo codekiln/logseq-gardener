@@ -17,6 +17,8 @@ FIXTURE_GARDEN = common.REPO / 'tests' / 'fixtures' / 'parity-garden'
 FIXTURE_ROOTS = ['Tools']
 FILLER_ROOT = 'Filler'
 FILLER_PAGES = 2000
+# Enough filler for a full first All pages screen before the garden grows by FILLER_PAGES.
+ALL_PAGES_BASE = 40
 OLDER_JOURNALS = 1000
 JOURNALS_SCRIPT = 'lsg-journals.js'
 OUTLINE_SCRIPT = 'lsg-outline.js'
@@ -29,6 +31,8 @@ EMBED_MARKERS = ('class="embed-page"', 'class="embed-block"')
 REFERENCES_SCRIPT = 'lsg-references.js'
 REFERENCES_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'references.css'
 REFERENCES_DIR = '_refs'
+ALL_PAGES_SCRIPT = 'lsg-all-pages.js'
+ALL_PAGES_LIST = '_pages/list.json'
 
 
 
@@ -219,8 +223,44 @@ def profiles(budgets):
     return {name: limits for name, limits in budgets.items() if name in ('desktop', 'phone')}
 
 
+def is_all_pages(name):
+    """All pages and its static paging pages, which list the garden and so grow with it."""
+    return name == 'pages.html' or (name.startswith('pages-') and name.endswith('.html'))
+
+
 def site_pages(site):
-    return sorted(p.name for p in site.glob('*.html') if p.name != 'pages.html')
+    return sorted(p.name for p in site.glob('*.html') if not is_all_pages(p.name))
+
+
+def check_all_pages(small, large, budgets):
+    """Return failure messages for All pages: first paint, paging pages, growth, script and list."""
+    limits = budgets['all_pages']
+    failures = []
+    first = 'pages.html'
+    if not (small / first).exists():
+        return [f'{first}: missing from the build']
+    raw, packed, script = page_sizes(small, first)
+    print(f'{first}: first paint {raw:,} ({packed:,} gzip), script {script:,}')
+    failures += [message.replace(f'{first}: ', f'{first} (All pages): ')
+                 for message in check({first: (raw, packed, script)}, {first: (raw, packed, script)}, budgets)]
+    for page in sorted(p.name for p in small.glob('pages-*.html')):
+        size = metrics.gzip_size((small / page).read_bytes())
+        if size > limits['paging_page_gzip_kb'] * 1000:
+            failures.append(f'{page}: {size:,} gzip exceeds {limits["paging_page_gzip_kb"] * 1000:,.0f}')
+    grown = page_sizes(large, first)[0]
+    if grown - raw > limits['growth_kb'] * 1000:
+        failures.append(f'{first}: first paint grew from {raw:,} to {grown:,} '
+                        f'when {FILLER_PAGES:,} unrelated pages were added')
+    script_size = metrics.gzip_size((small / ALL_PAGES_SCRIPT).read_bytes())
+    print(f'{ALL_PAGES_SCRIPT}: {script_size:,} gzip')
+    if script_size > limits['script_gzip_kb'] * 1000:
+        failures.append(f'{ALL_PAGES_SCRIPT}: {script_size:,} gzip exceeds {limits["script_gzip_kb"] * 1000:,.0f}')
+    list_size = metrics.gzip_size((small / ALL_PAGES_LIST).read_bytes())
+    if list_size > limits['list_gzip_kb'] * 1000:
+        failures.append(f'{ALL_PAGES_LIST}: {list_size:,} gzip exceeds {limits["list_gzip_kb"] * 1000:,.0f}')
+    if any(ALL_PAGES_SCRIPT in (small / page).read_text(encoding='utf-8') for page in site_pages(small)):
+        failures.append(f'{ALL_PAGES_SCRIPT}: loaded outside All pages')
+    return failures
 
 
 def publish(lsg, garden, output, roots, search=False):
@@ -286,7 +326,11 @@ def main():
         publish(lsg, FIXTURE_GARDEN, temp / 'small', FIXTURE_ROOTS)
         garden = temp / 'garden'
         shutil.copytree(FIXTURE_GARDEN, garden)
-        add_filler(garden, FILLER_PAGES)
+        # A full first All pages screen, without git history like the grown garden, so both
+        # list pages by name; the grown garden then gains FILLER_PAGES more.
+        add_filler(garden, ALL_PAGES_BASE)
+        publish(lsg, garden, temp / 'all-pages-base', [*FIXTURE_ROOTS, FILLER_ROOT])
+        add_filler(garden, ALL_PAGES_BASE + FILLER_PAGES)
         publish(lsg, garden, temp / 'large', [*FIXTURE_ROOTS, FILLER_ROOT])
         small = {page: page_sizes(temp / 'small', page) for page in site_pages(temp / 'small')}
         large = {page: page_sizes(temp / 'large', page) for page in small if (temp / 'large' / page).exists()}
@@ -303,6 +347,7 @@ def main():
         code_failures = check_code(temp / 'small', small, budgets['code'])
         transclusion_failures = check_transclusion(temp / 'small', small, budgets['transclusion'])
         references_failures = check_references(temp / 'small', budgets['references'])
+        all_pages_failures = check_all_pages(temp / 'all-pages-base', temp / 'large', budgets)
         print(f"{REFERENCES_SCRIPT}: {(temp / 'small' / REFERENCES_SCRIPT).stat().st_size:,}")
         print(f"{JOURNALS_SCRIPT}: {(temp / 'small' / JOURNALS_SCRIPT).stat().st_size:,}")
         print(f"{OUTLINE_SCRIPT}: {(temp / 'small' / OUTLINE_SCRIPT).stat().st_size:,}")
@@ -315,7 +360,7 @@ def main():
     print(f'references styles: {metrics.gzip_size(REFERENCES_STYLES.read_bytes()):,} gzip')
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
-                + search_failures)
+                + search_failures + all_pages_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

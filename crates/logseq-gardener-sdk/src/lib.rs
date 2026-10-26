@@ -52,3 +52,9 @@ pub mod page_names;
 
 /// Linked references, filters, tagged pages and unlinked mentions from one index.
 pub mod references;
+
+/// First and last commit times of page and journal files.
+pub mod git_dates;
+
+/// All pages: every published page with its kind, icon, backlinks and dates.
+pub mod page_list;

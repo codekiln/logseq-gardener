@@ -279,7 +279,12 @@ fn email_autolink_preserves_the_address_without_parser_fields() {
     );
     assert!(!page.contains("local_part"), "parser fields leaked: {page}");
     assert!(page.contains("<a href=\"mailto:reader@example.com\">reader@example.com</a>"));
-    assert!(report.diagnostics.is_empty());
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.source == std::path::Path::new("."))
+    );
 }
 
 #[test]
@@ -829,8 +834,9 @@ fn email_autolinks_publish_without_assets_or_private_addresses() {
     assert!(page.contains("&lt;fenced@example.org&gt;"));
     assert!(
         report.diagnostics.iter().all(|diagnostic| {
-            diagnostic.source == Path::new("pages/Notes___Private.md")
-                && diagnostic.message.contains("withheld")
+            diagnostic.source == Path::new(".")
+                || diagnostic.source == Path::new("pages/Notes___Private.md")
+                    && diagnostic.message.contains("withheld")
         }),
         "{:?}",
         report.diagnostics

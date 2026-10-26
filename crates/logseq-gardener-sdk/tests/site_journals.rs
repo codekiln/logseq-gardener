@@ -147,7 +147,8 @@ fn journal_pages_use_journal_titles_aliases_and_date_links() {
             .unwrap()
             .flatten()
             .find(|entry| {
-                fs::read_to_string(entry.path()).unwrap().contains(marker)
+                entry.path().is_file()
+                    && fs::read_to_string(entry.path()).unwrap().contains(marker)
                     && entry.file_name().to_string_lossy().starts_with("p-")
             })
             .unwrap()
@@ -173,8 +174,10 @@ fn journal_pages_use_journal_titles_aliases_and_date_links() {
         let html = fs::read_to_string(html.path()).unwrap_or_default();
         assert!(!html.contains("PRIVATE_JOURNAL"));
     }
+    // All pages hides journals until a reader shows them; the list data holds them.
     let pages = f.file("pages.html");
-    assert!(pages.contains(">2026-10-23 Fri</a>") && pages.contains(">tmux</a>"));
+    assert!(!pages.contains(">2026-10-23 Fri</a>") && pages.contains(">tmux</a>"));
+    assert!(f.file("_pages/list.json").contains("[\"2026-10-23 Fri\","));
     assert!(f.page("FUTURE_JOURNAL").contains("<h1>2026-10-26 Mon</h1>"));
 }
 
@@ -307,7 +310,13 @@ fn disabled_journals_publish_pages_without_a_feed() {
     );
     let report = f.publish();
     assert_eq!(report.journals, 7);
-    assert!(f.file("index.html").contains(">2026-10-23 Fri</a>"));
+    // All pages is the home page; journals stay in its list data until a reader shows them.
+    assert!(
+        f.file("index.html")
+            .contains("<h1 class=\"title\">All pages</h1>")
+    );
+    assert!(!f.file("index.html").contains(">2026-10-23 Fri</a>"));
+    assert!(f.file("_pages/list.json").contains("\"2026-10-23 Fri\""));
     assert!(!f.exists("journals-2.html") && !f.exists("pages.html"));
     assert!(!f.page("TMUX_BODY").contains("data-lsg-journals-link"));
 }
