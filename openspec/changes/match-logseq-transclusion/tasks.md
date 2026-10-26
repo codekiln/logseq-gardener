@@ -22,5 +22,5 @@
 ## 5. Verification
 
 - [x] 5.1 Build the encode garden with `parity:build` and compare `Claude/Code`, `Spotify/Tool/TUI`, `AI/Coding/History`, `Py/Zen of Python`, `Person/Steve Yegge/Agent/Bee - Wheelhouse Crew Seat` and `VSCode/Proj/24t3/LearnVSCode/03 Basic Python` with the `gh-pages` build at 1280×800 and 390×844 in both themes; record computed styles, screenshots, fallback counts and page sizes before and after in `verification.md`
-- [ ] 5.2 Run `parity:perf --record` and commit the updated rows in `docs/parity/performance.md`
+- [x] 5.2 Run `parity:perf --record` and commit the updated rows in `docs/parity/performance.md`
 - [x] 5.3 Run `mise run ci`

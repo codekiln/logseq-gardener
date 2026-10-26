@@ -63,3 +63,16 @@ First paint is `parity:budgets`' `page_sizes`: the page plus the files it loads 
 | Script before the title, every fixture page | 9,012 | 9,012 | no growth |
 
 Six encode-garden pages were over 100 KB gzip before this change and still are (`Answer/AI`, `note/my`, `Claude/Code`, `Keyshort`, `Update`, `note/AI`); their size comes from their own outlines and linked references, and transclusion adds at most 1.9 KB to any of them. In the fixture garden, `parity:budgets` passes with `Tools/Embeds` holding both kinds of well.
+
+## Performance
+
+`mise run parity:perf` on the same run (Logseq one load per page, `lsg` three) is recorded in [`docs/parity/performance.md`](../../../docs/parity/performance.md); `AI/Coding/History` and `VSCode/Proj/24t3/LearnVSCode/03 Basic Python` now appear there. The run header names `b490d68`, the branch's base, because the build ran from the uncommitted branch tree.
+
+| Page | Profile | Logseq title (ms) | `lsg` title (ms) | `lsg` data before title (KB gzip) | `lsg` peak heap (MB) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `AI/Coding/History` | desktop | 19,211 | 23.7 | 15.4 | 1.8 |
+| `AI/Coding/History` | phone | 188,363 | 231 | 15.4 | 1.8 |
+| `VSCode/…/03 Basic Python` | desktop | 23,196 | 35.3 | 32.1 | 2.0 |
+| `VSCode/…/03 Basic Python` | phone | 188,662 | 235 | 32.1 | 1.8 |
+
+Both embedding pages are within every page budget. The two pages marked over budget in that file, `tmux` (101 KB) and `All pages` (271 KB), were over before this change: `tmux` crossed 100 KB with fenced-code highlighting, and `All pages` belongs to [Issue #117 — Publish Logseq's All pages table](https://github.com/codekiln/logseq-gardener/issues/117).
