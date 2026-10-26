@@ -1,5 +1,6 @@
 """Unit tests for the parity harness; they need no garden, network or browser."""
 import gzip
+import os
 import sys
 import tempfile
 import unittest
@@ -157,7 +158,10 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
-                                       'transclusion'})
+                                       'transclusion', 'references'})
+        self.assertEqual(set(loaded['references']), {'script_kb', 'styles_gzip_kb', 'fragment_gzip_kb',
+                                                     'open_ms_desktop', 'open_ms_phone', 'open_heap_mb',
+                                                     'filter_ms', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['transclusion']), {'styles_gzip_kb'})
         self.assertEqual(set(loaded['code']), {'styles_gzip_kb', 'largest_page_baseline_gzip_kb',
                                                'page_growth_gzip_kb', 'build_slowdown_pct'})
@@ -294,6 +298,25 @@ class BudgetCheckTest(unittest.TestCase):
             failures = budgets.check_transclusion(site, ['p-2.html'], {'styles_gzip_kb': 0.001}, styles)
             self.assertEqual(len(failures), 2)
             self.assertEqual(failures[1], 'no fixture page has an embed')
+
+    def test_references_script_styles_and_fragments(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            styles = site / 'references.css'
+            styles.write_text('.references{margin-top:24px}', encoding='utf-8')
+            limits = {'script_kb': 1, 'styles_gzip_kb': 1, 'fragment_gzip_kb': 1}
+            self.assertEqual(budgets.check_references(site, limits, styles),
+                             ['lsg-references.js: missing from the build'])
+            (site / 'lsg-references.js').write_text('x' * 500, encoding='utf-8')
+            (site / '_refs').mkdir()
+            self.assertEqual(budgets.check_references(site, limits, styles),
+                             ['no fixture page has a reference fragment'])
+            (site / '_refs' / 'p-1-linked-1.html').write_text('<p>small</p>', encoding='utf-8')
+            self.assertEqual(budgets.check_references(site, limits, styles), [])
+            (site / '_refs' / 'p-2-linked-1.html').write_bytes(os.urandom(3000))
+            failures = budgets.check_references(site, limits, styles)
+            self.assertEqual(len(failures), 1)
+            self.assertIn('_refs/p-2-linked-1.html', failures[0])
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -26,6 +26,10 @@ CODE_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 
 CODE_MARKER = 'cp__fenced-code-block'
 TRANSCLUSION_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'transclusion.css'
 EMBED_MARKERS = ('class="embed-page"', 'class="embed-block"')
+REFERENCES_SCRIPT = 'lsg-references.js'
+REFERENCES_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'references.css'
+REFERENCES_DIR = '_refs'
+
 
 
 class _BlockingResources(html.parser.HTMLParser):
@@ -179,6 +183,29 @@ def check_transclusion(site, pages, transclusion, styles=TRANSCLUSION_STYLES):
     return failures
 
 
+def check_references(site, references, styles=REFERENCES_STYLES):
+    """Return failure messages for the references script, its styles and each fragment file."""
+    script = site / REFERENCES_SCRIPT
+    if not script.exists():
+        return [f'{REFERENCES_SCRIPT}: missing from the build']
+    failures = []
+    size = script.stat().st_size
+    if size > references['script_kb'] * 1000:
+        failures.append(f'{REFERENCES_SCRIPT}: {size:,} exceeds {references["script_kb"] * 1000:,}')
+    packed = metrics.gzip_size(Path(styles).read_bytes())
+    if packed > references['styles_gzip_kb'] * 1000:
+        failures.append(f'references styles: {packed:,} gzip exceed {references["styles_gzip_kb"] * 1000:,.0f}')
+    fragments = sorted((site / REFERENCES_DIR).glob('*.html'))
+    if not fragments:
+        failures.append('no fixture page has a reference fragment')
+    for fragment in fragments:
+        packed = metrics.gzip_size(fragment.read_bytes())
+        if packed > references['fragment_gzip_kb'] * 1000:
+            failures.append(f'{REFERENCES_DIR}/{fragment.name}: {packed:,} gzip exceed '
+                            f'{references["fragment_gzip_kb"] * 1000:,.0f}')
+    return failures
+
+
 def add_older_journals(garden, count):
     """Add journals dated before every fixture journal."""
     start = date(2000, 1, 1)
@@ -275,6 +302,8 @@ def main():
         outline_failures = check_outline(temp / 'small', budgets['outline'])
         code_failures = check_code(temp / 'small', small, budgets['code'])
         transclusion_failures = check_transclusion(temp / 'small', small, budgets['transclusion'])
+        references_failures = check_references(temp / 'small', budgets['references'])
+        print(f"{REFERENCES_SCRIPT}: {(temp / 'small' / REFERENCES_SCRIPT).stat().st_size:,}")
         print(f"{JOURNALS_SCRIPT}: {(temp / 'small' / JOURNALS_SCRIPT).stat().st_size:,}")
         print(f"{OUTLINE_SCRIPT}: {(temp / 'small' / OUTLINE_SCRIPT).stat().st_size:,}")
     for page, (raw, packed, script) in sorted(small.items()):
@@ -283,8 +312,10 @@ def main():
     print(f'inline styles: {metrics.gzip_size(INLINE_STYLES.read_bytes()):,} gzip')
     print(f'code styles: {metrics.gzip_size(CODE_STYLES.read_bytes()):,} gzip')
     print(f'transclusion styles: {metrics.gzip_size(TRANSCLUSION_STYLES.read_bytes()):,} gzip')
+    print(f'references styles: {metrics.gzip_size(REFERENCES_STYLES.read_bytes()):,} gzip')
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
-                + inline_failures + code_failures + transclusion_failures + search_failures)
+                + inline_failures + code_failures + transclusion_failures + references_failures
+                + search_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

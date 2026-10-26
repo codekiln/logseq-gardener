@@ -3,7 +3,7 @@
 - measured: 2026-10-26
 - garden commit: 0ce74d6
 - gh-pages commit: 8132c95
-- lsg: 0.0.0 (b490d68)
+- lsg: 0.0.0 (b490d68); the build time and reference sections: this change on 84e9278, measured `lsg` only
 - profiles: desktop, phone
 - loads per page, logseq: 1
 - loads per page, lsg: 3
@@ -92,8 +92,10 @@ The home page scrolled until it shows 73 journals or runs out. The phone heap bu
 
 | Build | Seconds |
 | --- | ---: |
-| without journals | 5.6 |
-| with journals | 4.7 |
+| without journals | 8.3 |
+| with journals | 8.1 |
+
+Against the baseline `lsg` with the same options: 5.2 seconds, this build **8.1** seconds (+56%).
 
 ## Block zoom on tmux
 
@@ -105,6 +107,15 @@ Time from clicking the bullet of a nested block halfway down the page to the zoo
 | desktop | lsg | 20 |
 | phone | logseq | 612 |
 | phone | lsg | 23 |
+
+## Reference sections on mise
+
+Time from clicking a section header to its first group, time from clicking a filter chip to the new count, and the peak JS heap after opening Linked and Unlinked References and scrolling both to the end.
+
+| Profile | Open linked (ms) | Filter change (ms) | Open unlinked (ms) | Groups loaded | Peak JS heap (MB) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| desktop | 22 | 46 | 12 | 449 | 4.1 |
+| phone | 346 | 96 | 243 | 449 | 3.4 |
 
 ## Search latency per keystroke
 

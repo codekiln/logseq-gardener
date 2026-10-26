@@ -1,7 +1,6 @@
 //! Generate a local HTML garden from explicitly selected Markdown pages.
 
 mod assets;
-mod backlinks;
 mod code;
 mod dialogue;
 mod hierarchy;
@@ -9,6 +8,7 @@ mod journals;
 mod outline;
 mod page_status;
 mod properties;
+mod references;
 mod render;
 mod search;
 mod sequence;
@@ -256,11 +256,11 @@ fn html_page(
     let inline_styles = INLINE_STYLES;
     let code_styles = code::STYLES;
     let transclusion_styles = TRANSCLUSION_STYLES;
-    let backlinks = include_str!("backlinks.js");
+    let references_styles = references::STYLES;
     let theme_script = include_str!("theme.js");
     let theme_styles = include_str!("theme.css");
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}.linked-references{{margin-top:2rem}}.linked-references>.backlinks-disclosure>summary{{cursor:pointer;font-size:1.1rem;font-weight:600}}.backlinks-controls fieldset{{min-width:0;margin:1rem 0}}.backlinks-options{{display:flex;flex-wrap:wrap;gap:.5rem}}.backlinks-options label{{max-width:100%;overflow-wrap:anywhere}}.backlinks-controls input{{max-width:100%;box-sizing:border-box}}.backlinks-group{{background:var(--lsg-surface);border-radius:.35rem;padding:.75rem 1rem;margin:1rem 0;overflow-wrap:anywhere}}.backlinks-group article{{margin:.75rem 0}}.backlinks-group h3{{font-size:1rem;margin:0 0 .5rem}}.backlinks-group ul{{padding-left:1.25rem;margin:.35rem 0}}.backlink-context{{font-size:.85rem;color:var(--lsg-text);margin:.35rem 0}}.backlink-source{{font-size:.85rem;text-decoration:none}}.backlink-properties{{margin:.35rem 0}}.linked-references [hidden]{{display:none!important}}{navigation_styles}{outline_styles}{inline_styles}{code_styles}{transclusion_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script><script data-lsg-backlinks-script>{backlinks}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}{navigation_styles}{outline_styles}{inline_styles}{code_styles}{transclusion_styles}{references_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
     )
 }
 
@@ -441,7 +441,7 @@ pub fn publish_site_with_options(
             )
         })
         .collect();
-    let reference_index = backlinks::Backlinks::new(
+    let reference_index = references::References::new(
         &selected,
         &names,
         reference_config.properties.then_some(&property_views),
@@ -449,6 +449,7 @@ pub fn publish_site_with_options(
             .entries()
             .map(|node| (node.route.clone(), node.title.clone()))
             .collect(),
+        journal_dates.clone(),
         settings.show_brackets,
     );
     // Embeds show page titles while `selected` is still sorted and consumed below.
@@ -522,19 +523,17 @@ pub fn publish_site_with_options(
         if let Some(search) = &mut search {
             search.admit(&route, &rendered.source_anchors);
         }
-        let (reference_html, reference_diagnostics) = reference_index.render(
+        let sections = reference_index.render(
             &route,
-            &reference_config,
-            &names,
-            &targets,
-            &selected_documents,
+            &references::Context {
+                config: &reference_config,
+                names: &names,
+                targets: &targets,
+                documents: &selected_documents,
+            },
             &mut asset,
         );
-        for message in rendered
-            .diagnostics
-            .into_iter()
-            .chain(reference_diagnostics)
-        {
+        for message in rendered.diagnostics.into_iter().chain(sections.diagnostics) {
             report.diagnostics.push(SiteDiagnostic {
                 source: document.relative_path.clone(),
                 message,
@@ -559,8 +558,11 @@ pub fn publish_site_with_options(
         let body = properties.html.clone()
             + &rendered.html
             + &sequence
+            + &sections.tagged
+            + &sections.linked
             + &hierarchy_html
-            + &reference_html;
+            + &sections.unlinked;
+        documents.extend(sections.files);
         if homepage_route.as_ref() == Some(&route) {
             homepage_document = Some(html_document(
                 &title,
@@ -585,21 +587,26 @@ pub fn publish_site_with_options(
     entries.sort_by(|left, right| left.title.cmp(&right.title));
     for node in entries {
         if !documents.contains_key(&node.route) {
-            let (reference_html, _) = reference_index.render(
+            let sections = reference_index.render(
                 &node.route,
-                &reference_config,
-                &names,
-                &targets,
-                &selected_documents,
+                &references::Context {
+                    config: &reference_config,
+                    names: &names,
+                    targets: &targets,
+                    documents: &selected_documents,
+                },
                 &mut asset,
             );
+            documents.extend(sections.files);
             documents.insert(
                 node.route.clone(),
                 html_document(
                     &node.title,
                     &(page_status::notice().to_owned()
+                        + &sections.tagged
+                        + &sections.linked
                         + &hierarchy.bottom_view(&node.title)
-                        + &reference_html),
+                        + &sections.unlinked),
                     stylesheet_route,
                     &shell,
                     &node.route,
@@ -665,6 +672,7 @@ pub fn publish_site_with_options(
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
     documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());
+    documents.insert(references::SCRIPT_ROUTE.to_owned(), references::script());
     if let Some(search) = search {
         let artifacts = search.artifacts();
         let manifest_route = artifacts
@@ -689,7 +697,7 @@ pub fn publish_site_with_options(
             "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script data-lsg-search-start>{start_after_paint}</script>"
         );
         for (route, html) in &mut documents {
-            if route.ends_with(".html") {
+            if route.ends_with(".html") && !route.starts_with("_refs/") {
                 *html = html.replacen("</head>", &(link.clone() + "</head>"), 1);
             }
         }
@@ -698,10 +706,14 @@ pub fn publish_site_with_options(
         documents.insert(startup_route, startup);
     }
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
-    for (route, html) in documents {
-        let path = output.join(route);
-        fs::write(&path, html).map_err(|error| io_error(&path, error))?;
+    if documents
+        .keys()
+        .any(|route| route.starts_with(&format!("{}/", references::REFS)))
+    {
+        let directory = output.join(references::REFS);
+        fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
     }
+    write_files(&output, documents)?;
     if let Some(contents) = stylesheet {
         let path = output.join("custom.css");
         fs::write(&path, contents).map_err(|error| io_error(&path, error))?;
@@ -716,4 +728,29 @@ pub fn publish_site_with_options(
         fs::write(&path, contents).map_err(|error| io_error(&path, error))?;
     }
     Ok(report)
+}
+
+/// Write the generated files on several threads: creating files, not rendering them,
+/// dominates the time to write a large garden.
+fn write_files(output: &Path, documents: BTreeMap<String, String>) -> Result<(), SiteError> {
+    let documents: Vec<_> = documents.into_iter().collect();
+    let threads = std::thread::available_parallelism().map_or(1, |n| n.get().min(8));
+    let chunk = documents.len().div_ceil(threads).max(1);
+    std::thread::scope(|scope| {
+        let workers: Vec<_> = documents
+            .chunks(chunk)
+            .map(|files| {
+                scope.spawn(move || {
+                    for (route, html) in files {
+                        let path = output.join(route);
+                        fs::write(&path, html).map_err(|error| io_error(&path, error))?;
+                    }
+                    Ok(())
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .try_for_each(|worker| worker.join().expect("file writer panicked"))
+    })
 }

@@ -155,6 +155,7 @@ dependencies = [
 name = "logseq-gardener-sdk"
 version = "0.0.0"
 dependencies = [
+ "aho-corasick",
  "lsdoc",
  "serde",
  "serde_json",

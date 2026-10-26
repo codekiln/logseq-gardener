@@ -61,10 +61,34 @@ fn properties(html: &str) -> &str {
         .map(|(_, s)| s.split_once("</section>").unwrap().0)
         .unwrap_or("")
 }
-fn backlinks(html: &str) -> &str {
-    html.split_once("<section class=\"linked-references\"")
+/// The Linked References header and the fragment files it loads.
+fn backlinks(f: &Fixture, title: &str) -> String {
+    let html = f.html(title);
+    let header = html
+        .split_once("data-refs=\"linked\"")
         .unwrap()
         .1
+        .split_once("</section>")
+        .unwrap()
+        .0;
+    let stem = format!("{}-linked-", route(title).trim_end_matches(".html"));
+    let mut paths: Vec<_> = std::fs::read_dir(f.0.join("site/_refs"))
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with(&stem)
+        })
+        .collect();
+    paths.sort();
+    header.to_owned()
+        + &paths
+            .into_iter()
+            .map(|path| std::fs::read_to_string(path).unwrap())
+            .collect::<String>()
 }
 
 #[test]
@@ -133,7 +157,8 @@ fn hidden_mixed_and_unsafe_values_supply_no_rows_or_property_backlinks() {
     ] {
         assert!(!html.contains(text), "{text}");
     }
-    assert!(backlinks(&f.html("Visible/Target")).contains("data-backlinks-page-count>0 pages"));
+    // Only withheld, hidden or unsafe values name the target, so it has no linked references.
+    assert!(!f.html("Visible/Target").contains("data-refs=\"linked\""));
 }
 
 #[test]
@@ -148,14 +173,14 @@ fn property_backlinks_target_the_real_revealable_summary_and_resolve_bare_tags()
     );
     f.publish();
     let target = f.html("Visible/Target");
-    assert!(backlinks(&target).contains(&format!(
+    assert!(backlinks(&f, "Visible/Target").contains(&format!(
         "href=\"{}#page-properties\">Page properties",
         route("Visible/Source")
     )));
     let source = f.html("Visible/Source");
     assert_eq!(source.matches("id=\"page-properties\"").count(), 1);
     assert!(properties(&source).contains("<dt>tags</dt><dd><a href="));
-    assert!(backlinks(&target).contains("data-backlinks-page-count>1 page"));
+    assert!(target.contains("<h2>1 Linked Reference</h2>"));
 }
 
 #[test]
@@ -166,9 +191,8 @@ fn defaults_keep_sequence_and_label_property_source_links_honestly() {
     f.publish();
     assert!(properties(&f.html("Visible/One")).is_empty());
     assert!(f.html("Visible/One").contains("class=\"page-sequence\""));
-    let two = f.html("Visible/Two");
-    assert!(backlinks(&two).contains("Page reference"));
-    assert!(!backlinks(&two).contains("#page-properties"));
+    assert!(backlinks(&f, "Visible/Two").contains("Page reference"));
+    assert!(!backlinks(&f, "Visible/Two").contains("#page-properties"));
 }
 
 #[test]

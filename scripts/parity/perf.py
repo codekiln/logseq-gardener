@@ -50,6 +50,39 @@ ZOOM = {
     'logseq': ('.block-children .bullet', '.breadcrumb.block-parents'),
     'lsg': ('ul.outline ul .bullet', 'main[data-lsg-zoomed]'),
 }
+# Reference sections: the page whose sections are opened, filtered and scrolled to the end.
+REFERENCES_PAGE = 'mise'
+REFERENCES_OPEN = '''async (kind) => {
+  const section = document.querySelector(`[data-refs=${kind}]`);
+  const start = performance.now();
+  section.querySelector('summary').click();
+  while (!section.querySelector('.references-blocks-item') && !/^0 /.test(section.querySelector('h2').textContent)) {
+    if (performance.now() - start > 60000) throw new Error(`${kind} references did not load`);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+  }
+  return performance.now() - start;
+}'''
+REFERENCES_FILTER = '''async () => {
+  const section = document.querySelector('[data-refs=linked]');
+  const heading = section.querySelector('h2');
+  section.querySelector('.filter').click();
+  for (let i = 0; !section.querySelector('dialog[open] .chip'); i++) {
+    if (i > 500) throw new Error('the filter dialog did not open');
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  const before = heading.textContent;
+  const start = performance.now();
+  // Removing a starting filter always changes the count; a new include might not.
+  section.querySelector('dialog .chip').click();
+  while (heading.textContent === before) {
+    if (performance.now() - start > 10000) throw new Error('the filter change did not change the count');
+    await new Promise(resolve => requestAnimationFrame(resolve));
+  }
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  const elapsed = performance.now() - start;
+  section.querySelector('dialog').close();
+  return elapsed;
+}'''
 ZOOM_PROBE = '''async ([bullets, done]) => {
   const all = [...document.querySelectorAll(bullets)];
   const bullet = all[Math.floor(all.length / 2)];
@@ -274,6 +307,35 @@ def measure_zoom(browser, url, build, profile):
         context.close()
 
 
+def measure_references(browser, url, profile):
+    """Open Linked References, change the filter, open Unlinked References and scroll both to the end."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
+    try:
+        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        wait_loaded(page, profile)
+        result = {'open_ms': page.evaluate(REFERENCES_OPEN, 'linked')}
+        result['filter_ms'] = page.evaluate(REFERENCES_FILTER)
+        page.evaluate('() => sessionStorage.clear()')
+        result['unlinked_open_ms'] = page.evaluate(REFERENCES_OPEN, 'unlinked')
+        # Each scroll to the end loads at most one more file per section; stop when none arrives.
+        for _ in range(100):
+            before = page.evaluate('document.querySelectorAll(".references-blocks-item").length')
+            page.evaluate(SCROLL_TO_BOTTOM)
+            try:
+                page.wait_for_function(f'document.querySelectorAll(".references-blocks-item").length > {before}',
+                                       timeout=5_000, polling=100)
+            except Exception:  # Every file has loaded.
+                break
+        page.wait_for_timeout(1000)
+        result['groups'] = page.evaluate('document.querySelectorAll(".references-blocks-item").length')
+        result['peak_heap'] = max(page.evaluate('window.__parity.peak') or 0, heap_now(cdp))
+        return result
+    except Exception as error:
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
 def measure_build(settings, baseline=None):
     """Seconds to publish the whole garden with and without journals, with the run's lsg options.
 
@@ -380,7 +442,7 @@ def markdown(results, budgets):
     for row in results.get('build', []):
         if 'baseline' not in row or row['journals'] not in builds:
             continue
-        slowdown = budgets.get('code', {}).get('build_slowdown_pct')
+        slowdown = budgets.get('references', budgets.get('code', {})).get('build_slowdown_pct')
         current = builds[row['journals']]
         text = f'{current:,.1f}'
         if slowdown is not None and current > row['seconds'] * (1 + slowdown / 100):
@@ -402,6 +464,32 @@ def markdown(results, budgets):
             if row['build'] == 'lsg' and limit is not None and row['zoom_ms'] > limit:
                 text = f'**{text}**'
             lines.append(f"| {row['profile']} | {row['build']} | {text} |")
+    limits = budgets.get('references', {})
+    reference_rows = results.get('references', [])
+    if reference_rows:
+        lines += ['', f'## Reference sections on {REFERENCES_PAGE}', '',
+                  'Time from clicking a section header to its first group, time from clicking a filter chip '
+                  'to the new count, and the peak JS heap after opening Linked and Unlinked References and '
+                  'scrolling both to the end.', '',
+                  '| Profile | Open linked (ms) | Filter change (ms) | Open unlinked (ms) | Groups loaded | Peak JS heap (MB) |',
+                  '| --- | ---: | ---: | ---: | ---: | ---: |']
+        for row in reference_rows:
+            if 'error' in row:
+                lines.append(f"| {row['profile']} | {row['error']} | | | | |")
+                continue
+            def mark(text, value, limit):
+                return f'**{text}**' if limit is not None and value > limit else text
+            open_limit = limits.get(f"open_ms_{row['profile']}")
+            cells = [
+                mark(f"{row['open_ms']:,.0f}", row['open_ms'], open_limit),
+                mark(f"{row['filter_ms']:,.0f}", row['filter_ms'],
+                     limits.get('filter_ms') if row['profile'] == 'desktop' else None),
+                mark(f"{row['unlinked_open_ms']:,.0f}", row['unlinked_open_ms'], open_limit),
+                f"{row['groups']:,}",
+                mark(f"{row['peak_heap'] / 1_000_000:,.1f}", row['peak_heap'] / 1_000_000,
+                     limits.get('open_heap_mb') if row['profile'] == 'phone' else None),
+            ]
+            lines.append(f"| {row['profile']} | " + ' | '.join(cells) + ' |')
     lines += ['', '## Search latency per keystroke', '',
               '| Profile | Build | Keystrokes | Unchanged | Median (ms) | 95th percentile (ms) |',
               '| --- | --- | ---: | ---: | ---: | ---: |']
@@ -536,8 +624,9 @@ def main():
                     row['loads'] = len(good)
                     pages.append(row)
                     print(json.dumps(row, ensure_ascii=False), flush=True)
-        feed, zoom = [], []
+        feed, zoom, references = [], [], []
         zoom_target = serve.targets(ZOOM_PAGE, names, lsg_index, run / 'site')
+        references_target = serve.targets(REFERENCES_PAGE, names, lsg_index, run / 'site')
         for profile in profiles:
             for build, server in servers.items():
                 home = server.url + serve.LOGSEQ_ROUTES['Home'] if build == 'logseq' else server.url + 'index.html'
@@ -547,6 +636,11 @@ def main():
                 row = {'profile': profile, 'build': build, **measure_feed(browser, home, build, profile)}
                 feed.append(row)
                 print(json.dumps(row), flush=True)
+                if build == 'lsg' and references_target['lsg'] is not None:
+                    row = {'profile': profile, 'build': build,
+                           **measure_references(browser, server.url + references_target['lsg'], profile)}
+                    references.append(row)
+                    print(json.dumps(row), flush=True)
                 if zoom_target[build] is not None:
                     row = {'profile': profile, 'build': build,
                            **measure_zoom(browser, server.url + zoom_target[build], build, profile)}
@@ -557,6 +651,7 @@ def main():
     search = merge(kept['search'], search, builds, ('profile', 'build'))
     feed = merge(kept.get('feed', []), feed, builds, ('profile', 'build'))
     zoom = merge(kept.get('zoom', []), zoom, builds, ('profile', 'build'))
+    references = merge(kept.get('references', []), references, builds, ('profile', 'build'))
     build_rows = measure_build(settings, args.baseline_lsg) if 'lsg' in builds else kept.get('build', [])
     for row in build_rows:
         print(json.dumps(row), flush=True)
@@ -573,6 +668,7 @@ def main():
         'search': search,
         'feed': feed,
         'zoom': zoom,
+        'references': references,
         'build': build_rows,
     }
     (run / 'perf.json').write_text(json.dumps(results, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')

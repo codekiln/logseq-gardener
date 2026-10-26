@@ -92,15 +92,17 @@
     };
     if (document.readyState === 'complete') load(); else window.addEventListener('load', load, { once: true });
   }
-  // Reader collapse and block zoom wait for load too. Load it on every page, because a
-  // host can swap an outline into a page that started without one.
-  const outlineSrc = (document.currentScript?.src || 'lsg-shell.js').replace(/lsg-shell\.js$/, 'lsg-outline.js');
-  const outline = () => {
-    const script = document.createElement('script');
-    script.src = outlineSrc;
-    document.head.append(script);
+  // Reader collapse, block zoom and reference sections wait for load too. Load them on
+  // every page, because a host can swap content into a page that started without it.
+  const base = document.currentScript?.src || 'lsg-shell.js';
+  const after = () => {
+    for (const name of ['outline', 'references']) {
+      const script = document.createElement('script');
+      script.src = base.replace(/lsg-shell\.js$/, `lsg-${name}.js`);
+      document.head.append(script);
+    }
   };
-  if (document.readyState === 'complete') outline(); else window.addEventListener('load', outline, { once: true });
+  if (document.readyState === 'complete') after(); else window.addEventListener('load', after, { once: true });
   for (const control of document.querySelectorAll('[data-lsg-left-toggle],[data-lsg-more]')) control.hidden = false;
   $('[data-lsg-left-toggle]')?.setAttribute('aria-expanded', String(isOpen()));
 })();

@@ -249,13 +249,33 @@ fn render_context(
     mode: RenderMode,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
+    let mut renderer = new_renderer(document, pages, targets, route, documents, mode, asset);
+    renderer.blocks(&document.parsed.blocks, 0);
+    super::dialogue::finalize(&mut renderer.html, &renderer.dialogue, &renderer.recordings);
+    Rendered {
+        html: renderer.html,
+        source_anchors: renderer.emitted_source_anchors,
+        diagnostics: renderer.diagnostics,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn new_renderer<'a>(
+    document: &'a GardenDocument,
+    pages: &'a crate::page_names::PageNameIndex<String>,
+    targets: &'a ReferenceTargets<String>,
+    route: &str,
+    documents: &'a BTreeMap<String, EmbedPage<'a>>,
+    mode: RenderMode,
+    asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
+) -> Renderer<'a> {
     let page = route.to_owned();
     let anchors = crate::transclusion::page_targets(&document.parsed.blocks)
         .into_iter()
         .filter(|(id, start, _)| targets.owns(id, &page, *start))
         .map(|(id, start, _)| (start, id))
         .collect();
-    let mut renderer = Renderer {
+    Renderer {
         html: String::new(),
         diagnostics: Vec::new(),
         pages,
@@ -280,14 +300,45 @@ fn render_context(
         asset,
         dialogue: Vec::new(),
         recordings: Vec::new(),
-    };
-    renderer.blocks(&document.parsed.blocks, 0);
-    super::dialogue::finalize(&mut renderer.html, &renderer.dialogue, &renderer.recordings);
-    Rendered {
-        html: renderer.html,
-        source_anchors: renderer.emitted_source_anchors,
-        diagnostics: renderer.diagnostics,
     }
+}
+
+/// A breadcrumb's text: an ancestor's first line with its inline markup and no links,
+/// since the crumb itself is the link.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_crumb(
+    inline: &[Inline],
+    document: &GardenDocument,
+    pages: &crate::page_names::PageNameIndex<String>,
+    targets: &ReferenceTargets<String>,
+    route: &str,
+    documents: &BTreeMap<String, EmbedPage>,
+    show_brackets: bool,
+    asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+) -> String {
+    let mode = RenderMode {
+        reference_depth: Some(0),
+        hide_brackets: !show_brackets,
+        ..RenderMode::default()
+    };
+    // Only the path matters here; scanning the whole document for block targets would
+    // cost a pass over the page for every crumb.
+    let empty = GardenDocument {
+        relative_path: document.relative_path.clone(),
+        kind: document.kind,
+        source: String::new(),
+        parsed: lsdoc::ast::Projection {
+            blocks: Vec::new(),
+            refs: lsdoc::ast::Refs {
+                page: Vec::new(),
+                block: Vec::new(),
+            },
+        },
+    };
+    let mut renderer = new_renderer(&empty, pages, targets, route, documents, mode, asset);
+    renderer.in_reference = true;
+    renderer.inlines(inline, 0, false);
+    renderer.html
 }
 
 struct Renderer<'a> {
@@ -394,28 +445,22 @@ impl Renderer<'_> {
                     word: marker.as_deref(),
                     priority: item.priority.as_deref(),
                 };
-                let reference_attributes = span
+                let copy = span
                     .as_ref()
-                    .filter(|_| self.source == self.reference_origin)
+                    .filter(|_| self.source == self.reference_origin && self.embed_level() == 0);
+                let reference_attributes = copy
                     .and_then(|span| self.reference_paths.get(&span.0))
-                    .map(|refs| {
-                        format!(
-                            " data-backlinks-node data-backlinks-refs=\"{}\"",
-                            escape(refs)
-                        )
-                    })
+                    .map(|block| format!(" data-ref-block=\"{}\"", escape(block)))
                     .unwrap_or_default();
-                let source_link = span.as_ref()
-                    .filter(|_| self.source == self.reference_origin)
-                    .and_then(|span| self.reference_entries.get(&span.0))
-                    .map(|href| format!("<a class=\"backlink-source\" href=\"{}\" aria-label=\"Open referring block\" title=\"Open referring block\">↗</a> ", escape(href)));
-                let entry_attribute = if source_link.is_some() {
-                    " data-backlinks-entry"
-                } else {
-                    ""
-                };
+                // A reference copy's bullet opens the block on its own page when it has one.
+                let copy_bullet = copy.filter(|_| self.reference_depth.is_some()).map(|span| {
+                    self.reference_entries.get(&span.0).map_or_else(
+                        || "<span class=\"bullet\"></span>".to_owned(),
+                        |href| format!("<a class=\"bullet\" href=\"{}\"></a>", escape(href)),
+                    )
+                });
                 let item_start = format!(
-                    "<li{}{reference_attributes}{entry_attribute}>",
+                    "<li{}{reference_attributes}>",
                     if collapsed {
                         " class=\"outline-collapsed\""
                     } else {
@@ -432,6 +477,8 @@ impl Renderer<'_> {
                 } else if levels.len() < MAX_DEPTH {
                     self.html.push_str(if root && levels.is_empty() {
                         "<ul class=\"outline\">"
+                    } else if levels.is_empty() && depth == 0 && self.reference_depth.is_some() {
+                        "<ul class=\"refs-outline\">"
                     } else {
                         "<ul>"
                     });
@@ -465,11 +512,10 @@ impl Renderer<'_> {
                         self.text(&block_label(inline, 0));
                     }
                 }
-                if !self.embedded || self.embed_level() > 0 {
+                if let Some(bullet) = &copy_bullet {
+                    self.html.push_str(bullet);
+                } else if !self.embedded || self.embed_level() > 0 {
                     self.html.push_str(BULLET);
-                }
-                if let Some(link) = source_link {
-                    self.html.push_str(&link);
                 }
                 if !flow_label {
                     self.heading_content(size, inline, &task, htags, depth);
