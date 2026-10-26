@@ -1,6 +1,6 @@
 ## Why
 
-Logseq's published site shows fenced code with the outline's indentation removed, a language label, line numbers and token colours, and shows Markdown tables across the content column with striped rows. `lsg` publishes the same code as a plain block that keeps the outline's indentation on every line (3,393 of 3,408 code blocks in the encode garden), with no label, colours or line numbers, and publishes tables at their natural width with no striping ([code and tables analysis](../../../docs/parity/code-and-tables.md), [Issue #113 — Highlight fenced code like Logseq and render Markdown tables](https://github.com/codekiln/logseq-gardener/issues/113)).
+Logseq's published site shows fenced code with the outline's indentation removed, a language label, line numbers and token colours, and shows Markdown tables across the content column with striped rows. `lsg` publishes the same code as a plain block that keeps the outline's indentation on every line (3,393 of 3,408 code blocks in the encode garden), with no label, colours or line numbers, and publishes tables at their natural width with no striping ([code and tables analysis](../../../../docs/parity/code-and-tables.md), [Issue #113 — Highlight fenced code like Logseq and render Markdown tables](https://github.com/codekiln/logseq-gardener/issues/113)).
 
 ## What Changes
 

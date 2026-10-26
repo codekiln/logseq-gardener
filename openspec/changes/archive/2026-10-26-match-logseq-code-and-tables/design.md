@@ -1,6 +1,6 @@
 ## Context
 
-The [code and tables analysis](../../../docs/parity/code-and-tables.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `d200706`) with an `lsg` build from `e88e16b`. The garden has 1,706 fenced code blocks and 138 Markdown tables on 112 pages. In `crates/logseq-gardener-sdk/src/site/render.rs`, `Block::Src` and `Block::Example` both become `<pre><code>` with the parser's text, which still carries the bullet's continuation indentation, and the parser's `lang` is dropped. `Block::Table` becomes a bare `<table>` of rows.
+The [code and tables analysis](../../../../docs/parity/code-and-tables.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `d200706`) with an `lsg` build from `e88e16b`. The garden has 1,706 fenced code blocks and 138 Markdown tables on 112 pages. In `crates/logseq-gardener-sdk/src/site/render.rs`, `Block::Src` and `Block::Example` both become `<pre><code>` with the parser's text, which still carries the bullet's continuation indentation, and the parser's `lang` is dropped. `Block::Table` becomes a bare `<table>` of rows.
 
 Logseq highlights code with CodeMirror 5, part of the roughly 35 MB of JavaScript its site loads. `lsg` produces the same look as HTML and CSS during the build, so readers download coloured markup and one small stylesheet instead of an editor.
 
@@ -49,7 +49,7 @@ Logseq's inner `ui-fenced-code-editor` and CodeMirror wrapper `div`s are left ou
 
 **Styles.** A new `site/code.css`, inlined into every page next to `outline.css`, styles the code box, label, gutter, token classes, example blocks and tables. Theme tokens join `site/theme.css`: `--lsg-code-editor-bg`, `--lsg-code-gutter-bg`, `--lsg-code-gutter-fg`, one per token class, `--lsg-table-header-fg`, `--lsg-table-rule`, `--lsg-table-stripe-a` and `--lsg-table-stripe-b`. Light values are the analysis's live measurements. Dark values come from the dark Radix scale in `codemirror.lsradix.css` and `table.css` in `logseq/og`, checked against the `gh-pages` build in dark mode during Apply. The build ships no font file; readers without Fira Code see the next font in the stack.
 
-**Budgets.** Measured by the [comparison harness](../../specs/parity-comparison-harness/spec.md):
+**Budgets.** Measured by the [comparison harness](../../../specs/parity-comparison-harness/spec.md):
 
 | Measure | Budget |
 | --- | --- |
