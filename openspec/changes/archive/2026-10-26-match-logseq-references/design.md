@@ -1,6 +1,6 @@
 ## Context
 
-The [references analysis](../../../docs/parity/references.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `c622a4d`) with an `lsg` build of garden commit `0ce74d6` from `lsg` `3f8e7c2`. Today `crates/logseq-gardener-sdk/src/site/backlinks.rs` builds the reference index inside the publisher, renders every group into the page, and `backlinks.js` filters them with one select per related page. On `mise` the section is 449 KB of a 511 KB page, and on `Answer/AI` it is 99% of 2.2 MB.
+The [references analysis](../../../../docs/parity/references.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `c622a4d`) with an `lsg` build of garden commit `0ce74d6` from `lsg` `3f8e7c2`. Today `crates/logseq-gardener-sdk/src/site/backlinks.rs` builds the reference index inside the publisher, renders every group into the page, and `backlinks.js` filters them with one select per related page. On `mise` the section is 449 KB of a 511 KB page, and on `Answer/AI` it is 99% of 2.2 MB.
 
 Logseq computes the same sections in the browser after downloading the whole graph (`db.gz`, 19.8 MB). `lsg` computes them at build time and sends a page with only the section headers and counts; the bodies arrive when a reader opens a section.
 
@@ -72,7 +72,7 @@ Journals come first, newest first, then other pages by lower-cased title; within
 
 **Styles.** A new `site/references.css`, inlined with the other page styles, holds the measured light values from the analysis through theme tokens in `site/theme.css`. Dark values reuse the existing dark tokens and are checked against the `gh-pages` build in dark mode during Apply.
 
-**Budgets.** Measured by the [comparison harness](../../specs/parity-comparison-harness/spec.md) on the whole encode garden:
+**Budgets.** Measured by the [comparison harness](../../../specs/parity-comparison-harness/spec.md) on the whole encode garden:
 
 | Measure | Budget |
 | --- | --- |
