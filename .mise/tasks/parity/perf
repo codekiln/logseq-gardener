@@ -5,11 +5,11 @@
 #USAGE flag "--profiles <list>" help="Comma-separated profiles: desktop, phone (default: both)"
 #USAGE flag "--loads <count>" help="Loads per page, build and profile (default: 3)"
 #USAGE flag "--builds <list>" help="Comma-separated builds to measure: logseq, lsg (default: both); others keep this run's rows"
-#USAGE flag "--search-site <path>" help="Measure shared search only in an existing selected static site"
+#USAGE flag "--search-site <path>" help="Measure search only, in a built site; a parity run site also measures Logseq beside it and build time"
 #USAGE flag "--search-path <path>" help="Page path inside search-site (default: index.html)"
 #USAGE flag "--search-output <path>" help="JSON output for standalone search measurements"
 #USAGE flag "--search-queries <path>" help="Search query fixture list"
-#USAGE flag "--record" help="Rewrite docs/parity/performance.md with the results"
+#USAGE flag "--record" help="Rewrite docs/parity/performance.md with the results (with --search-site, its search sections)"
 #USAGE flag "--baseline-lsg <path>" help="Also time a whole-garden build with this lsg binary, such as one built before a feature"
 set -euo pipefail
 args=()

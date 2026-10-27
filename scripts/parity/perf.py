@@ -5,6 +5,7 @@
 # ///
 """Measure load time, data, script, memory and search latency for both builds."""
 import argparse
+import contextlib
 import gzip
 import json
 import math
@@ -17,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import budgets as budgets_check  # noqa: E402
 import common  # noqa: E402
 import logseq_db  # noqa: E402
 import metrics  # noqa: E402
@@ -24,6 +26,7 @@ import serve  # noqa: E402
 
 QUERIES = Path(__file__).resolve().parent / 'search-queries.txt'
 PERFORMANCE_DOC = common.REPO / 'docs' / 'parity' / 'performance.md'
+SEARCH_DOC = common.REPO / 'docs' / 'parity' / 'search-performance.json'
 # Lighthouse's mobile settings: a mid-range phone on a slow 4G network.
 PROFILES = {
     'desktop': {'viewport': {'width': 1280, 'height': 800}, 'scale': 1, 'mobile': False,
@@ -32,13 +35,20 @@ PROFILES = {
               'cpu': 4, 'network': {'latency': 150, 'download_kbps': 1638.4, 'upload_kbps': 750},
               'timeout_ms': 900_000},
 }
-# Search controls per build; None means the build has no search.
+# Search controls per build; None means the build has no search. `visible` is the open dialog;
+# `pages` is an expression that is true once Logseq's dialog lists a Pages group.
 SEARCH = {
-    'logseq': {'open': '#search-button', 'input': '#search', 'results': '.cp__cmdk'},
+    'logseq': {'open': '#search-button', 'input': '#search', 'results': '.cp__cmdk', 'visible': '.cp__cmdk',
+               'pages': "[...document.querySelectorAll('.cp__cmdk .font-bold')]"
+                        ".some(e => /^pages$/i.test(e.textContent.trim()))"},
     'lsg': {'open': '[data-lsg-search]', 'input': '#lsg-search-input', 'results': '#lsg-search-results',
+            'visible': '#lsg-search-dialog[open]',
             'ready': '#lsg-search-dialog[open][data-lsg-search-state=ready]',
             'complete': 'data-lsg-search-complete'},
 }
+# Files that lsg's search fetches; a keystroke that requests a shard is a cold keystroke.
+SEARCH_FILES = re.compile(r'lsg-search-(manifest|titles|shard|chunk|engine|ui)-')
+SHARD_FILE = re.compile(r'lsg-search-shard-')
 KEY_GAP_MS = 300
 # Journal titles in each build's journals feed, and the number of later batches to load.
 FEED_TITLES = {'logseq': '.journal-title', 'lsg': 'a.journal-title'}
@@ -148,17 +158,56 @@ COLLECT = '''() => {
 }'''
 
 SEARCH_PROBE = '''(controls) => {
-  const results = typeof controls === 'string' ? controls : controls.results;
-  const complete = typeof controls === 'string' ? null : controls.complete;
   window.__search?.dispose?.();
-  const state = window.__search = {keys: [], changes: []};
+  const state = window.__search = {keys: [], changes: [], completions: []};
   const keydown = event => state.keys.push(event.timeStamp);
   document.addEventListener('keydown', keydown, true);
-  const observer = new MutationObserver(() => state.changes.push(performance.now()));
+  const input = () => document.querySelector(controls.input);
+  let observer;
+  if (controls.complete) {
+    // lsg advances the completion attribute after each completed render; record what it showed.
+    observer = new MutationObserver(() => state.completions.push([performance.now(), input()?.value ?? '']));
+    observer.observe(document, {attributes: true, subtree: true, attributeFilter: [controls.complete]});
+  } else {
+    observer = new MutationObserver(() => state.changes.push(performance.now()));
+    observer.observe(document.querySelector(controls.results), {childList: true, subtree: true, characterData: true});
+  }
   state.dispose = () => { document.removeEventListener('keydown', keydown, true); observer.disconnect(); };
-  observer
-    .observe(document.querySelector(results), complete ? {attributes: true, attributeFilter: [complete]}
-      : {childList: true, subtree: true, characterData: true});
+}'''
+SEARCH_COLLECT = '''() => {
+  const state = window.__search;
+  const first = state.keys.length ? state.keys[0] : performance.now();
+  const resources = performance.getEntriesByType('resource').filter(e => e.startTime >= first)
+    .map(e => [e.startTime, e.name, e.encodedBodySize]);
+  return {keys: state.keys, changes: state.changes, completions: state.completions, resources};
+}'''
+# From the Cmd/Ctrl+K keydown: the time the dialog shows, then the time it lists page results for
+# the query typed as soon as the input appears. lsg lists them on the first completed render of
+# the query; Logseq when its Pages group appears.
+OPEN_WATCH = '''(controls) => {
+  window.__open?.dispose?.();
+  const state = window.__open = {key: null, visible: null, pages: null, query: null, completed: false};
+  const keydown = event => { if (state.key === null) state.key = event.timeStamp; };
+  document.addEventListener('keydown', keydown, true);
+  const input = () => document.querySelector(controls.input);
+  const shown = () => {
+    const element = document.querySelector(controls.visible);
+    return element && element.getClientRects().length;
+  };
+  const pages = controls.pages ? new Function('return ' + controls.pages) : () => state.completed;
+  const check = () => {
+    if (state.visible === null && shown()) requestAnimationFrame(() => { state.visible ??= performance.now(); });
+    if (state.pages === null && state.query !== null && input()?.value === state.query && pages()) {
+      state.pages = performance.now();
+    }
+  };
+  const observer = new MutationObserver(records => {
+    if (controls.complete && state.query !== null && input()?.value === state.query
+        && records.some(r => r.attributeName === controls.complete)) state.completed = true;
+    check();
+  });
+  observer.observe(document, {childList: true, subtree: true, attributes: true, characterData: true});
+  state.dispose = () => { document.removeEventListener('keydown', keydown, true); observer.disconnect(); };
 }'''
 
 
@@ -213,43 +262,75 @@ def measure_load(browser, url, build, profile):
         context.close()
 
 
+def collect_garbage(cdp):
+    cdp.send('HeapProfiler.collectGarbage')
+    return heap_now(cdp)
+
+
+def search_resources(page, before, build):
+    """Requests since resource entry `before`: lsg's search files, or every request for Logseq."""
+    entries = page.evaluate('(before) => performance.getEntriesByType("resource").slice(before)'
+                            '.map(e => [e.name, e.encodedBodySize, e.decodedBodySize])', before)
+    if build == 'lsg':
+        entries = [e for e in entries if SEARCH_FILES.search(e[0])]
+    return {'requests': len(entries), 'transfer': sum(e[1] for e in entries), 'decoded': sum(e[2] for e in entries)}
+
+
+def close_search(page, controls):
+    """Press Escape until the dialog closes; lsg clears the input and a filter first."""
+    for _ in range(4):
+        if not page.is_visible(controls['visible']):
+            return
+        page.keyboard.press('Escape')
+        page.wait_for_timeout(100)
+
+
 def measure_search(browser, url, build, profile, queries):
+    """Open search with Cmd/Ctrl+K, type the first query at once, then each query a key at a time.
+
+    Records the time to the dialog and to the first query's page results, the bytes the first
+    open fetched, each keystroke's latency and bytes, whether it fetched a shard, and the heap
+    growth after the whole query list.
+    """
     controls = SEARCH[build]
     if controls is None:
         return {'note': 'no search'}
+    timeout = PROFILES[profile]['timeout_ms']
     context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS[build])
     try:
-        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        page.goto(url, wait_until='commit', timeout=timeout)
         wait_loaded(page, profile)
         if page.query_selector(controls['open']) is None:
             return {'note': 'no search'}
         page.wait_for_selector(controls['open'], state='visible', timeout=30_000)
         page_load = page.evaluate(COLLECT)
+        eager = sum(1 for name in page.evaluate('performance.getEntriesByType("resource").map(e => e.name)')
+                    if SEARCH_FILES.search(name))
         resources_before = page.evaluate('performance.getEntriesByType("resource").length')
-        eager = page.evaluate('performance.getEntriesByType("resource").filter(e => /lsg-search-(manifest-|engine-|[a-f0-9]+\\.json)/.test(e.name)).length')
-        before_heap = heap_now(cdp)
-        started = page.evaluate('performance.now()')
-        page.click(controls['open'])
-        page.wait_for_selector(controls.get('ready', controls['results']), timeout=PROFILES[profile]['timeout_ms'])
-        loading = page.evaluate('''(before) => {
-          const entries = performance.getEntriesByType('resource').slice(before).filter(entry => /lsg-search-/.test(entry.name));
-          return {first_open_ms: performance.now(), first_open_requests: entries.length,
-            first_open_transfer: entries.reduce((sum, e) => sum + e.encodedBodySize, 0),
-            first_open_decoded: entries.reduce((sum, e) => sum + e.decodedBodySize, 0)};
-        }''', resources_before)
-        loading['first_open_ms'] -= started
-        loading['page_load'] = page_load
-        loading['heap_growth'] = max(0, heap_now(cdp) - before_heap)
-        loading['eager_search_requests'] = eager
+        before_heap = collect_garbage(cdp)
+        page.evaluate(OPEN_WATCH, controls)
+        page.keyboard.press('ControlOrMeta+k')
+        page.wait_for_function('window.__open.visible !== null', timeout=timeout, polling=50)
+        page.wait_for_selector(controls['input'], state='visible', timeout=timeout)
+        page.evaluate('(query) => { window.__open.query = query; }', queries[0])
+        page.keyboard.type(queries[0])
+        page.wait_for_function('window.__open.pages !== null', timeout=timeout, polling=50)
+        opened = page.evaluate('({key: window.__open.key, visible: window.__open.visible, pages: window.__open.pages})')
+        page.evaluate('window.__open.dispose()')
+        fetched = search_resources(page, resources_before, build)
+        result = {'dialog_ms': opened['visible'] - opened['key'], 'first_results_ms': opened['pages'] - opened['key'],
+                  'first_open_requests': fetched['requests'], 'first_open_transfer': fetched['transfer'],
+                  'first_open_decoded': fetched['decoded'], 'page_load': page_load,
+                  'eager_search_requests': eager}
         if build == 'lsg':
-            page.keyboard.press('Escape')
+            close_search(page, controls)
             before_warm = page.evaluate('performance.getEntriesByType("resource").length')
             started = page.evaluate('performance.now()')
-            page.click(controls['open'])
-            page.wait_for_selector(controls['ready'])
-            loading['warm_open_ms'] = page.evaluate('performance.now()') - started
-            loading['warm_open_requests'] = page.evaluate('(before) => performance.getEntriesByType("resource").slice(before).filter(e => /lsg-search-/.test(e.name)).length', before_warm)
-        latencies = []
+            page.keyboard.press('ControlOrMeta+k')
+            page.wait_for_selector(controls['ready'], timeout=timeout)
+            result['warm_open_ms'] = page.evaluate('performance.now()') - started
+            result['warm_open_requests'] = search_resources(page, before_warm, build)['requests']
+        latencies, fetches = [], []
         for query in queries:
             page.fill(controls['input'], '')
             page.wait_for_timeout(1000)
@@ -258,15 +339,37 @@ def measure_search(browser, url, build, profile, queries):
                 page.keyboard.type(character)
                 page.wait_for_timeout(KEY_GAP_MS)
             page.wait_for_timeout(2000)
-            state = page.evaluate('({keys: window.__search.keys, changes: window.__search.changes})')
-            latencies += metrics.keystroke_latencies(state['keys'], state['changes'])
-        measured = [v for v in latencies if v is not None]
-        return {**loading, 'keystrokes': len(latencies), 'unchanged': len(latencies) - len(measured),
-                'p50_ms': metrics.percentile(measured, 0.5), 'p95_ms': metrics.percentile(measured, 0.95)}
+            state = page.evaluate(SEARCH_COLLECT)
+            if build == 'lsg':
+                values = [query[:index + 1] for index in range(len(state['keys']))]
+                latencies += metrics.completion_latencies(state['keys'], values, state['completions'])
+                files = [r for r in state['resources'] if SEARCH_FILES.search(r[1])]
+            else:
+                latencies += metrics.keystroke_latencies(state['keys'], state['changes'])
+                files = state['resources']
+            fetches += metrics.keystroke_fetches(state['keys'], files, SHARD_FILE)
+        result['heap_growth'] = max(0, collect_garbage(cdp) - before_heap)
+        return {**result, **keystroke_summary(latencies, fetches)}
     except Exception as error:
         return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
     finally:
         context.close()
+
+
+def keystroke_summary(latencies, fetches):
+    """Percentiles of every keystroke, of those that fetched a shard (cold) and of the rest (warm)."""
+    measured = [v for v in latencies if v is not None]
+    cold = [v for v, f in zip(latencies, fetches) if f['shard'] and v is not None]
+    warm = [v for v, f in zip(latencies, fetches) if not f['shard'] and v is not None]
+    # Warm keystrokes that downloaded nothing: the ones that waited for no record chunk either.
+    idle = [v for v, f in zip(latencies, fetches) if not f['bytes'] and v is not None]
+    sizes = [f['bytes'] for f in fetches]
+    return {'keystrokes': len(latencies), 'unchanged': len(latencies) - len(measured),
+            'p50_ms': metrics.percentile(measured, 0.5), 'p95_ms': metrics.percentile(measured, 0.95),
+            'cold_keystrokes': sum(f['shard'] for f in fetches), 'cold_p95_ms': metrics.percentile(cold, 0.95),
+            'warm_p95_ms': metrics.percentile(warm, 0.95), 'chunk_keystrokes': sum(
+                1 for f in fetches if f['bytes'] and not f['shard']), 'idle_p95_ms': metrics.percentile(idle, 0.95),
+            'keystroke_bytes_max': max(sizes, default=0), 'keystroke_bytes_p95': metrics.percentile(sizes, 0.95)}
 
 
 def measure_feed(browser, url, build, profile):
@@ -413,24 +516,44 @@ def measure_hierarchy(browser, url, profile):
 
 
 def measure_build(settings, baseline=None):
-    """Seconds to publish the whole garden with and without journals, with the run's lsg options.
+    """Seconds to publish the whole garden with the run's lsg options, and without journals or search.
 
     With a baseline binary, such as an lsg built before a feature, also time it with the run's
     options so the feature's build slowdown can be checked.
     """
     lsg = common.lsg_binary()
     options = settings['lsg_options']
+    variants = [options] + [[o for o in options if o != flag] for flag in ('--journals', '--search') if flag in options]
     rows = []
     with tempfile.TemporaryDirectory(prefix='lsg-build-time-') as temp:
-        for journals in (False, True):
-            chosen = [o for o in options if o != '--journals'] + (['--journals'] if journals else [])
-            output = Path(temp) / ('with' if journals else 'without')
-            rows.append({'build': 'lsg', 'journals': journals,
-                         'seconds': time_publish(lsg, settings['garden'], output, chosen)})
+        for number, chosen in enumerate(variants):
+            rows.append({'build': 'lsg', 'journals': '--journals' in chosen, 'search': '--search' in chosen,
+                         'seconds': time_publish(lsg, settings['garden'], Path(temp) / str(number), chosen)})
         if baseline:
             rows.append({'build': 'lsg', 'baseline': str(baseline), 'journals': '--journals' in options,
+                         'search': '--search' in options,
                          'seconds': time_publish(baseline, settings['garden'], Path(temp) / 'baseline', options)})
     return rows
+
+
+def build_variants(rows):
+    """Map (journals, search) to seconds for the rows timed without a baseline binary."""
+    return {(row['journals'], row.get('search', False)): row['seconds'] for row in rows if 'baseline' not in row}
+
+
+def build_over_budget(variant, builds, budgets):
+    """True when a build is more than its feature's slowdown budget above the build without it."""
+    journals, search = variant
+    checks = [((False, search), budgets.get('journals', {}).get('build_slowdown_pct'))] if journals else []
+    if search:
+        checks.append(((journals, False), budgets.get('search', {}).get('build_slowdown_pct')))
+    return any(other in builds and limit is not None and builds[variant] > builds[other] * (1 + limit / 100)
+               for other, limit in checks)
+
+
+def build_label(variant):
+    journals, search = variant
+    return f"{'with' if journals else 'without'} journals, {'with' if search else 'without'} search"
 
 
 def time_publish(lsg, garden, output, options):
@@ -503,25 +626,26 @@ def markdown(results, budgets):
                 and row['peak_heap'] > feed_limit * 1_000_000):
             heap = f'**{heap}**'
         lines.append(f"| {row['profile']} | {row['build']} | {row['journals']} | {heap} | {row['scroll_ms']:,.0f} |")
-    builds = {row['journals']: row['seconds'] for row in results.get('build', []) if 'baseline' not in row}
+    builds = build_variants(results.get('build', []))
     if builds:
-        slowdown = budgets.get('journals', {}).get('build_slowdown_pct')
         lines += ['', '## Whole-garden build time', '',
-                  '`lsg publish` with the run\'s options, once without and once with `--journals`.', '',
+                  '`lsg publish` with the run\'s options, then without `--journals` and without `--search`. '
+                  '**Bold** marks a build more than the `[journals]` or `[search]` `build_slowdown_pct` above '
+                  'the build without that feature.', '',
                   '| Build | Seconds |', '| --- | ---: |']
-        for journals, seconds in sorted(builds.items()):
+        for variant, seconds in sorted(builds.items(), key=lambda item: (-item[0][0], -item[0][1])):
             text = f'{seconds:,.1f}'
-            if (journals and False in builds and slowdown is not None
-                    and seconds > builds[False] * (1 + slowdown / 100)):
+            if build_over_budget(variant, builds, budgets):
                 text = f'**{text}**'
-            lines.append(f"| {'with' if journals else 'without'} journals | {text} |")
+            lines.append(f'| {build_label(variant)} | {text} |')
     for row in results.get('build', []):
-        if 'baseline' not in row or row['journals'] not in builds:
+        variant = (row['journals'], row.get('search', False))
+        if 'baseline' not in row or variant not in builds:
             continue
         # The latest feature's budget: All pages, then Hierarchy, then reference sections, then code.
         slowdown = next((budgets[table]['build_slowdown_pct'] for table in ('all_pages', 'hierarchy', 'references', 'code')
                          if 'build_slowdown_pct' in budgets.get(table, {})), None)
-        current = builds[row['journals']]
+        current = builds[variant]
         text = f'{current:,.1f}'
         if slowdown is not None and current > row['seconds'] * (1 + slowdown / 100):
             text = f'**{text}**'
@@ -605,69 +729,229 @@ def markdown(results, budgets):
             if row['profile'] == 'phone' and heap_limit is not None and row['peak_heap'] > heap_limit * 1_000_000:
                 heap = f'**{heap}**'
             lines.append(f"| {row['profile']} | {row['inline_rows']:,} | {row['rows']:,} | {heap} |")
-    lines += ['', '## Search latency per keystroke', '',
-              '| Profile | Build | Keystrokes | Unchanged | Median (ms) | 95th percentile (ms) |',
-              '| --- | --- | ---: | ---: | ---: | ---: |']
-    for row in results['search']:
-        if 'p95_ms' not in row:
-            lines.append(f"| {row['profile']} | {row['build']} | {row.get('note') or row.get('error')} | | |")
-            continue
-        p95 = f"{row['p95_ms']:.0f}" if row['p95_ms'] is not None else '–'
-        limit = budgets.get(row['profile'], {}).get('search_p95_ms')
-        if row['build'] == 'lsg' and row['p95_ms'] is not None and limit is not None and row['p95_ms'] > limit:
-            p95 = f'**{p95}**'
-        p50 = f"{row['p50_ms']:.0f}" if row['p50_ms'] is not None else '–'
-        lines.append(f"| {row['profile']} | {row['build']} | {row['keystrokes']} | {row.get('unchanged', 0)} | {p50} | {p95} |")
-    lines += ['', '## Search first open and cached reopening', '',
-              '| Profile | Build | First ready (ms) | Transferred body (KB) | Decoded (KB) | Heap growth (MB) | Eager requests | Warm ready (ms) | Warm requests |',
-              '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
-    for row in results['search']:
-        if 'first_open_ms' in row:
-            lines.append(f"| {row['profile']} | {row['build']} | {row['first_open_ms']:.0f} | {row['first_open_transfer']/1000:.1f} | {row['first_open_decoded']/1000:.1f} | {row['heap_growth']/1_000_000:.1f} | {row['eager_search_requests']} | {row.get('warm_open_ms', 0):.0f} | {row.get('warm_open_requests', '–')} |")
+    lines += search_markdown(results, budgets)
     return '\n'.join(lines) + '\n'
 
 
-def search_failures(report, budgets):
-    limits = budgets['search']
-    failures = []
-    for field, limit in [('decoded_bytes', limits['corpus_decoded_mb'] * 1_000_000),
-                         ('gzip_bytes', limits['corpus_gzip_kb'] * 1000),
-                         ('bootstrap_bytes', limits['bootstrap_kb'] * 1000)]:
-        if report['corpus'][field] > limit:
-            failures.append(f'{field} exceeds {limit}')
-    for row in report['search']:
-        profile = row['profile']
-        if 'error' in row or 'first_open_ms' not in row:
-            failures.append(f'{profile}: search did not become ready')
+def index_summary(site):
+    """The search file sizes recorded beside the browser measurements."""
+    sizes = budgets_check.search_index_sizes(site)
+    site = Path(site)
+    largest_shard, largest_chunk = sizes['shards'][0], sizes['chunks'][0]
+    return {'pages': sizes['pages'], 'blocks': sizes['blocks'], 'titles': sizes['titles'],
+            'titles_decoded': sizes['titles_decoded'], 'titles_gzip': sizes['titles_gzip'],
+            'shard_count': len(sizes['shards']), 'chunk_count': len(sizes['chunks']),
+            'largest_shard': {'file': largest_shard[0], 'key': sizes['shard_keys'][largest_shard[0]],
+                              'gzip': largest_shard[1]},
+            'largest_chunk': {'file': largest_chunk[0], 'gzip': largest_chunk[1]},
+            'bootstrap_bytes': next(site.glob('lsg-search-start-*.mjs')).stat().st_size,
+            'controller_bytes': next(site.glob('lsg-search-ui-*.mjs')).stat().st_size}
+
+
+def index_checks(index, budgets):
+    """(label, value, limit) for each search file size with a budget."""
+    limits = budgets.get('search', {})
+    return [('Title index (KB, gzip)', index['titles_gzip'] / 1000, limits.get('titles_gzip_kb')),
+            ('Title index (MB, decoded)', index['titles_decoded'] / 1_000_000, limits.get('titles_decoded_mb')),
+            (f"Largest shard, words starting `{index['largest_shard']['key']}` (KB, gzip)",
+             index['largest_shard']['gzip'] / 1000, limits.get('shard_gzip_kb')),
+            ('Largest record chunk (KB, gzip)', index['largest_chunk']['gzip'] / 1000, limits.get('chunk_gzip_kb')),
+            ('Search starter (KB)', index['bootstrap_bytes'] / 1000, limits.get('bootstrap_kb'))]
+
+
+def search_checks(row, budgets):
+    """(field, value, limit) for each search measure of one lsg row that has a budget."""
+    limits, profile = budgets.get('search', {}), row['profile']
+    checks = [('dialog_ms', row.get('dialog_ms'), limits.get(f'dialog_ms_{profile}')),
+              ('first_results_ms', row.get('first_results_ms'), limits.get(f'first_results_ms_{profile}')),
+              ('cold_p95_ms', row.get('cold_p95_ms'), limits.get(f'cold_keystroke_ms_{profile}')),
+              ('warm_p95_ms', row.get('warm_p95_ms'), budgets.get(profile, {}).get('search_p95_ms')),
+              ('keystroke_bytes_max', row.get('keystroke_bytes_max'),
+               limits['keystroke_gzip_kb'] * 1000 if 'keystroke_gzip_kb' in limits else None),
+              ('warm_open_ms', row.get('warm_open_ms'), limits.get(f'warm_open_{profile}_ms'))]
+    if profile == 'phone' and 'heap_growth_mb' in limits:
+        checks.append(('heap_growth', row.get('heap_growth'), limits['heap_growth_mb'] * 1_000_000))
+    return checks
+
+
+def search_markdown(results, budgets):
+    """The search sections of the performance report: file sizes, then both builds in the browser."""
+    lines = []
+    index = results.get('search_index')
+    if index:
+        lines += ['', '## Search index', '',
+                  f"`lsg`'s search files for {index['pages']:,} pages and {index['blocks']:,} blocks: one title index, "
+                  f"{index['shard_count']:,} word shards and {index['chunk_count']:,} record chunks. "
+                  '**Bold** marks a value over its `[search]` budget.', '',
+                  '| File | Size | Budget |', '| --- | ---: | ---: |']
+        for label, value, limit in index_checks(index, budgets):
+            text = f'{value:,.1f}' if value < 100 else f'{value:,.0f}'
+            if limit is not None and value > limit:
+                text = f'**{text}**'
+            lines.append(f"| {label} | {text} | {'–' if limit is None else f'{limit:,}'} |")
+    rows = [row for row in results.get('search', [])]
+    lines += ['', '## Search', '',
+              'Cmd/Ctrl+K on the home page, then the first query typed at once: the time from the key to the '
+              'dialog and to its page results, and what that first open downloaded. Then each query in '
+              '[`search-queries.txt`](../../scripts/parity/search-queries.txt) typed a key every '
+              f'{KEY_GAP_MS} ms. A cold keystroke fetches a word shard; a warm one does not. The heap growth is '
+              'measured after the whole query list, after garbage collection. **Bold** marks an `lsg` value '
+              'over its budget.', '',
+              '| Profile | Build | Dialog shown (ms) | First page results (ms) | First open (KB, gzip) '
+              '| Cold keystrokes | Cold 95th percentile (ms) | Warm 95th percentile (ms) '
+              '| Largest keystroke download (KB, gzip) | Heap growth (MB) |',
+              '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
+    scale = {'keystroke_bytes_max': 1000, 'heap_growth': 1_000_000}
+    for row in rows:
+        if 'dialog_ms' not in row:
+            lines.append(f"| {row['profile']} | {row['build']} | {row.get('note') or row.get('error')} |" + ' |' * 7)
             continue
-        checks = [('first_open_ms', limits[f'first_open_{profile}_ms']),
-                  ('warm_open_ms', limits[f'warm_open_{profile}_ms']),
-                  ('heap_growth', limits['heap_growth_mb'] * 1_000_000),
-                  ('eager_search_requests', 0), ('warm_open_requests', 0)]
-        if row['keystrokes']:
-            checks.append(('p95_ms', budgets[profile]['search_p95_ms']))
-            if row['unchanged']:
-                failures.append(f'{profile}: {row["unchanged"]} keystrokes had no completion')
-        for field, limit in checks:
+        over = {field for field, value, limit in search_checks(row, budgets)
+                if row['build'] == 'lsg' and limit is not None and value is not None and value > limit}
+
+        def cell(field, digits=0):
             value = row.get(field)
+            if value is None:
+                return '–'
+            value /= scale.get(field, 1)
+            text = f'{value:,.{digits}f}'
+            return f'**{text}**' if field in over else text
+        lines.append(f"| {row['profile']} | {row['build']} | {cell('dialog_ms')} | {cell('first_results_ms')} | "
+                     f"{row['first_open_transfer'] / 1000:,.1f} | {row['cold_keystrokes']} | {cell('cold_p95_ms')} | "
+                     f"{cell('warm_p95_ms')} | {cell('keystroke_bytes_max', 1)} | {cell('heap_growth', 1)} |")
+    lines += ['', '## Search latency per keystroke', '',
+              'Every keystroke of the query list. An unanswered keystroke is one whose results never showed. '
+              'A warm keystroke can still wait for a record chunk; the keystrokes that fetched nothing show '
+              'the cost of the query alone. '
+              '`lsg` reopens the dialog from memory after the first open.', '',
+              '| Profile | Build | Keystrokes | Unanswered | Median (ms) | 95th percentile (ms) '
+              '| Warm keystrokes that fetched a chunk | 95th percentile of keystrokes that fetched nothing (ms) '
+              '| Reopen (ms) | Reopen requests |',
+              '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
+    for row in rows:
+        if 'p95_ms' not in row:
+            continue
+        reopen = f"{row['warm_open_ms']:,.0f}" if 'warm_open_ms' in row else '–'
+        p50, p95, idle = ('–' if row.get(k) is None else f'{row[k]:,.0f}' for k in ('p50_ms', 'p95_ms', 'idle_p95_ms'))
+        lines.append(f"| {row['profile']} | {row['build']} | {row['keystrokes']} | {row['unchanged']} | "
+                     f"{p50} | {p95} | {row.get('chunk_keystrokes', '–')} | {idle} | {reopen} | "
+                     f"{row.get('warm_open_requests', '–')} |")
+    builds = build_variants(results.get('search_build', []))
+    if (True, True) in builds and (True, False) in builds:
+        with_search, without = builds[(True, True)], builds[(True, False)]
+        text = f'{with_search:,.1f}'
+        if build_over_budget((True, True), builds, budgets):
+            text = f'**{text}**'
+        lines += ['', f'Whole-garden build with journals: {text} seconds with `--search`, {without:,.1f} seconds '
+                  f'without ({(with_search / without - 1) * 100:+.0f}%; budget '
+                  f"+{budgets.get('search', {}).get('build_slowdown_pct')}%)."]
+    return lines
+
+
+def search_failures(report, budgets):
+    """Failure messages for standalone search measurements over a budget or missing."""
+    failures = []
+    index = report.get('search_index')
+    if index:
+        failures += [f'{label}: {value:,.1f} exceeds {limit}' for label, value, limit in index_checks(index, budgets)
+                     if limit is not None and value > limit]
+    for row in report['search']:
+        if row.get('build', 'lsg') != 'lsg':
+            continue
+        profile = row['profile']
+        if 'error' in row or 'dialog_ms' not in row:
+            failures.append(f"{profile}: search did not open: {row.get('error') or row.get('note')}")
+            continue
+        if row['unchanged']:
+            failures.append(f"{profile}: {row['unchanged']} keystrokes had no completed results")
+        for field, value, limit in search_checks(row, budgets) + [('eager_search_requests', row['eager_search_requests'], 0),
+                                                                  ('warm_open_requests', row.get('warm_open_requests'), 0)]:
+            if limit is None:
+                continue
             if value is None or not math.isfinite(value) or value > limit:
                 failures.append(f'{profile}: {field}={value} exceeds {limit} or is unavailable')
+    builds = build_variants(report.get('search_build', []))
+    if (True, True) in builds and build_over_budget((True, True), builds, budgets):
+        failures.append('whole-garden build with --search exceeds its slowdown budget')
     return failures
 
 
-def search_corpus(site):
-    """Selected artifact sizes/counts; never emit local source paths or omitted counts."""
-    manifests = sorted(Path(site).glob('lsg-search-manifest-*.json'))
-    if len(manifests) != 1:
-        raise ValueError('expected exactly one search manifest')
-    manifest = json.loads(manifests[0].read_text(encoding='utf-8'))
-    raw = (Path(site) / manifest['corpus']['href']).read_bytes()
-    corpus = json.loads(raw)
-    return {'pages': len(corpus['pages']), 'blocks': len(corpus['content']),
-            'decoded_bytes': len(raw), 'gzip_bytes': len(gzip.compress(raw, 6)),
-            'controller_bytes': next(Path(site).glob('lsg-search-ui-*.mjs')).stat().st_size,
-            'bootstrap_bytes': next(Path(site).glob('lsg-search-start-*.mjs')).stat().st_size,
-            'initial_shim_bytes': len(re.search(r'<script data-lsg-search-start>(.*?)</script>', (Path(site) / 'index.html').read_text(encoding='utf-8'), re.S).group(1).encode('utf-8'))}
+def search_run(args):
+    """The parity run that holds --search-site, if any: its settings and Logseq build sit beside it."""
+    if args.run:
+        return Path(args.run)
+    parent = args.search_site.resolve().parent
+    return parent if (parent / 'settings.json').exists() else None
+
+
+def measure_search_site(args, sync_playwright):
+    """Measure search in a built site and, when it is a parity run's site, Logseq's build and build time.
+
+    Writes --search-output (JSON and Markdown); with --record, also docs/parity/search-performance.json
+    and the search sections of docs/parity/performance.md. Fails when an lsg value is over budget.
+    """
+    budgets = metrics.load_budgets()
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    builds = [b.strip() for b in args.builds.split(',') if b.strip()]
+    queries = serve.fixtures(args.search_queries)
+    run = search_run(args)
+    logseq_dir = run / 'logseq' if run else None
+    if 'logseq' in builds and not (logseq_dir and logseq_dir.exists()):
+        print('No Logseq build beside the site; measuring lsg only. Run `mise run parity:compare` for one.')
+        builds = [b for b in builds if b != 'logseq']
+    site = args.search_site / Path(args.search_path).parent
+    rows = []
+    with serve.Server(args.search_site) as lsg, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
+        servers = {'lsg': (lsg, args.search_path)}
+        with contextlib.ExitStack() as stack:
+            if 'logseq' in builds:
+                servers['logseq'] = (stack.enter_context(serve.Server(logseq_dir)), serve.LOGSEQ_ROUTES['Home'])
+            for profile in profiles:
+                for build in ('logseq', 'lsg'):
+                    if build not in builds:
+                        continue
+                    server, path = servers[build]
+                    row = {'profile': profile, 'build': build,
+                           **measure_search(browser, server.url + path, build, profile, queries)}
+                    rows.append(row)
+                    print(json.dumps(row), flush=True)
+        browser.close()
+    summary = {'measured': datetime.now(timezone.utc).strftime('%Y-%m-%d'), 'profiles': ', '.join(profiles)}
+    build_rows = []
+    if run and 'lsg' in builds:
+        settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
+        garden = Path(settings['garden'])
+        summary.update({'garden commit': settings['garden_commit'][:7],
+                        'gh-pages commit': common.git_commit(garden, 'origin/gh-pages')[:7],
+                        'lsg': f"{settings['lsg_version']} ({settings['lsg_commit'][:7]})"})
+        if '--search' in settings['lsg_options']:
+            build_rows = measure_build(settings)
+            for row in build_rows:
+                print(json.dumps(row), flush=True)
+    report = {'summary': summary, 'search_index': index_summary(site), 'pages': [], 'search': rows,
+              'search_build': build_rows}
+    text = '\n'.join(['# Search performance', ''] + [f'- {k}: {v}' for k, v in summary.items()]
+                     + search_markdown(report, budgets)) + '\n'
+    if args.search_output:
+        args.search_output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        args.search_output.with_suffix('.md').write_text(text, encoding='utf-8')
+    if args.record:
+        SEARCH_DOC.write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        record_search_sections(report, budgets)
+    print(text)
+    failures = search_failures(report, budgets)
+    if failures:
+        raise SystemExit('\n'.join(failures))
+
+
+def record_search_sections(report, budgets):
+    """Replace the search sections at the end of docs/parity/performance.md with this measurement."""
+    text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+    start = text.find('\n## Search')
+    kept = text if start < 0 else text[:start]
+    PERFORMANCE_DOC.write_text(kept.rstrip('\n') + '\n' + '\n'.join(search_markdown(report, budgets)) + '\n',
+                               encoding='utf-8')
 
 
 def main():
@@ -678,33 +962,21 @@ def main():
     parser.add_argument('--loads', type=int, default=3, help='loads per page, build and profile')
     parser.add_argument('--builds', default='logseq,lsg',
                         help='comma-separated builds to measure; other builds keep their rows from this run')
-    parser.add_argument('--search-site', type=Path, help='Measure search only in an existing selected static site')
+    parser.add_argument('--search-site', type=Path,
+                        help='Measure search only, in a built site; a parity run\'s site also measures Logseq beside it')
     parser.add_argument('--search-path', default='index.html', help='Page path inside --search-site (for a host prefix)')
     parser.add_argument('--search-output', type=Path, help='JSON destination for standalone search measurements')
     parser.add_argument('--search-queries', type=Path, default=QUERIES, help='Query fixture list for search measurements')
-    parser.add_argument('--record', action='store_true', help='rewrite docs/parity/performance.md')
+    parser.add_argument('--record', action='store_true',
+                        help='rewrite docs/parity/performance.md; with --search-site, its search sections and '
+                             'docs/parity/search-performance.json')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
     from playwright.sync_api import sync_playwright
 
     if args.search_site:
-        profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
-        rows = []
-        with serve.Server(args.search_site) as server, sync_playwright() as playwright:
-            browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
-            for profile in profiles:
-                row = {'profile': profile, 'build': 'lsg', **measure_search(browser, server.url + args.search_path, 'lsg', profile, serve.fixtures(args.search_queries))}
-                rows.append(row)
-                print(json.dumps(row), flush=True)
-            browser.close()
-        report = {'corpus': search_corpus(args.search_site / Path(args.search_path).parent), 'summary': {'measured': datetime.now(timezone.utc).strftime('%Y-%m-%d'), 'profiles': ', '.join(profiles)}, 'pages': [], 'search': rows}
-        if args.search_output:
-            args.search_output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
-            args.search_output.with_suffix('.md').write_text(markdown(report, metrics.load_budgets()), encoding='utf-8')
-        failures = search_failures(report, metrics.load_budgets())
-        if failures:
-            raise SystemExit('\n'.join(failures))
+        measure_search_site(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)
@@ -795,6 +1067,7 @@ def main():
             'lsg': f"{settings['lsg_version']} ({settings['lsg_commit'][:7]})",
             'profiles': ', '.join(profiles),
         },
+        'search_index': index_summary(run / 'site') if list((run / 'site').glob('lsg-search-manifest-*.json')) else None,
         'pages': pages,
         'search': search,
         'feed': feed,

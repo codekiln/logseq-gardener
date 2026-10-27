@@ -49,7 +49,7 @@ The manifest, `lsg-search-manifest-REVISION.json`, names every other file:
 
 Block records are ordered by page, in title-index order, then by source position, so a page's records are consecutive and the title index's counts give each block's page before its chunk loads. A block's number is its place in that order; chunk `n` holds blocks `n × chunk_size` onwards.
 
-A word belongs to the shard keyed by its first two characters; a one-character word has its own shard. A shard larger than 64 KB gzipped splits by the next character, and the words no longer than its key stay in a terminal shard under the key. A terminal shard (a one-character key, or a key that a longer key extends) holds only the word equal to its key.
+A word belongs to the shard keyed by its first two characters; a one-character word has its own shard. A shard larger than 64 KB (64,000 bytes) gzipped splits by the next character, and the words no longer than its key stay in a terminal shard under the key. A terminal shard (a one-character key, or a key that a longer key extends) holds only the word equal to its key.
 
 The destination fragment prefers `block-UUID` when the authored UUID is globally unique among selected originals; otherwise it uses `source-block-POSITION`, the UTF-8 source offset. Every indexed destination is requested from the renderer and admitted only after its original anchor is emitted. Parents hold safe original parent text, each bounded to 160 Unicode characters. Records contain only published text; original source files and filesystem paths are absent.
 
@@ -129,6 +129,6 @@ An ordinary result activation closes the dialog before its click bubbles to the 
 
 `mise run search:browser-test` runs a generated static publication in pinned Chromium and checks keyboard/focus, groups, Show more, highlighting, aliases, filters, commands, the dialog's computed styles, safe snippets, mobile/themes, lazy requests/cache including one shard for `tm` then `tmux`, modified links, repeated SPA initialization, metadata invalidation, explicit retry and no-JavaScript fallback. Unit loader fixtures also cover digest mismatch, remote/version failures, one fetch per shard and stale fetch/module completion across close/revision changes. This is a functional test; measured performance remains in the existing parity harness.
 
-The [search validation matrix](parity/search-performance.md) records completed-result latency, initial script/data cost, cold/warm loading, scale and failure evidence using the existing parity harness.
+[Search performance](parity/search-performance.md) records the file sizes, first open, keystroke latency and downloads of format version 2 on the whole encode garden, next to Logseq's build and Pagefind.
 
 The shared dialog exposes `data-lsg-search-state` for loading/searching/ready/error/closed states and advances `data-lsg-search-complete` after a completed result render. The parity harness uses completion rather than stale-list clearing to measure each key, including no-result queries.

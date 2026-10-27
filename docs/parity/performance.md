@@ -3,7 +3,7 @@
 - measured: 2026-10-26
 - garden commit: 0ce74d6
 - gh-pages commit: 8132c95
-- lsg: 0.0.0 (b490d68); the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only
+- lsg: 0.0.0 (b490d68); the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only; the search sections: search format version 2 on a2284e0 with garden commit 75ef84c and `gh-pages` b491e00 on 2026-10-27, both builds, from `parity:perf --search-site` (see [Search performance](search-performance.md))
 - profiles: desktop, phone
 - loads per page, logseq: 1
 - loads per page, lsg: 3
@@ -137,18 +137,38 @@ Rows in the page before scrolling, rows after scrolling the list to its end, and
 | desktop | 100 | 1,394 | 3.0 |
 | phone | 100 | 1,394 | 3.1 |
 
+## Search index
+
+`lsg`'s search files for 9,204 pages and 114,926 blocks: one title index, 1,148 word shards and 449 record chunks. **Bold** marks a value over its `[search]` budget.
+
+| File | Size | Budget |
+| --- | ---: | ---: |
+| Title index (KB, gzip) | 243 | 300 |
+| Title index (MB, decoded) | 0.7 | 1.5 |
+| Largest shard, words starting `re` (KB, gzip) | 63.5 | 64 |
+| Largest record chunk (KB, gzip) | **32.8** | 32 |
+| Search starter (KB) | 2.0 | 2 |
+
+## Search
+
+Cmd/Ctrl+K on the home page, then the first query typed at once: the time from the key to the dialog and to its page results, and what that first open downloaded. Then each query in [`search-queries.txt`](../../scripts/parity/search-queries.txt) typed a key every 300 ms. A cold keystroke fetches a word shard; a warm one does not. The heap growth is measured after the whole query list, after garbage collection. **Bold** marks an `lsg` value over its budget.
+
+| Profile | Build | Dialog shown (ms) | First page results (ms) | First open (KB, gzip) | Cold keystrokes | Cold 95th percentile (ms) | Warm 95th percentile (ms) | Largest keystroke download (KB, gzip) | Heap growth (MB) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| desktop | logseq | 32 | 3,532 | 0.0 | 0 | – | 1,698 | 0.0 | 59.0 |
+| desktop | lsg | 9 | 108 | 274.6 | 7 | 29 | 19 | 75.6 | 4.2 |
+| phone | logseq | 127 | 14,230 | 160.2 | 0 | – | 13,361 | 0.0 | 59.2 |
+| phone | lsg | 207 | 2,343 | 274.6 | 7 | 653 | **541** | 75.6 | 4.2 |
+
 ## Search latency per keystroke
 
-| Profile | Build | Keystrokes | Unchanged | Median (ms) | 95th percentile (ms) |
-| --- | --- | ---: | ---: | ---: | ---: |
-| desktop | logseq | 36 | 0 | 776 | 1836 |
-| desktop | lsg | TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded. | | |
-| phone | logseq | 36 | 0 | 2950 | 13675 |
-| phone | lsg | TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded. | | |
+Every keystroke of the query list. An unanswered keystroke is one whose results never showed. A warm keystroke can still wait for a record chunk; the keystrokes that fetched nothing show the cost of the query alone. `lsg` reopens the dialog from memory after the first open.
 
-## Search first open and cached reopening
+| Profile | Build | Keystrokes | Unanswered | Median (ms) | 95th percentile (ms) | Warm keystrokes that fetched a chunk | 95th percentile of keystrokes that fetched nothing (ms) | Reopen (ms) | Reopen requests |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| desktop | logseq | 36 | 0 | 833 | 1,698 | 0 | 1,698 | – | – |
+| desktop | lsg | 36 | 0 | 6 | 20 | 3 | 11 | 17 | 0 |
+| phone | logseq | 36 | 0 | 3,146 | 13,361 | 1 | 13,361 | – | – |
+| phone | lsg | 36 | 0 | 25 | 653 | 3 | 26 | 50 | 0 |
 
-| Profile | Build | First ready (ms) | Transferred body (KB) | Decoded (KB) | Heap growth (MB) | Eager requests | Warm ready (ms) | Warm requests |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| desktop | logseq | 95 | 0.0 | 0.0 | 0.0 | 0 | 0 | – |
-| phone | logseq | 204 | 0.0 | 0.0 | 2.8 | 0 | 0 | – |
+Whole-garden build with journals: 13.1 seconds with `--search`, 11.7 seconds without (+12%; budget +25%).
