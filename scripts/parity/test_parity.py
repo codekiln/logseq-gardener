@@ -435,7 +435,7 @@ class BudgetCheckTest(unittest.TestCase):
         for kind, text in files.items():
             (site / f'lsg-search-{kind}-{kind}0000.json').write_text(text, encoding='utf-8')
         (site / 'lsg-search-manifest-r.json').write_text(
-            '{"format_version": 2, "revision": "r", "titles": "titles0000", "blocks": 1, "chunk_size": 256, '
+            '{"format_version": 2, "revision": "r", "titles": "titles0000", "blocks": 1, "chunk_starts": [0], '
             '"chunks": ["chunk0000"], "shards": {"tm": "shard0000"}}', encoding='utf-8')
         return site
 

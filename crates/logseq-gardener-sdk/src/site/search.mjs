@@ -60,9 +60,10 @@ export function prepareManifest(manifest, expectedRevision) {
   if (!manifest || !hex(expectedRevision) || manifest.format_version !== FORMAT_VERSION ||
       manifest.revision !== expectedRevision || !hex(manifest.titles) ||
       !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '') ||
-      !count(manifest.blocks) || !Number.isSafeInteger(manifest.chunk_size) || manifest.chunk_size < 1 ||
-      !Array.isArray(manifest.chunks) || !manifest.chunks.every(hex) ||
-      manifest.chunks.length !== Math.ceil(manifest.blocks / manifest.chunk_size) ||
+      !count(manifest.blocks) || !Array.isArray(manifest.chunks) || !manifest.chunks.every(hex) ||
+      !Array.isArray(manifest.chunk_starts) || manifest.chunk_starts.length !== manifest.chunks.length ||
+      !manifest.chunks.length !== !manifest.blocks ||
+      !manifest.chunk_starts.every((start, at, starts) => count(start) && start < manifest.blocks && (at ? start > starts[at - 1] : start === 0)) ||
       !manifest.shards || typeof manifest.shards !== 'object' ||
       !Object.entries(manifest.shards).every(([key, value]) => key === normalize(key) && words(key)[0] === key && hex(value))) invalid();
   const shards = new Map(Object.entries(manifest.shards));
@@ -71,7 +72,7 @@ export function prepareManifest(manifest, expectedRevision) {
   // words left behind when a shard split by its next character.
   const terminal = new Set(keys.filter(key => single(key) || keys.some(other => other.length > key.length && other.startsWith(key))));
   return Object.freeze({ revision: manifest.revision, engine: manifest.engine, titles: manifest.titles,
-    blocks: manifest.blocks, chunkSize: manifest.chunk_size, chunks: Object.freeze([...manifest.chunks]),
+    blocks: manifest.blocks, chunks: Object.freeze([...manifest.chunks]), chunkStarts: Object.freeze([...manifest.chunk_starts]),
     shards, terminal });
 }
 
@@ -129,13 +130,25 @@ export function addShard(index, key, source) {
   index.shards.set(key, entries);
 }
 
+/** The number of the chunk that holds block `block`: the last chunk starting at or before it. */
+export function chunkOf(manifest, block) {
+  const starts = manifest.chunkStarts;
+  let low = 0, high = starts.length - 1;
+  while (low < high) {
+    const middle = (low + high + 1) >> 1;
+    if (starts[middle] <= block) low = middle; else high = middle - 1;
+  }
+  return low;
+}
+
 /** Validate a chunk's text and keep its block records. */
 export function addChunk(index, number, source) {
   const { manifest } = index;
   if (!Number.isInteger(number) || number < 0 || number >= manifest.chunks.length) invalid();
   const chunk = parse(source, manifest.chunks[number]);
-  const first = number * manifest.chunkSize;
-  if (!Array.isArray(chunk.blocks) || chunk.blocks.length !== Math.min(manifest.chunkSize, manifest.blocks - first)) invalid();
+  const first = manifest.chunkStarts[number];
+  const end = manifest.chunkStarts[number + 1] ?? manifest.blocks;
+  if (!Array.isArray(chunk.blocks) || chunk.blocks.length !== end - first) invalid();
   index.chunks.set(number, Object.freeze(chunk.blocks.map((record, at) => {
     if (!Array.isArray(record) || record[0] !== pageOf(index, first + at).id || !fragment.test(record[1] || '') ||
         !text(record[2]) || !Array.isArray(record[3]) || record[3].length > LIMITS.parents || !record[3].every(text)) invalid();
@@ -231,14 +244,15 @@ export function query(index, input, { limit = LIMITS.results, currentPage = null
 
 /** The chunk numbers that hold these block numbers and are not loaded yet. */
 export function missingChunks(index, blocks) {
-  return [...new Set(blocks.map(block => Math.floor(block / index.manifest.chunkSize)))].filter(number => !index.chunks.has(number));
+  return [...new Set(blocks.map(block => chunkOf(index.manifest, block)))].filter(number => !index.chunks.has(number));
 }
 
 /** A block row with text, breadcrumb parents and destination, or null while its chunk loads. */
 export function blockRow(index, block) {
-  const chunk = index.chunks.get(Math.floor(block / index.manifest.chunkSize));
+  const number = chunkOf(index.manifest, block);
+  const chunk = index.chunks.get(number);
   if (!chunk) return null;
-  const record = chunk[block % index.manifest.chunkSize];
+  const record = chunk[block - index.manifest.chunkStarts[number]];
   const page = pageOf(index, block);
   return { kind: 'block', block, page: page.id, title: page.title, href: `${page.href}#${record.fragment}`,
     text: record.text, parents: [...record.parents] };

@@ -38,12 +38,12 @@ Moving the record building into the SDK lets the language server and CLI use the
 
 | File | Holds | Loaded |
 | --- | --- | --- |
-| `lsg-search-manifest-<revision>.json` | format version 2, revision, the title index name and digest, a map from shard prefix to shard file and digest, the list of chunk files and digests, and the engine name | on first open or button hover/focus |
+| `lsg-search-manifest-<revision>.json` | format version 2, revision, the title index name and digest, a map from shard prefix to shard file and digest, the list of chunk digests with each chunk's first block number, and the engine name | on first open or button hover/focus |
 | `lsg-search-titles-<digest>.json` | per page: title, route id, aliases | with the manifest |
 | `lsg-search-shard-<digest>.json` | for each word with the shard's prefix: the word and its block record numbers, delta-encoded | when a query word needs the prefix |
-| `lsg-search-chunk-<digest>.json` | 256 consecutive block records: text, page id, up to three parents, fragment | when a result row from the chunk is drawn |
+| `lsg-search-chunk-<digest>.json` | up to 256 consecutive block records, at most 32 KB gzip: text, page id, up to three parents, fragment | when a result row from the chunk is drawn |
 
-Shards are keyed by the first two characters of a word and split by the next character while one exceeds 64 KB gzip. File names use content digests, so a rebuild after one edit changes only the manifest, the shards whose words changed and the chunk that holds the edited page; browsers keep the rest in cache. Block records are ordered by page title and position, so one page's blocks share a chunk and a page's results draw from few chunks.
+Shards are keyed by the first two characters of a word and split by the next character while one exceeds 64 KB gzip. File names use content digests, so a rebuild after one edit changes only the manifest, the shards whose words changed and the chunk that holds the edited block; browsers keep the rest in cache. Chunks close at every 256 records and before a record that would take one past 32 KB gzip, so an edit that moves a boundary changes only the chunks among its 256 records. Block records are ordered by page title and position, so one page's blocks share a chunk and a page's results draw from few chunks.
 
 **Matching.** Page titles and aliases: the query's characters, ignoring spaces, brackets, slashes, underscores and parentheses as Logseq does, must appear in order. Ranking: exact title, exact alias, prefix, then Logseq's fuzzy `score` from [`search.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/search.cljs#L30-L90), the same port the All pages change uses. Blocks: every query word must be the start of a word in the block, found through the shards: the words in a shard that start with the query word give the block numbers, and the blocks that appear for every query word match. Counts are exact, from the block numbers; rows are at most 100 per group, as Logseq's.
 
@@ -85,7 +85,7 @@ Shards are keyed by the first two characters of a word and split by the next cha
 
 ### 1 - How is the index split?
 
-Decided by the agent without codekiln: a title index loaded on first open, content shards keyed by two-character word prefixes, and record chunks of 256 block records, all named by content digest. Logseq's approach, the whole graph in memory, is what the 32 MB corpus copies and what fails the phone budgets; prefix shards keep each keystroke's download bounded and match the client-side approach on Issue #106.
+Decided by the agent without codekiln: a title index loaded on first open, content shards keyed by two-character word prefixes, and record chunks of up to 256 block records and 32 KB gzip, all named by content digest. Logseq's approach, the whole graph in memory, is what the 32 MB corpus copies and what fails the phone budgets; prefix shards keep each keystroke's download bounded and match the client-side approach on Issue #106.
 
 ### 2 - How fuzzy is matching?
 

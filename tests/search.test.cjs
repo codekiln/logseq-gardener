@@ -70,6 +70,10 @@ test('validation rejects version 1, revision and digest mismatch, and malformed 
     m => m.format_version = 1,
     m => m.revision = 'fedcba9876543210',
     m => m.chunks.pop(),
+    m => m.chunk_starts[0] = 1,
+    m => m.chunk_starts[2] = m.chunk_starts[1],
+    m => m.chunk_starts[m.chunk_starts.length - 1] = m.blocks,
+    m => { m.chunks = []; m.chunk_starts = []; },
     m => m.engine = 'https://evil.test/engine.mjs',
     m => m.shards['../x'] = m.titles,
   ]) {
@@ -88,6 +92,27 @@ test('validation rejects version 1, revision and digest mismatch, and malformed 
   const forged = { ...manifest, chunks: [engine.digest(chunk.replace('p-43ff06c325b57047', 'p-0000000000000000')), ...manifest.chunks.slice(1)] };
   const other = engine.createIndex(forged, titles);
   assert.throws(() => engine.addChunk(other, 0, chunk.replace('p-43ff06c325b57047', 'p-0000000000000000')), /publication/);
+});
+
+test('chunks of different lengths map each block to the chunk that starts at or before it', async () => {
+  const { engine, manifest, index, fetchChunks } = await load();
+  const starts = manifest.chunkStarts;
+  assert.ok(new Set(starts.map((start, at) => (starts[at + 1] ?? manifest.blocks) - start)).size > 1, 'the fixture has chunks of different lengths');
+  for (let block = 0; block < manifest.blocks; block++) {
+    const number = engine.chunkOf(manifest, block);
+    assert.ok(starts[number] <= block && block < (starts[number + 1] ?? manifest.blocks), `block ${block}`);
+  }
+  const all = Array.from({ length: manifest.blocks }, (_, block) => block);
+  assert.deepEqual(engine.missingChunks(index, all), starts.map((_, number) => number));
+  fetchChunks(all);
+  assert.deepEqual(engine.missingChunks(index, all), []);
+  for (const block of all) assert.equal(engine.blockRow(index, block).page, engine.pageOf(index, block).id);
+  // A chunk with a record more or fewer than its range is rejected.
+  const raw = JSON.parse(files[engine.chunkFile(manifest, 0)]);
+  raw.blocks.pop();
+  const short = JSON.stringify(raw);
+  const forged = engine.createIndex({ ...manifest, chunks: [engine.digest(short), ...manifest.chunks.slice(1)] }, files[engine.titlesFile(manifest)]);
+  assert.throws(() => engine.addChunk(forged, 0, short), /publication/);
 });
 
 test('the digest matches the publisher and All pages', async () => {

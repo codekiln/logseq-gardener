@@ -443,12 +443,14 @@ pub struct SearchIndex {
 }
 
 /// Where the publisher splits the index: the largest gzip size of a shard before it
-/// splits by the next character, and the block records per chunk. The default shard budget is
-/// the `shard_gzip_kb` budget in `scripts/parity/budgets.toml`, where a KB is 1,000 bytes.
+/// splits by the next character, the most block records in a chunk, and the largest gzip
+/// size of a chunk. The default budgets are `shard_gzip_kb` and `chunk_gzip_kb` in
+/// `scripts/parity/budgets.toml`, where a KB is 1,000 bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileOptions {
     pub shard_budget: usize,
     pub chunk_size: usize,
+    pub chunk_budget: usize,
 }
 
 impl Default for FileOptions {
@@ -456,6 +458,7 @@ impl Default for FileOptions {
         Self {
             shard_budget: 64_000,
             chunk_size: 256,
+            chunk_budget: 32_000,
         }
     }
 }
@@ -507,6 +510,49 @@ fn prefix(word: &str, chars: usize) -> &str {
     word.char_indices()
         .nth(chars)
         .map_or(word, |(at, _)| &word[..at])
+}
+
+fn chunk_json(blocks: &[BlockRecord]) -> String {
+    let blocks: Vec<_> = blocks
+        .iter()
+        .map(|b| json!([b.page, b.fragment, b.text, b.parents]))
+        .collect();
+    json!({"format_version": FORMAT_VERSION, "blocks": blocks}).to_string()
+}
+
+// Record chunks with the number of their first block. Blocks are cut into groups of
+// `chunk_size` records; a group over `chunk_budget` gzip splits into the longest runs that
+// fit, so an edit can move chunk boundaries only inside its own group. A single record over
+// the budget still gets a chunk of its own.
+fn chunk_files(blocks: &[BlockRecord], options: &FileOptions) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    for (group, records) in blocks.chunks(options.chunk_size.max(1)).enumerate() {
+        let mut start = 0;
+        while start < records.len() {
+            let rest = &records[start..];
+            let fits = |count: usize| gzip_len(&chunk_json(&rest[..count])) <= options.chunk_budget;
+            // The longest run that fits: `low` fits (or is one record), `high` does not.
+            let mut count = rest.len();
+            if !fits(count) {
+                let (mut low, mut high) = (1, count);
+                while high - low > 1 {
+                    let middle = (low + high) / 2;
+                    if fits(middle) {
+                        low = middle
+                    } else {
+                        high = middle
+                    }
+                }
+                count = low;
+            }
+            out.push((
+                group * options.chunk_size.max(1) + start,
+                chunk_json(&rest[..count]),
+            ));
+            start += count;
+        }
+    }
+    out
 }
 
 // A shard over budget splits by the next character; the words no longer than its key
@@ -755,27 +801,19 @@ impl SearchIndex {
             .into_iter()
             .map(|(key, json)| (key, add("shard", json).into()))
             .collect();
-        let chunks: Vec<_> = self
-            .blocks
-            .chunks(options.chunk_size.max(1))
-            .map(|chunk| {
-                let blocks: Vec<_> = chunk
-                    .iter()
-                    .map(|b| json!([b.page, b.fragment, b.text, b.parents]))
-                    .collect();
-                add(
-                    "chunk",
-                    json!({"format_version": FORMAT_VERSION, "blocks": blocks}).to_string(),
-                )
-            })
-            .collect();
+        let mut chunks = Vec::new();
+        let mut starts = Vec::new();
+        for (start, json) in chunk_files(&self.blocks, options) {
+            starts.push(start);
+            chunks.push(add("chunk", json));
+        }
         let mut manifest = json!({
             "format_version": FORMAT_VERSION,
             "engine": engine,
             "titles": titles,
             "blocks": self.blocks.len(),
-            "chunk_size": options.chunk_size.max(1),
             "chunks": chunks,
+            "chunk_starts": starts,
             "shards": shards,
         });
         // The revision names this exact set of files, so any change to one renames it.
@@ -988,6 +1026,7 @@ mod tests {
             &FileOptions {
                 shard_budget: 100,
                 chunk_size: 256,
+                chunk_budget: 32_000,
             },
         );
         let manifest: serde_json::Value =
@@ -1015,6 +1054,7 @@ mod tests {
                 &FileOptions {
                     shard_budget: 64 * 1024,
                     chunk_size: 256,
+                    chunk_budget: 32_000,
                 },
             )
         };
@@ -1039,5 +1079,107 @@ mod tests {
         );
         assert_eq!(before.files.len(), after.files.len());
         assert_ne!(before.revision, after.revision);
+    }
+
+    // Text that gzip cannot shrink much: `count` pseudo-random words.
+    fn noise(seed: u64, count: usize) -> String {
+        let mut state = seed.wrapping_mul(0x9e3779b97f4a7c15) | 1;
+        (0..count)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                format!("{:x}", state & 0xff_ffff)
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    fn chunks(files: &SearchFiles) -> Vec<(u64, String)> {
+        let manifest: serde_json::Value =
+            serde_json::from_str(&files.files[&files.manifest]).unwrap();
+        let starts = manifest["chunk_starts"].as_array().unwrap();
+        let digests = manifest["chunks"].as_array().unwrap();
+        assert_eq!(starts.len(), digests.len());
+        starts
+            .iter()
+            .zip(digests)
+            .map(|(s, d)| (s.as_u64().unwrap(), d.as_str().unwrap().to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn chunks_close_at_the_record_count_or_the_gzip_budget() {
+        let texts: Vec<_> = (0..40).map(|n| noise(n, 60)).collect();
+        let mut blocks: Vec<(&str, &str)> = texts.iter().map(|t| ("long", t.as_str())).collect();
+        blocks.extend((0..20).map(|_| ("short", "a few words")));
+        let index = index(&[("long", &[]), ("short", &[])], &blocks);
+        let options = FileOptions {
+            shard_budget: 64_000,
+            chunk_size: 16,
+            chunk_budget: 2_000,
+        };
+        let files = index.files("engine.mjs", &options);
+        let chunks = chunks(&files);
+        let starts: Vec<_> = chunks.iter().map(|(start, _)| *start).collect();
+        // Every group of 16 starts a chunk; the long groups split further by size.
+        for group in [0, 16, 32, 48] {
+            assert!(starts.contains(&group), "{starts:?}");
+        }
+        assert!(starts.len() > 6, "{starts:?}");
+        assert_eq!(starts[0], 0);
+        assert!(starts.windows(2).all(|w| w[0] < w[1]));
+        let mut total = 0;
+        for (n, (start, digest)) in chunks.iter().enumerate() {
+            let json = &files.files[&format!("lsg-search-chunk-{digest}.json")];
+            assert!(gzip_len(json) <= options.chunk_budget, "chunk {start}");
+            let records = serde_json::from_str::<serde_json::Value>(json).unwrap()["blocks"]
+                .as_array()
+                .unwrap()
+                .len() as u64;
+            let end = chunks.get(n + 1).map_or(60, |(next, _)| *next);
+            assert_eq!(records, end - start);
+            assert!(records <= 16);
+            total += records;
+        }
+        assert_eq!(total, 60);
+        // The short records fill whole groups of 16.
+        assert!(chunks.iter().any(|(start, _)| *start == 48));
+        assert!(!starts.contains(&49));
+    }
+
+    #[test]
+    fn an_edit_that_moves_chunk_boundaries_stays_inside_its_group() {
+        let texts: Vec<_> = (0..64).map(|n| noise(n, 30)).collect();
+        let build = |edited: &str| {
+            let mut blocks: Vec<(&str, &str)> =
+                texts.iter().map(|t| ("long", t.as_str())).collect();
+            blocks[20] = ("long", edited);
+            let index = index(&[("long", &[])], &blocks);
+            index.files(
+                "engine.mjs",
+                &FileOptions {
+                    shard_budget: 64_000,
+                    chunk_size: 16,
+                    chunk_budget: 1_500,
+                },
+            )
+        };
+        let longer = noise(999, 200);
+        let (before, after) = (chunks(&build("short")), chunks(&build(&longer)));
+        assert_ne!(
+            before.iter().map(|c| c.0).collect::<Vec<_>>(),
+            after.iter().map(|c| c.0).collect::<Vec<_>>(),
+            "the longer block moves a boundary"
+        );
+        // Chunks outside the edited block's group of 16 (blocks 16 to 31) keep their files.
+        let outside = |chunks: &[(u64, String)]| -> Vec<(u64, String)> {
+            chunks
+                .iter()
+                .filter(|(start, _)| !(16..32).contains(start))
+                .cloned()
+                .collect()
+        };
+        assert_eq!(outside(&before), outside(&after));
     }
 }

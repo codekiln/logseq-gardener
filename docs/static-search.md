@@ -14,19 +14,19 @@ A bullet with `search-exclude:: true` excludes its whole original subtree. This 
 
 ## Artifacts
 
-All files live beside the generated HTML and are named by a 16-hex-digit content digest, so a rebuild after one edit changes only the manifest, the shards whose words changed and the chunk that holds the edited page. Every file declares `"format_version": 2`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
+All files live beside the generated HTML and are named by a 16-hex-digit content digest, so a rebuild after one edit changes only the manifest, the shards whose words changed and the chunk that holds the edited block, or, when the edit moves a chunk boundary, the chunks among the same 256 records. Every file declares `"format_version": 2`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
 
 The manifest, `lsg-search-manifest-REVISION.json`, names every other file:
 
 ```json
 {
   "format_version": 2,
-  "revision": "705a38f07276efa8",
-  "engine": "lsg-search-engine-17470450146bbf8f.mjs",
+  "revision": "023f35471723cefd",
+  "engine": "lsg-search-engine-d2ca70f1c216ba6b.mjs",
   "titles": "448cd43839cb21ad",
   "blocks": 2,
-  "chunk_size": 256,
   "chunks": ["bfdbc9154aefca1e"],
+  "chunk_starts": [0],
   "shards": {"co": "e1d3cd6f73b473f3", "no": "6c944b207d31af25", "re": "0dd4f0eb1365fc18",
              "se": "8c53ae9376251ad8", "tm": "3b338af9f70ea5e3", "wi": "f10a62484c870901"}
 }
@@ -36,7 +36,7 @@ The manifest, `lsg-search-manifest-REVISION.json`, names every other file:
 | --- | --- | --- |
 | Title index | `lsg-search-titles-<titles>.json` | Per page, in title order: title, route, aliases and its number of block records. |
 | Shard | `lsg-search-shard-<digest>.json` | Each normalized word under the shard's key with its block record numbers, delta-encoded. |
-| Chunk | `lsg-search-chunk-<digest>.json` | `chunk_size` consecutive block records: page route, fragment, text and up to three parents, nearest last. |
+| Chunk | `lsg-search-chunk-<digest>.json` | Up to 256 consecutive block records, at most 32 KB (32,000 bytes) gzipped: page route, fragment, text and up to three parents, nearest last. |
 | Engine | the manifest's `engine` | The pure evaluator, named by its own digest. |
 
 ```json
@@ -47,7 +47,9 @@ The manifest, `lsg-search-manifest-REVISION.json`, names every other file:
   ["p-a33d85f823d4a0a3.html", "source-block-32", "Recording with tmux.conf", ["Session notes"]]]}
 ```
 
-Block records are ordered by page, in title-index order, then by source position, so a page's records are consecutive and the title index's counts give each block's page before its chunk loads. A block's number is its place in that order; chunk `n` holds blocks `n × chunk_size` onwards.
+Block records are ordered by page, in title-index order, then by source position, so a page's records are consecutive and the title index's counts give each block's page before its chunk loads. A block's number is its place in that order. `chunk_starts[n]` is the number of the first block in chunk `n`, which holds the blocks up to the next chunk's start, or to `blocks` for the last chunk; the chunk that holds a block is the last one starting at or before it.
+
+The publisher cuts the records into groups of 256 and closes a chunk at the end of a group or before the record that would take its gzip size past 32 KB; a single record over 32 KB gets a chunk of its own. Because groups always start at multiples of 256, an edit that moves a chunk boundary changes only the chunks of its own group.
 
 A word belongs to the shard keyed by its first two characters; a one-character word has its own shard. A shard larger than 64 KB (64,000 bytes) gzipped splits by the next character, and the words no longer than its key stay in a terminal shard under the key. A terminal shard (a one-character key, or a key that a longer key extends) holds only the word equal to its key.
 
