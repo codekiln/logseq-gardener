@@ -10,6 +10,7 @@ import gzip
 import json
 import math
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -183,8 +184,8 @@ SEARCH_COLLECT = '''() => {
   return {keys: state.keys, changes: state.changes, completions: state.completions, resources};
 }'''
 # From the Cmd/Ctrl+K keydown: the time the dialog shows, then the time it lists page results for
-# the query typed as soon as the input appears. lsg lists them on the first completed render of
-# the query; Logseq when its Pages group appears.
+# the query typed as soon as the input appears. lsg lists them when it first draws the result list
+# for the query, without waiting for block rows' record chunks; Logseq when its Pages group appears.
 OPEN_WATCH = '''(controls) => {
   window.__open?.dispose?.();
   const state = window.__open = {key: null, visible: null, pages: null, query: null, completed: false};
@@ -203,8 +204,8 @@ OPEN_WATCH = '''(controls) => {
     }
   };
   const observer = new MutationObserver(records => {
-    if (controls.complete && state.query !== null && input()?.value === state.query
-        && records.some(r => r.attributeName === controls.complete)) state.completed = true;
+    if (controls.drawn && state.query !== null && input()?.value === state.query
+        && records.some(r => r.attributeName === controls.drawn)) state.completed = true;
     check();
   });
   observer.observe(document, {childList: true, subtree: true, attributes: true, characterData: true});
@@ -557,11 +558,19 @@ def build_label(variant):
     return f"{'with' if journals else 'without'} journals, {'with' if search else 'without'} search"
 
 
-def time_publish(lsg, garden, output, options):
+BUILD_RUNS = 3
+
+
+def time_publish(lsg, garden, output, options, runs=BUILD_RUNS):
+    """The fastest of `runs` publishes, so other work on the machine skews the comparison less."""
     command = [str(lsg), 'publish', '--graph', garden, '--output', str(output), *options]
-    start = time.monotonic()
-    subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return time.monotonic() - start
+    times = []
+    for _ in range(runs):
+        shutil.rmtree(output, ignore_errors=True)
+        start = time.monotonic()
+        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        times.append(time.monotonic() - start)
+    return min(times)
 
 
 def merge(kept, measured, builds, key):
@@ -630,7 +639,8 @@ def markdown(results, budgets):
     builds = build_variants(results.get('build', []))
     if builds:
         lines += ['', '## Whole-garden build time', '',
-                  '`lsg publish` with the run\'s options, then without `--journals` and without `--search`. '
+                  '`lsg publish` with the run\'s options, then without `--journals` and without `--search`, '
+                  f'each the fastest of {BUILD_RUNS} runs. '
                   '**Bold** marks a build more than the `[journals]` or `[search]` `build_slowdown_pct` above '
                   'the build without that feature.', '',
                   '| Build | Seconds |', '| --- | ---: |']
@@ -844,8 +854,8 @@ def search_markdown(results, budgets):
         text = f'{with_search:,.1f}'
         if build_over_budget((True, True), builds, budgets):
             text = f'**{text}**'
-        lines += ['', f'Whole-garden build with journals: {text} seconds with `--search`, {without:,.1f} seconds '
-                  f'without ({(with_search / without - 1) * 100:+.0f}%; budget '
+        lines += ['', f'Whole-garden build with journals, the fastest of {BUILD_RUNS} runs: {text} seconds with '
+                  f'`--search`, {without:,.1f} seconds without ({(with_search / without - 1) * 100:+.0f}%; budget '
                   f"+{budgets.get('search', {}).get('build_slowdown_pct')}%)."]
     return lines
 
