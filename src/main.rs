@@ -11,7 +11,8 @@ fn main() -> std::process::ExitCode {
         }
         Err(failure) => output::emit(
             &format!(
-                "error: {}\nTry 'lsg help'.\n",
+                "{}error: {}\nTry 'lsg help'.\n",
+                output::clean(&failure.diagnostics),
                 output::clean(&failure.message).trim_start_matches("error: ")
             ),
             failure.code,
