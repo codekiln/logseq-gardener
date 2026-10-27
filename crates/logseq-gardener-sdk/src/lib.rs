@@ -50,6 +50,9 @@ pub mod inline_references;
 /// Stored page names and alias candidate lookup.
 pub mod page_names;
 
+/// Find a page's source file by title, alias or journal date.
+pub mod page_lookup;
+
 /// Linked references, filters, tagged pages and unlinked mentions from one index.
 pub mod references;
 

@@ -1,6 +1,6 @@
 {
-  "request_id": "sha256:bbe96cd8cc54465f485e08cd78d898b7914f12c486c3e7bd86510a3a9cb7bb10",
-  "evidence_digest": "sha256:14bf3182c13c0ea1cf5d8efdd31ba4ad0df33f0dbb5f1a8455e6d94d8f5b5f20",
+  "request_id": "sha256:9e591abb3a43516ebe34f6769059272585f3ab9745da0e8e4d0dd02fac9095f3",
+  "evidence_digest": "sha256:b532adccdf4e1aea045d0f818745f0ebb5609a244402c347a99e793c6aeee045",
   "skill": {
     "name": "assess-cli-help",
     "version": "1.0.0"
@@ -9,6 +9,6 @@
   "check": "clilint/help/useful-example",
   "score": 4.0,
   "messages": [],
-  "explanation": "The captured root help identifies the Markdown garden audience and publishing command, then provides concrete outline and recursive-section invocations. Adjacent text explains the headings and permissions those commands return and directs readers to publishing help. The output section now also names the published journals count. The examples teach an offline documentation task with an explicit result.",
+  "explanation": "The captured root help identifies the Markdown garden audience and its lookup, publishing and version commands, then provides concrete outline and recursive-section invocations. Adjacent text explains the headings and permissions those commands return and directs readers to each command's help. The output section names the lookup exit for an unmatched page. The examples teach an offline documentation task with an explicit result.",
   "assessor": "Claude"
 }
