@@ -143,6 +143,20 @@ class MetricsTest(unittest.TestCase):
                  {'title_ms': 20, 'data_before_title': 20}]
         self.assertEqual(metrics.summarize_loads(loads)['title_ms'], 20)
 
+    def test_completion_latencies(self):
+        # The second key's input was replaced before a render showed it; the render of `tmu` answers it.
+        keys, values = [0, 300, 600], ['t', 'tm', 'tmu']
+        completions = [(40, 't'), (700, 'tmu')]
+        self.assertEqual(metrics.completion_latencies(keys, values, completions), [40, 400, 100])
+        self.assertEqual(metrics.completion_latencies([0], ['x'], [(10, 'y')]), [None])
+
+    def test_keystroke_fetches(self):
+        resources = [(10, 'lsg-search-shard-a.json', 5000), (20, 'lsg-search-chunk-b.json', 3000),
+                     (320, 'lsg-search-chunk-c.json', 1000)]
+        self.assertEqual(metrics.keystroke_fetches([0, 300, 600], resources, perf.SHARD_FILE),
+                         [{'bytes': 8000, 'shard': True}, {'bytes': 1000, 'shard': False},
+                          {'bytes': 0, 'shard': False}])
+
     def test_keystroke_latencies(self):
         keys = [0, 300, 600]
         changes = [50, 120, 650]
@@ -175,6 +189,11 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(set(loaded['outline']), {'script_kb', 'styles_gzip_kb', 'zoom_ms_desktop', 'zoom_ms_phone'})
         self.assertEqual(set(loaded['shell']), {'script_kb', 'frame_kb'})
         self.assertEqual(set(loaded['journals']), {'script_kb', 'scroll_heap_mb', 'build_slowdown_pct'})
+        self.assertEqual(set(loaded['search']), {
+            'bootstrap_kb', 'titles_gzip_kb', 'titles_decoded_mb', 'shard_gzip_kb', 'chunk_gzip_kb',
+            'keystroke_gzip_kb', 'dialog_ms_desktop', 'dialog_ms_phone', 'first_results_ms_desktop',
+            'first_results_ms_phone', 'cold_keystroke_ms_desktop', 'cold_keystroke_ms_phone', 'heap_growth_mb',
+            'warm_open_desktop_ms', 'warm_open_phone_ms', 'build_slowdown_pct'})
         for profile in budgets.profiles(loaded).values():
             self.assertEqual(set(profile), {'data_before_title_kb', 'script_before_title_kb', 'title_ms',
                                             'peak_heap_mb', 'search_p95_ms'})
@@ -195,20 +214,38 @@ class PerfMergeTest(unittest.TestCase):
             self.assertEqual(budgets.check_search(site, {'bootstrap_kb': 2}, {'desktop': {'script_before_title_kb': .3}}), [])
 
 
-    def test_standalone_validation_rejects_missing_completion_and_nonfinite_latency(self):
-        report = {'corpus': {'decoded_bytes': 100, 'gzip_bytes': 50, 'bootstrap_bytes': 100},
-                  'search': [{'profile': 'desktop', 'first_open_ms': 100, 'warm_open_ms': 20,
-                              'heap_growth': 1000, 'eager_search_requests': 0, 'warm_open_requests': 0,
-                              'keystrokes': 4, 'unchanged': 0, 'p95_ms': 5}]}
+    def search_row(self, **changes):
+        row = {'profile': 'phone', 'build': 'lsg', 'dialog_ms': 50, 'first_results_ms': 900, 'cold_p95_ms': 400,
+               'warm_p95_ms': 40, 'keystroke_bytes_max': 90_000, 'warm_open_ms': 30, 'heap_growth': 9_000_000,
+               'eager_search_requests': 0, 'warm_open_requests': 0, 'keystrokes': 4, 'unchanged': 0,
+               'p50_ms': 20, 'p95_ms': 300, 'cold_keystrokes': 1, 'first_open_transfer': 200_000}
+        return {**row, **changes}
+
+    def test_standalone_validation_rejects_missing_completion_and_values_over_budget(self):
         limits = metrics.load_budgets()
+        report = {'search': [self.search_row(), {**self.search_row(), 'build': 'logseq', 'cold_p95_ms': 9000}]}
         self.assertEqual(perf.search_failures(report, limits), [])
-        report['search'][0]['unchanged'] = 1
+        for changes in ({'unchanged': 1}, {'cold_p95_ms': None}, {'cold_p95_ms': 1200},
+                        {'keystroke_bytes_max': 250_000}, {'heap_growth': 40_000_000}, {'eager_search_requests': 1}):
+            report['search'][0] = self.search_row(**changes)
+            self.assertTrue(perf.search_failures(report, limits), changes)
+        report['search'][0] = {'profile': 'desktop', 'build': 'lsg', 'error': 'not ready'}
         self.assertTrue(perf.search_failures(report, limits))
-        report['search'][0]['unchanged'] = 0
-        report['search'][0]['p95_ms'] = None
-        self.assertTrue(perf.search_failures(report, limits))
-        report['search'][0] = {'profile': 'desktop', 'error': 'not ready'}
-        self.assertTrue(perf.search_failures(report, limits))
+
+    def test_search_markdown_marks_lsg_values_over_budget(self):
+        results = {'search': [self.search_row(cold_p95_ms=1200),
+                              {**self.search_row(cold_p95_ms=9000), 'build': 'logseq'}]}
+        text = '\n'.join(perf.search_markdown(results, metrics.load_budgets()))
+        self.assertIn('| phone | lsg | 50 | 900 | 200.0 | 1 | **1,200** | 40 | 90.0 | 9.0 |', text)
+        self.assertIn('| phone | logseq | 50 | 900 | 200.0 | 1 | 9,000 |', text)
+
+    def test_build_over_budget(self):
+        limits = {'journals': {'build_slowdown_pct': 20}, 'search': {'build_slowdown_pct': 25}}
+        builds = {(True, True): 13.0, (False, True): 12.0, (True, False): 10.0}
+        self.assertTrue(perf.build_over_budget((True, True), builds, limits))
+        builds[(True, False)] = 11.0
+        self.assertFalse(perf.build_over_budget((True, True), builds, limits))
+        self.assertFalse(perf.build_over_budget((True, False), builds, limits))
 
     def test_keeps_rows_of_builds_not_measured(self):
         kept = [{'page': 'tmux', 'profile': 'desktop', 'build': 'logseq', 'title_ms': 15000},
@@ -388,6 +425,42 @@ class BudgetCheckTest(unittest.TestCase):
             failures = budgets.check_shell(small, large, ['p-1.html'], {'script_kb': 0.05, 'frame_kb': 0.1})
             self.assertEqual(len(failures), 3)
             self.assertEqual(budgets.check_shell(small, small, ['p-1.html'], {'script_kb': 6, 'frame_kb': 6}), [])
+
+    def search_site(self, temp, shard_text):
+        """A format version 2 search publication with one title, one shard and one chunk."""
+        site = Path(temp)
+        files = {'titles': '{"format_version": 2, "pages": [["tmux", "p-1.html", [], 1]]}',
+                 'shard': shard_text,
+                 'chunk': '{"format_version": 2, "blocks": [["p-1.html", "source-block-1", "tmux", []]]}'}
+        for kind, text in files.items():
+            (site / f'lsg-search-{kind}-{kind}0000.json').write_text(text, encoding='utf-8')
+        (site / 'lsg-search-manifest-r.json').write_text(
+            '{"format_version": 2, "revision": "r", "titles": "titles0000", "blocks": 1, "chunk_size": 256, '
+            '"chunks": ["chunk0000"], "shards": {"tm": "shard0000"}}', encoding='utf-8')
+        return site
+
+    def test_search_index_within_budget(self):
+        limits = metrics.load_budgets()['search']
+        with tempfile.TemporaryDirectory() as temp:
+            site = self.search_site(temp, '{"format_version": 2, "words": [["tmux", [0]]]}')
+            self.assertEqual(budgets.check_search_index(budgets.search_index_sizes(site), limits), [])
+
+    def test_oversized_shard_fails_naming_the_shard(self):
+        limits = metrics.load_budgets()['search']
+        # Random words compress poorly, so the shard is well over the gzip budget.
+        words = ', '.join(f'["tm{os.urandom(12).hex()}", [0]]' for _ in range(8000))
+        with tempfile.TemporaryDirectory() as temp:
+            site = self.search_site(temp, '{"format_version": 2, "words": [' + words + ']}')
+            failures = budgets.check_search_index(budgets.search_index_sizes(site), limits)
+        self.assertEqual(len(failures), 1)
+        self.assertIn("lsg-search-shard-shard0000.json (words starting 'tm'): largest shard", failures[0])
+        self.assertIn('exceeds 64,000', failures[0])
+
+    def test_version_1_search_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            (Path(temp) / 'lsg-search-manifest-r.json').write_text('{"format_version": 1}', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'version 1'):
+                budgets.search_index_sizes(temp)
 
     def test_page_sizes_include_blocking_files(self):
         with tempfile.TemporaryDirectory() as temp:

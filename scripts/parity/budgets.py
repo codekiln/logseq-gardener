@@ -2,6 +2,7 @@
 """Check lsg page sizes against the budgets, and that they stay the same as the garden grows."""
 import argparse
 import html.parser
+import json
 import shutil
 import subprocess
 import sys
@@ -376,6 +377,54 @@ def check_search(site, limits, profiles):
     return failures
 
 
+def search_index_sizes(site):
+    """Sizes of the search format version 2 files in a site: the title index, every shard and chunk.
+
+    Returns the title index's decoded and gzip sizes, the number of pages and blocks, and per
+    shard and chunk its file name and gzip size, largest first.
+    """
+    site = Path(site)
+    manifests = sorted(site.glob('lsg-search-manifest-*.json'))
+    if len(manifests) != 1:
+        raise ValueError(f'expected one search manifest in {site}, found {len(manifests)}')
+    manifest = json.loads(manifests[0].read_text(encoding='utf-8'))
+    if manifest.get('format_version') != 2:
+        raise ValueError(f"{manifests[0].name}: search format version {manifest.get('format_version')}, expected 2")
+    titles = (site / f"lsg-search-titles-{manifest['titles']}.json").read_bytes()
+
+    def files(kind, digests):
+        found = [(f'lsg-search-{kind}-{d}.json', metrics.gzip_size((site / f'lsg-search-{kind}-{d}.json').read_bytes()))
+                 for d in digests]
+        return sorted(found, key=lambda item: -item[1])
+
+    return {'pages': len(json.loads(titles)['pages']), 'blocks': manifest['blocks'],
+            'titles': f"lsg-search-titles-{manifest['titles']}.json",
+            'titles_decoded': len(titles), 'titles_gzip': metrics.gzip_size(titles),
+            'shards': files('shard', manifest['shards'].values()),
+            'shard_keys': {f'lsg-search-shard-{d}.json': key for key, d in manifest['shards'].items()},
+            'chunks': files('chunk', manifest['chunks'])}
+
+
+def check_search_index(sizes, limits):
+    """Return failure messages for a title index, shard or chunk over its budget, naming the largest."""
+    failures = []
+    if sizes['titles_gzip'] > limits['titles_gzip_kb'] * 1000:
+        failures.append(f"{sizes['titles']}: title index {sizes['titles_gzip']:,} gzip exceeds "
+                        f"{limits['titles_gzip_kb'] * 1000:,.0f}")
+    if sizes['titles_decoded'] > limits['titles_decoded_mb'] * 1_000_000:
+        failures.append(f"{sizes['titles']}: title index {sizes['titles_decoded']:,} decoded exceeds "
+                        f"{limits['titles_decoded_mb'] * 1_000_000:,.0f}")
+    for kind, limit in (('shards', limits['shard_gzip_kb'] * 1000), ('chunks', limits['chunk_gzip_kb'] * 1000)):
+        over = [(name, size) for name, size in sizes[kind] if size > limit]
+        if over:
+            name, size = over[0]
+            key = sizes['shard_keys'].get(name)
+            label = f'{name} (words starting {key!r})' if key else name
+            others = f' and {len(over) - 1:,} more' if len(over) > 1 else ''
+            failures.append(f'{label}: largest {kind[:-1]} {size:,} gzip exceeds {limit:,.0f}{others}')
+    return failures
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--lsg', default=str(common.lsg_binary()), help='lsg binary (default: the release build)')
@@ -404,6 +453,10 @@ def main():
         publish(lsg, older, temp / 'older', FIXTURE_ROOTS)
         publish(lsg, FIXTURE_GARDEN, temp / 'search', FIXTURE_ROOTS, search=True)
         search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets))
+        index = search_index_sizes(temp / 'search')
+        search_failures += check_search_index(index, budgets['search'])
+        print(f"search title index: {index['titles_gzip']:,} gzip, {index['titles_decoded']:,} decoded; "
+              f"largest shard {index['shards'][0][1]:,} gzip, largest chunk {index['chunks'][0][1]:,} gzip")
         journal_failures = check_journals(temp / 'small', temp / 'older', budgets['journals'])
         print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
         outline_failures = check_outline(temp / 'small', budgets['outline'])

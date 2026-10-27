@@ -1,5 +1,5 @@
 # Performance budgets for every lsg fixture page. KB is 1,000 and MB is 1,000,000.
-# parity:perf marks lsg values above these; parity:budgets checks the two size budgets in CI.
+# parity:perf marks lsg values above these; parity:budgets checks the size budgets in CI.
 
 [desktop]
 data_before_title_kb = 100
@@ -36,16 +36,27 @@ styles_gzip_kb = 1.5
 zoom_ms_desktop = 50
 zoom_ms_phone = 150
 
-# Search corpora stay lazy. Corpus gzip is a reproducible offline level6 estimate.
+# Search format version 2 (match-logseq-search): a title index, word-prefix shards and record
+# chunks. parity:budgets checks the title index, every shard and every chunk on the fixture garden;
+# parity:perf --search-site marks the rest on the whole encode garden. Warm keystrokes, which fetch
+# no shard, use the [desktop] and [phone] search_p95_ms.
 [search]
 bootstrap_kb = 2
-corpus_decoded_mb = 8
-corpus_gzip_kb = 1000
-first_open_desktop_ms = 2000
-first_open_phone_ms = 10000
+titles_gzip_kb = 300
+titles_decoded_mb = 1.5
+shard_gzip_kb = 64
+chunk_gzip_kb = 32
+keystroke_gzip_kb = 200
+dialog_ms_desktop = 100
+dialog_ms_phone = 300
+first_results_ms_desktop = 500
+first_results_ms_phone = 2500
+cold_keystroke_ms_desktop = 150
+cold_keystroke_ms_phone = 1000
 heap_growth_mb = 30
 warm_open_desktop_ms = 100
 warm_open_phone_ms = 200
+build_slowdown_pct = 25
 
 # Inline markup (published-inline-markup). parity:budgets checks the gzip size of the inline
 # styles every page carries, and that the largest fixture page grows by at most
