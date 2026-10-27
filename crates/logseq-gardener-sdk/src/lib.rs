@@ -56,6 +56,9 @@ pub mod page_lookup;
 /// Linked references, filters, tagged pages and unlinked mentions from one index.
 pub mod references;
 
+/// Search records, the word index, the query and the published search files.
+pub mod search;
+
 /// First and last commit times of page and journal files.
 pub mod git_dates;
 

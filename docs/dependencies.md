@@ -2,7 +2,7 @@
 
 The CLI depends on Clap to parse arguments and report usage errors. It uses Serde to serialize help sections and serde_json to produce JSON help and version responses. The CLI also depends on the local `logseq-gardener-sdk` package to report the version of the SDK it contains. The SDK uses [lsdoc at its tested revision](https://github.com/martinkoutecky/lsdoc/tree/32e63ef095c711d6d9947257bf5fd07d540fa59d) to parse Markdown source and extract references. See [Garden loading](garden-loading.md) for its supported scope.
 
-The SDK also uses Serde and serde_json to serialize its versioned selected-source search artifacts. These reuse the already locked serialization packages.
+The SDK also uses Serde and serde_json to serialize its versioned selected-source search artifacts. These reuse the already locked serialization packages. The search index measures each word shard's gzip size with [flate2](https://github.com/rust-lang/flate2-rs), so a shard splits before it exceeds its download budget; the package was already locked through syntect's grammar dumps.
 
 The publisher colours fenced code during the build, so published pages carry coloured HTML instead of an editor script. [syntect](https://github.com/trishume/syntect) reads TextMate grammars, with only its parsing, pure-Rust `fancy-regex` engine and grammar-dump features enabled, so the build needs no C compiler. [two-face](https://github.com/CosmicHorrorDev/two-face) supplies the grammar set `bat` uses, which adds TOML, TypeScript, Dockerfile and other languages the encode garden writes that syntect's defaults lack. The grammars add about 3.3 MB to the `lsg` binary.
 
