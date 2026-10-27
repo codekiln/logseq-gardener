@@ -6,7 +6,7 @@ Each page ends with an expanded **Hierarchy** section. Its flat list starts with
 
 For example, `A/B/C` lists `A/B/C`, `A/B/C/D`, `A/B/C/E`, and `A/B/C/E/F` when those destinations are available. Every row displays the full path, with separate links for `A`, `A/B`, and the remaining prefixes. Missing intermediate namespaces receive their own navigation pages, so a selected `Instruments/Synth/Preset` can be reached through `Instruments` and `Instruments/Synth` without creating those Markdown files.
 
-The complete page index includes these namespace destinations with their full logical names. The reported `pages` count continues to count selected source documents. Generated namespace pages contain navigation only: they contribute no source aliases, blocks, embeds, or homepage targets.
+[All pages](#all-pages) lists these namespace destinations with their full logical names. The reported `pages` count continues to count selected source documents. Generated namespace pages contain navigation only: they contribute no source aliases, blocks, embeds, or homepage targets.
 
 For a complete checkout, build, and browser walkthrough, use the [weekend trial](weekend-trial.md).
 
@@ -131,9 +131,21 @@ Missing settings use defaults. Unusable config receives a local diagnostic; read
 
 `lsg-references.js` loads after the page's `load` event. A host that replaces page content can call `window.logseqGardenerInitReferences(root)` (also available as `window.logseqGardenerInitBacklinks`) after inserting the new content. The call is idempotent and separate from `logseqGardenerRevealFragment`; it loads sections as they open and installs the filter dialog without changing navigation or media playback.
 
+## All pages
+
+The page index is Logseq's All pages table, titled `All pages`: a total, a `Search page names` box, a journals toggle, paging, and the columns `Page name`, `Backlinks`, `Created At` and `Updated At`. It opens at `index.html`, or at `pages.html` when a homepage or journals feed takes `index.html`.
+
+- **Backlinks** counts the blocks that refer to the page, including references to its namespace children and blocks on the page itself, as Logseq's column does. The page's Linked References count leaves out its own blocks, so the two can differ.
+- **Created At** and **Updated At** are the times of the first and last git commits that touched the page's file, shown in the reader's time zone (UTC without JavaScript). Generated namespace pages have no file and no dates. A garden that is not a git repository gets no date columns, sorts by page name and reports one diagnostic; a shallow clone gets dates from the history it holds and also reports a diagnostic. Reading the history runs alongside rendering.
+- The default view hides journals and lists pages newest first, 40 rows at a time. `pages-2.html`, `pages-3.html` and so on hold the rest of that view, so every page is reachable without JavaScript.
+- Clicking a column title sorts by that column and flips the direction shared by all columns. Search runs on Enter with Logseq's fuzzy match on page names and shows at most 20 rows; Escape clears it. The journals toggle adds journals. All three load `_pages/list.json`, which holds every entry, the first time a reader uses one of them; paging through the default view never loads it.
+- Below 640px wide, only the icon and `Page name` columns show. Pages with an `icon::` property show the icon before the name.
+
+`lsg-all-pages.js` loads only on All pages screens. A host that swaps an All pages screen into a page calls `window.logseqGardenerAllPages.init(root)` after inserting it. Logseq's editing controls (row checkboxes, `Delete`, the whiteboard toggle and the `⋯` menu) are not drawn, because they change nothing that lasts in a published site.
+
 ## Namespace destinations and page sequences
 
-Generated namespace pages show a Namespace notice. Their index and hierarchy entries carry a Namespace badge, and links to these destinations use a dotted underline. Selected source pages keep ordinary page labels, including empty source pages. Namespace status describes the published destination; an unselected source ancestor has the same status as a missing ancestor.
+Generated namespace pages show a Namespace notice. Their hierarchy entries carry a Namespace badge, their All pages rows do not, and links to these destinations use a dotted underline. Selected source pages keep ordinary page labels, including empty source pages. Namespace status describes the published destination; an unselected source ancestor has the same status as a missing ancestor.
 
 Add leading `prev:: [[Page title]]` or `next:: [[Page title]]` properties to publish Previous and Next navigation after the page content. Each value must be one direct page reference. Titles and unique aliases resolve to the canonical selected source page. Private, excluded, missing, ambiguous, self, and generated-only targets produce no navigation link. The last leading value for each key applies; nested properties and literal code do not supply sequence links. Authors choose the order, and a page can have either neighbor or both.
 

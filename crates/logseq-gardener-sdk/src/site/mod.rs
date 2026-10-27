@@ -1,5 +1,6 @@
 //! Generate a local HTML garden from explicitly selected Markdown pages.
 
+mod all_pages;
 mod assets;
 mod code;
 mod dialogue;
@@ -25,7 +26,9 @@ use std::path::{Path, PathBuf};
 use crate::garden::{DocumentKind, GardenLoadError, load_garden};
 use crate::garden_config as config;
 use crate::garden_settings::{GardenSettings, resolve_favorites};
+use crate::git_dates::GitDates;
 use crate::journals::{JournalDate, JournalFormats, journal_identity};
+use crate::page_list::{PageKind, PageSource, page_list};
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
 use crate::publishing::NamespaceSelection;
@@ -260,7 +263,7 @@ fn html_page(
     let theme_script = include_str!("theme.js");
     let theme_styles = include_str!("theme.css");
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}.namespace-hierarchy{{margin-top:2rem}}.namespace-hierarchy summary{{cursor:pointer;font-size:1.25rem;font-weight:600}}.namespace-hierarchy ul{{list-style:none;padding:0;margin:.75rem 0 0}}.namespace-separator{{margin-inline:.2em}}.namespace-path{{display:block;overflow-wrap:anywhere}}.namespace-path a,.namespace-unavailable{{overflow-wrap:anywhere}}{navigation_styles}{outline_styles}{inline_styles}{code_styles}{transclusion_styles}{references_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}{navigation_styles}{outline_styles}{inline_styles}{code_styles}{transclusion_styles}{references_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
     )
 }
 
@@ -308,6 +311,9 @@ pub fn publish_site_with_options(
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
     let garden = load_garden(source_root).map_err(SiteError::Garden)?;
+    // Reading the git history takes seconds on a large garden; it runs while pages render.
+    let git_root = root.clone();
+    let git_dates = std::thread::spawn(move || GitDates::read(git_root));
     let mut report = SiteReport {
         pages: 0,
         journals: 0,
@@ -376,6 +382,7 @@ pub fn publish_site_with_options(
     let mut names = PageNameIndex::with_journal_formats(journal_formats);
     let mut aliases = BTreeSet::new();
     let mut spellings = BTreeMap::new();
+    let mut alias_spellings = BTreeMap::new();
     for (title, route, document) in &selected {
         names.insert(route.clone(), title, document);
         if let Some(date) = journal_dates.get(route) {
@@ -385,11 +392,16 @@ pub fn publish_site_with_options(
         spellings
             .entry(lookup_key(title))
             .or_insert_with(|| title.clone());
-        for alias in page_alias_spellings(document, title) {
-            spellings.entry(lookup_key(&alias)).or_insert(alias);
+        let authored = page_alias_spellings(document, title);
+        for alias in &authored {
+            spellings
+                .entry(lookup_key(alias))
+                .or_insert_with(|| alias.clone());
         }
+        alias_spellings.insert(lookup_key(title), authored);
     }
-    let hierarchy = hierarchy::Hierarchy::new(&routes, &withheld_titles, &aliases)?;
+    let hierarchy =
+        hierarchy::Hierarchy::new(&routes, &withheld_titles, &aliases, &alias_spellings)?;
     let homepage_route = options
         .homepage
         .as_deref()
@@ -474,7 +486,6 @@ pub fn publish_site_with_options(
     // Only selected source reaches the renderer and may request asset contents.
     let mut copied: BTreeMap<String, (PathBuf, Vec<u8>)> = BTreeMap::new();
     let mut documents = BTreeMap::new();
-    let mut index = String::from("<ul>");
     let mut feed_bodies = BTreeMap::new();
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     code::prepare(selected.iter().map(|(_, _, document)| *document));
@@ -550,19 +561,20 @@ pub fn publish_site_with_options(
                 ),
             );
         }
-        let hierarchy_html = if is_journal {
-            String::new()
+        let hierarchy_section = if is_journal {
+            hierarchy::Section::default()
         } else {
-            hierarchy.bottom_view(&title)
+            hierarchy.bottom_view(&title, &route, settings.show_brackets)
         };
         let body = properties.html.clone()
             + &rendered.html
             + &sequence
             + &sections.tagged
             + &sections.linked
-            + &hierarchy_html
+            + &hierarchy_section.html
             + &sections.unlinked;
         documents.extend(sections.files);
+        documents.extend(hierarchy_section.files);
         if homepage_route.as_ref() == Some(&route) {
             homepage_document = Some(html_document(
                 &title,
@@ -585,7 +597,7 @@ pub fn publish_site_with_options(
     }
     let mut entries = hierarchy.entries().collect::<Vec<_>>();
     entries.sort_by(|left, right| left.title.cmp(&right.title));
-    for node in entries {
+    for node in &entries {
         if !documents.contains_key(&node.route) {
             let sections = reference_index.render(
                 &node.route,
@@ -598,6 +610,9 @@ pub fn publish_site_with_options(
                 &mut asset,
             );
             documents.extend(sections.files);
+            let hierarchy_section =
+                hierarchy.bottom_view(&node.title, &node.route, settings.show_brackets);
+            documents.extend(hierarchy_section.files);
             documents.insert(
                 node.route.clone(),
                 html_document(
@@ -605,7 +620,7 @@ pub fn publish_site_with_options(
                     &(page_status::notice().to_owned()
                         + &sections.tagged
                         + &sections.linked
-                        + &hierarchy.bottom_view(&node.title)
+                        + &hierarchy_section.html
                         + &sections.unlinked),
                     stylesheet_route,
                     &shell,
@@ -614,29 +629,50 @@ pub fn publish_site_with_options(
                 ),
             );
         }
-        index.push_str(&format!(
-            "<li><a{} href=\"{}\">{}</a>{}</li>",
-            page_status::link_attributes(node.generated, &node.title),
-            render::escape(&node.route),
-            render::escape(&node.title),
-            page_status::badge(node.generated)
-        ));
     }
-    index.push_str("</ul>");
-    if report.pages + report.journals == 0 {
-        index.push_str("<p>No pages matched the publication policy.</p>");
+    let (dates, dates_diagnostic) = git_dates.join().expect("git history reader panicked");
+    if let Some(message) = dates_diagnostic {
+        report.diagnostics.push(SiteDiagnostic {
+            source: ".".into(),
+            message,
+        });
     }
-    documents.insert(
-        index_route.to_owned(),
-        html_document(
-            "Garden",
-            &index,
+    let list = page_list(
+        entries.iter().map(|node| PageSource {
+            id: node.route.clone(),
+            title: node.title.clone(),
+            kind: if node.generated {
+                PageKind::Namespace
+            } else if journal_dates.contains_key(&node.route) {
+                PageKind::Journal
+            } else {
+                PageKind::Page
+            },
+            document: selected_documents
+                .get(&node.route)
+                .map(|page: &crate::transclusion::EmbedPage| page.document),
+        }),
+        reference_index.index(),
+        dates.as_ref(),
+    );
+    for (route, main) in all_pages::screens(&list, index_route) {
+        let home = route == index_route && !has_homepage;
+        let html = html_page(
+            "All pages",
+            &main,
             stylesheet_route,
             &shell,
-            index_route,
-            !has_homepage,
-        ),
+            &route,
+            home,
+            &all_pages::head(),
+        );
+        documents.insert(route, html);
+    }
+    documents.insert(
+        all_pages::LIST_ROUTE.to_owned(),
+        all_pages::list_json(&list),
     );
+    documents.insert(all_pages::SCRIPT_ROUTE.to_owned(), all_pages::script());
     if let Some(document) = homepage_document {
         documents.insert("index.html".to_owned(), document);
     }
@@ -713,6 +749,8 @@ pub fn publish_site_with_options(
         let directory = output.join(references::REFS);
         fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
     }
+    let directory = output.join(all_pages::LIST_DIRECTORY);
+    fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
     write_files(&output, documents)?;
     if let Some(contents) = stylesheet {
         let path = output.join("custom.css");

@@ -169,6 +169,11 @@ impl<'a> References<'a> {
         anchors
     }
 
+    /// The shared reference index, keyed by route.
+    pub fn index(&self) -> &ReferenceIndex<String> {
+        &self.index
+    }
+
     /// Number of distinct pages that refer to `target`.
     pub fn page_count(&self, target: &str) -> usize {
         self.index.referring_pages(&target.to_owned())

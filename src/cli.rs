@@ -1,5 +1,7 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use logseq_gardener_sdk::{
+    garden::DocumentKind,
+    page_lookup::PageCatalog,
     page_titles::FilenameFormat,
     publishing::NamespaceSelection,
     site::{SearchOptions, SiteOptions, publish_site_with_options},
@@ -38,6 +40,7 @@ enum Command {
     Help(HelpArgs),
     Version(VersionArgs),
     Publish(PublishArgs),
+    Lookup(LookupArgs),
 }
 
 #[derive(Args, Default)]
@@ -99,6 +102,27 @@ struct PublishArgs {
     command: Option<PublishCommand>,
 }
 
+#[derive(Args)]
+#[command(
+    disable_help_flag = true,
+    disable_help_subcommand = true,
+    args_conflicts_with_subcommands = true
+)]
+struct LookupArgs {
+    name: Option<String>,
+    #[arg(long)]
+    graph: Option<PathBuf>,
+    #[arg(long, value_enum)]
+    filename_format: Option<PublishFilenameFormat>,
+    #[command(subcommand)]
+    command: Option<LookupCommand>,
+}
+
+#[derive(Subcommand)]
+enum LookupCommand {
+    Help(HelpArgs),
+}
+
 #[derive(Clone, Copy, ValueEnum)]
 enum PublishFilenameFormat {
     Legacy,
@@ -125,10 +149,16 @@ impl From<String> for Response {
 pub struct Failure {
     pub message: String,
     pub code: u8,
+    /// Diagnostics written to stderr before the error.
+    pub diagnostics: String,
 }
 impl From<String> for Failure {
     fn from(message: String) -> Self {
-        Self { message, code: 2 }
+        Self {
+            message,
+            code: 2,
+            diagnostics: String::new(),
+        }
     }
 }
 
@@ -137,6 +167,7 @@ pub fn run() -> Result<Response, Failure> {
     let path: &[&str] = match &cli.command {
         Some(Command::Version(_)) => &["version"],
         Some(Command::Publish(_)) => &["publish"],
+        Some(Command::Lookup(_)) => &["lookup"],
         _ => &[],
     };
     if cli.help {
@@ -156,6 +187,11 @@ pub fn run() -> Result<Response, Failure> {
             ..
         })) => help::render(path, &args, cli.format, cli.programmatic),
         Some(Command::Publish(args)) => return publish(args, cli.format),
+        Some(Command::Lookup(LookupArgs {
+            command: Some(LookupCommand::Help(args)),
+            ..
+        })) => help::render(path, &args, cli.format, cli.programmatic),
+        Some(Command::Lookup(args)) => return lookup(args, cli.format),
         None => help::render(path, &HelpArgs::default(), cli.format, cli.programmatic),
     }?;
     Ok(text.into())
@@ -172,18 +208,76 @@ fn version(format: Format) -> Result<String, String> {
     })
 }
 
+fn filename_format(format: PublishFilenameFormat) -> FilenameFormat {
+    match format {
+        PublishFilenameFormat::Legacy => FilenameFormat::Legacy,
+        PublishFilenameFormat::TripleLowbar => FilenameFormat::TripleLowbar,
+    }
+}
+
+fn lookup(args: LookupArgs, format: Format) -> Result<Response, Failure> {
+    let required =
+        |name: &str| Failure::from(format!("missing required {name}; use 'lsg lookup help'"));
+    let name = args.name.ok_or_else(|| required("page name"))?;
+    let graph = args.graph.ok_or_else(|| required("--graph"))?;
+    let filename_format = filename_format(
+        args.filename_format
+            .ok_or_else(|| required("--filename-format"))?,
+    );
+    let (catalog, diagnostics) =
+        PageCatalog::load(&graph, filename_format).map_err(|error| Failure {
+            message: format!("cannot read the garden: {error}; use 'lsg lookup help'"),
+            code: 1,
+            diagnostics: String::new(),
+        })?;
+    let found = catalog.find(&name);
+    let mut stderr: String = diagnostics
+        .iter()
+        .map(|diagnostic| format!("{}: {}\n", diagnostic.source.display(), diagnostic.message))
+        .collect();
+    if found.is_empty() {
+        return Err(Failure {
+            message: format!(
+                "no page title, alias or journal date matches {name:?}; check the spelling and --filename-format"
+            ),
+            code: 1,
+            diagnostics: stderr,
+        });
+    }
+    if found.len() > 1 {
+        stderr.push_str(&format!("{} pages match {name:?}\n", found.len()));
+    }
+    let stdout = match format {
+        Format::Human => output::clean(
+            &found
+                .iter()
+                .map(|page| format!("{}\n", graph.join(&page.relative_path).display()))
+                .collect::<String>(),
+        ),
+        Format::Json => {
+            output::json_document(&json!({"format_version": 1, "command_path": ["lookup"],
+            "query": name, "pages": found.iter().map(|page| json!({
+                "title": page.title,
+                "path": graph.join(&page.relative_path).to_string_lossy(),
+                "relative_path": page.relative_path.to_string_lossy(),
+                "kind": match page.kind { DocumentKind::Page => "page", DocumentKind::Journal => "journal" },
+                "matched_by": page.matched_by.as_str(),
+            })).collect::<Vec<_>>(),
+            "diagnostic_count": diagnostics.len()}))
+        }
+    };
+    Ok(Response { stdout, stderr })
+}
+
 fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
     let required =
         |name: &str| Failure::from(format!("missing required --{name}; use 'lsg publish help'"));
     let graph = args.graph.ok_or_else(|| required("graph"))?;
     let output = args.output.ok_or_else(|| required("output"))?;
-    let filename_format = match args
-        .filename_format
-        .ok_or_else(|| required("filename-format"))?
-    {
-        PublishFilenameFormat::Legacy => FilenameFormat::Legacy,
-        PublishFilenameFormat::TripleLowbar => FilenameFormat::TripleLowbar,
-    };
+    let filename_format = filename_format(
+        args.filename_format
+            .ok_or_else(|| required("filename-format"))?,
+    );
     let included: Vec<&str> = args.include.iter().map(String::as_str).collect();
     let excluded: Vec<&str> = args.exclude.iter().map(String::as_str).collect();
     let selection = NamespaceSelection::new(&included, &excluded)
@@ -204,6 +298,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
     .map_err(|error| Failure {
         message: format!("publication failed: {error}; use 'lsg publish help'"),
         code: 1,
+        diagnostics: String::new(),
     })?;
     let index = output.join("index.html");
     let stdout = match format {

@@ -159,7 +159,13 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
-                                       'transclusion', 'references'})
+                                       'transclusion', 'references', 'all_pages', 'hierarchy'})
+        self.assertEqual(set(loaded['all_pages']), {'paging_page_gzip_kb', 'growth_kb', 'script_gzip_kb',
+                                                    'list_gzip_kb', 'sort_heap_mb', 'search_ms_desktop',
+                                                    'search_ms_phone', 'build_slowdown_pct'})
+        self.assertEqual(set(loaded['hierarchy']), {'inline_rows', 'styles_gzip_kb', 'script_baseline_kb',
+                                                    'script_growth_kb', 'fragment_gzip_kb', 'root_growth_kb',
+                                                    'scroll_heap_mb', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['references']), {'script_kb', 'styles_gzip_kb', 'fragment_gzip_kb',
                                                      'open_ms_desktop', 'open_ms_phone', 'open_heap_mb',
                                                      'filter_ms', 'build_slowdown_pct'})
@@ -318,6 +324,58 @@ class BudgetCheckTest(unittest.TestCase):
             failures = budgets.check_references(site, limits, styles)
             self.assertEqual(len(failures), 1)
             self.assertIn('_refs/p-2-linked-1.html', failures[0])
+
+    def test_all_pages_paging_growth_script_and_list(self):
+        limits = {'desktop': {'data_before_title_kb': 100, 'script_before_title_kb': 16},
+                  'phone': {'data_before_title_kb': 100, 'script_before_title_kb': 16},
+                  'all_pages': {'paging_page_gzip_kb': 1, 'growth_kb': 1, 'script_gzip_kb': 1, 'list_gzip_kb': 1}}
+        with tempfile.TemporaryDirectory() as temp:
+            small, large = Path(temp) / 'small', Path(temp) / 'large'
+            for site, rows in ((small, 40), (large, 40)):
+                (site / '_pages').mkdir(parents=True)
+                (site / 'pages.html').write_text('<tr></tr>' * rows, encoding='utf-8')
+                (site / budgets.ALL_PAGES_SCRIPT).write_text('x' * 100, encoding='utf-8')
+                (site / budgets.ALL_PAGES_LIST).write_text('[]', encoding='utf-8')
+            (small / 'pages-2.html').write_text('<p>small</p>', encoding='utf-8')
+            (small / 'p-1.html').write_text('<p>page</p>', encoding='utf-8')
+            self.assertEqual(budgets.check_all_pages(small, large, limits), [])
+            self.assertEqual(budgets.site_pages(small), ['p-1.html'])
+            (small / 'pages-3.html').write_bytes(os.urandom(3000))
+            (large / 'pages.html').write_text('<tr></tr>' * 400, encoding='utf-8')
+            (small / 'p-1.html').write_text(f'<script src="{budgets.ALL_PAGES_SCRIPT}"></script>', encoding='utf-8')
+            failures = budgets.check_all_pages(small, large, limits)
+            self.assertEqual(len(failures), 3, failures)
+            self.assertIn('pages-3.html', failures[0])
+            self.assertIn('grew', failures[1])
+            self.assertIn('loaded outside All pages', failures[2])
+
+    def test_hierarchy_rows_styles_script_fragments_and_grown_root(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            styles = temp / 'references.css'
+            styles.write_text('.references{margin-top:24px}.namespaces{margin:12px 24px}', encoding='utf-8')
+            self.assertEqual(budgets.hierarchy_styles(styles), '.namespaces{margin:12px 24px}')
+            self.assertEqual(budgets.hierarchy_styles(styles, hierarchy=False), '.references{margin-top:24px}')
+            limits = {'inline_rows': 2, 'styles_gzip_kb': 1, 'script_baseline_kb': 0.4, 'script_growth_kb': 0.1,
+                      'fragment_gzip_kb': 1, 'root_growth_kb': 0.1}
+            sites = {}
+            for name, rows, root in (('site', 2, 0), ('smaller', 2, 100), ('larger', 2, 150)):
+                site = sites[name] = temp / name
+                (site / '_refs').mkdir(parents=True)
+                (site / 'p-1.html').write_text('<section class="page-hierarchy references"><ul>'
+                                               + '<li>r</li>' * rows + '</ul></section>', encoding='utf-8')
+                (site / 'p-00000000000000aa.html').write_text('x' * root, encoding='utf-8')
+                (site / 'pages.html').write_text('<main><ul><li><a href="p-00000000000000aa.html">Grown</a></li></ul></main>',
+                                                 encoding='utf-8')
+                (site / '_refs' / 'p-grown-hierarchy-1.html').write_text('<li>r</li>', encoding='utf-8')
+            (sites['site'] / 'lsg-references.js').write_text('x' * 450, encoding='utf-8')
+            self.assertEqual(budgets.check_hierarchy(sites['site'], sites['smaller'], sites['larger'], limits, styles), [])
+            (sites['site'] / 'p-2.html').write_text('<section class="page-hierarchy"><li>' * 3, encoding='utf-8')
+            (sites['larger'] / 'p-00000000000000aa.html').write_text('x' * 300, encoding='utf-8')
+            (sites['site'] / 'lsg-references.js').write_text('x' * 600, encoding='utf-8')
+            (sites['smaller'] / '_refs' / 'p-big-hierarchy-1.html').write_bytes(os.urandom(3000))
+            failures = budgets.check_hierarchy(sites['site'], sites['smaller'], sites['larger'], limits, styles)
+            self.assertEqual(len(failures), 4, failures)
 
     def test_shell_script_and_frame(self):
         with tempfile.TemporaryDirectory() as temp:

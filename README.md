@@ -2,7 +2,7 @@
 
 Logseq Gardener (`lsg`) is a command-line tool for people and coding agents who keep notes in Logseq Markdown gardens. Page aliases, references to individual blocks, and pages mentioned only through links make these gardens difficult to navigate with filename searches alone.
 
-The goal is to help you find notes, follow relationships, and review changes from the terminal and Neovim using the notes saved in your Markdown files. This version publishes selected namespaces as local HTML pages and provides offline help and version reporting. Garden lookup commands remain planned.
+The goal is to help you find notes, follow relationships, and review changes from the terminal and Neovim using the notes saved in your Markdown files. This version publishes selected namespaces as local HTML pages, prints the source file of a page named by its title, alias or journal date, and provides offline help and version reporting.
 
 ## Project status
 
@@ -31,7 +31,7 @@ This creates `target/release/lsg` (`lsg.exe` on Windows). The first build downlo
 
 The outline lists documentation headings. The section command explains what the commands do and which permissions they need. The final command returns one JSON document identifying your installed version. These commands work offline and leave garden files unchanged.
 
-To publish your notes, follow [Generate a local HTML garden](docs/local-site.md). The guide covers namespace selection, fresh output directories, and rendering limits. Publishing currently skips journals and withholds whole pages containing a parsed `public:: false` property.
+To publish your notes, follow [Generate a local HTML garden](docs/local-site.md). The guide covers namespace selection, fresh output directories, and rendering limits. Publishing includes journals only with `--journals` and withholds whole pages containing a parsed `public:: false` property. To open a page's source file by name, see [Find a page's source file](docs/cli.md#find-a-pages-source-file).
 
 ## Learn more
 

@@ -14,6 +14,7 @@ AI/Coding/History
 VSCode/Proj/24t3/LearnVSCode/03 Basic Python
 Home
 All pages
-Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs
 AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025
+Logseq/Doc/slide
+Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs
 Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton

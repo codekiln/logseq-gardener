@@ -1,10 +1,10 @@
 ## Context
 
-The [hierarchy analysis](../../../docs/parity/hierarchy.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `c622a4d`) with an `lsg` build of garden commit `0ce74d6`. Logseq's [`hierarchy.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/hierarchy.cljs#L13-L42) picks the page or its first namespaced alias, lists every namespace descendant or, for a leaf, its parent's path, sorts by lower-cased name and renders every row in the browser from the whole graph.
+The [hierarchy analysis](../../../../docs/parity/hierarchy.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `c622a4d`) with an `lsg` build of garden commit `0ce74d6`. Logseq's [`hierarchy.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/hierarchy.cljs#L13-L42) picks the page or its first namespaced alias, lists every namespace descendant or, for a leaf, its parent's path, sorts by lower-cased name and renders every row in the browser from the whole graph.
 
 Today `crates/logseq-gardener-sdk/src/site/hierarchy.rs` both derives the generated namespace destinations and answers the rows, inside the publisher. `bottom_view` starts with the current page's row, ignores aliases, adds a `Namespace` badge, and inlines every row: `Person` has 1,067 rows, 480 KB of its 562 KB page.
 
-[Issue #91](https://github.com/codekiln/logseq-gardener/issues/91) asked for rows of namespace pages without a file to stay out; this change keeps that rule. The [published reference sections spec](../../specs/published-reference-sections/spec.md) already places Hierarchy between Linked and Unlinked References and loads section bodies from `_refs/` fragments through `references.js`.
+[Issue #91](https://github.com/codekiln/logseq-gardener/issues/91) asked for rows of namespace pages without a file to stay out; this change keeps that rule. The [published reference sections spec](../../../specs/published-reference-sections/spec.md) already places Hierarchy between Linked and Unlinked References and loads section bodies from `_refs/` fragments through `references.js`.
 
 ## Goals / Non-Goals
 
@@ -52,7 +52,7 @@ The header reuses the reference sections' `details.references-section` and chevr
 
 **Styles.** The hierarchy rules move from the inline `site/mod.rs` styles to `site/references.css`, with the measured light values from the analysis: section margin-top 24px, `h2` 16px, weight 700, opacity 0.3; list margin `12px 24px`, padding 0, `circle` markers; rows `8px 0`; separator `0 8px` at opacity 0.3. Dark values reuse the existing tokens and are checked against the `gh-pages` build in dark mode during Apply.
 
-**Budgets.** Measured by the [comparison harness](../../specs/parity-comparison-harness/spec.md) on the whole encode garden:
+**Budgets.** Measured by the [comparison harness](../../../specs/parity-comparison-harness/spec.md) on the whole encode garden:
 
 | Measure | Budget |
 | --- | --- |
