@@ -1,8 +1,8 @@
 # Static search contract
 
-Enable index generation with `lsg publish … --search`, or set `SiteOptions.search = Some(SearchOptions::default())` in the SDK. Version1 emits selected stored page titles, unique aliases and original bullet inline text. Each page advertises its manifest through `<link rel="lsg-search" href="lsg-search-manifest-REVISION.json" data-revision="REVISION">`. A shared header button and Cmd/Ctrl+K shortcut open a native search dialog. A tiny startup module loads with the page; the full dialog controller, manifest, corpus and evaluator load only when search opens.
+Enable index generation with `lsg publish … --search`, or set `SiteOptions.search = Some(SearchOptions::default())` in the SDK. Search format version 2 publishes selected stored page titles, unique aliases and original bullet inline text as a small title index, word-prefix shards and record chunks. Each page advertises its manifest through `<link rel="lsg-search" href="lsg-search-manifest-REVISION.json" data-revision="REVISION">`. A shared header button and Cmd/Ctrl+K shortcut open a native search dialog. A tiny startup module loads with the page; the dialog controller, manifest, engine and title index load only when search opens, and each query loads only the shards its words need and the chunks of the rows it draws.
 
-[Issue96 — search validation](https://github.com/codekiln/logseq-gardener/issues/96) covers representative browser transfer, parsing, query latency and failure/loading states. Its measurements will choose chunking or worker execution. Use the existing `scripts/parity/perf.py` and `scripts/parity/budgets.toml` for those measurements.
+The SDK's `search` module builds the records, the word index and the files, and answers the same query in Rust; the publisher only writes the files. [Issue96 — search validation](https://github.com/codekiln/logseq-gardener/issues/96) covers representative browser transfer, parsing, query latency and failure/loading states. Use the existing `scripts/parity/perf.py` and `scripts/parity/budgets.toml` for those measurements.
 
 ## Publication boundary
 
@@ -14,88 +14,102 @@ A bullet with `search-exclude:: true` excludes its whole original subtree. This 
 
 ## Artifacts
 
-All files live beside the generated HTML. The manifest is externally linked and fingerprinted. Its JSON fields are:
+All files live beside the generated HTML and are named by a 16-hex-digit content digest, so a rebuild after one edit changes only the manifest, the shards whose words changed and the chunk that holds the edited page. Every file declares `"format_version": 2`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
+
+The manifest, `lsg-search-manifest-REVISION.json`, names every other file:
 
 ```json
 {
-  "format_version": 1,
-  "revision": "0123456789abcdef",
-  "corpus": {
-    "href": "lsg-search-0123456789abcdef.json",
-    "bytes": 1234,
-    "records": 12
-  },
-  "engine": "lsg-search-engine-0123456789abcdef.mjs"
+  "format_version": 2,
+  "revision": "705a38f07276efa8",
+  "engine": "lsg-search-engine-17470450146bbf8f.mjs",
+  "titles": "448cd43839cb21ad",
+  "blocks": 2,
+  "chunk_size": 256,
+  "chunks": ["bfdbc9154aefca1e"],
+  "shards": {"co": "e1d3cd6f73b473f3", "no": "6c944b207d31af25", "re": "0dd4f0eb1365fc18",
+             "se": "8c53ae9376251ad8", "tm": "3b338af9f70ea5e3", "wi": "f10a62484c870901"}
 }
 ```
 
-`bytes` counts the serialized UTF-8 corpus length; `records` counts page plus content records. These contain only published records. The single corpus has `format_version`, `revision`, `pages` and `content`:
+| File | Name | Holds |
+| --- | --- | --- |
+| Title index | `lsg-search-titles-<titles>.json` | Per page, in title order: title, route, aliases and its number of block records. |
+| Shard | `lsg-search-shard-<digest>.json` | Each normalized word under the shard's key with its block record numbers, delta-encoded. |
+| Chunk | `lsg-search-chunk-<digest>.json` | `chunk_size` consecutive block records: page route, fragment, text and up to three parents, nearest last. |
+| Engine | the manifest's `engine` | The pure evaluator, named by its own digest. |
 
 ```json
-{
-  "format_version": 1,
-  "revision": "0123456789abcdef",
-  "pages": [{
-    "id": "p-0123456789abcdef.html",
-    "title": "Music/Session",
-    "href": "p-0123456789abcdef.html",
-    "aliases": ["Session"]
-  }],
-  "content": [{
-    "id": "p-0123456789abcdef.html#source-block-42",
-    "page": "p-0123456789abcdef.html",
-    "href": "p-0123456789abcdef.html#source-block-42",
-    "text": "Authored session notes",
-    "ancestors": ["Recording"],
-    "position": 42
-  }]
-}
+{"format_version": 2, "pages": [["Music/Session", "p-a33d85f823d4a0a3.html", ["Session"], 2]]}
+{"format_version": 2, "words": [["tmux", [1]]]}
+{"format_version": 2, "blocks": [
+  ["p-a33d85f823d4a0a3.html", "source-block-16", "Session notes", []],
+  ["p-a33d85f823d4a0a3.html", "source-block-32", "Recording with tmux.conf", ["Session notes"]]]}
 ```
 
-Page IDs are the publisher's output-relative routes. Content IDs combine that route and original source offset. `position` is the UTF-8 source offset used for stable ordering within the publication. The destination prefers `#block-UUID` when the authored UUID is globally unique among selected originals; otherwise it uses `#source-block-POSITION`. Every indexed destination is requested from the renderer and admitted only after its original anchor is actually emitted. Breadcrumbs contain safe original parent text, each bounded to160 Unicode characters. Content records contain full searchable inline text; query results return bounded snippets.
+Block records are ordered by page, in title-index order, then by source position, so a page's records are consecutive and the title index's counts give each block's page before its chunk loads. A block's number is its place in that order; chunk `n` holds blocks `n × chunk_size` onwards.
 
-The revision fingerprints deterministic serialized records and evaluator source with the publisher's existing non-security digest and a `search-v1` policy marker. It serves as a cache identity, without cryptographic integrity guarantees. Revision changes follow search-visible content, titles, aliases, routes and offsets. Original source files and filesystem paths are absent from the artifacts.
+A word belongs to the shard keyed by its first two characters; a one-character word has its own shard. A shard larger than 64 KB gzipped splits by the next character, and the words no longer than its key stay in a terminal shard under the key. A terminal shard (a one-character key, or a key that a longer key extends) holds only the word equal to its key.
+
+The destination fragment prefers `block-UUID` when the authored UUID is globally unique among selected originals; otherwise it uses `source-block-POSITION`, the UTF-8 source offset. Every indexed destination is requested from the renderer and admitted only after its original anchor is emitted. Parents hold safe original parent text, each bounded to 160 Unicode characters. Records contain only published text; original source files and filesystem paths are absent.
+
+The revision digests the manifest's other fields with a `search-v2` marker, using the publisher's non-security FNV-1a digest. It serves as a cache identity, without cryptographic integrity guarantees.
+
+## Matching and ranking
+
+Text is compared lowercased with locale-independent Unicode casing, in NFC, with whitespace runs collapsed. A word is a run of letters, digits or combining marks; everything else separates words.
+
+- **Pages.** A page matches when the query's characters, ignoring spaces, brackets, slashes, underscores and parentheses, appear in order in its title or an alias. Results rank as exact title, exact alias, title or alias prefix, then by Logseq's fuzzy page score, ties in title order. A page appears once; when an alias matched best the result names it.
+- **Blocks.** A block matches when every query word starts a word of its text. Results rank by how many query words equal a whole word, ties in record order. A one-character query word matches only that whole word, and a query of one-character words searches titles alone.
+
+Each group reports its full match count and returns at most 100 results. The SDK's `SearchIndex::query` returns the same groups in the same order; `tests/search-fixture.json` runs in both engines.
 
 ## Pure consumer API
 
-Import the manifest's revision-specific engine URL on first use. It has no DOM, network, storage or navigation side effects.
+Import the manifest's engine URL on first use. It has no DOM, network, storage or navigation side effects; the caller fetches files relative to the manifest and passes their text.
 
 ```javascript
-const { prepareIndex, query, resolveResult } = await import(engineURL);
-const index = prepareIndex(manifest, corpus, expectedRevision);
-const outcome = query(index, userInput, { limit: 20 });
-for (const result of outcome.results) {
-  titleNode.textContent = result.title;
-  snippetNode.textContent = result.text;
-  const destination = resolveResult(result);
+const engine = await import(engineURL);
+const manifest = engine.prepareManifest(manifestJSON, expectedRevision);
+const index = engine.createIndex(manifest, await text(engine.titlesFile(manifest)));
+for (const key of engine.missingShards(index, input)) {
+  engine.addShard(index, key, await text(engine.shardFile(manifest, key)));
+}
+const outcome = engine.query(index, input, { limit: 100, currentPage: pageRoute });
+const blocks = outcome.blocks.results.map(result => result.block);
+for (const n of engine.missingChunks(index, blocks)) {
+  engine.addChunk(index, n, await text(engine.chunkFile(manifest, n)));
+}
+for (const result of outcome.blocks.results) {
+  const row = engine.blockRow(index, result.block);
+  snippetNode.textContent = engine.snippet(row.text, input);
+  linkNode.href = engine.resolveResult(row);
 }
 ```
 
-`expectedRevision` comes from the currently loaded page's manifest link. `prepareIndex` copies and freezes records, validates shape/version/revision/counts/routes and rejects duplicate IDs or destinations. Invalid input throws a `TypeError` with a reload/retry message. The loader must separately verify successful HTTP responses, decoded JSON and the manifest's serialized transfer length, preserve the page's expected revision, and keep loading/error states separate from an empty result. Fetches and retry/cancellation policy belong to the consumer.
+`expectedRevision` comes from the currently loaded page's manifest link. `prepareManifest` rejects every format version other than 2, a revision mismatch and malformed fields. `createIndex`, `addShard` and `addChunk` reject text whose digest differs from the manifest's, and records of the wrong shape or page. Invalid input throws a `TypeError` with a reload/retry message. The loader must separately verify successful HTTP responses and keep loading/error states separate from an empty result.
 
-`query` is pure and preserves its inputs. It returns `{error, results}`. Each result has `kind` (`page` or `block`), `page`, `title`, `href`, `text` and `ancestors`. Page results have empty `text` and `ancestors`. Results contain plain text; render with text nodes. Snippets show context around a matched term, bounded to240 Unicode code points including ellipses. Display windows preserve whole graphemes; snippets are produced only for the final returned results. The evaluator supplies no HTML or normalized highlight offsets.
+`query` is pure. It returns `{error, pages, blocks, currentPage}`; each group is `{count, results}`. Page results have `kind: 'page'`, `page`, `title`, `href` and `alias` (null unless an alias matched). Block results have `kind: 'block'`, `block`, `page` and `title`; `blockRow` adds `href`, `text` and `parents` once the block's chunk is loaded, and returns null before. `currentPage` lists the matching blocks of the page whose route is passed. A query whose shards are not loaded returns `shards-not-loaded`. `highlight(text, input, kind)` returns `[start, end)` UTF-16 ranges to mark: word starts in block text, or the matched characters of a title. `snippet` bounds block text to 240 Unicode code points around the first match, keeping whole graphemes. Results contain plain text; render with text nodes.
 
-Matching lowercases with locale-independent JavaScript Unicode casing, normalizes to NFC, and collapses whitespace. Accents remain significant; composed/decomposed forms match. Terms are unique whitespace-separated literal substrings; punctuation and CJK remain literal. Terms must all match a single title, a single alias, or a single bullet. Ranking buckets are exact title, exact alias, title/alias prefix, all-term title/alias, then all-term bullet content. Ties use normalized title, output route, then numeric source position. String comparison uses deterministic JavaScript code-unit ordering, independent of locale.
-
-Empty input returns an empty successful result. Non-string, ill-formed Unicode or queries over256 code points return `invalid-query`; over16 distinct terms return `too-many-terms`. Limits must be integer1–100, otherwise `invalid-limit`. The default is20 results. Limits cap returned records; all published records participate in matching. Page and original-content matches can both appear for one source page.
+Empty input returns empty groups. Non-string, ill-formed Unicode or queries over 256 code points return `invalid-query`; over 16 distinct words return `too-many-terms`. Limits must be integers 1–100, otherwise `invalid-limit`.
 
 ## Caching and host routes
 
-Resolve artifact URLs relative to the manifest link's directory, including under a static-host subpath. Cache a prepared corpus by format version and revision. Keep immutable corpus/manifest files available while older HTML may still be cached. A page/manifest/corpus revision mismatch requires a fresh page or a retry against that page's advertised files. Reusing an old corpus with current source-offset anchors can navigate to unrelated content.
+Resolve artifact URLs relative to the manifest link's directory, including under a static-host subpath. Keep fetched files for the publication, keyed by revision. Keep older search files available while older HTML may still be cached; digest names let browsers cache unchanged shards and chunks across builds. A page/manifest revision or file digest mismatch requires a fresh page or a retry against that page's advertised files. Reusing old records with current source-offset anchors can navigate to unrelated content.
 
-Hosts with readable URLs can pass a resolver to `resolveResult(result, (title, publishedHref) => readableHref)`. It preserves the original fragment and calls the resolver with the stored canonical title. The resolver returns a route without a fragment. Adapt only navigation; rewriting JSON without recomputing its revision breaks the publication contract. A Gitpa adapter must use its title-to-readable-route map and mark its temporary homepage query slot with the generic subtree exclusion before publication. The generic SDK contains no host placeholder token.
+Hosts with readable URLs can pass a resolver to `resolveResult(result, (title, publishedHref) => readableHref)`. It preserves the original fragment and calls the resolver with the stored canonical title. The resolver returns a route without a fragment. Adapt only navigation; rewriting JSON without recomputing its digests breaks the publication contract. A Gitpa adapter must use its title-to-readable-route map and mark its temporary homepage query slot with the generic subtree exclusion before publication. The generic SDK contains no host placeholder token.
 
 For SPA navigation, load the resolved page through the host's normal navigation hook, then call `window.logseqGardenerRevealFragment(fragment, {scroll: false})` before the host's focus/scroll step. The helper opens collapsed ancestors. Hosts retain control of the audio player, theme and page initialization. Ordinary static navigation uses the same fragment helper on page load/hash changes.
 
 ## Checks
 
-`mise run test` runs Rust publication fixtures and the pure engine tests. The search fixtures inspect the serialized artifacts for private/unselected sentinels, aliases, exclusions, copied content, revision identity, exact anchor existence, repeated deterministic publication and original-source immutability. JavaScript fixtures assert whole result order, Unicode, malformed/oversized input, safe text snippets, incompatible data and host route adaptation. Search adds no separate performance harness.
+`mise run test` runs Rust publication fixtures, the SDK query and the pure engine tests. The publication fixtures inspect every search file for private/unselected sentinels, aliases, exclusions, copied content, revision identity, exact anchor existence, repeated deterministic publication and original-source immutability. `tests/search-fixture.json` holds records, the files the SDK writes for them, and queries with expected results; `cargo test` and `node --test` both run it. After a deliberate change, regenerate it with `LSG_UPDATE_SEARCH_FIXTURE=1 cargo test -p logseq-gardener-sdk --test search_fixture` and review the diff. JavaScript tests also cover shard selection, Unicode, malformed/oversized input, snippets, highlights, digest and version checks and host route adaptation.
 
 ## Shared dialog and persistent hosts
 
 Search-enabled pages load a content-fingerprinted `lsg-search-start-*.mjs` startup module, which imports the full `lsg-search-ui-*.mjs` controller on first open. The header trigger remains hidden until JavaScript finds valid publication metadata and native dialog support. Cmd/Ctrl+K opens the same dialog, and Escape/Close restores the original invoking control. Arrow keys move through ordinary result anchors; Enter activates a result. Native modal behavior contains Tab focus. Modified/new-tab result links retain browser behavior. Result titles, context and snippets use text nodes. The controller uses shared appearance variables on desktop/mobile and light/dark/system themes.
 
-The dialog distinguishes loading, an empty query, no results and failed publication loading. Failures offer explicit Retry search and Reload page buttons. Loading never reloads automatically. Reopening a loaded publication reuses its prepared index; closing aborts pending requests, and changed revisions invalidate cached results. The loader checks same-origin HTTP(S) artifact paths, response status/redirect behavior, expected revision/version, exact UTF-8 corpus length and the existing pure schema validator. Serve search-enabled output over HTTP(S), including local preview; `file:` pages retain ordinary navigation with the search trigger hidden.
+The dialog distinguishes loading, an empty query, no results and failed publication loading. Failures offer explicit Retry search and Reload page buttons. Loading never reloads automatically. Reopening a loaded publication reuses its prepared index; closing aborts pending requests, and changed revisions invalidate cached results. The loader checks same-origin HTTP(S) artifact paths, response status/redirect behavior, expected revision/version and the engine's digest and shape validation. Each query fetches its missing shards in parallel, then the chunks of the rows it draws; concurrent queries share requests. Serve search-enabled output over HTTP(S), including local preview; `file:` pages retain ordinary navigation with the search trigger hidden.
 
 For a persistent host, update the current document's `link[rel="lsg-search"]` from the incoming page before reinitializing. Remove the link when the incoming page has no search publication. Then call:
 
@@ -109,7 +123,7 @@ The optional resolver remains configured on subsequent calls; pass `resolvePage:
 
 An ordinary result activation closes the dialog before its click bubbles to the host's delegated navigator. The controller does not prevent the anchor's navigation; the host retains its existing player/theme/filter initialization and fragment reveal steps. Hosts should preserve the body-level dialog when replacing page content. The controller uses no audio or theme mutation APIs.
 
-`mise run search:browser-test` runs a generated static publication in pinned Chromium and checks keyboard/focus, safe snippets, mobile/themes, lazy requests/cache, modified links, repeated SPA initialization, metadata invalidation, explicit retry and no-JavaScript fallback. Unit loader fixtures also cover UTF-8 descriptor mismatch, remote/version failures and stale fetch/module completion across close/revision changes. This is a functional test; measured performance remains in the existing parity harness.
+`mise run search:browser-test` runs a generated static publication in pinned Chromium and checks keyboard/focus, safe snippets, mobile/themes, lazy requests/cache, modified links, repeated SPA initialization, metadata invalidation, explicit retry and no-JavaScript fallback. Unit loader fixtures also cover digest mismatch, remote/version failures, one fetch per shard and stale fetch/module completion across close/revision changes. This is a functional test; measured performance remains in the existing parity harness.
 
 The [search validation matrix](parity/search-performance.md) records completed-result latency, initial script/data cost, cold/warm loading, scale and failure evidence using the existing parity harness.
 

@@ -5,17 +5,17 @@
 
 ## 2. SDK search index
 
-- [ ] 2.1 Move record building from `site/search.rs` into a new SDK `search` module that keeps parents to the nearest three, and verify the existing privacy tests pass against it unchanged
-- [ ] 2.2 Add the word index with the word-splitting rule and verify a unit test for `tmux.conf: set -g mouse on`
-- [ ] 2.3 Add the Rust query with fuzzy title matching, Logseq's fuzzy score, block word-prefix matching, groups and full counts, and verify unit tests for `tmux`, `tmx`, `logseq query` and `tmux.conf.local`
-- [ ] 2.4 Add `tests/search-fixture.json` with queries and expected results and verify `cargo test` runs it against the Rust query
-- [ ] 2.5 Add sharding and record chunks named by content digest and verify a test that editing one block changes only the manifest, the affected shards and one chunk
+- [x] 2.1 Move record building from `site/search.rs` into a new SDK `search` module that keeps parents to the nearest three, and verify the existing privacy tests pass against it unchanged
+- [x] 2.2 Add the word index with the word-splitting rule and verify a unit test for `tmux.conf: set -g mouse on`
+- [x] 2.3 Add the Rust query with fuzzy title matching, Logseq's fuzzy score, block word-prefix matching, groups and full counts, and verify unit tests for `tmux`, `tmx`, `logseq query` and `tmux.conf.local`
+- [x] 2.4 Add `tests/search-fixture.json` with queries and expected results and verify `cargo test` runs it against the Rust query
+- [x] 2.5 Add sharding and record chunks named by content digest and verify a test that editing one block changes only the manifest, the affected shards and one chunk
 
 ## 3. Published files and engine
 
-- [ ] 3.1 Write the format version 2 manifest, title index, shards and chunks from `site/search.rs`, and verify the validator tests reject version 1, revision mismatch and digest mismatch
-- [ ] 3.2 Rewrite `search.mjs` for shard and chunk evaluation with the same matching and ranking, and verify the Node tests run `tests/search-fixture.json` with the same results as Rust
-- [ ] 3.3 Update `docs/static-search.md` for format version 2 and verify its examples match a fixture build
+- [x] 3.1 Write the format version 2 manifest, title index, shards and chunks from `site/search.rs`, and verify the validator tests reject version 1, revision mismatch and digest mismatch
+- [x] 3.2 Rewrite `search.mjs` for shard and chunk evaluation with the same matching and ranking, and verify the Node tests run `tests/search-fixture.json` with the same results as Rust
+- [x] 3.3 Update `docs/static-search.md` for format version 2 and verify its examples match a fixture build
 
 ## 4. Dialog
 
