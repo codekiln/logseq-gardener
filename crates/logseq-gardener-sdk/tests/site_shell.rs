@@ -86,6 +86,7 @@ fn header_and_sidebar_follow_logseq_order_with_resolved_favorites() {
         "aria-label=\"Toggle left sidebar\"",
         "aria-label=\"Home\"",
         "aria-label=\"More\"",
+        "aria-label=\"Toggle right sidebar\"",
         "data-lsg-all-pages",
         "Favorites</h2>",
         ">GitHub/CLI/Extension/gh-dash</a>",
@@ -142,7 +143,11 @@ fn gardens_without_favorites_omit_the_heading_and_keep_controls_hidden_without_s
     let other = f.page("OTHER_BODY");
     let frame = before(&other, "<main>");
     assert!(!frame.contains("Favorites</h2>"));
-    for control in ["data-lsg-left-toggle", "data-lsg-more"] {
+    for control in [
+        "data-lsg-left-toggle",
+        "data-lsg-more",
+        "data-lsg-right-toggle",
+    ] {
         let start = frame.find(control).unwrap();
         assert!(frame[start..frame[start..].find('>').unwrap() + start].contains(" hidden"));
     }
@@ -153,8 +158,33 @@ fn gardens_without_favorites_omit_the_heading_and_keep_controls_hidden_without_s
 fn shell_cost_is_fixed_per_page() {
     let f = Fixture::new(CONFIG);
     f.publish(None);
-    assert!(include_str!("../src/site/shell.js").len() <= 6_000);
+    assert!(include_str!("../src/site/shell.js").len() <= 6_500);
     let other = f.page("OTHER_BODY");
     let frame = &other[other.find("<body>").unwrap()..other.find("<main>").unwrap()];
     assert!(frame.len() <= 3_000, "{}", frame.len());
+}
+
+#[test]
+fn default_sidebar_cards_reach_the_toggle_and_unresolved_names_are_reported() {
+    let f = Fixture::new(r#"{:default-home {:sidebar ["Contents" "tmux" "missing"]}}"#);
+    let report = f.publish(None);
+    let tmux = f.page("TMUX_BODY");
+    let start = tmux.find("data-lsg-right-toggle").unwrap();
+    let button = &tmux[start..start + tmux[start..].find('>').unwrap()];
+    assert!(
+        button.contains("data-lsg-sidebar-default=\"contents p-"),
+        "{button}"
+    );
+    assert!(!button.contains("data-lsg-contents"), "{button}");
+    let diagnostics: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.message.starts_with("Default sidebar"))
+        .collect();
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert!(diagnostics[0].message.contains("\"missing\""));
+    let sidebar = f.file("lsg-sidebar.js");
+    assert!(sidebar.contains("window.logseqGardenerSidebar"));
+    assert!(!sidebar.contains("\n//") && !sidebar.contains("\n "));
+    assert!(f.file("lsg-sidebar.css").contains(".lsg-right-sidebar"));
 }

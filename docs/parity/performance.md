@@ -137,6 +137,16 @@ Rows in the page before scrolling, rows after scrolling the list to its end, and
 | desktop | 100 | 1,394 | 3.0 |
 | phone | 100 | 1,394 | 3.1 |
 
+## Right sidebar on tmux
+
+Shift-click on each of the first ten distinct page links on `tmux`, one after another, timed from the click to the card's outline, with a cleared sidebar; the first click includes loading `lsg-sidebar.js`. Measured by hand in the browser on the `match-logseq-right-sidebar` change with garden commit cc1bb2eb, served from localhost; `parity:perf` does not measure the sidebar yet. Below 640px there is no sidebar, so the phone profile has no row.
+
+| Profile | Build | Shift-click to card, p95 (ms) | JS heap after ten cards (MB) | `lsg-sidebar.js` (KB, gzip) | `Person` card transfer (KB, gzip) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| desktop | lsg | 27 | 3.1 | 5.7 | 14.2 |
+
+Two pages exceed the 60 KB card transfer budget as cards and as pages: `Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton` (81.9 KB gzip) and `Ableton/Live/UG/29 Audio Effect Reference` (62.1 KB gzip). Their content, not the shell, makes up the size.
+
 ## Search index
 
 `lsg`'s search files for 9,204 pages and 114,926 blocks: one title index, 1,148 word shards and 450 record chunks. **Bold** marks a value over its `[search]` budget.

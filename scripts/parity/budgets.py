@@ -113,6 +113,28 @@ def check_shell(small_site, large_site, pages, shell):
     return failures
 
 
+SIDEBAR_SCRIPT = 'lsg-sidebar.js'
+
+
+def check_sidebar(site, pages, sidebar):
+    """Return failure messages for the right sidebar's script and card transfers."""
+    script = site / SIDEBAR_SCRIPT
+    if not script.exists():
+        return [f'{SIDEBAR_SCRIPT}: missing from the build']
+    failures = []
+    size = metrics.gzip_size(script.read_bytes())
+    if size > sidebar['script_gzip_kb'] * 1000:
+        failures.append(f'{SIDEBAR_SCRIPT}: {size:,} gzip exceeds {sidebar["script_gzip_kb"] * 1000:,}')
+    for page in pages:
+        data = (site / page).read_bytes()
+        if SIDEBAR_SCRIPT.encode() in data:
+            failures.append(f'{page}: requests {SIDEBAR_SCRIPT} before the sidebar is used')
+        card = metrics.gzip_size(data)
+        if card > sidebar['card_fetch_gzip_kb'] * 1000:
+            failures.append(f'{page}: card transfer {card:,} gzip exceeds {sidebar["card_fetch_gzip_kb"] * 1000:,}')
+    return failures
+
+
 def check_journals(small_site, older_site, journals):
     """Return failure messages for the feed loader and a home page that grew with older journals."""
     script = small_site / JOURNALS_SCRIPT
@@ -457,6 +479,8 @@ def main():
         search_failures += check_search_index(index, budgets['search'])
         print(f"search title index: {index['titles_gzip']:,} gzip, {index['titles_decoded']:,} decoded; "
               f"largest shard {index['shards'][0][1]:,} gzip, largest chunk {index['chunks'][0][1]:,} gzip")
+        sidebar_failures = check_sidebar(temp / 'small', small, budgets['sidebar'])
+        print(f"{SIDEBAR_SCRIPT}: {metrics.gzip_size((temp / 'small' / SIDEBAR_SCRIPT).read_bytes()):,} gzip")
         journal_failures = check_journals(temp / 'small', temp / 'older', budgets['journals'])
         print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
         outline_failures = check_outline(temp / 'small', budgets['outline'])
@@ -480,7 +504,7 @@ def main():
     print(f'hierarchy styles: {metrics.gzip_size(hierarchy_styles().encode("utf-8")):,} gzip')
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
-                + hierarchy_failures
+                + hierarchy_failures + sidebar_failures
                 + search_failures + all_pages_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)

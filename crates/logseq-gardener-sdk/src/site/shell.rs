@@ -5,6 +5,20 @@ use crate::garden_settings::Favorite;
 /// Shared behaviour file written once at the site root.
 pub(super) const SCRIPT_ROUTE: &str = "lsg-shell.js";
 pub(super) const SCRIPT: &str = include_str!("shell.js");
+/// The right sidebar, loaded on first use.
+pub(super) const SIDEBAR_ROUTE: &str = "lsg-sidebar.js";
+pub(super) const SIDEBAR_STYLES_ROUTE: &str = "lsg-sidebar.css";
+pub(super) const SIDEBAR_STYLES: &str = include_str!("sidebar.css");
+
+/// `sidebar.js` without indentation or comment lines, which keeps it within its gzip budget.
+pub(super) fn sidebar_script() -> String {
+    include_str!("sidebar.js")
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
 
 // Tabler Icons outline paths (MIT); see THIRD_PARTY_NOTICES.md.
 const MENU: &str = "M4 6l16 0M4 12l16 0M4 18l16 0";
@@ -12,6 +26,8 @@ const HOME: &str = "M5 12l-2 0l9 -9l9 9l-2 0M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2
 const DOTS: &str = "M4 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M20 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0";
 const SEARCH: &str = "M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0M21 21l-6 -6";
 const CALENDAR: &str = "M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12zM16 3v4M8 3v4M4 11h16M11 15h1M12 15v3";
+const SIDEBAR_RIGHT: &str =
+    "M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2zM15 4l0 16";
 const FILES: &str = "M15 3v4a1 1 0 0 0 1 1h4M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h4l5 5v7a2 2 0 0 1 -2 2zM16 17v2a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h2";
 
 pub(super) const STYLES: &str = concat!(
@@ -31,6 +47,7 @@ pub(super) const STYLES: &str = concat!(
     ".lsg-left-sidebar a:hover{background:var(--lsg-surface)}.lsg-left-sidebar a[aria-current=page]{background:var(--lsg-surface);font-weight:600}",
     ".lsg-left-sidebar ul[aria-labelledby] a{display:block;padding-left:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lsg-favorites-heading{margin:20px 8px 6px;color:var(--lsg-muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}",
     ".lsg-sidebar-shade{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.4)}.lsg-sidebar-shade[hidden]{display:none}",
+    "@media(max-width:639.98px){.lsg-right-toggle{display:none!important}}@media(min-width:640px){html[data-lsg-right-sidebar=open] body{padding-right:var(--lsg-right-width,40vw)}}",
     "@media(min-width:640px){.lsg-left-sidebar{z-index:10;width:246px}html[data-lsg-left-sidebar=open] body{padding-left:246px}html[data-lsg-left-sidebar=open] .lsg-header{margin-left:-246px}.lsg-sidebar-shade{display:none!important}}",
 );
 
@@ -42,6 +59,10 @@ pub(super) struct Shell {
     pub all_pages: &'static str,
     /// Route of the journals feed's first batch, when the feed is written.
     pub journals: Option<&'static str>,
+    /// Route of the published `contents` page, shown by the Contents card.
+    pub contents: Option<String>,
+    /// Right sidebar cards for a first visit: `contents` or page routes.
+    pub sidebar: Vec<String>,
 }
 
 fn icon(path: &str) -> String {
@@ -93,12 +114,23 @@ impl Shell {
                 icon(CALENDAR)
             )
         });
+        let mut right = String::new();
+        if let Some(contents) = &self.contents {
+            right.push_str(&format!(" data-lsg-contents=\"{}\"", escape(contents)));
+        }
+        if !self.sidebar.is_empty() {
+            right.push_str(&format!(
+                " data-lsg-sidebar-default=\"{}\"",
+                escape(&self.sidebar.join(" "))
+            ));
+        }
         format!(
-            "<header class=\"lsg-header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden><button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}<li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
+            "<header class=\"lsg-header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden><button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}<li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
             menu = icon(MENU),
             dots = icon(DOTS),
             search = icon(SEARCH),
             files = icon(FILES),
+            sidebar_right = icon(SIDEBAR_RIGHT),
             all = self.all_pages,
             all_current = current(route, self.all_pages),
         )

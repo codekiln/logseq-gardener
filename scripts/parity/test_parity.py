@@ -87,10 +87,10 @@ class BuildTest(unittest.TestCase):
 
     def test_roots(self):
         with tempfile.TemporaryDirectory() as temp:
-            for name in ('Tools___tmux.md', 'Tools.md', 'Notes.org', '%20Space.md', 'image.png'):
+            for name in ('Tools___tmux.md', 'Tools.md', 'Notes.org', '%20Space.md', 'image.png', 'contents.md'):
                 (Path(temp) / name).write_text('- x\n', encoding='utf-8')
             selected, skipped = build.roots(temp)
-        self.assertEqual(selected, ['Notes', 'Tools'])
+        self.assertEqual(selected, ['Contents', 'Notes', 'Tools'])
         self.assertEqual(skipped, ['%20Space.md'])
 
 
@@ -173,7 +173,7 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
-                                       'transclusion', 'references', 'all_pages', 'hierarchy'})
+                                       'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar'})
         self.assertEqual(set(loaded['all_pages']), {'paging_page_gzip_kb', 'growth_kb', 'script_gzip_kb',
                                                     'list_gzip_kb', 'sort_heap_mb', 'search_ms_desktop',
                                                     'search_ms_phone', 'build_slowdown_pct'})
@@ -262,6 +262,17 @@ class BudgetCheckTest(unittest.TestCase):
     def test_within_budget(self):
         sizes = {'p-1.html': (20_000, 5_000, 8_000)}
         self.assertEqual(budgets.check(sizes, dict(sizes), self.limits), [])
+
+    def test_sidebar(self):
+        limits = {'script_gzip_kb': 6, 'card_fetch_gzip_kb': 60}
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            self.assertEqual(budgets.check_sidebar(site, [], limits), ['lsg-sidebar.js: missing from the build'])
+            (site / 'lsg-sidebar.js').write_text('x', encoding='utf-8')
+            (site / 'p-1.html').write_text('<main>page</main>', encoding='utf-8')
+            (site / 'p-2.html').write_text('<script src="lsg-sidebar.js"></script>', encoding='utf-8')
+            failures = budgets.check_sidebar(site, ['p-1.html', 'p-2.html'], limits)
+        self.assertEqual(failures, ['p-2.html: requests lsg-sidebar.js before the sidebar is used'])
 
     def test_page_grows_with_garden(self):
         failures = budgets.check({'p-1.html': (20_000, 5_000, 8_000)}, {'p-1.html': (20_500, 5_100, 8_000)},

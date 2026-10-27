@@ -36,7 +36,8 @@ def roots(pages_dir):
     for path in sorted(Path(pages_dir).iterdir()):
         if path.suffix not in ('.md', '.org') or not path.is_file():
             continue
-        root = urllib.parse.unquote(path.stem.split('___')[0])
+        # lsg titles pages/contents.md `Contents`, as Logseq does, and selection is case-sensitive.
+        root = 'Contents' if path.stem == 'contents' else urllib.parse.unquote(path.stem.split('___')[0])
         if valid_root(root):
             selected.add(root)
         else:

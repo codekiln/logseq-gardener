@@ -52,6 +52,8 @@ pub struct GardenSettings {
     pub journal_file_name_format: String,
     /// `:ui/show-brackets?`: page references show `[[` and `]]` unless this is `false`.
     pub show_brackets: bool,
+    /// `:default-home {:sidebar …}`: the right sidebar's cards on a reader's first visit.
+    pub sidebar: Vec<String>,
 }
 
 impl Default for GardenSettings {
@@ -62,8 +64,18 @@ impl Default for GardenSettings {
             journal_title_format: DEFAULT_TITLE_FORMAT.to_owned(),
             journal_file_name_format: DEFAULT_FILE_NAME_FORMAT.to_owned(),
             show_brackets: true,
+            sidebar: Vec::new(),
         }
     }
+}
+
+/// A right sidebar card named by `:default-home {:sidebar …}`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SidebarCard<T> {
+    /// `"Contents"`: the Contents card.
+    Contents,
+    /// A page card, by the page's identifier in the lookup.
+    Page(T),
 }
 
 /// A favorite that names a published page.
@@ -146,6 +158,35 @@ impl GardenSettings {
                     }
                     continue;
                 }
+                ":default-home" => {
+                    let Form::Map(entries) = value else {
+                        continue;
+                    };
+                    for (key, value) in entries {
+                        if !matches!(key, Form::Atom(ref k) if k == ":sidebar") {
+                            continue;
+                        }
+                        let names = match value {
+                            Form::Str(name) => Some(vec![name]),
+                            Form::Collection(items) => items
+                                .into_iter()
+                                .map(|item| match item {
+                                    Form::Str(name) => Some(name),
+                                    _ => None,
+                                })
+                                .collect(),
+                            _ => None,
+                        };
+                        match names {
+                            Some(names) => settings.sidebar = names,
+                            None => diagnostics.push(
+                                "Default sidebar must be a page name or a vector of page names; showing none"
+                                    .into(),
+                            ),
+                        }
+                    }
+                    continue;
+                }
                 ":favorites" => {
                     let entries = match value {
                         Form::Collection(items) => items
@@ -209,6 +250,40 @@ pub fn resolve_favorites<T: Clone + Ord>(
             )),
             _ => diagnostics.push(format!(
                 "Favorite {name:?} names more than one published page; it is left out of the sidebar"
+            )),
+        }
+    }
+    (resolved, diagnostics)
+}
+
+/// Resolve `:default-home {:sidebar …}` names, keeping config order.
+///
+/// `"Contents"`, in any case, is the Contents card; other names resolve through page
+/// titles and aliases like favorites. A name listed twice keeps its first position.
+/// Entries that name no page in the lookup return a diagnostic.
+pub fn resolve_sidebar<T: Clone + Ord>(
+    names: &[String],
+    lookup: &PageNameIndex<T>,
+) -> (Vec<SidebarCard<T>>, Vec<String>) {
+    let mut seen = BTreeSet::new();
+    let mut resolved = Vec::new();
+    let mut diagnostics = Vec::new();
+    for name in names {
+        let key = lookup_key(name);
+        if !seen.insert(key.clone()) {
+            continue;
+        }
+        if key == "contents" {
+            resolved.push(SidebarCard::Contents);
+            continue;
+        }
+        match lookup.candidates(name) {
+            [page] => resolved.push(SidebarCard::Page(page.clone())),
+            [] => diagnostics.push(format!(
+                "Default sidebar page {name:?} names no published page; it is left out of the right sidebar"
+            )),
+            _ => diagnostics.push(format!(
+                "Default sidebar page {name:?} names more than one published page; it is left out of the right sidebar"
             )),
         }
     }
@@ -285,6 +360,28 @@ mod tests {
         assert!(settings.show_brackets);
         assert_eq!(diagnostics.len(), 1);
         assert!(diagnostics[0].contains(":ui/show-brackets?"));
+    }
+
+    #[test]
+    fn reads_default_sidebar_as_string_or_vector() {
+        let (settings, diagnostics) =
+            GardenSettings::parse(r#"{:default-home {:page "x" :sidebar ["Contents" "tmux"]}}"#);
+        assert!(diagnostics.is_empty());
+        assert_eq!(settings.sidebar, ["Contents", "tmux"]);
+        let (settings, _) = GardenSettings::parse(r#"{:default-home {:sidebar "Contents"}}"#);
+        assert_eq!(settings.sidebar, ["Contents"]);
+        assert!(
+            GardenSettings::parse(
+                r#"{;; :default-home {:sidebar "Contents"}
+            }"#
+            )
+            .0
+            .sidebar
+            .is_empty()
+        );
+        let (settings, diagnostics) = GardenSettings::parse(r#"{:default-home {:sidebar 1}}"#);
+        assert!(settings.sidebar.is_empty());
+        assert_eq!(diagnostics.len(), 1);
     }
 
     #[test]

@@ -157,11 +157,19 @@ Readers can collapse any block with children with the arrow that appears beside 
 
 ## Header and left sidebar
 
-Every page has Logseq's header: Toggle left sidebar on the left, Home (on every page except `index.html`) and More on the right. The left sidebar lists Journals when a journals feed is published, All pages, then the garden's favorites from `:favorites` in `logseq/config.edn`, in config order. Each favorite resolves through page titles and aliases and shows the title or alias as the author spelled it; the current page is highlighted. A favorite that names no published page is left out and reported as a diagnostic.
+Every page has Logseq's header: Toggle left sidebar on the left, Home (on every page except `index.html`), More and, from 640px wide, Toggle right sidebar on the right. The left sidebar lists Journals when a journals feed is published, All pages, then the garden's favorites from `:favorites` in `logseq/config.edn`, in config order. Each favorite resolves through page titles and aliases and shows the title or alias as the author spelled it; the current page is highlighted. A favorite that names no published page is left out and reported as a diagnostic.
 
 The sidebar starts closed. The header button or `t l` toggles it, and the state is saved under `logseq-gardener-left-sidebar` in browser localStorage. From 640px wide the open sidebar is 246px and pushes the page right; on narrower screens it opens over the page and closes when the reader taps the shade, follows a link or presses Escape. `t w` switches between the 810px and 1280px page widths, saved under `logseq-gardener-wide`. `g h` opens Home, `g a` opens All pages and `g j` opens the journals feed. Shortcuts are ignored while typing in a field.
 
 The header and sidebar behaviour is in `lsg-shell.js` at the site root, which every page loads with `defer`. After the page has loaded it also loads `lsg-outline.js` on every page and `lsg-journals.js` on feed pages. Without JavaScript the sidebar stays closed and its button and More stay hidden.
+
+## Right sidebar
+
+From 640px wide, the Toggle right sidebar button at the right end of the header, or `t r`, opens a column of cards beside the page. Shift-click a page link, tag or breadcrumb to add a card for that page, a bullet to add a card for that block, or a block reference to add a Block references card. The page itself stays where it is. A page card shows the page without its title or Unlinked References; Linked References load when opened. An empty sidebar shows the garden's `contents` page; `alt+shift+c` adds or removes the Contents card, and the top bar adds Contents and Help cards.
+
+Each card has a header that collapses it, a Card menu (close, collapse and expand this card or the others, Open as page) and a Close button; a middle click on the header also closes it. Drag the column's left edge, or focus it and press Left or Right, to resize it. The cards, their order, collapsed flags, the width and whether the sidebar is open are saved under `logseq-gardener-right-sidebar` in browser localStorage and restored on every page. On a first visit, `:default-home {:sidebar [..]}` in `logseq/config.edn` chooses the starting cards: `"Contents"` or page names, with a diagnostic for a name that matches no published page.
+
+The behaviour is in `lsg-sidebar.js` and `lsg-sidebar.css`, which load the first time a reader uses the sidebar, or after the page loads when the sidebar was left open. Cards fetch the published page files. Below 640px there is no sidebar, and Shift-click follows the link.
 
 ## Appearance
 

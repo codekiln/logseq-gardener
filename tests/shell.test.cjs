@@ -27,7 +27,7 @@ function element(selectors, extra = {}) {
   return node;
 }
 let state;
-function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false } = {}) {
+function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null } = {}) {
   state = { focused: null, assigned: null };
   const values = new Map(Object.entries(stored));
   const root = element(['html']);
@@ -44,7 +44,12 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   const allPages = element(['[data-lsg-all-pages]', '.lsg-left-sidebar a']); allPages.parent = sidebar; allPages.setAttribute('href', 'pages.html');
   const input = element(['input']);
   const page = element(['p']);
-  const all = [toggle, more, menu, themeItem, systemItem, shade, allPages];
+  const right = element(['[data-lsg-right-toggle]']);
+  // The page-link selector holds commas inside :is(), which element() splits on.
+  const pageLink = element([], { matches: selector => selector.includes(':is(main,.lsg-right-sidebar)') });
+  const all = [toggle, more, menu, themeItem, systemItem, shade, allPages, right];
+  if (defaults) { right.setAttribute('data-lsg-sidebar-default', 'contents'); all.push(element(['[data-lsg-sidebar-default]'])); }
+  if (saved) root.setAttribute('data-lsg-right-sidebar', saved);
   if (journals) {
     const journalsLink = element(['[data-lsg-journals-link]', '.lsg-left-sidebar a']); journalsLink.parent = sidebar; journalsLink.setAttribute('href', 'journals.html');
     all.push(journalsLink);
@@ -75,10 +80,12 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
     appearance: () => theme.shown,
     set: value => { theme.current = value; if (value !== 'system') theme.shown = value; },
   };
-  vm.runInContext(source, vm.createContext({ window, document, Date }));
-  const click = target => document.fire('click', { target });
+  state.sidebar = [];
+  window.logseqGardenerSidebar = request => state.sidebar.push(request);
+  vm.runInContext(source, vm.createContext({ window, document, Date, Promise }));
+  const click = (target, extra = {}) => document.fire('click', { target, preventDefault() {}, stopPropagation() {}, ...extra });
   const key = (k, target = page, extra = {}) => document.fire('keydown', { key: k, target, preventDefault() {}, ...extra });
-  return { window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
+  return { right, pageLink, window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
 }
 test('controls appear once the script runs and the sidebar state is saved', () => {
   const f = fixture();
@@ -95,7 +102,7 @@ test('controls appear once the script runs and the sidebar state is saved', () =
 test('search commands run the shell actions', () => {
   const f = fixture();
   const { actions } = f.window.logseqGardenerShell;
-  assert.deepEqual(Object.keys(actions).sort(), ['ga', 'gh', 'gj', 'tl', 'tt', 'tw']);
+  assert.deepEqual(Object.keys(actions).sort(), ['ga', 'gh', 'gj', 'tl', 'tr', 'tt', 'tw']);
   actions.tl(); assert.equal(f.root.getAttribute('data-lsg-left-sidebar'), 'open');
   actions.tw(); assert.equal(f.root.getAttribute('data-lsg-wide'), 'true');
   assert.ok(Object.isFrozen(actions));
@@ -149,9 +156,48 @@ test('the journals feed, outline and references scripts are fetched after the pa
   const f = fixture({ feed: true });
   assert.deepEqual(state.appended, []);
   f.window.fire('load');
-  assert.deepEqual(state.appended, [{ tag: 'script', src: 'lsg-journals.js' }, { tag: 'script', src: 'lsg-outline.js' }, { tag: 'script', src: 'lsg-references.js' }]);
+  assert.deepEqual(state.appended.map(({ tag, src }) => ({ tag, src })), [{ tag: 'script', src: 'lsg-journals.js' }, { tag: 'script', src: 'lsg-outline.js' }, { tag: 'script', src: 'lsg-references.js' }]);
   const plain = fixture();
   assert.deepEqual(state.appended, []);
   plain.window.fire('load');
-  assert.deepEqual(state.appended, [{ tag: 'script', src: 'lsg-outline.js' }, { tag: 'script', src: 'lsg-references.js' }]);
+  assert.deepEqual(state.appended.map(({ tag, src }) => ({ tag, src })), [{ tag: 'script', src: 'lsg-outline.js' }, { tag: 'script', src: 'lsg-references.js' }]);
+});
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+const loaded = () => { const script = state.appended.find(node => node.src === 'lsg-sidebar.js'); script?.onload(); return script; };
+test('the right sidebar loads once, on its first use', async () => {
+  const f = fixture();
+  assert.equal(f.right.hidden, false);
+  f.click(f.page, { shiftKey: true });
+  f.click(f.pageLink);
+  assert.deepEqual(state.appended, []);
+  const shift = { target: f.pageLink, shiftKey: true, preventDefault() {}, stopPropagation() {} };
+  f.document.fire('click', shift);
+  assert.ok(loaded());
+  f.click(f.right);
+  f.key('t'); f.key('r');
+  f.key('C', f.page, { code: 'KeyC', altKey: true, shiftKey: true });
+  f.key('C', f.input, { code: 'KeyC', altKey: true, shiftKey: true });
+  await settle();
+  assert.deepEqual(state.sidebar, [shift, 'toggle', 'toggle', 'contents']);
+  assert.equal(state.appended.filter(node => node.src === 'lsg-sidebar.js').length, 1);
+});
+test('phones never load the right sidebar', async () => {
+  const f = fixture({ desktop: false, saved: 'open' });
+  f.click(f.pageLink, { shiftKey: true });
+  f.key('t'); f.key('r');
+  f.window.fire('load');
+  await settle();
+  assert.equal(state.appended.some(node => node.src === 'lsg-sidebar.js'), false);
+});
+test('a saved open sidebar or configured start cards load the sidebar after the page loads', async () => {
+  for (const options of [{ saved: 'open' }, { defaults: true }]) {
+    fixture(options).window.fire('load');
+    assert.ok(loaded());
+    await settle();
+    assert.deepEqual(state.sidebar, ['restore']);
+  }
+  for (const options of [{ saved: 'closed', defaults: true }, {}]) {
+    fixture(options).window.fire('load');
+    assert.equal(loaded(), undefined);
+  }
 });
