@@ -210,12 +210,14 @@ fn namespace_status_preserves_index_names_and_selected_empty_pages() {
             .contains("<p class=\"namespace-notice\"")
     );
     let index = fs::read_to_string(f.0.join("site/index.html")).unwrap();
+    // All pages rows keep the generated link style and name, without the badge.
     assert!(index.contains(&format!(
-        "href=\"{}\">Visible/Branch</a> <span class=\"page-kind\">Namespace</span>",
+        "<a class=\"page-ref namespace-link\" aria-label=\"Visible/Branch (Namespace)\" href=\"{}\">Visible/Branch</a></td>",
         route("Visible/Branch")
     )));
+    assert!(!index.contains("<span class=\"page-kind\">"));
     assert!(index.contains(&format!(
-        "href=\"{}\">Visible/Empty</a></li>",
+        "<a class=\"page-ref\" href=\"{}\">Visible/Empty</a></td>",
         route("Visible/Empty")
     )));
 }

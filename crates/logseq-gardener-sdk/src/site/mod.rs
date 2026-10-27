@@ -1,5 +1,6 @@
 //! Generate a local HTML garden from explicitly selected Markdown pages.
 
+mod all_pages;
 mod assets;
 mod code;
 mod dialogue;
@@ -25,7 +26,9 @@ use std::path::{Path, PathBuf};
 use crate::garden::{DocumentKind, GardenLoadError, load_garden};
 use crate::garden_config as config;
 use crate::garden_settings::{GardenSettings, resolve_favorites};
+use crate::git_dates::GitDates;
 use crate::journals::{JournalDate, JournalFormats, journal_identity};
+use crate::page_list::{PageKind, PageSource, page_list};
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
 use crate::publishing::NamespaceSelection;
@@ -308,6 +311,9 @@ pub fn publish_site_with_options(
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
     let garden = load_garden(source_root).map_err(SiteError::Garden)?;
+    // Reading the git history takes seconds on a large garden; it runs while pages render.
+    let git_root = root.clone();
+    let git_dates = std::thread::spawn(move || GitDates::read(git_root));
     let mut report = SiteReport {
         pages: 0,
         journals: 0,
@@ -480,7 +486,6 @@ pub fn publish_site_with_options(
     // Only selected source reaches the renderer and may request asset contents.
     let mut copied: BTreeMap<String, (PathBuf, Vec<u8>)> = BTreeMap::new();
     let mut documents = BTreeMap::new();
-    let mut index = String::from("<ul>");
     let mut feed_bodies = BTreeMap::new();
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     code::prepare(selected.iter().map(|(_, _, document)| *document));
@@ -592,7 +597,7 @@ pub fn publish_site_with_options(
     }
     let mut entries = hierarchy.entries().collect::<Vec<_>>();
     entries.sort_by(|left, right| left.title.cmp(&right.title));
-    for node in entries {
+    for node in &entries {
         if !documents.contains_key(&node.route) {
             let sections = reference_index.render(
                 &node.route,
@@ -624,29 +629,50 @@ pub fn publish_site_with_options(
                 ),
             );
         }
-        index.push_str(&format!(
-            "<li><a{} href=\"{}\">{}</a>{}</li>",
-            page_status::link_attributes(node.generated, &node.title),
-            render::escape(&node.route),
-            render::escape(&node.title),
-            page_status::badge(node.generated)
-        ));
     }
-    index.push_str("</ul>");
-    if report.pages + report.journals == 0 {
-        index.push_str("<p>No pages matched the publication policy.</p>");
+    let (dates, dates_diagnostic) = git_dates.join().expect("git history reader panicked");
+    if let Some(message) = dates_diagnostic {
+        report.diagnostics.push(SiteDiagnostic {
+            source: ".".into(),
+            message,
+        });
     }
-    documents.insert(
-        index_route.to_owned(),
-        html_document(
-            "Garden",
-            &index,
+    let list = page_list(
+        entries.iter().map(|node| PageSource {
+            id: node.route.clone(),
+            title: node.title.clone(),
+            kind: if node.generated {
+                PageKind::Namespace
+            } else if journal_dates.contains_key(&node.route) {
+                PageKind::Journal
+            } else {
+                PageKind::Page
+            },
+            document: selected_documents
+                .get(&node.route)
+                .map(|page: &crate::transclusion::EmbedPage| page.document),
+        }),
+        reference_index.index(),
+        dates.as_ref(),
+    );
+    for (route, main) in all_pages::screens(&list, index_route) {
+        let home = route == index_route && !has_homepage;
+        let html = html_page(
+            "All pages",
+            &main,
             stylesheet_route,
             &shell,
-            index_route,
-            !has_homepage,
-        ),
+            &route,
+            home,
+            &all_pages::head(),
+        );
+        documents.insert(route, html);
+    }
+    documents.insert(
+        all_pages::LIST_ROUTE.to_owned(),
+        all_pages::list_json(&list),
     );
+    documents.insert(all_pages::SCRIPT_ROUTE.to_owned(), all_pages::script());
     if let Some(document) = homepage_document {
         documents.insert("index.html".to_owned(), document);
     }
@@ -723,6 +749,8 @@ pub fn publish_site_with_options(
         let directory = output.join(references::REFS);
         fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
     }
+    let directory = output.join(all_pages::LIST_DIRECTORY);
+    fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
     write_files(&output, documents)?;
     if let Some(contents) = stylesheet {
         let path = output.join("custom.css");
