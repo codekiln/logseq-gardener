@@ -61,7 +61,7 @@ In the built-in browser on the whole-garden `lsg` build:
 
 ## Performance
 
-`parity:perf --builds lsg --fixtures <All pages> --baseline-lsg <baseline>` on run `20261026T203919Z`. No saved run holds Logseq's rows, so a full `--record` would have dropped them; the All pages rows and a new `All pages` section were written into [Parity performance](../../../docs/parity/performance.md) by hand from the run's `perf.json`.
+`parity:perf --builds lsg --fixtures <All pages> --baseline-lsg <baseline>` on run `20261026T203919Z`. No saved run holds Logseq's rows, so a full `--record` would have dropped them; the All pages rows and a new `All pages` section were written into [Parity performance](../../../../docs/parity/performance.md) by hand from the run's `perf.json`.
 
 | Measure | Budget | Desktop | Phone |
 | --- | --- | ---: | ---: |

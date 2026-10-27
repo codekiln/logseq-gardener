@@ -106,23 +106,27 @@ The default stylesheet SHALL give hierarchy slash separators an 8px horizontal m
 
 ### Requirement: Distinguish namespace destinations
 
-The publisher SHALL visibly label generated namespace pages and their entries in the complete page index as Namespace. Links to generated namespace destinations, including hierarchy segments, SHALL have a distinction beyond color and an accessible Namespace name; hierarchy rows SHALL carry no Namespace badge. Selected stored source pages SHALL retain ordinary page labels even when empty. Classification SHALL use only selected visible source routes: missing and ordinarily unselected source ancestors SHALL have the same Namespace presentation. Withheld and alias-conflicting ancestors SHALL retain their existing unavailable behavior. Full logical anchor text in the page index SHALL remain unchanged, with the status label outside the anchor. Source-only name, alias, embed, homepage, route, and count contracts SHALL remain intact.
+The publisher SHALL visibly label generated namespace pages as Namespace. Links to generated namespace destinations, including hierarchy segments and All pages rows, SHALL have a distinction beyond color and an accessible Namespace name; hierarchy rows and All pages rows SHALL carry no Namespace badge. Selected stored source pages SHALL retain ordinary page labels even when empty. Classification SHALL use only selected visible source routes: missing and ordinarily unselected source ancestors SHALL have the same Namespace presentation. Withheld and alias-conflicting ancestors SHALL retain their existing unavailable behavior. Full logical anchor text in the page index SHALL remain unchanged. Source-only name, alias, embed, homepage, route, and count contracts SHALL remain intact.
 
 #### Scenario: Generated and stored destinations
+
 - **WHEN** a selected stored page needs a generated ancestor, and another selected stored page has an empty body
-- **THEN** only the generated ancestor has the Namespace page and index status and the distinct link style, including in hierarchy segments
+- **THEN** only the generated ancestor has the Namespace page status and the distinct link style, including in hierarchy segments and All pages rows
 
 #### Scenario: Unselected ancestor privacy
+
 - **WHEN** one generated ancestor has an ordinary unselected source file and another has no source file
 - **THEN** both have identical Namespace status without source file paths, content, or existence claims
 
 #### Scenario: Safe index labels and private gaps
+
 - **WHEN** the index and hierarchy include generated destinations while a private or alias-conflicting prefix is unavailable
 - **THEN** generated index anchors keep their exact full logical names, generated links identify Namespace status, and unavailable prefixes receive no new route
 
 #### Scenario: Rows without badges
-- **WHEN** a reader opens `tmux`, whose rows include paths through the generated `tmux/Command`
-- **THEN** no row shows a Namespace badge and the `Command` segment keeps the generated link style
+
+- **WHEN** a reader opens `tmux`, whose rows include paths through the generated `tmux/Command`, and All pages, which lists `tmux/Command`
+- **THEN** no hierarchy row or All pages row shows a Namespace badge and the generated links keep their style
 
 ### Requirement: Load long hierarchy lists as the reader scrolls
 
