@@ -3,7 +3,7 @@
 - measured: 2026-10-26
 - garden commit: 0ce74d6
 - gh-pages commit: 8132c95
-- lsg: 0.0.0 (b490d68); the build time and Hierarchy: this change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278
+- lsg: 0.0.0 (b490d68); the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only
 - profiles: desktop, phone
 - loads per page, logseq: 1
 - loads per page, lsg: 3
@@ -71,9 +71,9 @@ Medians of the page loads. **Bold** marks an `lsg` value over its budget in [`sc
 | Home | phone | logseq | 204,698 | 204,736 | 22,067 | 8,087 | 1,838 |
 | Home | phone | lsg | 242 | 256 | 12.3 | 14.6 | 1.8 |
 | All pages | desktop | logseq | 19,820 | 19,828 | 22,643 | 8,087 | 2,019 |
-| All pages | desktop | lsg | 85.6 | 112 | **271** | 14.6 | 2.4 |
+| All pages | desktop | lsg | 23.1 | 36.0 | 13.2 | 14.4 | 1.8 |
 | All pages | phone | logseq | 197,866 | 197,876 | 22,067 | 8,087 | 1,982 |
-| All pages | phone | lsg | 233 | 244 | **271** | 14.6 | 1.7 |
+| All pages | phone | lsg | 235 | 248 | 13.2 | 14.4 | 1.9 |
 
 ## Journals feed after 10 later batches
 
@@ -116,6 +116,17 @@ Time from clicking a section header to its first group, time from clicking a fil
 | --- | ---: | ---: | ---: | ---: | ---: |
 | desktop | 22 | 46 | 12 | 449 | 4.1 |
 | phone | 346 | 96 | 243 | 449 | 3.4 |
+
+## All pages
+
+Time from clicking `Page name` and then `Backlinks` to the table sorted by Backlinks, descending, which loads the page list; the first row; search on Enter for 20 queries once the list has loaded; and the peak JS heap. The page list is 172.9 KB gzip and was not requested before the first click. Logseq's screen needs the whole graph before its title (Page loads above).
+
+| Profile | Sort by Backlinks (ms) | First row | Search median (ms) | Search 95th percentile (ms) | Peak JS heap (MB) |
+| --- | ---: | --- | ---: | ---: | ---: |
+| desktop | 57 | Microfreak | 9 | 11 | 8.6 |
+| phone | 1,069 | Microfreak | 36 | 41 | 13.9 |
+
+Whole-garden build with `--journals`: 10.5 seconds with this change, 11.0 seconds with the baseline built from 48fcc54; an earlier pair measured 10.6 and 10.5 seconds (+1.7%), within the 10% budget.
 
 ## Hierarchy on Microfreak
 

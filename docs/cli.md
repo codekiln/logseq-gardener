@@ -4,11 +4,13 @@ Run `lsg help` to read embedded documentation. Help works offline with closed st
 
 Use `lsg publish` to generate selected local HTML pages; see [local publishing](local-site.md) for a copyable trial and rendering limitations. `lsg publish help`, `lsg publish --help`, and `lsg publish -h` show equivalent documentation without requiring garden arguments.
 
+Use `lsg lookup NAME --graph PATH --filename-format legacy|triple-lowbar` to print the source file of the page that `NAME` names, so an editor or agent can open it; see [Find a page's source file](#find-a-pages-source-file). `lsg lookup help`, `lsg lookup --help`, and `lsg lookup -h` show its documentation.
+
 Use `lsg version` to identify the build. Run `lsg version help`, `lsg version --help`, or `lsg version -h` to read its documentation. Root `--version` and `-V` report the same version as `lsg version`.
 
 ## Navigate documentation
 
-Use these forms with `lsg`, `lsg publish`, or `lsg version`:
+Use these forms with `lsg`, `lsg lookup`, `lsg publish`, or `lsg version`:
 
 - `help --format json` to discover immediate `child_commands`.
 - `help outline` to list ordered heading identifiers.
@@ -32,7 +34,7 @@ Outlines contain ordered `headings` with `level`, `title`, and `section`. Sectio
 | Code | Meaning |
 | --- | --- |
 | 0 | Success, including early termination when a downstream pipe closes |
-| 1 | Generation failed or output could not be written |
+| 1 | Generation failed, a lookup matched no page, or output could not be written |
 | 2 | Invalid arguments, unknown command, or unknown section |
 
 Successful results go to stdout; diagnostics go to stderr. Invalid invocations leave stdout empty, including with `--format json`. There is no JSON success document for an error. Output contains no terminal control sequences and never depends on a TTY. Help and version never read stdin, garden files, configuration files, or network resources at runtime.
@@ -46,3 +48,19 @@ Successful JSON has `command_path: ["publish"]`, `pages`, `journals`, `assets`, 
 The optional `publish --stylesheet PATH` selects a local CSS file loaded after built-in styles on every generated page. The file must be readable, regular, have a `.css` extension, and use a path without symlink components. Invalid stylesheet input returns one before output creation. See [Customize appearance](local-site.md#customize-appearance) for copying and browser resource behavior.
 
 The optional `publish --journals` publishes journal pages and Logseq's journals feed; see [Publish journals](local-site.md#publish-journals). The optional `publish --search` emits a versioned external manifest, corpus and pure evaluator. Generated pages advertise the manifest without loading the corpus. See [Static search](static-search.md) for supported content, exclusions and the consumer API.
+
+## Find a page's source file
+
+`lsg lookup NAME --graph PATH --filename-format legacy|triple-lowbar` prints the path of each file whose page `NAME` names, one per line, joined to `--graph` as you spelled it:
+
+```sh
+nvim "$(lsg lookup nvim --graph ~/garden --filename-format triple-lowbar)"
+```
+
+`NAME` matches a page title, a leading `alias::` name, or a journal date written in the garden's journal title format, `yyyy-MM-dd`, `yyyy_MM_dd` or `MMM do, yyyy`. Matching ignores case and surrounding spaces, the way Logseq resolves `[[links]]`. Every page counts, including pages marked `public:: false`, because the command reads your own files rather than a published site.
+
+When several pages share the name, every path prints in source-path order and stderr says how many matched. No match exits one with empty stdout. Files whose title or journal date cannot be read are left out and listed on stderr. To look up a page named `help` or a name starting with a dash, put the options first and `--` just before the name.
+
+Successful JSON has `command_path: ["lookup"]`, `query`, `diagnostic_count`, and `pages`, each with `title`, `path`, `relative_path`, `kind` (`page` or `journal`) and `matched_by` (`title`, `alias` or `journal-date`).
+
+Each call reads and parses the whole garden. On the 8,569-page encode garden that takes about 0.8 s and 263 MB of memory on an Apple silicon Mac.

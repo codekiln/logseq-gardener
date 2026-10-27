@@ -54,7 +54,14 @@ fn page_alias_and_repeated_block_embeds_render_subtrees_and_original_links() {
     f.write("pages/Notes___Other.md", "alias:: Friendly\n- Parent **strong**\n  id:: 12345678-1234-1234-1234-123456789abc\n  - Child content\n- Sibling content\n");
     let report = f.publish();
     let html = f.html("Notes/Start");
-    assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.source == std::path::Path::new(".")),
+        "{:?}",
+        report.diagnostics
+    );
     // Two block embeds, the page embed and the reference's first line.
     assert_eq!(html.matches("Parent <strong>strong</strong>").count(), 4);
     assert_eq!(

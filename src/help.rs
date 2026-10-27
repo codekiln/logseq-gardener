@@ -14,33 +14,40 @@ struct Section {
 fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
     let version = path == ["version"];
     let publish = path == ["publish"];
+    let lookup = path == ["lookup"];
     let command = if version {
         "lsg version"
     } else if publish {
         "lsg publish"
+    } else if lookup {
+        "lsg lookup"
     } else {
         "lsg"
     };
     let mut sections = vec![
-        Section { level: 1, title: "Purpose", section: "purpose", content: if publish {
+        Section { level: 1, title: "Purpose", section: "purpose", content: if lookup {
+            "Print the source file of a Logseq page named by its title, an alias or a journal date, for opening in an editor or reading by an agent.".into()
+        } else if publish {
             "Generate local HTML pages and referenced assets from selected Logseq namespaces through the shared Rust SDK.".into()
         } else if version {
             "Report the installed Logseq Gardener version. Use this when reporting a bug or identifying a build.".into()
         } else {
-            "Logseq Gardener provides a terminal interface for people and coding agents working with Logseq Markdown gardens. Use publish to generate selected local HTML pages, or version to identify the installed build.".into()
+            "Logseq Gardener provides a terminal interface for people and coding agents working with Logseq Markdown gardens. Use lookup to find a page's source file, publish to generate selected local HTML pages, or version to identify the installed build.".into()
         }},
         Section { level: 2, title: "Usage", section: "usage", content: format!(
             "Usage: {command}{}\n       {command} help [outline | section <section> [--recursive]]\n       {command} --help\n\nOptions:\n  -h, --help          Show this documentation\n  -V, --version       Report the installed version\n  --format human|json Select output format (default: human)\n  --programmatic     Add guidance for scripts and agents\n  --no-input         Explicit noninteractive mode (the default)\n\nOutline options: --level N or --max-level N (1 through 6).\nSection option: --recursive includes descendant sections.",
-            if publish { " --graph PATH --output PATH --filename-format legacy|triple-lowbar [--include NAMESPACE]... [--exclude NAMESPACE]... [--stylesheet PATH] [--homepage TITLE] [--search] [--journals]" } else if version { " [--format human|json]" } else { " [publish | version]" }
+            if lookup { " NAME --graph PATH --filename-format legacy|triple-lowbar" } else if publish { " --graph PATH --output PATH --filename-format legacy|triple-lowbar [--include NAMESPACE]... [--exclude NAMESPACE]... [--stylesheet PATH] [--homepage TITLE] [--search] [--journals]" } else if version { " [--format human|json]" } else { " [lookup | publish | version]" }
         )},
-        Section { level: 2, title: "Commands", section: "commands", content: if version || publish {
+        Section { level: 2, title: "Commands", section: "commands", content: if version || publish || lookup {
             "No child commands. Use help to read this document, help outline to list headings, or help section <section> to retrieve a heading.".into()
         } else {
-            "publish  Generate selected local HTML pages.\nversion  Report the installed version.\n\nUse lsg publish help for publication documentation and lsg version help for version documentation. Use lsg help outline to discover headings and lsg help section <section> to read a section.".into()
+            "lookup   Print the source file of a named page.\npublish  Generate selected local HTML pages.\nversion  Report the installed version.\n\nUse lsg lookup help, lsg publish help or lsg version help for each command's documentation. Use lsg help outline to discover headings and lsg help section <section> to read a section.".into()
         }},
         Section { level: 2, title: "Behavior", section: "behavior", content: "Help displays documentation included in lsg; version reports the installed build. Both work offline and finish without prompts, a pager, or reading standard input. They leave garden files unchanged.".into() },
         Section { level: 3, title: "Permissions", section: "permissions", content: "You only need permission to run lsg.".into() },
-        Section { level: 2, title: "Examples", section: "examples", content: if publish {
+        Section { level: 2, title: "Examples", section: "examples", content: if lookup {
+            "nvim \"$(lsg lookup nvim --graph ~/garden --filename-format triple-lowbar)\"\n\nOpens the page titled or aliased nvim in Neovim; the command prints its path, such as ~/garden/pages/nvim.md. With --format json the result also gives the title, the path relative to the garden, page or journal, and whether the name matched the title, an alias or a journal date.".into()
+        } else if publish {
             "lsg publish --graph /path/to/garden --output /tmp/new-site --filename-format triple-lowbar --include My/AI --exclude My/AI/Agent\n\nPublishes My/AI and descendants, except My/AI/Agent and descendants. Open /tmp/new-site/index.html. Choose a fresh output directory with an existing parent outside the garden.".into()
         } else if version {
             "lsg version --format json\n\nReturns the program name and installed version in one JSON document, for use in a bug report or script.".into()
@@ -50,16 +57,32 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
         Section { level: 2, title: "Output and exits", section: "output", content: "Results go to stdout and diagnostics go to stderr. JSON responses include format_version 1 and command_path. Invalid commands leave stdout empty. Exit 0 means success (including a closed downstream pipe), 2 means invalid arguments or an unknown section, and 1 means output could not be written. Redirected output contains no terminal control sequences.".into() },
     ];
     if path.is_empty() {
-        sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "Help and version work offline without prompts, a pager, or reading stdin. Publish reads a garden and creates a fresh HTML directory outside it, leaving source files unchanged; use lsg publish help for selectors, destination protection and rendering limitations.".into();
-        sections.iter_mut().find(|s| s.section == "permissions").unwrap().content = "Help and version only require permission to run lsg. Publishing requires read access to the garden, referenced assets and any selected stylesheet, plus write access to the destination parent.".into();
+        sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "Help and version work offline without prompts, a pager, or reading stdin. Lookup reads a garden and prints a page's source path. Publish reads a garden and creates a fresh HTML directory outside it, leaving source files unchanged; use lsg publish help for selectors, destination protection and rendering limitations.".into();
+        sections.iter_mut().find(|s| s.section == "permissions").unwrap().content = "Help and version only require permission to run lsg. Lookup requires read access to the garden. Publishing requires read access to the garden, referenced assets and any selected stylesheet, plus write access to the destination parent.".into();
     }
     if publish {
         sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "Reads the garden and writes a new directory outside it; source files stay unchanged. Selection is case-sensitive, matches roots and slash-separated descendants, and exclusions win. Repeat --include and --exclude; an empty include list selects nothing. Each namespace segment must be nonempty with no surrounding whitespace or controls. --graph, --output and --filename-format are required for publishing. Use triple-lowbar for :file/name-format :triple-lowbar in logseq/config.edn, otherwise legacy. Optional --stylesheet PATH copies a readable regular .css file to custom.css and loads it after built-in styles on every page. Symlink components are refused; CSS resource URLs resolve from the output root and only the stylesheet itself is copied. Stylesheet input is checked before output creation. Optional --homepage TITLE selects one visible page title or alias for index.html and moves the page list to pages.html; missing or ambiguous homepages fail before output creation. Optional --journals publishes every journal as a page titled with :journal/page-title-format, withholding journals marked public:: false, and, unless :feature/enable-journals? is false, writes a journals feed: the three newest journals dated on or before the build date (UTC, from SOURCE_DATE_EPOCH when set) at index.html, or journals.html with --homepage, then seven per journals-N.html file; the page list then moves to pages.html. Optional --search emits a versioned external search manifest, corpus and pure evaluator; generated pages advertise the manifest without loading search data. See docs/static-search.md for the data contract and host integration. Existing output is refused. A write failure may leave partial new output; retry with a fresh destination after fixing the error. Works offline with no prompts or stdin.".into();
         sections.iter_mut().find(|s| s.section == "permissions").unwrap().content = "Requires read access to the source garden and referenced assets, and write access to the existing parent of the new output directory.".into();
         sections.push(Section { level: 2, title: "Limitations", section: "limitations", content: "Any parsed public:: false property withholds the whole page; excessive nesting also withholds pages. Journals are skipped pending configured date identities. Unique selected titles and aliases resolve page links. Unique explicit outline UUID references link to selected targets. Supported HTTPS raster images and audio render directly; browsers load remote media when viewed. Selected visible page and block embeds expand with cycle, depth and total-expansion limits. Markdown page-filename links, unavailable embeds, unresolved references, queries, raw HTML and Hiccup receive visible fallbacks and local diagnostics. Only supported referenced assets beneath assets/ are copied; unsafe asset paths are refused. See docs/local-site.md for supported types and rendering limits.".into() });
     }
-    if !version {
+    if lookup {
+        sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "Reads every Markdown file under pages/ and journals/ and logseq/config.edn, then prints the absolute or relative path, as --graph spells it, of each page the name reaches; files stay unchanged. NAME matches a page title (from the file name or a leading title:: property), a leading alias:: name, or a journal's date in its title format, yyyy-MM-dd, yyyy_MM_dd or MMM do, yyyy. Matching ignores case and surrounding spaces. Every page counts, including pages marked public:: false. --graph and --filename-format are required; use triple-lowbar for :file/name-format :triple-lowbar in logseq/config.edn, otherwise legacy. When NAME starts with a dash or is the word help, put the options first and -- just before NAME. Works offline with no prompts or stdin.".into();
+        sections
+            .iter_mut()
+            .find(|s| s.section == "permissions")
+            .unwrap()
+            .content = "Requires read access to the garden.".into();
+        sections.iter_mut().find(|s| s.section == "output").unwrap().content = "Prints one path per line on stdout. When several pages share the name, all of them print in source-path order and stderr says how many matched. JSON reports format_version 1, command_path [lookup], query, diagnostic_count and pages, each with title, path, relative_path, kind (page or journal) and matched_by (title, alias or journal-date). Files left out because their title or journal date cannot be read are listed on stderr. Exit 0 means at least one page matched, 1 means no page matched or the garden could not be read (stdout empty), and 2 means invalid arguments or an unknown section. A closed downstream pipe exits 0. Redirected output contains no terminal control sequences.".into();
+        sections.push(Section { level: 2, title: "Limitations", section: "limitations", content: "Each call reads and parses the whole garden; on a garden of about 9,000 pages that takes under a second. Names are not matched by prefix or fuzzily. Namespace pages that exist only through child pages have no file and are not found.".into() });
+    } else if !version {
         sections.iter_mut().find(|s| s.section == "output").unwrap().content = "Results go to stdout and diagnostics go to stderr. JSON responses include format_version 1 and command_path. Publish reports pages, journals, assets, withheld_pages, skipped_journals, diagnostic_count, output_directory and index_path (paths are display strings). Unsupported content with a completed site exits 0. Fatal generation failures leave stdout empty and exit 1. Exit 2 means invalid arguments or an unknown section. Output write failure exits 1; a closed downstream pipe exits 0. Redirected output contains no terminal control sequences.".into();
+    }
+    if path.is_empty() {
+        sections
+            .iter_mut()
+            .find(|s| s.section == "output")
+            .unwrap()
+            .content += " A lookup that matches no page also exits 1 with empty stdout; lsg lookup help lists its JSON fields.";
     }
     if programmatic {
         sections.push(Section { level: 2, title: "Programmatic use", section: "programmatic", content: format!(
@@ -130,7 +153,11 @@ pub fn render(
             .collect(),
         Format::Json => {
             let children = if path.is_empty() {
-                vec![json!({"name": "publish"}), json!({"name": "version"})]
+                vec![
+                    json!({"name": "lookup"}),
+                    json!({"name": "publish"}),
+                    json!({"name": "version"}),
+                ]
             } else {
                 vec![]
             };

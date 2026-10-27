@@ -88,6 +88,22 @@ open_heap_mb = 20
 filter_ms = 50
 build_slowdown_pct = 25
 
+# All pages (published-all-pages). parity:budgets checks the All pages first paint against the
+# [desktop] and [phone] budgets, each static paging page's gzip size, first-page growth when the
+# fixture garden gains 2,000 pages, the script and the list data file. parity:perf marks the
+# list size on the whole garden, the phone heap after loading the list and sorting by Backlinks,
+# search on Enter, and a whole-garden build more than build_slowdown_pct slower than the
+# --baseline-lsg binary's.
+[all_pages]
+paging_page_gzip_kb = 10
+growth_kb = 1
+script_gzip_kb = 3
+list_gzip_kb = 300
+sort_heap_mb = 20
+search_ms_desktop = 50
+search_ms_phone = 150
+build_slowdown_pct = 10
+
 # The Hierarchy section (published-namespace-hierarchy). parity:budgets checks the rows in each
 # page, the gzip size of the hierarchy styles every page carries, the growth of lsg-references.js
 # over its size before the Hierarchy loader, each hierarchy fragment's gzip size, and that the root

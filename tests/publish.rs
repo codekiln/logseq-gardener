@@ -134,7 +134,10 @@ fn cli_publishes_links_assets_and_diagnostics_without_excluded_content_or_source
     assert_eq!(before, files(&f.0.join("garden")));
     let human = f.publish(&f.0.join("human-site"), &["--include", "Extras"]);
     assert!(human.status.success());
-    assert!(human.stderr.is_empty());
+    // The fixture garden has no git history, so the only diagnostic is the missing dates.
+    let stderr = String::from_utf8_lossy(&human.stderr);
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+    assert!(stderr.contains("not in a git repository"), "{stderr}");
     assert!(String::from_utf8_lossy(&human.stdout).contains("Published 1 pages"));
 }
 #[test]
@@ -249,8 +252,8 @@ fn explicit_inputs_legacy_format_and_empty_selection() {
     assert!(result.status.success());
     let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
     assert_eq!(report["pages"], 0);
-    // The index page and the shell, outline and references scripts.
-    assert_eq!(files(&f.0.join("empty")).len(), 4);
+    // The index page, the page list, and the shell, outline, references and All pages scripts.
+    assert_eq!(files(&f.0.join("empty")).len(), 6);
     let output = f.0.join("legacy");
     let result = Command::new(env!("CARGO_BIN_EXE_lsg"))
         .arg("publish")
