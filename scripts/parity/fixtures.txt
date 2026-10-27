@@ -14,3 +14,5 @@ AI/Coding/History
 VSCode/Proj/24t3/LearnVSCode/03 Basic Python
 Home
 All pages
+AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025
+Logseq/Doc/slide
