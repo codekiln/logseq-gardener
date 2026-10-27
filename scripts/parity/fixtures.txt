@@ -14,3 +14,6 @@ AI/Coding/History
 VSCode/Proj/24t3/LearnVSCode/03 Basic Python
 Home
 All pages
+Logseq/Flavored Markdown
+LangChain/Academy/LangSmith/M5 Production Observability/L2 Online Evaluation
+Logseq/Flashcard/Review/Favorite
