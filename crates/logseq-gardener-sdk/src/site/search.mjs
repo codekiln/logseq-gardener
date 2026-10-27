@@ -179,9 +179,10 @@ const group = (hits, limit) => ({ count: hits.length, results: hits.slice(0, lim
 /**
  * Grouped results: Pages, Blocks and, with `currentPage` (a page id), Current page.
  * Each group holds its full count and at most `limit` results. Block results name their
- * block number and page; `blockRow` adds text once its chunk is loaded.
+ * block number and page; `blockRow` adds text once its chunk is loaded. With
+ * `blocks: false` only Pages is evaluated, so no shard is needed.
  */
-export function query(index, input, { limit = LIMITS.results, currentPage = null } = {}) {
+export function query(index, input, { limit = LIMITS.results, currentPage = null, blocks = true } = {}) {
   const parsed = terms(input);
   if (parsed.error === 'invalid-query') return failure(parsed.error);
   if (!Number.isInteger(limit) || limit < 1 || limit > LIMITS.results) return failure('invalid-limit');
@@ -206,7 +207,7 @@ export function query(index, input, { limit = LIMITS.results, currentPage = null
   pages.sort((a, b) => a.bucket - b.bucket || b.score - a.score || a.page.number - b.page.number);
   const outcome = failure(null);
   outcome.pages = group(pages.map(({ page, alias }) => ({ kind: 'page', page: page.id, title: page.title, href: page.href, alias })), limit);
-  if (queryTerms.every(single)) return outcome;
+  if (!blocks || queryTerms.every(single)) return outcome;
   if (missingShards(index, input).length) return failure('shards-not-loaded');
   let matched = null;
   const exact = [];

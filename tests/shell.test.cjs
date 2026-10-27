@@ -92,6 +92,14 @@ test('controls appear once the script runs and the sidebar state is saved', () =
   assert.equal(f.root.getAttribute('data-lsg-left-sidebar'), null);
   assert.equal(f.values.has('logseq-gardener-left-sidebar'), false);
 });
+test('search commands run the shell actions', () => {
+  const f = fixture();
+  const { actions } = f.window.logseqGardenerShell;
+  assert.deepEqual(Object.keys(actions).sort(), ['ga', 'gh', 'gj', 'tl', 'tt', 'tw']);
+  actions.tl(); assert.equal(f.root.getAttribute('data-lsg-left-sidebar'), 'open');
+  actions.tw(); assert.equal(f.root.getAttribute('data-lsg-wide'), 'true');
+  assert.ok(Object.isFrozen(actions));
+});
 test('phone overlay closes from the shade, a link and Escape', () => {
   const f = fixture({ desktop: false });
   f.click(f.toggle); assert.equal(f.shade.hidden, false);
