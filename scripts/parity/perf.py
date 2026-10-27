@@ -361,11 +361,14 @@ def keystroke_summary(latencies, fetches):
     measured = [v for v in latencies if v is not None]
     cold = [v for v, f in zip(latencies, fetches) if f['shard'] and v is not None]
     warm = [v for v, f in zip(latencies, fetches) if not f['shard'] and v is not None]
+    # Warm keystrokes that downloaded nothing: the ones that waited for no record chunk either.
+    idle = [v for v, f in zip(latencies, fetches) if not f['bytes'] and v is not None]
     sizes = [f['bytes'] for f in fetches]
     return {'keystrokes': len(latencies), 'unchanged': len(latencies) - len(measured),
             'p50_ms': metrics.percentile(measured, 0.5), 'p95_ms': metrics.percentile(measured, 0.95),
             'cold_keystrokes': sum(f['shard'] for f in fetches), 'cold_p95_ms': metrics.percentile(cold, 0.95),
-            'warm_p95_ms': metrics.percentile(warm, 0.95),
+            'warm_p95_ms': metrics.percentile(warm, 0.95), 'chunk_keystrokes': sum(
+                1 for f in fetches if f['bytes'] and not f['shard']), 'idle_p95_ms': metrics.percentile(idle, 0.95),
             'keystroke_bytes_max': max(sizes, default=0), 'keystroke_bytes_p95': metrics.percentile(sizes, 0.95)}
 
 
@@ -818,17 +821,21 @@ def search_markdown(results, budgets):
                      f"{cell('warm_p95_ms')} | {cell('keystroke_bytes_max', 1)} | {cell('heap_growth', 1)} |")
     lines += ['', '## Search latency per keystroke', '',
               'Every keystroke of the query list. An unanswered keystroke is one whose results never showed. '
+              'A warm keystroke can still wait for a record chunk; the keystrokes that fetched nothing show '
+              'the cost of the query alone. '
               '`lsg` reopens the dialog from memory after the first open.', '',
               '| Profile | Build | Keystrokes | Unanswered | Median (ms) | 95th percentile (ms) '
+              '| Warm keystrokes that fetched a chunk | 95th percentile of keystrokes that fetched nothing (ms) '
               '| Reopen (ms) | Reopen requests |',
-              '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |']
+              '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
     for row in rows:
         if 'p95_ms' not in row:
             continue
         reopen = f"{row['warm_open_ms']:,.0f}" if 'warm_open_ms' in row else '–'
-        p50, p95 = ('–' if row[k] is None else f'{row[k]:,.0f}' for k in ('p50_ms', 'p95_ms'))
+        p50, p95, idle = ('–' if row.get(k) is None else f'{row[k]:,.0f}' for k in ('p50_ms', 'p95_ms', 'idle_p95_ms'))
         lines.append(f"| {row['profile']} | {row['build']} | {row['keystrokes']} | {row['unchanged']} | "
-                     f"{p50} | {p95} | {reopen} | {row.get('warm_open_requests', '–')} |")
+                     f"{p50} | {p95} | {row.get('chunk_keystrokes', '–')} | {idle} | {reopen} | "
+                     f"{row.get('warm_open_requests', '–')} |")
     builds = build_variants(results.get('search_build', []))
     if (True, True) in builds and (True, False) in builds:
         with_search, without = builds[(True, True)], builds[(True, False)]
