@@ -4,7 +4,7 @@
     "profiles": "desktop, phone",
     "garden commit": "75ef84c",
     "gh-pages commit": "b491e00",
-    "lsg": "0.0.0 (a2284e0)"
+    "lsg": "0.0.0 (db371f2)"
   },
   "search_index": {
     "pages": 9204,
@@ -13,140 +13,140 @@
     "titles_decoded": 747581,
     "titles_gzip": 242783,
     "shard_count": 1148,
-    "chunk_count": 449,
+    "chunk_count": 450,
     "largest_shard": {
       "file": "lsg-search-shard-d744f44045828fb6.json",
       "key": "re",
       "gzip": 63468
     },
     "largest_chunk": {
-      "file": "lsg-search-chunk-8ad8f5b56379bd1a.json",
-      "gzip": 32772
+      "file": "lsg-search-chunk-e02b9cefd6b2f95c.json",
+      "gzip": 31988
     },
-    "bootstrap_bytes": 1969,
-    "controller_bytes": 14214
+    "bootstrap_bytes": 1965,
+    "controller_bytes": 29002
   },
   "pages": [],
   "search": [
     {
       "profile": "desktop",
       "build": "logseq",
-      "dialog_ms": 31.600000023841858,
-      "first_results_ms": 3531.7000000476837,
+      "dialog_ms": 29.59999990463257,
+      "first_results_ms": 3549.2999999523163,
       "first_open_requests": 0,
       "first_open_transfer": 0,
       "first_open_decoded": 0,
       "page_load": {
-        "title_ms": 26024.100000023842,
-        "fcp_ms": 26044,
+        "title_ms": 20708.200000047684,
+        "fcp_ms": 20732,
         "data_before_title": 22846155,
         "script_before_title": 8087163,
-        "peak_heap": 2011787403
+        "peak_heap": 2011942915
       },
       "eager_search_requests": 0,
-      "heap_growth": 59039436,
+      "heap_growth": 59058312,
       "keystrokes": 36,
       "unchanged": 0,
-      "p50_ms": 832.6000000238419,
-      "p95_ms": 1698.3999999761581,
+      "p50_ms": 803.2000000476837,
+      "p95_ms": 1692.5,
       "cold_keystrokes": 0,
       "cold_p95_ms": null,
-      "warm_p95_ms": 1698.3999999761581,
+      "warm_p95_ms": 1692.5,
       "chunk_keystrokes": 0,
-      "idle_p95_ms": 1698.3999999761581,
+      "idle_p95_ms": 1692.5,
       "keystroke_bytes_max": 0,
       "keystroke_bytes_p95": 0
     },
     {
       "profile": "desktop",
       "build": "lsg",
-      "dialog_ms": 9.0,
-      "first_results_ms": 108.10000002384186,
-      "first_open_requests": 5,
-      "first_open_transfer": 274562,
-      "first_open_decoded": 818514,
+      "dialog_ms": 23.300000071525574,
+      "first_results_ms": 110.20000004768372,
+      "first_open_requests": 7,
+      "first_open_transfer": 306143,
+      "first_open_decoded": 933239,
       "page_load": {
-        "title_ms": 26.100000023841858,
-        "fcp_ms": 40,
-        "data_before_title": 14948,
-        "script_before_title": 9716,
-        "peak_heap": 1768606
+        "title_ms": 23.199999928474426,
+        "fcp_ms": 36,
+        "data_before_title": 15769,
+        "script_before_title": 9866,
+        "peak_heap": 1770042
       },
       "eager_search_requests": 0,
-      "warm_open_ms": 17.100000023841858,
+      "warm_open_ms": 18.100000023841858,
       "warm_open_requests": 0,
-      "heap_growth": 4246552,
+      "heap_growth": 6659896,
       "keystrokes": 36,
       "unchanged": 0,
-      "p50_ms": 6.399999976158142,
-      "p95_ms": 20.5,
+      "p50_ms": 14.400000095367432,
+      "p95_ms": 30.100000023841858,
       "cold_keystrokes": 7,
-      "cold_p95_ms": 28.699999928474426,
-      "warm_p95_ms": 19.399999976158142,
-      "chunk_keystrokes": 3,
-      "idle_p95_ms": 11.099999904632568,
-      "keystroke_bytes_max": 75581,
-      "keystroke_bytes_p95": 63635
+      "cold_p95_ms": 45.89999997615814,
+      "warm_p95_ms": 16.200000047683716,
+      "chunk_keystrokes": 11,
+      "idle_p95_ms": 19.600000023841858,
+      "keystroke_bytes_max": 95117,
+      "keystroke_bytes_p95": 77968
     },
     {
       "profile": "phone",
       "build": "logseq",
-      "dialog_ms": 127.19999992847443,
-      "first_results_ms": 14230.199999928474,
+      "dialog_ms": 116.0,
+      "first_results_ms": 14369.0,
       "first_open_requests": 3,
       "first_open_transfer": 160161,
       "first_open_decoded": 590292,
       "page_load": {
-        "title_ms": 192787.69999992847,
-        "fcp_ms": 192852,
+        "title_ms": 194051.20000004768,
+        "fcp_ms": 194128,
         "data_before_title": 22270811,
         "script_before_title": 8087163,
-        "peak_heap": 1979242410
+        "peak_heap": 1978325595
       },
       "eager_search_requests": 0,
-      "heap_growth": 59150108,
+      "heap_growth": 59150520,
       "keystrokes": 36,
       "unchanged": 0,
-      "p50_ms": 3145.9000000953674,
-      "p95_ms": 13360.600000023842,
+      "p50_ms": 3025.899999976158,
+      "p95_ms": 13839.0,
       "cold_keystrokes": 0,
       "cold_p95_ms": null,
-      "warm_p95_ms": 13360.600000023842,
+      "warm_p95_ms": 13839.0,
       "chunk_keystrokes": 1,
-      "idle_p95_ms": 13360.600000023842,
+      "idle_p95_ms": 13839.0,
       "keystroke_bytes_max": 20,
       "keystroke_bytes_p95": 0
     },
     {
       "profile": "phone",
       "build": "lsg",
-      "dialog_ms": 207.0,
-      "first_results_ms": 2342.6999999284744,
+      "dialog_ms": 244.79999995231628,
+      "first_results_ms": 2377.600000023842,
       "first_open_requests": 5,
-      "first_open_transfer": 274562,
-      "first_open_decoded": 818514,
+      "first_open_transfer": 280633,
+      "first_open_decoded": 836712,
       "page_load": {
-        "title_ms": 232.60000002384186,
-        "fcp_ms": 244,
-        "data_before_title": 14948,
-        "script_before_title": 9716,
-        "peak_heap": 1818482
+        "title_ms": 235.40000009536743,
+        "fcp_ms": 248,
+        "data_before_title": 15769,
+        "script_before_title": 9866,
+        "peak_heap": 1819958
       },
       "eager_search_requests": 0,
-      "warm_open_ms": 49.89999997615814,
+      "warm_open_ms": 26.299999952316284,
       "warm_open_requests": 0,
-      "heap_growth": 4248128,
+      "heap_growth": 6517388,
       "keystrokes": 36,
       "unchanged": 0,
-      "p50_ms": 25.0,
-      "p95_ms": 652.6000000238419,
+      "p50_ms": 26.399999976158142,
+      "p95_ms": 285.60000002384186,
       "cold_keystrokes": 7,
-      "cold_p95_ms": 652.6000000238419,
-      "warm_p95_ms": 541.0999999046326,
-      "chunk_keystrokes": 3,
-      "idle_p95_ms": 26.200000047683716,
-      "keystroke_bytes_max": 75581,
-      "keystroke_bytes_p95": 63635
+      "cold_p95_ms": 577.5999999046326,
+      "warm_p95_ms": 35.199999928474426,
+      "chunk_keystrokes": 12,
+      "idle_p95_ms": 262.09999990463257,
+      "keystroke_bytes_max": 77968,
+      "keystroke_bytes_p95": 75581
     }
   ],
   "search_build": [
@@ -154,19 +154,19 @@
       "build": "lsg",
       "journals": true,
       "search": true,
-      "seconds": 13.060452749952674
+      "seconds": 13.33268962497823
     },
     {
       "build": "lsg",
       "journals": false,
       "search": true,
-      "seconds": 12.330684249987826
+      "seconds": 12.195445000077598
     },
     {
       "build": "lsg",
       "journals": true,
       "search": false,
-      "seconds": 11.693165541975759
+      "seconds": 11.424727833014913
     }
   ]
 }

@@ -1,37 +1,39 @@
 # Search performance
 
-On the whole encode garden, `lsg`'s search format version 2 meets every budget but two. The dialog opens in 9 ms on desktop and 207 ms on the phone profile, page results appear 108 ms and 2,343 ms after Cmd/Ctrl+K, and each keystroke downloads at most 76 KB. Logseq needs 3.5 s and 14.2 s for the same first results, after its whole 22.8 MB graph has loaded with the page.
+On the whole encode garden, every `lsg` value of search format version 2 is within its budget. The dialog opens in 23 ms on desktop and 245 ms on the phone profile, page results appear 110 ms and 2,378 ms after Cmd/Ctrl+K, a keystroke on loaded shards draws its results in 35 ms at the 95th percentile on the phone, and each keystroke downloads at most 95 KB. Logseq needs 3.5 s and 14.4 s for the same first results, after its whole 22.8 MB graph has loaded with the page.
 
-The two values over budget:
+Two changes brought the last values within budget:
 
-- **One record chunk is 32.8 KB gzip, over the 32 KB budget.** Chunks hold a fixed 256 block records. Chunk 402 holds 76 blocks of one podcast transcript page, each around 940 characters, where the median chunk is 10.8 KB. A size limit per chunk, in place of a fixed record count, would keep every chunk within budget; it changes the manifest, so it belongs in the SDK's file writer.
-- **Warm keystrokes on the phone profile take 541 ms at the 95th percentile, over the 100 ms budget.** A warm keystroke fetches no word shard, but 3 of the 29 warm keystrokes fetched a record chunk, and the dialog waits for chunks before it draws any row. The keystrokes that fetched nothing take 26 ms at the 95th percentile. The design draws rows whose chunk is still loading with the page title and a placeholder line (task 4.1 of `match-logseq-search`); with that change these keystrokes no longer wait on the network.
+- **Record chunks close by size as well as count.** A chunk holds at most 256 block records and at most 32 KB gzip. Chunk 402, 76 blocks of one podcast transcript at about 940 characters each, was 32.8 KB; it is now split, and the largest chunk is 32.0 KB (31,988 bytes).
+- **Keystrokes no longer wait for record chunks.** The dialog draws block rows whose chunk is still loading with the page title and a placeholder line, and fills in the text when the chunk arrives. The harness now times a keystroke until its result list is drawn, so the phone's 95th percentile on loaded shards fell from 541 ms to 35 ms.
 
-Measured on 2026-10-27 with `mise run parity:perf --search-site` on an `lsg` build of garden commit `75ef84c` (`lsg` `a2284e0`, the `parity:build` options with `--search`), beside Logseq's `gh-pages` build `b491e00`, served locally. [Parity performance](performance.md) holds the same rows; [`search-performance.json`](search-performance.json) holds the raw values.
+Measured on 2026-10-27 with `mise run parity:perf --search-site` on an `lsg` build of garden commit `75ef84c` (`lsg` `db371f2`, the `parity:build` options with `--search`), beside Logseq's `gh-pages` build `b491e00`, served locally. [Parity performance](performance.md) holds the same rows; [`search-performance.json`](search-performance.json) holds the raw values.
 
 ## Budgets
 
-The budgets are in the `[search]` table of [`scripts/parity/budgets.toml`](../../scripts/parity/budgets.toml). Warm keystrokes use the `[desktop]` and `[phone]` `search_p95_ms`. **Bold** marks an `lsg` value over its budget.
+The budgets are in the `[search]` table of [`scripts/parity/budgets.toml`](../../scripts/parity/budgets.toml). Keystrokes on loaded shards use the `[desktop]` and `[phone]` `search_p95_ms`. A keystroke, and the first page results, end when `lsg` draws the result list; block rows may still show a placeholder line then.
 
 | Measure | Budget | `lsg` desktop | `lsg` phone | Logseq desktop | Logseq phone |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Title index, gzip | 300 KB | 243 KB | | | |
 | Title index, decoded | 1.5 MB | 0.7 MB | | | |
 | Largest shard, gzip (words starting `re`) | 64 KB | 63.5 KB | | | |
-| Largest record chunk, gzip | 32 KB | **32.8 KB** | | | |
-| Dialog shown after Cmd/Ctrl+K | 100 ms desktop, 300 ms phone | 9 ms | 207 ms | 32 ms | 127 ms |
-| First page results after Cmd/Ctrl+K | 500 ms desktop, 2,500 ms phone | 108 ms | 2,343 ms | 3,532 ms | 14,230 ms |
-| Largest download by one keystroke, gzip | 200 KB | 75.6 KB | 75.6 KB | 0 | 0 |
-| Keystroke that fetches a shard, 95th percentile | 150 ms desktop, 1,000 ms phone | 29 ms | 653 ms | – | – |
-| Keystroke on loaded shards, 95th percentile | 50 ms desktop, 100 ms phone | 19 ms | **541 ms** | 1,698 ms | 13,361 ms |
-| Heap growth after the query list | 30 MB on phone | 4.2 MB | 4.2 MB | 59.0 MB | 59.2 MB |
-| Whole-garden build, with `--search` against without | at most +25% | +12% (13.1 s against 11.7 s) | | | |
+| Largest record chunk, gzip | 32 KB | 32.0 KB | | | |
+| Dialog shown after Cmd/Ctrl+K | 100 ms desktop, 300 ms phone | 23 ms | 245 ms | 30 ms | 116 ms |
+| First page results after Cmd/Ctrl+K | 500 ms desktop, 2,500 ms phone | 110 ms | 2,378 ms | 3,549 ms | 14,369 ms |
+| Largest download by one keystroke, gzip | 200 KB | 95.1 KB | 78.0 KB | 0 | 0 |
+| Keystroke that fetches a shard, 95th percentile | 150 ms desktop, 1,000 ms phone | 46 ms | 578 ms | – | – |
+| Keystroke on loaded shards, 95th percentile | 50 ms desktop, 100 ms phone | 16 ms | 35 ms | 1,692 ms | 13,839 ms |
+| Heap growth after the query list | 30 MB on phone | 6.7 MB | 6.5 MB | 59.1 MB | 59.2 MB |
+| Whole-garden build, with `--search` against without | at most +25% | +17% (13.3 s against 11.4 s) | | | |
 
-The first open downloads 275 KB gzip: the dialog module, the search engine, the manifest and the title index. Nothing loads before Cmd/Ctrl+K or a click on the search button. Logseq downloads nothing more when its dialog opens, because the whole graph is already in memory. The query list in [`scripts/parity/search-queries.txt`](../../scripts/parity/search-queries.txt) types 36 keystrokes; 7 of them fetch a shard.
+The first open downloads 281 KB gzip on the phone profile in five files: the dialog module, the search engine, the manifest, the title index and the first query's shard. On desktop two record chunks also start downloading before the list is drawn, 306 KB in seven files. Nothing loads before Cmd/Ctrl+K or a pointer or focus on the search button. Logseq downloads nothing more when its dialog opens, because the whole graph is already in memory. The query list in [`scripts/parity/search-queries.txt`](../../scripts/parity/search-queries.txt) types 36 keystrokes; 7 of them fetch a shard.
+
+One phone keystroke that downloaded nothing took 262 ms, which is why the column for those keystrokes in [Parity performance](performance.md) reads 262 ms; the 95th percentile of all 29 keystrokes on loaded shards is 35 ms. Build times are the fastest of three publishes, since other work on the machine changed single timings by more than the budget.
 
 ## Comparison with Pagefind
 
-[Pagefind](https://github.com/CloudCannon/pagefind) 1.5.2 indexed the same `lsg` build, the 13,468 page files without the header and left sidebar, with [`experiments/pagefind`](../../experiments/pagefind/README.md). Its keystrokes are timed one after another, each searching and loading the first ten results.
+These numbers come from the earlier measurement of `lsg` `a2284e0`, before the grouped dialog and size-limited chunks. [Pagefind](https://github.com/CloudCannon/pagefind) 1.5.2 indexed the same `lsg` build, the 13,468 page files without the header and left sidebar, with [`experiments/pagefind`](../../experiments/pagefind/README.md). Its keystrokes are timed one after another, each searching and loading the first ten results.
 
 | Measure | `lsg` | Pagefind |
 | --- | ---: | ---: |

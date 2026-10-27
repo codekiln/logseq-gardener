@@ -1,7 +1,7 @@
 ## 1. Measure the starting point
 
-- [ ] 1.1 Make `mise run parity:build` pass `--search`, run `parity:perf --search-site` on the whole encode garden, and verify the committed search rows in `docs/parity/performance.md` hold numbers for both builds
-- [ ] 1.2 Index the same `lsg` build with Pagefind in `experiments/pagefind/` (with a README saying how to run it) and record its index size, bytes per query and keystroke latency in `verification.md`
+- [x] 1.1 Make `mise run parity:build` pass `--search`, run `parity:perf --search-site` on the whole encode garden, and verify the committed search rows in `docs/parity/performance.md` hold numbers for both builds
+- [x] 1.2 Index the same `lsg` build with Pagefind in `experiments/pagefind/` (with a README saying how to run it) and record its index size, bytes per query and keystroke latency in `verification.md`
 
 ## 2. SDK search index
 
@@ -29,9 +29,9 @@
 
 ## 5. Budgets
 
-- [ ] 5.1 Replace the `[search]` corpus keys in `scripts/parity/budgets.toml` with the design's budgets and verify `parity:budgets` fails on a fixture with an oversized shard
-- [ ] 5.2 Run `parity:perf --search-site` on the whole encode garden, commit the rows to `docs/parity/performance.md` and `docs/parity/search-performance.md`, and verify every `lsg` value is within its budget
-- [ ] 5.3 Run `mise run ci` and verify it passes
+- [x] 5.1 Replace the `[search]` corpus keys in `scripts/parity/budgets.toml` with the design's budgets and verify `parity:budgets` fails on a fixture with an oversized shard
+- [x] 5.2 Run `parity:perf --search-site` on the whole encode garden, commit the rows to `docs/parity/performance.md` and `docs/parity/search-performance.md`, and verify every `lsg` value is within its budget
+- [x] 5.3 Run `mise run ci` and verify it passes
 
 ## Workflow follow-up
 
