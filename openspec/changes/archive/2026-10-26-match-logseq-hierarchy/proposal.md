@@ -1,6 +1,6 @@
 ## Why
 
-Logseq's Hierarchy section lists a page's namespace descendants, or its parent's path when it has none, and leaves the section off pages that have no namespace. `lsg` starts every list with the current page's row, so 525 plain pages and 5,297 namespaced leaves carry a section that only repeats their title. It also ignores aliases, uses its own look, and inlines every row: `Person` carries 1,067 rows, 480 KB of a 562 KB page ([hierarchy analysis](../../../docs/parity/hierarchy.md), [Issue #116 — Match Logseq's namespace hierarchy section](https://github.com/codekiln/logseq-gardener/issues/116)).
+Logseq's Hierarchy section lists a page's namespace descendants, or its parent's path when it has none, and leaves the section off pages that have no namespace. `lsg` starts every list with the current page's row, so 525 plain pages and 5,297 namespaced leaves carry a section that only repeats their title. It also ignores aliases, uses its own look, and inlines every row: `Person` carries 1,067 rows, 480 KB of a 562 KB page ([hierarchy analysis](../../../../docs/parity/hierarchy.md), [Issue #116 — Match Logseq's namespace hierarchy section](https://github.com/codekiln/logseq-gardener/issues/116)).
 
 The rows are a graph answer, and today the publisher computes them. Moving them into the SDK lets the CLI and the language server list a namespace the same way, and splitting long lists keeps a namespace root's first paint independent of its size.
 

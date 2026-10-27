@@ -61,7 +61,7 @@ Pages with short lists grow by up to 8 KB uncompressed because each segment now 
 
 `mise run parity:budgets` passes: hierarchy styles 195 bytes gzip (budget 500), `lsg-references.js` 6,695 bytes (5,995 before plus at most 1,000), no page over 100 rows, every hierarchy fragment under 100 KB gzip, and the root of a fixture namespace with 200 pages is the same size with 2,200. The reference-section styles stay at 973 bytes gzip once the hierarchy rules, which have their own budget, are counted separately.
 
-`mise run parity:perf --builds lsg --baseline-lsg <origin/main lsg>` on the whole garden: scrolling `Microfreak`'s list to its end loads 1,394 rows with a peak JS heap of 3.1 MB on the phone profile (budget 20 MB). A whole-garden build takes 10.5 seconds against 10.8 seconds for the baseline (−3%, budget +10%). Hierarchy rows add nothing to the search corpus. The rows are in [`docs/parity/performance.md`](../../../docs/parity/performance.md).
+`mise run parity:perf --builds lsg --baseline-lsg <origin/main lsg>` on the whole garden: scrolling `Microfreak`'s list to its end loads 1,394 rows with a peak JS heap of 3.1 MB on the phone profile (budget 20 MB). A whole-garden build takes 10.5 seconds against 10.8 seconds for the baseline (−3%, budget +10%). Hierarchy rows add nothing to the search corpus. The rows are in [`docs/parity/performance.md`](../../../../docs/parity/performance.md).
 
 ## Known differences
 
