@@ -1,0 +1,8 @@
+# Pagefind settings for experiments/pagefind/measure.py, which runs Pagefind from this folder.
+# Index each published page's outline: the page files only, without the header and left sidebar
+# that every page repeats.
+glob: "p-*.html"
+exclude_selectors:
+  - "header.lsg-header"
+  - "#lsg-left-sidebar"
+force_language: "en"
