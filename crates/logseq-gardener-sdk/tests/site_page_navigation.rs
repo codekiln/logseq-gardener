@@ -114,16 +114,12 @@ fn explicit_sequence_resolves_aliases_to_canonical_titles_and_homepage_routes() 
     assert!(middle.find("Middle body").unwrap() < middle.find("class=\"page-sequence\"").unwrap());
     assert!(
         middle.find("class=\"page-sequence\"").unwrap()
-            < middle
-                .find("<section class=\"namespace-hierarchy\"")
-                .unwrap()
+            < middle.find("<section class=\"page-hierarchy ").unwrap()
     );
     assert!(middle.contains("<audio controls"));
     // Logseq's order: Linked References, Hierarchy, Unlinked References.
     let linked = middle.find("data-refs=\"linked\"").unwrap();
-    let hierarchy = middle
-        .find("<section class=\"namespace-hierarchy\"")
-        .unwrap();
+    let hierarchy = middle.find("<section class=\"page-hierarchy ").unwrap();
     assert!(linked < hierarchy);
     assert!(hierarchy < middle.find("data-refs=\"unlinked\"").unwrap());
     assert!(f.fragments("Visible/Middle").contains("Page reference"));

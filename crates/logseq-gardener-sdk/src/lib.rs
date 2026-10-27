@@ -58,3 +58,6 @@ pub mod git_dates;
 
 /// All pages: every published page with its kind, icon, backlinks and dates.
 pub mod page_list;
+
+/// Namespace hierarchy rows from page titles and aliases, shared by every caller.
+pub mod namespaces;

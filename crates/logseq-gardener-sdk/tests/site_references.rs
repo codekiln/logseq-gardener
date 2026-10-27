@@ -517,7 +517,7 @@ fn tagged_pages_list_lower_cased_heading_and_sorted_pages() {
     let order: Vec<usize> = [
         "tagged-pages",
         "data-refs=\"linked\"",
-        "class=\"namespace-hierarchy\"",
+        "class=\"page-hierarchy ",
         "data-refs=\"unlinked\"",
     ]
     .iter()

@@ -43,6 +43,7 @@ class Node {
       this.childNodes.push(node);
     }
   }
+  after(node) { const p = this.parentElement; p.append(node); p.childNodes.splice(p.childNodes.indexOf(this) + 1, 0, p.childNodes.pop()); }
   prepend(node) { this.append(node); this.childNodes.unshift(this.childNodes.pop()); }
   replaceChildren(...nodes) { for (const c of this.childNodes) c.parentElement = null; this.childNodes = []; this.append(...nodes.filter(Boolean)); }
   insertAdjacentHTML(_, html) { this.append(...parse(html).childNodes); }
@@ -104,12 +105,14 @@ const DATA = {
 const FILES = {
   '_refs/t-linked-1.html': (data) => fragment(group('One', block(0, `<ul><li data-ref-block="1">B1</li></ul>`)), data),
   '_refs/t-linked-2.html': () => fragment(group('Two', block(2))),
+  '_refs/t-hierarchy-1.html': () => `<!doctype html><html><head><base href="../"></head><body><main><div class="references-fragment"><ul class="namespaces"><li>R/2</li><li>R/3</li></ul></div><p><a href="_refs/t-hierarchy-2.html" rel="next">More of the hierarchy</a></p></main></body></html>`,
+  '_refs/t-hierarchy-2.html': () => `<!doctype html><html><head><base href="../"></head><body><main><div class="references-fragment"><ul class="namespaces"><li>R/4</li></ul></div></main></body></html>`,
   '_refs/t-unlinked-1.html': () => fragment(group('Three', '<div class="references-block">U</div>'), { count: 1, files: ['t-unlinked-1.html'] }),
 };
 
-function setup({ data = DATA, open = false, storage = new Map(), throwing = false, unlinkedSrc = true } = {}) {
-  const page = parse(`<section class="references" data-refs="linked" data-src="_refs/t-linked-1.html"><details class="references-section"><summary><h2>3 Linked References</h2><button type="button" class="filter" data-state="none" hidden></button></summary><div class="references-body"><p role="status"></p></div></details></section><section class="references" data-refs="unlinked"${unlinkedSrc ? ' data-src="_refs/t-unlinked-1.html"' : ''}><details class="references-section"><summary><h2>Unlinked References</h2></summary><div class="references-body"></div></details></section>`);
-  const [linked, unlinked] = page.querySelectorAll('section');
+function setup({ data = DATA, open = false, storage = new Map(), throwing = false, unlinkedSrc = true, hierarchy = '' } = {}) {
+  const page = parse(`<section class="references" data-refs="linked" data-src="_refs/t-linked-1.html"><details class="references-section"><summary><h2>3 Linked References</h2><button type="button" class="filter" data-state="none" hidden></button></summary><div class="references-body"><p role="status"></p></div></details></section><section class="references" data-refs="unlinked"${unlinkedSrc ? ' data-src="_refs/t-unlinked-1.html"' : ''}><details class="references-section"><summary><h2>Unlinked References</h2></summary><div class="references-body"></div></details></section>${hierarchy}`);
+  const [linked, unlinked, rows] = page.querySelectorAll('section');
   linked.querySelector('details').open = open;
   const fetched = [];
   const observers = [];
@@ -132,7 +135,8 @@ function setup({ data = DATA, open = false, storage = new Map(), throwing = fals
     DOMParser: class { parseFromString(text) { return parse(text); } },
     IntersectionObserver: class {
       constructor(callback) { this.callback = callback; observers.push(this); }
-      observe() {}
+      observe() { this.observed = (this.observed || 0) + 1; }
+      unobserve() {}
       disconnect() { this.done = true; }
     },
   };
@@ -146,7 +150,7 @@ function setup({ data = DATA, open = false, storage = new Map(), throwing = fals
     details.ontoggle?.();
     await settle();
   };
-  return { window, linked, unlinked, fetched, observers, storage, settle, toggle, h2: (s) => s.querySelector('h2').textContent };
+  return { window, linked, unlinked, rows, fetched, observers, storage, settle, toggle, h2: (s) => s.querySelector('h2').textContent };
 }
 const shown = (section) => section.querySelectorAll('[data-ref-block]').filter((b) => !b.hidden).map((b) => b.dataset.refBlock);
 const chips = (section) => section.querySelector('dialog').querySelectorAll('div')[2].childNodes.map((c) => c.textContent);
@@ -274,6 +278,33 @@ test('initializing again after a content swap registers nothing twice', async ()
   assert.equal(t.linked.querySelectorAll('[data-ref-block="0"]').length, 1);
 });
 
-test('the shipped script stays within its 6 KB budget', () => {
-  assert.ok(Buffer.byteLength(source) <= 6000, `${Buffer.byteLength(source)} bytes`);
+test('a long hierarchy appends each next file of rows as the reader nears the end', async () => {
+  const t = setup({ hierarchy: '<section class="page-hierarchy references" data-hierarchy-src="_refs/t-hierarchy-1.html"><details class="references-section" open><summary><h2>Hierarchy</h2></summary><ul class="namespaces"><li>R/1</li></ul></details></section>' });
+  const items = () => t.rows.querySelector('.namespaces').querySelectorAll('li').map((li) => li.textContent);
+  assert.deepEqual(t.fetched, []);
+  const observer = t.observers.at(-1);
+  observer.callback([{ isIntersecting: false }]);
+  await t.settle();
+  assert.deepEqual(t.fetched, []);
+  observer.callback([{ isIntersecting: true }]);
+  observer.callback([{ isIntersecting: true }]);
+  await t.settle();
+  assert.deepEqual(t.fetched, ['_refs/t-hierarchy-1.html']);
+  assert.deepEqual(items(), ['R/1', 'R/2', 'R/3']);
+  observer.callback([{ isIntersecting: true }]);
+  await t.settle();
+  assert.deepEqual(items(), ['R/1', 'R/2', 'R/3', 'R/4']);
+  assert.equal(observer.done, true);
+  observer.callback([{ isIntersecting: true }]);
+  await t.settle();
+  assert.deepEqual(t.fetched, ['_refs/t-hierarchy-1.html', '_refs/t-hierarchy-2.html']);
+  // A host that swaps content in initializes again without a second loader.
+  const before = t.observers.length;
+  t.window.logseqGardenerInitReferences(t.rows);
+  assert.equal(t.observers.length, before);
+});
+
+// 6 KB before the Hierarchy loader, which may add 1 KB (the `[hierarchy]` budget).
+test('the shipped script stays within its 7 KB budget', () => {
+  assert.ok(Buffer.byteLength(source) <= 7000, `${Buffer.byteLength(source)} bytes`);
 });

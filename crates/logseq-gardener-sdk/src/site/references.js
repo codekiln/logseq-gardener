@@ -1,4 +1,5 @@
-// Loads reference section bodies when a reader opens them and filters linked references.
+// Loads reference section bodies when a reader opens them, filters linked references and
+// appends long Hierarchy lists as the reader scrolls.
 // Hosts that swap page content call window.logseqGardenerInitReferences(root).
 // The build trims each line and drops comment lines, so keep statements on their own lines.
 (() => {
@@ -144,9 +145,32 @@
     if (details.open) json().then(more);
   }
 
+  // A long Hierarchy appends its next file of rows as the reader nears the end of the list.
+  function rows(section) {
+    if (section.dataset.ready) return;
+    section.dataset.ready = 1;
+    const list = section.querySelector('.namespaces');
+    const end = el('div');
+    let next = section.dataset.hierarchySrc;
+    list.after(end);
+    const o = new IntersectionObserver((es) => {
+      if (!next || !es.some((e) => e.isIntersecting)) return;
+      parse(new URL(next, document.baseURI)).then((doc) => {
+        list.append(...doc.querySelectorAll('li'));
+        next = doc.querySelector('[rel=next]')?.getAttribute('href');
+        o.unobserve(end);
+        next ? o.observe(end) : o.disconnect();
+      });
+      next = null;
+    }, { rootMargin: '600px' });
+    o.observe(end);
+  }
+
   function init(root = document) {
     if (root.matches?.('[data-refs]')) enhance(root);
     root.querySelectorAll('[data-refs]').forEach(enhance);
+    if (root.matches?.('[data-hierarchy-src]')) rows(root);
+    root.querySelectorAll('[data-hierarchy-src]').forEach(rows);
   }
   window.logseqGardenerInitReferences = window.logseqGardenerInitBacklinks = init;
   init();

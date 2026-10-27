@@ -139,7 +139,7 @@ fn journal_pages_use_journal_titles_aliases_and_date_links() {
     assert!(journal.contains("<h1>2026-10-23 Fri</h1>"));
     assert!(journal.contains("id=\"linked-references\""));
     assert!(journal.contains("TMUX_BODY"), "linked reference from tmux");
-    assert!(!journal.contains("class=\"namespace-hierarchy"));
+    assert!(!journal.contains("class=\"page-hierarchy"));
     let old = f.page("OLD_JOURNAL");
     assert!(old.contains("<h1>2019-08-07 Wed</h1>") && old.contains("logseq-entity"));
     let route = |marker: &str| {
