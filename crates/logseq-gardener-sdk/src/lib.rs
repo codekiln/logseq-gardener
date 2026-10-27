@@ -53,6 +53,9 @@ pub mod page_names;
 /// Find a page's source file by title, alias or journal date.
 pub mod page_lookup;
 
+/// Logseq's global graph and page graph from the reference index.
+pub mod graph;
+
 /// Linked references, filters, tagged pages and unlinked mentions from one index.
 pub mod references;
 
