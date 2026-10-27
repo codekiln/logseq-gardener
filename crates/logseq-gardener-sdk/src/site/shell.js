@@ -49,6 +49,8 @@
     ga: () => go('[data-lsg-all-pages]'),
     gj: () => go('[data-lsg-journals-link]'),
   };
+  // The search dialog lists these actions as its commands.
+  window.logseqGardenerShell = Object.freeze({ actions: Object.freeze({ ...actions }) });
   document.addEventListener('click', event => {
     const target = event.target;
     if (menu() && !menu().hidden && !target.closest?.('.lsg-more')) setMenu(false, false);

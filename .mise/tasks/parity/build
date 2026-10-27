@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Publish every selectable page of a garden with lsg into target/parity/<time>/site"
+#MISE description="Publish every selectable page of a garden with lsg, with search, into target/parity/<time>/site"
 #USAGE flag "--garden <path>" help="Garden to publish (default: the encode garden from ghq)"
 set -euo pipefail
 args=()

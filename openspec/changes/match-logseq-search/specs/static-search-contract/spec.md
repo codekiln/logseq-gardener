@@ -27,12 +27,17 @@ The standalone evaluator SHALL normalize lowercase NFC text and collapse whitesp
 
 ### Requirement: Split search index
 
-The publisher SHALL write a title index holding every page record, content shards that map normalized words to block record numbers, and record chunks that hold block records. A shard SHALL hold the words that start with the same two characters, and SHALL split by the next character while it exceeds the shard budget. A one-character word SHALL be stored in the shard of its single character.
+The publisher SHALL write a title index holding every page record, content shards that map normalized words to block record numbers, and record chunks that hold block records. A shard SHALL hold the words that start with the same two characters, and SHALL split by the next character while it exceeds the shard budget. A one-character word SHALL be stored in the shard of its single character. A record chunk SHALL hold at most 256 consecutive block records, SHALL close at each multiple of 256 records and before the record that would take its gzip size past the chunk budget, and the manifest SHALL list each chunk's first block number.
 
 #### Scenario: Large shard splits
 
 - **WHEN** the words starting with `th` exceed the shard budget
 - **THEN** the manifest lists shards `thi`, `tho` and the others in place of `th`, and each stays within the budget
+
+#### Scenario: Long blocks split a chunk
+
+- **WHEN** 256 consecutive block records exceed the chunk budget gzipped
+- **THEN** the publisher writes them as several chunks, each within the budget unless it holds a single record, and the browser finds each block's chunk from the listed first block numbers
 
 ### Requirement: Fuzzy page title matching
 

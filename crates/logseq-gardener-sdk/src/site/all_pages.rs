@@ -16,10 +16,16 @@ pub(super) const LIST_DIRECTORY: &str = "_pages";
 const STYLES: &str = include_str!("all-pages.css");
 const ROWS: usize = 40;
 
-/// The script without comments or indentation, as `references::script` writes its own.
+/// The script with the shared fuzzy score, without comments or indentation, as
+/// `references::script` writes its own.
 pub(super) fn script() -> String {
     let mut script = String::new();
-    for line in include_str!("all-pages.js").lines().map(str::trim) {
+    let source = include_str!("all-pages.js").replacen(
+        super::search::FUZZY_MARKER,
+        include_str!("fuzzy.js"),
+        1,
+    );
+    for line in source.lines().map(str::trim) {
         if line.is_empty() || line.starts_with("//") {
             continue;
         }

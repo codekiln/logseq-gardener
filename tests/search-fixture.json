@@ -1,0 +1,634 @@
+{
+  "about": "Shared search fixture: the SDK query and the browser engine must return these results. Regenerate the published files and results with LSG_UPDATE_SEARCH_FIXTURE=1 cargo test -p logseq-gardener-sdk --test search_fixture, then review the diff.",
+  "blocks": [
+    [
+      "p-56f916d4189b9bae.html",
+      "tmux.conf: set -g mouse on",
+      [
+        "Settings"
+      ]
+    ],
+    [
+      "p-56f916d4189b9bae.html",
+      "Reload with tmux source-file",
+      [
+        "Settings",
+        "Reload"
+      ]
+    ],
+    [
+      "p-424036ef4353ec8f.html",
+      "tmux runs inside a terminal",
+      []
+    ],
+    [
+      "p-424036ef4353ec8f.html",
+      "Sessions survive a closed terminal window",
+      [
+        "Why tmux"
+      ]
+    ],
+    [
+      "p-75119bb74a8ca2e2.html",
+      "tmux.conf.local overrides tmux.conf",
+      [
+        "Layers",
+        "Local",
+        "Deepest"
+      ]
+    ],
+    [
+      "p-75060f5764692f58.html",
+      "Logseq query results find blocks",
+      []
+    ],
+    [
+      "p-75060f5764692f58.html",
+      "logseq alone",
+      []
+    ],
+    [
+      "p-2d02c76ad4c0d053.html",
+      "a query in logseq",
+      [
+        "Queries"
+      ]
+    ],
+    [
+      "p-2d02c76ad4c0d053.html",
+      "Advanced queries use Datalog",
+      [
+        "Queries"
+      ]
+    ],
+    [
+      "p-5d4abf17827bf159.html",
+      "Search finds pages and blocks",
+      []
+    ],
+    [
+      "p-0c0168ce3c4520c8.html",
+      "CAFÉ 東京 path/name punctuation?!",
+      []
+    ],
+    [
+      "p-0c0168ce3c4520c8.html",
+      "café au lait",
+      []
+    ],
+    [
+      "p-da5911a2a798df4f.html",
+      "mise runs tasks in a terminal",
+      []
+    ],
+    [
+      "p-da5911a2a798df4f.html",
+      "g is a one-letter word here",
+      []
+    ],
+    [
+      "p-62c75c025c5c6db1.html",
+      "Terminals render text; tmux multiplexes them",
+      []
+    ],
+    [
+      "p-43ff06c325b57047.html",
+      "Notes from 2024 about tmux and mise",
+      []
+    ]
+  ],
+  "file_options": {
+    "chunk_budget": 240,
+    "chunk_size": 4,
+    "shard_budget": 80
+  },
+  "pages": [
+    [
+      "tmux",
+      "p-424036ef4353ec8f.html",
+      []
+    ],
+    [
+      "tmux/Config",
+      "p-56f916d4189b9bae.html",
+      []
+    ],
+    [
+      "tmux/Config/local",
+      "p-75119bb74a8ca2e2.html",
+      [
+        "tmux.conf.local"
+      ]
+    ],
+    [
+      "Logseq",
+      "p-75060f5764692f58.html",
+      []
+    ],
+    [
+      "Logseq/Query",
+      "p-2d02c76ad4c0d053.html",
+      [
+        "logseq query"
+      ]
+    ],
+    [
+      "Logseq/Search",
+      "p-5d4abf17827bf159.html",
+      []
+    ],
+    [
+      "Café/東京",
+      "p-0c0168ce3c4520c8.html",
+      [
+        "Coffee"
+      ]
+    ],
+    [
+      "mise",
+      "p-da5911a2a798df4f.html",
+      [
+        "mise-en-place"
+      ]
+    ],
+    [
+      "Terminal",
+      "p-62c75c025c5c6db1.html",
+      [
+        "term"
+      ]
+    ],
+    [
+      "2024/Notes",
+      "p-43ff06c325b57047.html",
+      []
+    ]
+  ],
+  "published": {
+    "files": {
+      "lsg-search-chunk-02f48a37ae95e787.json": "{\"blocks\":[[\"p-43ff06c325b57047.html\",\"source-block-15\",\"Notes from 2024 about tmux and mise\",[]],[\"p-0c0168ce3c4520c8.html\",\"source-block-10\",\"CAFÉ 東京 path/name punctuation?!\",[]],[\"p-0c0168ce3c4520c8.html\",\"source-block-11\",\"café au lait\",[]]],\"format_version\":2}",
+      "lsg-search-chunk-160b2b2a4ae91112.json": "{\"blocks\":[[\"p-75060f5764692f58.html\",\"source-block-6\",\"logseq alone\",[]],[\"p-2d02c76ad4c0d053.html\",\"source-block-7\",\"a query in logseq\",[\"Queries\"]],[\"p-2d02c76ad4c0d053.html\",\"source-block-8\",\"Advanced queries use Datalog\",[\"Queries\"]],[\"p-5d4abf17827bf159.html\",\"source-block-9\",\"Search finds pages and blocks\",[]]],\"format_version\":2}",
+      "lsg-search-chunk-1c2a0dc3c45ca1e8.json": "{\"blocks\":[[\"p-da5911a2a798df4f.html\",\"source-block-12\",\"mise runs tasks in a terminal\",[]],[\"p-da5911a2a798df4f.html\",\"source-block-13\",\"g is a one-letter word here\",[]],[\"p-62c75c025c5c6db1.html\",\"source-block-14\",\"Terminals render text; tmux multiplexes them\",[]],[\"p-424036ef4353ec8f.html\",\"source-block-2\",\"tmux runs inside a terminal\",[]]],\"format_version\":2}",
+      "lsg-search-chunk-1ec13017c7df25e4.json": "{\"blocks\":[[\"p-75060f5764692f58.html\",\"source-block-5\",\"Logseq query results find blocks\",[]]],\"format_version\":2}",
+      "lsg-search-chunk-c443cc24610ecef8.json": "{\"blocks\":[[\"p-75119bb74a8ca2e2.html\",\"source-block-4\",\"tmux.conf.local overrides tmux.conf\",[\"Layers\",\"Local\",\"Deepest\"]]],\"format_version\":2}",
+      "lsg-search-chunk-e3370679e5075e3c.json": "{\"blocks\":[[\"p-424036ef4353ec8f.html\",\"source-block-3\",\"Sessions survive a closed terminal window\",[\"Why tmux\"]],[\"p-56f916d4189b9bae.html\",\"source-block-0\",\"tmux.conf: set -g mouse on\",[\"Settings\"]],[\"p-56f916d4189b9bae.html\",\"source-block-1\",\"Reload with tmux source-file\",[\"Settings\",\"Reload\"]]],\"format_version\":2}",
+      "lsg-search-manifest-ad18d8945e4bc479.json": "{\"blocks\":16,\"chunk_starts\":[0,3,4,8,12,15],\"chunks\":[\"02f48a37ae95e787\",\"1ec13017c7df25e4\",\"160b2b2a4ae91112\",\"1c2a0dc3c45ca1e8\",\"e3370679e5075e3c\",\"c443cc24610ecef8\"],\"engine\":\"lsg-search-engine-0000000000000000.mjs\",\"format_version\":2,\"revision\":\"ad18d8945e4bc479\",\"shards\":{\"20\":\"efd15f5786354bd2\",\"a\":\"617a28f8ad43635f\",\"ab\":\"e43063bea5e5263d\",\"ad\":\"350dd6edefb411ca\",\"al\":\"50a707782a2a2c6f\",\"an\":\"6d1e3ab3becfa560\",\"au\":\"1eccccff23ef2c6a\",\"bl\":\"8a7a57488cbcb0f9\",\"ca\":\"a4ee6e7f95e0e216\",\"cl\":\"48666b0811e01d6d\",\"co\":\"615a3bceef19c302\",\"da\":\"b785056a5658f8ac\",\"fil\":\"d8f1ec553de46885\",\"fin\":\"f2b3fc308ebea091\",\"fr\":\"e87fc39bdf0cc9b2\",\"g\":\"d9b8bb6dbc84591e\",\"he\":\"baa5913ea8792a23\",\"in\":\"d18d724d80be8e07\",\"ins\":\"7e399c5e514b72a0\",\"is\":\"13c7d4087f2787bd\",\"la\":\"c15ca66eb10eeb82\",\"le\":\"90ac242738ed17c5\",\"loc\":\"62d3e2afa8611163\",\"log\":\"b288c2b948effc22\",\"mi\":\"89ead6967d827b08\",\"mo\":\"d8e06daa87c109c9\",\"mu\":\"c5be2bc06fea3eb5\",\"na\":\"f4a443e314a5ecaa\",\"no\":\"6c944b207d31af25\",\"on\":\"e0881f35ac6ac0a6\",\"ov\":\"364ea792069d7d75\",\"pa\":\"1147ee0a23866add\",\"pu\":\"659abf7ebcb1eba7\",\"queri\":\"3d9c6bc90681f2c2\",\"query\":\"c07a86ddad342a63\",\"rel\":\"8e58bcc55f145a48\",\"ren\":\"8a263ae9f30f8f27\",\"res\":\"dff3456df3898f23\",\"ru\":\"cbcfadb068538615\",\"sea\":\"0f8805f40fb9ccb7\",\"ses\":\"5ddbf83893163d4a\",\"set\":\"f7b019955f2799cc\",\"so\":\"b59b98ca534f9d14\",\"su\":\"18b01ac395434df5\",\"ta\":\"7d58332333b1eabe\",\"terminal\":\"268f8b3167306034\",\"terminals\":\"121f16a2f03d8eba\",\"tex\":\"bbe2e66b51a69af2\",\"th\":\"6e565ab4fdc6e485\",\"tm\":\"93f197fd531821cc\",\"us\":\"1c4a365d96919201\",\"win\":\"bc4f543ebb8cbd39\",\"wit\":\"5d0a8ee78f73dbdf\",\"wo\":\"70ceef538fd9d96d\",\"東京\":\"b572200dd4999903\"},\"titles\":\"946995fb7227c8b1\"}",
+      "lsg-search-shard-0f8805f40fb9ccb7.json": "{\"format_version\":2,\"words\":[[\"search\",[7]]]}",
+      "lsg-search-shard-1147ee0a23866add.json": "{\"format_version\":2,\"words\":[[\"pages\",[7]],[\"path\",[1]]]}",
+      "lsg-search-shard-121f16a2f03d8eba.json": "{\"format_version\":2,\"words\":[[\"terminals\",[10]]]}",
+      "lsg-search-shard-13c7d4087f2787bd.json": "{\"format_version\":2,\"words\":[[\"is\",[9]]]}",
+      "lsg-search-shard-18b01ac395434df5.json": "{\"format_version\":2,\"words\":[[\"survive\",[12]]]}",
+      "lsg-search-shard-1c4a365d96919201.json": "{\"format_version\":2,\"words\":[[\"use\",[6]]]}",
+      "lsg-search-shard-1eccccff23ef2c6a.json": "{\"format_version\":2,\"words\":[[\"au\",[2]]]}",
+      "lsg-search-shard-268f8b3167306034.json": "{\"format_version\":2,\"words\":[[\"terminal\",[8,3,1]]]}",
+      "lsg-search-shard-350dd6edefb411ca.json": "{\"format_version\":2,\"words\":[[\"advanced\",[6]]]}",
+      "lsg-search-shard-364ea792069d7d75.json": "{\"format_version\":2,\"words\":[[\"overrides\",[15]]]}",
+      "lsg-search-shard-3d9c6bc90681f2c2.json": "{\"format_version\":2,\"words\":[[\"queries\",[6]]]}",
+      "lsg-search-shard-48666b0811e01d6d.json": "{\"format_version\":2,\"words\":[[\"closed\",[12]]]}",
+      "lsg-search-shard-50a707782a2a2c6f.json": "{\"format_version\":2,\"words\":[[\"alone\",[4]]]}",
+      "lsg-search-shard-5d0a8ee78f73dbdf.json": "{\"format_version\":2,\"words\":[[\"with\",[14]]]}",
+      "lsg-search-shard-5ddbf83893163d4a.json": "{\"format_version\":2,\"words\":[[\"sessions\",[12]]]}",
+      "lsg-search-shard-615a3bceef19c302.json": "{\"format_version\":2,\"words\":[[\"conf\",[13,2]]]}",
+      "lsg-search-shard-617a28f8ad43635f.json": "{\"format_version\":2,\"words\":[[\"a\",[5,3,1,2,1]]]}",
+      "lsg-search-shard-62d3e2afa8611163.json": "{\"format_version\":2,\"words\":[[\"local\",[15]]]}",
+      "lsg-search-shard-659abf7ebcb1eba7.json": "{\"format_version\":2,\"words\":[[\"punctuation\",[1]]]}",
+      "lsg-search-shard-6c944b207d31af25.json": "{\"format_version\":2,\"words\":[[\"notes\",[0]]]}",
+      "lsg-search-shard-6d1e3ab3becfa560.json": "{\"format_version\":2,\"words\":[[\"and\",[0,7]]]}",
+      "lsg-search-shard-6e565ab4fdc6e485.json": "{\"format_version\":2,\"words\":[[\"them\",[10]]]}",
+      "lsg-search-shard-70ceef538fd9d96d.json": "{\"format_version\":2,\"words\":[[\"word\",[9]]]}",
+      "lsg-search-shard-7d58332333b1eabe.json": "{\"format_version\":2,\"words\":[[\"tasks\",[8]]]}",
+      "lsg-search-shard-7e399c5e514b72a0.json": "{\"format_version\":2,\"words\":[[\"inside\",[11]]]}",
+      "lsg-search-shard-89ead6967d827b08.json": "{\"format_version\":2,\"words\":[[\"mise\",[0,8]]]}",
+      "lsg-search-shard-8a263ae9f30f8f27.json": "{\"format_version\":2,\"words\":[[\"render\",[10]]]}",
+      "lsg-search-shard-8a7a57488cbcb0f9.json": "{\"format_version\":2,\"words\":[[\"blocks\",[3,4]]]}",
+      "lsg-search-shard-8e58bcc55f145a48.json": "{\"format_version\":2,\"words\":[[\"reload\",[14]]]}",
+      "lsg-search-shard-90ac242738ed17c5.json": "{\"format_version\":2,\"words\":[[\"letter\",[9]]]}",
+      "lsg-search-shard-93f197fd531821cc.json": "{\"format_version\":2,\"words\":[[\"tmux\",[0,10,1,2,1,1]]]}",
+      "lsg-search-shard-a4ee6e7f95e0e216.json": "{\"format_version\":2,\"words\":[[\"café\",[1,1]]]}",
+      "lsg-search-shard-b288c2b948effc22.json": "{\"format_version\":2,\"words\":[[\"logseq\",[3,1,1]]]}",
+      "lsg-search-shard-b572200dd4999903.json": "{\"format_version\":2,\"words\":[[\"東京\",[1]]]}",
+      "lsg-search-shard-b59b98ca534f9d14.json": "{\"format_version\":2,\"words\":[[\"source\",[14]]]}",
+      "lsg-search-shard-b785056a5658f8ac.json": "{\"format_version\":2,\"words\":[[\"datalog\",[6]]]}",
+      "lsg-search-shard-baa5913ea8792a23.json": "{\"format_version\":2,\"words\":[[\"here\",[9]]]}",
+      "lsg-search-shard-bbe2e66b51a69af2.json": "{\"format_version\":2,\"words\":[[\"text\",[10]]]}",
+      "lsg-search-shard-bc4f543ebb8cbd39.json": "{\"format_version\":2,\"words\":[[\"window\",[12]]]}",
+      "lsg-search-shard-c07a86ddad342a63.json": "{\"format_version\":2,\"words\":[[\"query\",[3,2]]]}",
+      "lsg-search-shard-c15ca66eb10eeb82.json": "{\"format_version\":2,\"words\":[[\"lait\",[2]]]}",
+      "lsg-search-shard-c5be2bc06fea3eb5.json": "{\"format_version\":2,\"words\":[[\"multiplexes\",[10]]]}",
+      "lsg-search-shard-cbcfadb068538615.json": "{\"format_version\":2,\"words\":[[\"runs\",[8,3]]]}",
+      "lsg-search-shard-d18d724d80be8e07.json": "{\"format_version\":2,\"words\":[[\"in\",[5,3]]]}",
+      "lsg-search-shard-d8e06daa87c109c9.json": "{\"format_version\":2,\"words\":[[\"mouse\",[13]]]}",
+      "lsg-search-shard-d8f1ec553de46885.json": "{\"format_version\":2,\"words\":[[\"file\",[14]]]}",
+      "lsg-search-shard-d9b8bb6dbc84591e.json": "{\"format_version\":2,\"words\":[[\"g\",[9,4]]]}",
+      "lsg-search-shard-dff3456df3898f23.json": "{\"format_version\":2,\"words\":[[\"results\",[3]]]}",
+      "lsg-search-shard-e0881f35ac6ac0a6.json": "{\"format_version\":2,\"words\":[[\"on\",[13]],[\"one\",[9]]]}",
+      "lsg-search-shard-e43063bea5e5263d.json": "{\"format_version\":2,\"words\":[[\"about\",[0]]]}",
+      "lsg-search-shard-e87fc39bdf0cc9b2.json": "{\"format_version\":2,\"words\":[[\"from\",[0]]]}",
+      "lsg-search-shard-efd15f5786354bd2.json": "{\"format_version\":2,\"words\":[[\"2024\",[0]]]}",
+      "lsg-search-shard-f2b3fc308ebea091.json": "{\"format_version\":2,\"words\":[[\"find\",[3]],[\"finds\",[7]]]}",
+      "lsg-search-shard-f4a443e314a5ecaa.json": "{\"format_version\":2,\"words\":[[\"name\",[1]]]}",
+      "lsg-search-shard-f7b019955f2799cc.json": "{\"format_version\":2,\"words\":[[\"set\",[13]]]}",
+      "lsg-search-titles-946995fb7227c8b1.json": "{\"format_version\":2,\"pages\":[[\"2024/Notes\",\"p-43ff06c325b57047.html\",[],1],[\"Café/東京\",\"p-0c0168ce3c4520c8.html\",[\"Coffee\"],2],[\"Logseq\",\"p-75060f5764692f58.html\",[],2],[\"Logseq/Query\",\"p-2d02c76ad4c0d053.html\",[\"logseq query\"],2],[\"Logseq/Search\",\"p-5d4abf17827bf159.html\",[],1],[\"mise\",\"p-da5911a2a798df4f.html\",[\"mise-en-place\"],2],[\"Terminal\",\"p-62c75c025c5c6db1.html\",[\"term\"],1],[\"tmux\",\"p-424036ef4353ec8f.html\",[],2],[\"tmux/Config\",\"p-56f916d4189b9bae.html\",[],2],[\"tmux/Config/local\",\"p-75119bb74a8ca2e2.html\",[\"tmux.conf.local\"],1]]}"
+    },
+    "manifest": "lsg-search-manifest-ad18d8945e4bc479.json"
+  },
+  "queries": [
+    {
+      "expected": {
+        "blocks": {
+          "count": 6,
+          "hits": [
+            "2024/Notes: Notes from 2024 about tmux and mise",
+            "Terminal: Terminals render text; tmux multiplexes them",
+            "tmux: tmux runs inside a terminal",
+            "tmux/Config: tmux.conf: set -g mouse on",
+            "tmux/Config: Reload with tmux source-file",
+            "tmux/Config/local: tmux.conf.local overrides tmux.conf"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 3,
+          "hits": [
+            "tmux",
+            "tmux/Config",
+            "tmux/Config/local"
+          ]
+        }
+      },
+      "query": "tmux"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 0,
+          "hits": []
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 3,
+          "hits": [
+            "tmux",
+            "tmux/Config",
+            "tmux/Config/local"
+          ]
+        }
+      },
+      "query": "tmx"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 2,
+          "hits": [
+            "Logseq: Logseq query results find blocks",
+            "Logseq/Query: a query in logseq"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "Logseq/Query ← logseq query"
+          ]
+        }
+      },
+      "query": "logseq query"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 1,
+          "hits": [
+            "tmux/Config/local: tmux.conf.local overrides tmux.conf"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "tmux/Config/local ← tmux.conf.local"
+          ]
+        }
+      },
+      "query": "tmux.conf.local"
+    },
+    {
+      "current_page": "tmux",
+      "expected": {
+        "blocks": {
+          "count": 6,
+          "hits": [
+            "2024/Notes: Notes from 2024 about tmux and mise",
+            "Terminal: Terminals render text; tmux multiplexes them",
+            "tmux: tmux runs inside a terminal",
+            "tmux/Config: tmux.conf: set -g mouse on",
+            "tmux/Config: Reload with tmux source-file",
+            "tmux/Config/local: tmux.conf.local overrides tmux.conf"
+          ]
+        },
+        "current_page": {
+          "count": 1,
+          "hits": [
+            "tmux: tmux runs inside a terminal"
+          ]
+        },
+        "error": null,
+        "pages": {
+          "count": 3,
+          "hits": [
+            "tmux",
+            "tmux/Config",
+            "tmux/Config/local"
+          ]
+        }
+      },
+      "query": "tmux"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 6,
+          "hits": [
+            "2024/Notes: Notes from 2024 about tmux and mise",
+            "Terminal: Terminals render text; tmux multiplexes them"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 3,
+          "hits": [
+            "tmux",
+            "tmux/Config"
+          ]
+        }
+      },
+      "limit": 2,
+      "query": "tmux"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 4,
+          "hits": [
+            "mise: mise runs tasks in a terminal",
+            "Terminal: Terminals render text; tmux multiplexes them",
+            "tmux: tmux runs inside a terminal",
+            "tmux: Sessions survive a closed terminal window"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "Terminal ← term"
+          ]
+        }
+      },
+      "query": "term"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 0,
+          "hits": []
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 5,
+          "hits": [
+            "Logseq",
+            "tmux/Config",
+            "Logseq/Query",
+            "Logseq/Search",
+            "tmux/Config/local"
+          ]
+        }
+      },
+      "query": "g"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 1,
+          "hits": [
+            "tmux/Config: tmux.conf: set -g mouse on"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 0,
+          "hits": []
+        }
+      },
+      "query": "set g"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 2,
+          "hits": [
+            "Café/東京: CAFÉ 東京 path/name punctuation?!",
+            "Café/東京: café au lait"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "Café/東京"
+          ]
+        }
+      },
+      "query": "CAFÉ"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 2,
+          "hits": [
+            "Café/東京: CAFÉ 東京 path/name punctuation?!",
+            "Café/東京: café au lait"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "Café/東京"
+          ]
+        }
+      },
+      "query": "café"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 1,
+          "hits": [
+            "Café/東京: CAFÉ 東京 path/name punctuation?!"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "Café/東京"
+          ]
+        }
+      },
+      "query": "東京"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 1,
+          "hits": [
+            "Logseq/Query: Advanced queries use Datalog"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 0,
+          "hits": []
+        }
+      },
+      "query": "queri"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 1,
+          "hits": [
+            "2024/Notes: Notes from 2024 about tmux and mise"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "2024/Notes"
+          ]
+        }
+      },
+      "query": "2024"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 2,
+          "hits": [
+            "2024/Notes: Notes from 2024 about tmux and mise",
+            "mise: mise runs tasks in a terminal"
+          ]
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 1,
+          "hits": [
+            "mise"
+          ]
+        }
+      },
+      "query": "[[mise]]"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 0,
+          "hits": []
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 0,
+          "hits": []
+        }
+      },
+      "query": "unavailable"
+    },
+    {
+      "expected": {
+        "blocks": {
+          "count": 0,
+          "hits": []
+        },
+        "current_page": {
+          "count": 0,
+          "hits": []
+        },
+        "error": null,
+        "pages": {
+          "count": 0,
+          "hits": []
+        }
+      },
+      "query": "  "
+    },
+    {
+      "expected": {
+        "error": "invalid-query"
+      },
+      "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

@@ -43,4 +43,9 @@ Changing one page's source SHALL change only the records of that page and the in
 #### Scenario: One page edited
 
 - **WHEN** one block of one page changes from `alpha` to `beta` and the site is rebuilt
-- **THEN** of the search files, only the manifest, the shards for `al` and `be`, and the record chunk holding that page differ from the previous build
+- **THEN** of the search files, only the manifest, the shards for `al` and `be`, and the record chunk holding that block differ from the previous build
+
+#### Scenario: An edit moves a chunk boundary
+
+- **WHEN** an edited block grows enough to move a chunk boundary
+- **THEN** only the chunks among the same group of 256 block records differ, besides the manifest and the affected shards

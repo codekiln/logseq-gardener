@@ -65,3 +65,31 @@ def over_budget(build, profile, field, value, budgets):
     if limit is None or value / divisor <= limit:
         return None
     return f'{budget_key} = {limit}'
+
+
+def completion_latencies(keys, values, completions):
+    """For each keydown, the time until a completed result render shows its input or a later one.
+
+    `values[i]` is the input after key `i`; `completions` holds (time, input) pairs. A key whose
+    input was replaced before any render showed it counts from the first render of a longer input
+    that starts with it, since that render also answers it. A key no render answered has None.
+    """
+    latencies = []
+    for start, value in zip(keys, values):
+        done = [time for time, shown in completions if time >= start and shown.startswith(value)]
+        latencies.append(min(done) - start if done else None)
+    return latencies
+
+
+def keystroke_fetches(keys, resources, shard_pattern):
+    """For each keydown, the bytes of the files requested before the next key, and whether one is a shard.
+
+    `resources` holds (start time, URL, transferred bytes) triples.
+    """
+    fetches = []
+    for index, start in enumerate(keys):
+        end = keys[index + 1] if index + 1 < len(keys) else math.inf
+        found = [(url, size) for time, url, size in resources if start <= time < end]
+        fetches.append({'bytes': sum(size for _, size in found),
+                        'shard': any(shard_pattern.search(url) for url, _ in found)})
+    return fetches

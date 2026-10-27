@@ -40,6 +40,8 @@ impl Fixture {
         .unwrap();
         output
     }
+    // The format version 2 files read back as the version 1 corpus view these
+    // assertions use; `raw` holds every search file plus the destinations.
     fn corpus(output: &std::path::Path) -> (Value, String) {
         let manifest_path = fs::read_dir(output)
             .unwrap()
@@ -52,16 +54,44 @@ impl Fixture {
             })
             .unwrap()
             .path();
-        let manifest: Value =
-            serde_json::from_str(&fs::read_to_string(manifest_path).unwrap()).unwrap();
-        let raw =
-            fs::read_to_string(output.join(manifest["corpus"]["href"].as_str().unwrap())).unwrap();
-        assert_eq!(
-            manifest["corpus"]["bytes"].as_u64().unwrap() as usize,
-            raw.len()
-        );
-        let corpus: Value = serde_json::from_str(&raw).unwrap();
-        assert_eq!(manifest["revision"], corpus["revision"]);
+        let manifest_raw = fs::read_to_string(manifest_path).unwrap();
+        let manifest: Value = serde_json::from_str(&manifest_raw).unwrap();
+        assert_eq!(manifest["format_version"], 2);
+        let read = |kind: &str, digest: &Value| {
+            let raw = fs::read_to_string(output.join(format!(
+                "lsg-search-{kind}-{}.json",
+                digest.as_str().unwrap()
+            )))
+            .unwrap();
+            let value: Value = serde_json::from_str(&raw).unwrap();
+            assert_eq!(value["format_version"], 2);
+            (value, raw)
+        };
+        let (titles, mut raw) = read("titles", &manifest["titles"]);
+        raw.push_str(&manifest_raw);
+        let pages: Vec<_> = titles["pages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| serde_json::json!({"id": p[1], "title": p[0], "href": p[1], "aliases": p[2]}))
+            .collect();
+        let mut content = Vec::new();
+        for digest in manifest["chunks"].as_array().unwrap() {
+            let (chunk, text) = read("chunk", digest);
+            raw.push_str(&text);
+            for b in chunk["blocks"].as_array().unwrap() {
+                let href = format!("{}#{}", b[0].as_str().unwrap(), b[1].as_str().unwrap());
+                content.push(serde_json::json!({"page": b[0], "href": href, "text": b[2], "ancestors": b[3]}));
+            }
+        }
+        assert_eq!(manifest["blocks"].as_u64().unwrap() as usize, content.len());
+        for digest in manifest["shards"].as_object().unwrap().values() {
+            raw.push_str(&read("shard", digest).1);
+        }
+        for record in &content {
+            raw.push_str(record["href"].as_str().unwrap());
+        }
+        let corpus = serde_json::json!({"revision": manifest["revision"], "pages": pages, "content": content});
         (corpus, raw)
     }
 }
