@@ -66,6 +66,7 @@
     gh: () => window.location.assign('index.html'),
     ga: () => go('[data-lsg-all-pages]'),
     gj: () => go('[data-lsg-journals-link]'),
+    gg: () => go('[data-lsg-graph-shortcut]'),
   };
   // The search dialog lists these actions as its commands.
   window.logseqGardenerShell = Object.freeze({ actions: Object.freeze({ ...actions }) });
@@ -103,8 +104,7 @@
     pending = key === 't' || key === 'g' ? key : '';
     pendingAt = now;
   });
-  // These wait for load. Outline and references load on every page: a host can swap
-  // content into a page that started without them.
+  // These wait for load; a host can swap content into a page without outlines.
   const after = () => {
     const feed = $('[data-lsg-journals]'), right = root.getAttribute('data-lsg-right-sidebar');
     if (feed) load(feed.getAttribute('data-lsg-journals'));

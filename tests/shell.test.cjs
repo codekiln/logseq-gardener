@@ -27,7 +27,7 @@ function element(selectors, extra = {}) {
   return node;
 }
 let state;
-function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null } = {}) {
+function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null, graph = true } = {}) {
   state = { focused: null, assigned: null };
   const values = new Map(Object.entries(stored));
   const root = element(['html']);
@@ -53,6 +53,10 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   if (journals) {
     const journalsLink = element(['[data-lsg-journals-link]', '.lsg-left-sidebar a']); journalsLink.parent = sidebar; journalsLink.setAttribute('href', 'journals.html');
     all.push(journalsLink);
+  }
+  if (graph) {
+    const graphLink = element(['[data-lsg-graph-shortcut]', '.lsg-left-sidebar a']); graphLink.parent = sidebar; graphLink.setAttribute('href', 'graph.html');
+    all.push(graphLink);
   }
   if (feed) {
     const list = element(['[data-lsg-journals]']); list.setAttribute('data-lsg-journals', 'lsg-journals.js');
@@ -99,10 +103,16 @@ test('controls appear once the script runs and the sidebar state is saved', () =
   assert.equal(f.root.getAttribute('data-lsg-left-sidebar'), null);
   assert.equal(f.values.has('logseq-gardener-left-sidebar'), false);
 });
+test('g g opens the graph view unless the garden turns the shortcut off', () => {
+  const f = fixture();
+  f.key('g'); f.key('g'); assert.equal(state.assigned, 'graph.html');
+  const off = fixture({ graph: false });
+  off.key('g'); off.key('g'); assert.equal(state.assigned, null);
+});
 test('search commands run the shell actions', () => {
   const f = fixture();
   const { actions } = f.window.logseqGardenerShell;
-  assert.deepEqual(Object.keys(actions).sort(), ['ga', 'gh', 'gj', 'tl', 'tr', 'tt', 'tw']);
+  assert.deepEqual(Object.keys(actions).sort(), ['ga', 'gg', 'gh', 'gj', 'tl', 'tr', 'tt', 'tw']);
   actions.tl(); assert.equal(f.root.getAttribute('data-lsg-left-sidebar'), 'open');
   actions.tw(); assert.equal(f.root.getAttribute('data-lsg-wide'), 'true');
   assert.ok(Object.isFrozen(actions));

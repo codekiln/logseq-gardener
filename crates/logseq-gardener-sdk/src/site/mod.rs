@@ -4,6 +4,8 @@ mod all_pages;
 mod assets;
 mod code;
 mod dialogue;
+mod graph;
+mod graph_layout;
 mod hierarchy;
 mod journals;
 mod outline;
@@ -27,7 +29,7 @@ use crate::garden::{DocumentKind, GardenLoadError, load_garden};
 use crate::garden_config as config;
 use crate::garden_settings::{GardenSettings, SidebarCard, resolve_favorites, resolve_sidebar};
 use crate::git_dates::GitDates;
-use crate::journals::{JournalDate, JournalFormats, journal_identity};
+use crate::journals::{JournalDate, JournalFormats, journal_identity, parse_journal_reference};
 use crate::page_list::{PageKind, PageSource, page_list};
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
@@ -55,6 +57,9 @@ pub struct SiteOptions {
     /// Date that decides which journals the feed lists; defaults to the UTC date of
     /// `SOURCE_DATE_EPOCH`, or of the system clock when that is unset.
     pub build_date: Option<JournalDate>,
+    /// Directory that keeps the graph view's layout between builds, keyed by the graph's
+    /// content; `None` lays the graph out on every build. Created when missing.
+    pub layout_cache: Option<PathBuf>,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -320,6 +325,8 @@ pub fn publish_site_with_options(
     let mut routes = BTreeMap::new();
     let mut selected = Vec::new();
     let mut withheld_titles = BTreeSet::new();
+    // Every page title in the garden, so the graph can leave out the pages it does not publish.
+    let mut garden_titles = BTreeSet::new();
     let (settings, settings_diagnostics) = GardenSettings::read(&root);
     let journal_formats = JournalFormats::from_settings(&settings);
     let mut journal_dates = BTreeMap::new();
@@ -347,6 +354,7 @@ pub fn publish_site_with_options(
             Some(identity) => identity.title.clone(),
             None => page_title(document, format).map_err(SiteError::Title)?,
         };
+        garden_titles.insert(lookup_key(&title));
         let withheld = render::has_private_properties(&document.parsed.blocks);
         if withheld {
             withheld_titles.insert(lookup_key(&title));
@@ -373,7 +381,7 @@ pub fn publish_site_with_options(
         }
         selected.push((title, route, document));
     }
-    let mut names = PageNameIndex::with_journal_formats(journal_formats);
+    let mut names = PageNameIndex::with_journal_formats(journal_formats.clone());
     let mut aliases = BTreeSet::new();
     let mut spellings = BTreeMap::new();
     let mut alias_spellings = BTreeMap::new();
@@ -442,6 +450,7 @@ pub fn publish_site_with_options(
         "index.html"
     };
     let shell = shell::Shell {
+        graph_shortcut: settings.graph_shortcut,
         favorites,
         all_pages: index_route,
         journals: feed.first_route(),
@@ -476,6 +485,26 @@ pub fn publish_site_with_options(
         journal_dates.clone(),
         settings.show_brackets,
     );
+    // The graph's layouts and neighbourhood files are computed while pages render.
+    let mut graph_files = {
+        let mut published: BTreeSet<String> = pages.keys().cloned().collect();
+        published.extend(hierarchy.entries().map(|node| lookup_key(&node.title)));
+        let hidden = graph::hidden_names(&garden_titles, &published);
+        let journal_routes: BTreeSet<String> = journal_dates.keys().cloned().collect();
+        let is_journal_name =
+            |name: &str| parse_journal_reference(name, &journal_formats).is_some();
+        graph::Pending::start(
+            &crate::graph::GraphSource {
+                index: reference_index.index(),
+                journals: &journal_routes,
+                hidden: &hidden,
+                is_journal_name: &is_journal_name,
+            },
+            !journal_routes.is_empty(),
+            settings.forces,
+            options.layout_cache.clone(),
+        )
+    };
     // Embeds show page titles while `selected` is still sorted and consumed below.
     let embed_pages: Vec<(String, String, &crate::garden::GardenDocument)> = selected.clone();
     let selected_documents = embed_pages
@@ -688,6 +717,27 @@ pub fn publish_site_with_options(
     if let Some(document) = homepage_document {
         documents.insert("index.html".to_owned(), document);
     }
+    let has_journals_graph = graph_files.journals;
+    documents.insert(
+        graph::PAGE_ROUTE.to_owned(),
+        html_page(
+            "Graph",
+            &graph::main(
+                index_route,
+                settings.graph,
+                settings.forces,
+                has_journals_graph,
+            ),
+            stylesheet_route,
+            &shell,
+            graph::PAGE_ROUTE,
+            false,
+            &graph::head(),
+        ),
+    );
+    documents.insert(graph::SCRIPT_ROUTE.to_owned(), graph::script());
+    documents.insert(graph::WORKER_ROUTE.to_owned(), graph::worker());
+    documents.insert(graph::STYLES_ROUTE.to_owned(), graph::styles());
     for (route, body) in feed.render(&feed_bodies) {
         let home = route == "index.html";
         documents.insert(
@@ -743,7 +793,10 @@ pub fn publish_site_with_options(
             "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script data-lsg-search-start>{start_after_paint}</script>"
         );
         for (route, html) in &mut documents {
-            if route.ends_with(".html") && !route.starts_with("_refs/") {
+            if route.ends_with(".html")
+                && !route.starts_with("_refs/")
+                && !route.starts_with("_graph/")
+            {
                 *html = html.replacen("</head>", &(link.clone() + "</head>"), 1);
             }
         }
@@ -761,7 +814,16 @@ pub fn publish_site_with_options(
     }
     let directory = output.join(all_pages::LIST_DIRECTORY);
     fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
+    for directory in [graph::DIRECTORY, graph::NEIGHBOURHOODS] {
+        let directory = output.join(directory);
+        fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
+    }
+    documents.extend(graph_files.neighbourhoods());
     write_files(&output, documents)?;
+    for (route, bytes) in graph_files.finish() {
+        let path = output.join(route);
+        fs::write(&path, bytes).map_err(|error| io_error(&path, error))?;
+    }
     if let Some(contents) = stylesheet {
         let path = output.join("custom.css");
         fs::write(&path, contents).map_err(|error| io_error(&path, error))?;

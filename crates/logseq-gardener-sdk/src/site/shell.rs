@@ -28,6 +28,7 @@ const SEARCH: &str = "M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0M21 21l-6 -6";
 const CALENDAR: &str = "M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12zM16 3v4M8 3v4M4 11h16M11 15h1M12 15v3";
 const SIDEBAR_RIGHT: &str =
     "M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2zM15 4l0 16";
+const HIERARCHY: &str = "M10 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M3 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M17 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M6.5 17.5 12 13l5.5 4.5M12 7v6";
 const FILES: &str = "M15 3v4a1 1 0 0 0 1 1h4M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h4l5 5v7a2 2 0 0 1 -2 2zM16 17v2a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h2";
 
 pub(super) const STYLES: &str = concat!(
@@ -46,6 +47,7 @@ pub(super) const STYLES: &str = concat!(
     ".lsg-left-sidebar a{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;color:var(--lsg-text);text-decoration:none;overflow-wrap:anywhere}",
     ".lsg-left-sidebar a:hover{background:var(--lsg-surface)}.lsg-left-sidebar a[aria-current=page]{background:var(--lsg-surface);font-weight:600}",
     ".lsg-left-sidebar ul[aria-labelledby] a{display:block;padding-left:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lsg-favorites-heading{margin:20px 8px 6px;color:var(--lsg-muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}",
+    ".lsg-shortcut{margin-left:auto;color:var(--lsg-muted);font-size:12px;letter-spacing:.1em}",
     ".lsg-sidebar-shade{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.4)}.lsg-sidebar-shade[hidden]{display:none}",
     "@media(max-width:639.98px){.lsg-right-toggle{display:none!important}}@media(min-width:640px){html[data-lsg-right-sidebar=open] body{padding-right:var(--lsg-right-width,40vw)}}",
     "@media(min-width:640px){.lsg-left-sidebar{z-index:10;width:246px}html[data-lsg-left-sidebar=open] body{padding-left:246px}html[data-lsg-left-sidebar=open] .lsg-header{margin-left:-246px}.lsg-sidebar-shade{display:none!important}}",
@@ -53,6 +55,8 @@ pub(super) const STYLES: &str = concat!(
 
 /// Navigation that is the same on every page apart from the current-page marks.
 pub(super) struct Shell {
+    /// `g g` opens the graph view; `:shortcuts {:go/graph-view false}` turns it off.
+    pub graph_shortcut: bool,
     /// Resolved favorites: output route and original title, in config order.
     pub favorites: Vec<Favorite<String>>,
     /// Route of the complete page index.
@@ -114,6 +118,14 @@ impl Shell {
                 icon(CALENDAR)
             )
         });
+        let (graph_attribute, graph_hint) = if self.graph_shortcut {
+            (
+                " data-lsg-graph-shortcut",
+                "<span class=\"lsg-shortcut\" aria-hidden=\"true\">g g</span>",
+            )
+        } else {
+            ("", "")
+        };
         let mut right = String::new();
         if let Some(contents) = &self.contents {
             right.push_str(&format!(" data-lsg-contents=\"{}\"", escape(contents)));
@@ -125,8 +137,10 @@ impl Shell {
             ));
         }
         format!(
-            "<header class=\"lsg-header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden><button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}<li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
+            "<header class=\"lsg-header cp__header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<a class=\"lsg-button button\" href=\"graph.html#/graph\" aria-label=\"Graph\"><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path id=\"lsg-i-graph\" d=\"{hierarchy}\"/></svg></a><button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden><button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view{graph_attribute}{graph_current}><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><use href=\"#lsg-i-graph\"/></svg><span>Graph view</span>{graph_hint}</a></li><li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
             menu = icon(MENU),
+            hierarchy = HIERARCHY,
+            graph_current = current(route, "graph.html"),
             dots = icon(DOTS),
             search = icon(SEARCH),
             files = icon(FILES),
