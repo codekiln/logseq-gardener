@@ -44,7 +44,7 @@ SEARCH = {
     'lsg': {'open': '[data-lsg-search]', 'input': '#lsg-search-input', 'results': '#lsg-search-results',
             'visible': '#lsg-search-dialog[open]',
             'ready': '#lsg-search-dialog[open][data-lsg-search-state=ready]',
-            'complete': 'data-lsg-search-complete'},
+            'complete': 'data-lsg-search-complete', 'drawn': 'data-lsg-search-drawn'},
 }
 # Files that lsg's search fetches; a keystroke that requests a shard is a cold keystroke.
 SEARCH_FILES = re.compile(r'lsg-search-(manifest|titles|shard|chunk|engine|ui)-')
@@ -164,10 +164,11 @@ SEARCH_PROBE = '''(controls) => {
   document.addEventListener('keydown', keydown, true);
   const input = () => document.querySelector(controls.input);
   let observer;
-  if (controls.complete) {
-    // lsg advances the completion attribute after each completed render; record what it showed.
+  if (controls.drawn) {
+    // lsg advances the drawn attribute each time it draws the result list for the input, with a
+    // placeholder line in block rows whose chunk is still loading; record what it showed.
     observer = new MutationObserver(() => state.completions.push([performance.now(), input()?.value ?? '']));
-    observer.observe(document, {attributes: true, subtree: true, attributeFilter: [controls.complete]});
+    observer.observe(document, {attributes: true, subtree: true, attributeFilter: [controls.drawn]});
   } else {
     observer = new MutationObserver(() => state.changes.push(performance.now()));
     observer.observe(document.querySelector(controls.results), {childList: true, subtree: true, characterData: true});
@@ -821,7 +822,8 @@ def search_markdown(results, budgets):
                      f"{cell('warm_p95_ms')} | {cell('keystroke_bytes_max', 1)} | {cell('heap_growth', 1)} |")
     lines += ['', '## Search latency per keystroke', '',
               'Every keystroke of the query list. An unanswered keystroke is one whose results never showed. '
-              'A warm keystroke can still wait for a record chunk; the keystrokes that fetched nothing show '
+              'An `lsg` keystroke ends when its result list is drawn; block rows whose record chunk is still '
+              'loading show a placeholder line until it arrives. The keystrokes that fetched nothing show '
               'the cost of the query alone. '
               '`lsg` reopens the dialog from memory after the first open.', '',
               '| Profile | Build | Keystrokes | Unanswered | Median (ms) | 95th percentile (ms) '

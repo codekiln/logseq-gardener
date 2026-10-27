@@ -137,7 +137,7 @@ export function installSearch(window, document) {
   const apple = /Mac|iPhone|iPad|iPod/u.test(window.navigator?.platform || window.navigator?.userAgent || '');
   const MOD = apple ? '⌘' : 'Ctrl';
   let publication = null, resolvePage = null, dialog = null, input, status, results, body, chip, chipName, retryRow, tip, hint;
-  let invoker = null, restore = true, prepared = null, task = 0, timer = null, completion = 0, evaluation = 0, failedLoad = false;
+  let invoker = null, restore = true, prepared = null, task = 0, timer = null, completion = 0, listed = 0, evaluation = 0, failedLoad = false;
   // Search state: the filter, the expanded groups and the highlighted row's key.
   let filter = null, expanded = new Set(), rows = [], active = null, drawnFor = null, tipChoice = 0;
   const triggerSelector = '[data-lsg-search]';
@@ -317,8 +317,13 @@ export function installSearch(window, document) {
     const title = document.querySelector('main > h1')?.textContent.trim();
     return title ? index.pages.find(page => page.title === title)?.id ?? null : null;
   }
+  // `data-lsg-search-drawn` advances when the result list for the input is drawn, block rows
+  // whose chunk is still loading showing a placeholder line; `data-lsg-search-complete`
+  // advances once every drawn row has its text.
+  const drawn = () => results.setAttribute('data-lsg-search-drawn', String(++listed));
   const complete = () => {
     if (prepared) dialog.setAttribute('data-lsg-search-state', 'ready');
+    drawn();
     results.setAttribute('data-lsg-search-complete', String(++completion));
   };
   // Builds the groups for the input and filter, fetching the shards a query needs and
@@ -370,7 +375,7 @@ export function installSearch(window, document) {
     if (searching && !data) { announce('Loading search…'); return; }
     const total = groups.reduce((sum, group) => sum + group.count, 0);
     announce(!groups.length && value.trim() ? 'No results.' : total ? `${total} results.` : '', groups.length > 0);
-    if (!waiting.length) complete();
+    if (waiting.length) drawn(); else complete();
   }
   function draw(groups, value, data) {
     const key = `${filter}\u0000${value}`;

@@ -203,6 +203,7 @@ class PerfMergeTest(unittest.TestCase):
     def test_shared_ready_and_completion_are_explicit(self):
         self.assertIn('[open]', perf.SEARCH['lsg']['ready'])
         self.assertEqual(perf.SEARCH['lsg']['complete'], 'data-lsg-search-complete')
+        self.assertEqual(perf.SEARCH['lsg']['drawn'], 'data-lsg-search-drawn')
 
     def test_initial_search_budget_includes_module_and_deferred_scripts(self):
         with tempfile.TemporaryDirectory() as temp:

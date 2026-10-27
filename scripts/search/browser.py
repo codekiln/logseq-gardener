@@ -216,6 +216,42 @@ def grouped_dialog(browser, base):
     print('search proof: grouped dialog complete', flush=True)
 
 
+def placeholder_rows(browser, base):
+    """The result list waits only for shards: block rows draw before their chunk arrives."""
+    context = browser.new_context(viewport={'width': 1280, 'height': 800})
+    page = context.new_page()
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    held = []
+    page.route('**/lsg-search-chunk-*.json', lambda route: held.append(route))
+    page.goto(base + '/index.html')
+    page.locator('[data-lsg-search]').click()
+    field = page.locator('#lsg-search-input')
+    expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+    listed = page.evaluate('Number(document.querySelector("#lsg-search-results").dataset.lsgSearchDrawn || 0)')
+    completed = page.evaluate('Number(document.querySelector("#lsg-search-results").dataset.lsgSearchComplete || 0)')
+    field.fill('needle')
+    page.wait_for_function('(before) => Number(document.querySelector("#lsg-search-results").dataset.lsgSearchDrawn) > before', arg=listed)
+    rows = page.locator('#lsg-search-results [data-lsg-search-group=blocks] [role=option]')
+    expect(rows).to_have_count(3)
+    # Each row shows its page title and a placeholder line while its chunk loads.
+    for at in range(3):
+        expect(rows.nth(at).locator('.lsg-search-crumb')).to_contain_text('Notes')
+        expect(rows.nth(at).locator('.lsg-search-placeholder')).to_have_count(1)
+    assert held, 'the chunk request is still waiting'
+    assert page.evaluate('Number(document.querySelector("#lsg-search-results").dataset.lsgSearchComplete || 0)') == completed
+    # The text fills in when the chunk arrives.
+    page.route('**/lsg-search-chunk-*.json', lambda route: route.continue_())
+    for route in held:
+        route.continue_()
+    page.wait_for_function('(before) => Number(document.querySelector("#lsg-search-results").dataset.lsgSearchComplete) > before', arg=completed)
+    expect(page.locator('#lsg-search-results .lsg-search-placeholder')).to_have_count(0)
+    expect(rows.first).to_contain_text('needle')
+    assert errors == [], errors
+    context.close()
+    print('search proof: placeholder rows complete', flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
@@ -577,8 +613,9 @@ def main():
                 expect(page.locator('[data-lsg-all-pages]')).to_have_attribute('href', 'index.html')
                 nojs.close()
                 grouped_dialog(browser, base)
+                placeholder_rows(browser, base)
                 browser.close()
-            print(json.dumps({'search_browser': 'passed', 'keyboard': True, 'mobile_themes': True, 'lazy_cache': True, 'spa_persistence': True, 'failure_retry': True, 'no_javascript': True, 'grouped_dialog': True}))
+            print(json.dumps({'search_browser': 'passed', 'keyboard': True, 'mobile_themes': True, 'lazy_cache': True, 'spa_persistence': True, 'failure_retry': True, 'no_javascript': True, 'grouped_dialog': True, 'placeholder_rows': True}))
         finally:
             server.shutdown()
             server.server_close()
