@@ -1,210 +1,172 @@
 {
-  "method": {
-    "date": "2026-10-25",
-    "base": "cbad7796f2bddd1842a1f5d5b8aac7a870e62e41",
-    "playwright": "1.60.0",
-    "queries": [
-      "music",
-      "needle",
-      "zz-no-match96"
-    ],
-    "key_gap_ms": 300,
-    "samples_per_profile": 1,
-    "completion": "data-lsg-search-complete after rendering",
-    "host": "current-outline consumer with native hash bridge and deferred legacy map; no production deployment"
+  "summary": {
+    "measured": "2026-10-27",
+    "profiles": "desktop, phone",
+    "garden commit": "75ef84c",
+    "gh-pages commit": "b491e00",
+    "lsg": "0.0.0 (a2284e0)"
   },
-  "corpora": {
-    "small": {
-      "corpus": {
-        "pages": 16,
-        "blocks": 128,
-        "decoded_bytes": 32958,
-        "gzip_bytes": 2313,
-        "controller_bytes": 11686,
-        "bootstrap_bytes": 1969,
-        "initial_shim_bytes": 661
-      },
-      "summary": {
-        "measured": "2026-10-25",
-        "profiles": "desktop, phone"
-      },
-      "pages": [],
-      "search": [
-        {
-          "profile": "desktop",
-          "build": "lsg",
-          "first_open_ms": 177.40000009536743,
-          "first_open_requests": 4,
-          "first_open_transfer": 8613,
-          "first_open_decoded": 51929,
-          "page_load": {
-            "title_ms": 69,
-            "fcp_ms": 76,
-            "data_before_title": 8878,
-            "script_before_title": 15273,
-            "peak_heap": 2533504
-          },
-          "heap_growth": 44232,
-          "eager_search_requests": 0,
-          "warm_open_ms": 23.799999952316284,
-          "warm_open_requests": 0,
-          "keystrokes": 24,
-          "unchanged": 0,
-          "p50_ms": 1.5999999046325684,
-          "p95_ms": 5.099999904632568
-        },
-        {
-          "profile": "phone",
-          "build": "lsg",
-          "first_open_ms": 863.3000000715256,
-          "first_open_requests": 4,
-          "first_open_transfer": 8613,
-          "first_open_decoded": 51929,
-          "page_load": {
-            "title_ms": 229.29999995231628,
-            "fcp_ms": 236,
-            "data_before_title": 8878,
-            "script_before_title": 15273,
-            "peak_heap": 2518098
-          },
-          "heap_growth": 77896,
-          "eager_search_requests": 0,
-          "warm_open_ms": 31.899999976158142,
-          "warm_open_requests": 0,
-          "keystrokes": 24,
-          "unchanged": 0,
-          "p50_ms": 2.3000000715255737,
-          "p95_ms": 6.5
-        }
-      ]
+  "search_index": {
+    "pages": 9204,
+    "blocks": 114926,
+    "titles": "lsg-search-titles-a32ce6f509f7b28e.json",
+    "titles_decoded": 747581,
+    "titles_gzip": 242783,
+    "shard_count": 1148,
+    "chunk_count": 449,
+    "largest_shard": {
+      "file": "lsg-search-shard-d744f44045828fb6.json",
+      "key": "re",
+      "gzip": 63468
     },
-    "large": {
-      "corpus": {
-        "pages": 2048,
-        "blocks": 16384,
-        "decoded_bytes": 4247874,
-        "gzip_bytes": 249400,
-        "controller_bytes": 11686,
-        "bootstrap_bytes": 1969,
-        "initial_shim_bytes": 661
-      },
-      "summary": {
-        "measured": "2026-10-25",
-        "profiles": "desktop, phone"
-      },
-      "pages": [],
-      "search": [
-        {
-          "profile": "desktop",
-          "build": "lsg",
-          "first_open_ms": 148.5,
-          "first_open_requests": 4,
-          "first_open_transfer": 255703,
-          "first_open_decoded": 4266849,
-          "page_load": {
-            "title_ms": 43,
-            "fcp_ms": 56,
-            "data_before_title": 30836,
-            "script_before_title": 15273,
-            "peak_heap": 1840942
-          },
-          "heap_growth": 5323952,
-          "eager_search_requests": 0,
-          "warm_open_ms": 21.399999976158142,
-          "warm_open_requests": 0,
-          "keystrokes": 24,
-          "unchanged": 0,
-          "p50_ms": 2.899999976158142,
-          "p95_ms": 10.399999976158142
-        },
-        {
-          "profile": "phone",
-          "build": "lsg",
-          "first_open_ms": 2379.899999976158,
-          "first_open_requests": 4,
-          "first_open_transfer": 255703,
-          "first_open_decoded": 4266849,
-          "page_load": {
-            "title_ms": 226.10000002384186,
-            "fcp_ms": 236,
-            "data_before_title": 30836,
-            "script_before_title": 15273,
-            "peak_heap": 2166573
-          },
-          "heap_growth": 8728420,
-          "eager_search_requests": 0,
-          "warm_open_ms": 47.800000071525574,
-          "warm_open_requests": 0,
-          "keystrokes": 24,
-          "unchanged": 0,
-          "p50_ms": 3.8000000715255737,
-          "p95_ms": 21.600000023841858
-        }
-      ]
+    "largest_chunk": {
+      "file": "lsg-search-chunk-8ad8f5b56379bd1a.json",
+      "gzip": 32772
     },
-    "actual": {
-      "corpus": {
-        "pages": 996,
-        "blocks": 3919,
-        "decoded_bytes": 1332768,
-        "gzip_bytes": 250876,
-        "controller_bytes": 11686,
-        "bootstrap_bytes": 1969,
-        "initial_shim_bytes": 661
+    "bootstrap_bytes": 1969,
+    "controller_bytes": 14214
+  },
+  "pages": [],
+  "search": [
+    {
+      "profile": "desktop",
+      "build": "logseq",
+      "dialog_ms": 31.600000023841858,
+      "first_results_ms": 3531.7000000476837,
+      "first_open_requests": 0,
+      "first_open_transfer": 0,
+      "first_open_decoded": 0,
+      "page_load": {
+        "title_ms": 26024.100000023842,
+        "fcp_ms": 26044,
+        "data_before_title": 22846155,
+        "script_before_title": 8087163,
+        "peak_heap": 2011787403
       },
-      "summary": {
-        "measured": "2026-10-25",
-        "profiles": "desktop, phone"
+      "eager_search_requests": 0,
+      "heap_growth": 59039436,
+      "keystrokes": 36,
+      "unchanged": 0,
+      "p50_ms": 832.6000000238419,
+      "p95_ms": 1698.3999999761581,
+      "cold_keystrokes": 0,
+      "cold_p95_ms": null,
+      "warm_p95_ms": 1698.3999999761581,
+      "chunk_keystrokes": 0,
+      "idle_p95_ms": 1698.3999999761581,
+      "keystroke_bytes_max": 0,
+      "keystroke_bytes_p95": 0
+    },
+    {
+      "profile": "desktop",
+      "build": "lsg",
+      "dialog_ms": 9.0,
+      "first_results_ms": 108.10000002384186,
+      "first_open_requests": 5,
+      "first_open_transfer": 274562,
+      "first_open_decoded": 818514,
+      "page_load": {
+        "title_ms": 26.100000023841858,
+        "fcp_ms": 40,
+        "data_before_title": 14948,
+        "script_before_title": 9716,
+        "peak_heap": 1768606
       },
-      "pages": [],
-      "search": [
-        {
-          "profile": "desktop",
-          "build": "lsg",
-          "first_open_ms": 137.5,
-          "first_open_requests": 4,
-          "first_open_transfer": 257179,
-          "first_open_decoded": 1351742,
-          "page_load": {
-            "title_ms": 31,
-            "fcp_ms": 48,
-            "data_before_title": 134839,
-            "script_before_title": 39148,
-            "peak_heap": 1803055
-          },
-          "heap_growth": 4125708,
-          "eager_search_requests": 0,
-          "warm_open_ms": 15.800000071525574,
-          "warm_open_requests": 0,
-          "keystrokes": 24,
-          "unchanged": 0,
-          "p50_ms": 2.0999999046325684,
-          "p95_ms": 7.399999976158142
-        },
-        {
-          "profile": "phone",
-          "build": "lsg",
-          "first_open_ms": 2345.6999999284744,
-          "first_open_requests": 4,
-          "first_open_transfer": 257179,
-          "first_open_decoded": 1351742,
-          "page_load": {
-            "title_ms": 404.89999997615814,
-            "fcp_ms": 416,
-            "data_before_title": 131205,
-            "script_before_title": 27808,
-            "peak_heap": 1959525
-          },
-          "heap_growth": 4421464,
-          "eager_search_requests": 0,
-          "warm_open_ms": 26.899999976158142,
-          "warm_open_requests": 0,
-          "keystrokes": 24,
-          "unchanged": 0,
-          "p50_ms": 3.600000023841858,
-          "p95_ms": 9.199999928474426
-        }
-      ]
+      "eager_search_requests": 0,
+      "warm_open_ms": 17.100000023841858,
+      "warm_open_requests": 0,
+      "heap_growth": 4246552,
+      "keystrokes": 36,
+      "unchanged": 0,
+      "p50_ms": 6.399999976158142,
+      "p95_ms": 20.5,
+      "cold_keystrokes": 7,
+      "cold_p95_ms": 28.699999928474426,
+      "warm_p95_ms": 19.399999976158142,
+      "chunk_keystrokes": 3,
+      "idle_p95_ms": 11.099999904632568,
+      "keystroke_bytes_max": 75581,
+      "keystroke_bytes_p95": 63635
+    },
+    {
+      "profile": "phone",
+      "build": "logseq",
+      "dialog_ms": 127.19999992847443,
+      "first_results_ms": 14230.199999928474,
+      "first_open_requests": 3,
+      "first_open_transfer": 160161,
+      "first_open_decoded": 590292,
+      "page_load": {
+        "title_ms": 192787.69999992847,
+        "fcp_ms": 192852,
+        "data_before_title": 22270811,
+        "script_before_title": 8087163,
+        "peak_heap": 1979242410
+      },
+      "eager_search_requests": 0,
+      "heap_growth": 59150108,
+      "keystrokes": 36,
+      "unchanged": 0,
+      "p50_ms": 3145.9000000953674,
+      "p95_ms": 13360.600000023842,
+      "cold_keystrokes": 0,
+      "cold_p95_ms": null,
+      "warm_p95_ms": 13360.600000023842,
+      "chunk_keystrokes": 1,
+      "idle_p95_ms": 13360.600000023842,
+      "keystroke_bytes_max": 20,
+      "keystroke_bytes_p95": 0
+    },
+    {
+      "profile": "phone",
+      "build": "lsg",
+      "dialog_ms": 207.0,
+      "first_results_ms": 2342.6999999284744,
+      "first_open_requests": 5,
+      "first_open_transfer": 274562,
+      "first_open_decoded": 818514,
+      "page_load": {
+        "title_ms": 232.60000002384186,
+        "fcp_ms": 244,
+        "data_before_title": 14948,
+        "script_before_title": 9716,
+        "peak_heap": 1818482
+      },
+      "eager_search_requests": 0,
+      "warm_open_ms": 49.89999997615814,
+      "warm_open_requests": 0,
+      "heap_growth": 4248128,
+      "keystrokes": 36,
+      "unchanged": 0,
+      "p50_ms": 25.0,
+      "p95_ms": 652.6000000238419,
+      "cold_keystrokes": 7,
+      "cold_p95_ms": 652.6000000238419,
+      "warm_p95_ms": 541.0999999046326,
+      "chunk_keystrokes": 3,
+      "idle_p95_ms": 26.200000047683716,
+      "keystroke_bytes_max": 75581,
+      "keystroke_bytes_p95": 63635
     }
-  }
+  ],
+  "search_build": [
+    {
+      "build": "lsg",
+      "journals": true,
+      "search": true,
+      "seconds": 13.060452749952674
+    },
+    {
+      "build": "lsg",
+      "journals": false,
+      "search": true,
+      "seconds": 12.330684249987826
+    },
+    {
+      "build": "lsg",
+      "journals": true,
+      "search": false,
+      "seconds": 11.693165541975759
+    }
+  ]
 }

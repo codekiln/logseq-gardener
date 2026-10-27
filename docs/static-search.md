@@ -125,6 +125,6 @@ An ordinary result activation closes the dialog before its click bubbles to the 
 
 `mise run search:browser-test` runs a generated static publication in pinned Chromium and checks keyboard/focus, safe snippets, mobile/themes, lazy requests/cache, modified links, repeated SPA initialization, metadata invalidation, explicit retry and no-JavaScript fallback. Unit loader fixtures also cover digest mismatch, remote/version failures, one fetch per shard and stale fetch/module completion across close/revision changes. This is a functional test; measured performance remains in the existing parity harness.
 
-The [search validation matrix](parity/search-performance.md) records completed-result latency, initial script/data cost, cold/warm loading, scale and failure evidence using the existing parity harness.
+[Search performance](parity/search-performance.md) records the file sizes, first open, keystroke latency and downloads of format version 2 on the whole encode garden, next to Logseq's build and Pagefind.
 
 The shared dialog exposes `data-lsg-search-state` for loading/searching/ready/error/closed states and advances `data-lsg-search-complete` after a completed result render. The parity harness uses completion rather than stale-list clearing to measure each key, including no-result queries.
