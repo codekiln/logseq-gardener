@@ -29,6 +29,8 @@ EMBED_MARKERS = ('class="embed-page"', 'class="embed-block"')
 REFERENCES_SCRIPT = 'lsg-references.js'
 REFERENCES_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'references.css'
 REFERENCES_DIR = '_refs'
+GROWN_ROOT = 'Grown'
+GROWN_BASE = 200
 
 
 
@@ -192,7 +194,7 @@ def check_references(site, references, styles=REFERENCES_STYLES):
     size = script.stat().st_size
     if size > references['script_kb'] * 1000:
         failures.append(f'{REFERENCES_SCRIPT}: {size:,} exceeds {references["script_kb"] * 1000:,}')
-    packed = metrics.gzip_size(Path(styles).read_bytes())
+    packed = metrics.gzip_size(hierarchy_styles(styles, hierarchy=False).encode('utf-8'))
     if packed > references['styles_gzip_kb'] * 1000:
         failures.append(f'references styles: {packed:,} gzip exceed {references["styles_gzip_kb"] * 1000:,.0f}')
     fragments = sorted((site / REFERENCES_DIR).glob('*.html'))
@@ -203,6 +205,67 @@ def check_references(site, references, styles=REFERENCES_STYLES):
         if packed > references['fragment_gzip_kb'] * 1000:
             failures.append(f'{REFERENCES_DIR}/{fragment.name}: {packed:,} gzip exceed '
                             f'{references["fragment_gzip_kb"] * 1000:,.0f}')
+    return failures
+
+
+def hierarchy_styles(styles=REFERENCES_STYLES, hierarchy=True):
+    """The rules in the references styles that only the Hierarchy section uses, or the others.
+
+    The Hierarchy rules share the file with the reference sections but have their own budget.
+    """
+    rules = Path(styles).read_text(encoding='utf-8').replace('}', '}\n').splitlines()
+    return ''.join(r for r in rules
+                   if any(word in r.split('{')[0] for word in ('hierarchy', 'namespace')) == hierarchy)
+
+
+def grown_root(lsg, temp, count):
+    """Publish the fixture garden with `count` pages under a namespace; return its root page."""
+    garden = temp / f'grown-{count}'
+    shutil.copytree(FIXTURE_GARDEN, garden)
+    (garden / 'pages' / f'{GROWN_ROOT}.md').write_text('- The grown namespace root.\n', encoding='utf-8')
+    for number in range(count):
+        (garden / 'pages' / f'{GROWN_ROOT}___{number:04d}.md').write_text(
+            f'- Grown page {number}.\n', encoding='utf-8')
+    site = temp / f'grown-{count}-site'
+    publish(lsg, garden, site, [*FIXTURE_ROOTS, GROWN_ROOT])
+    return site
+
+
+def check_hierarchy(site, smaller, larger, hierarchy, styles=REFERENCES_STYLES):
+    """Return failure messages for hierarchy rows, styles, script growth, fragments and a grown root.
+
+    `smaller` and `larger` are sites whose grown namespace differs by 2,000 pages; both are past
+    the rows a page holds, so the root page should not change.
+    """
+    failures = []
+    packed = metrics.gzip_size(hierarchy_styles(styles).encode('utf-8'))
+    if packed > hierarchy['styles_gzip_kb'] * 1000:
+        failures.append(f'hierarchy styles: {packed:,} gzip exceed {hierarchy["styles_gzip_kb"] * 1000:,.0f}')
+    script = site / REFERENCES_SCRIPT
+    if script.exists():
+        limit = (hierarchy['script_baseline_kb'] + hierarchy['script_growth_kb']) * 1000
+        if script.stat().st_size > limit:
+            failures.append(f'{REFERENCES_SCRIPT}: {script.stat().st_size:,} exceeds the hierarchy limit {limit:,.0f}')
+    for built in (site, smaller, larger):
+        for page in site_pages(built):
+            text = (built / page).read_text(encoding='utf-8')
+            section = text.partition('class="page-hierarchy')[2].partition('</section>')[0]
+            rows = section.count('<li>')
+            if rows > hierarchy['inline_rows']:
+                failures.append(f'{page}: {rows:,} hierarchy rows exceed {hierarchy["inline_rows"]:,}')
+        for fragment in sorted((built / REFERENCES_DIR).glob('*-hierarchy-*.html')):
+            packed = metrics.gzip_size(fragment.read_bytes())
+            if packed > hierarchy['fragment_gzip_kb'] * 1000:
+                failures.append(f'{REFERENCES_DIR}/{fragment.name}: {packed:,} gzip exceed '
+                                f'{hierarchy["fragment_gzip_kb"] * 1000:,.0f}')
+    root = common.lsg_index(smaller).get(common.normalize(GROWN_ROOT), (None, None))[1]
+    if root is None or not (larger / root).exists():
+        return failures + [f'{GROWN_ROOT}: missing from the grown builds']
+    before, after = (smaller / root).stat().st_size, (larger / root).stat().st_size
+    if after - before > hierarchy['root_growth_kb'] * 1000:
+        failures.append(f'{GROWN_ROOT}: grew from {before:,} to {after:,} with 2,000 more pages')
+    if not list((larger / REFERENCES_DIR).glob('*-hierarchy-*.html')):
+        failures.append(f'{GROWN_ROOT}: no hierarchy fragment in the grown build')
     return failures
 
 
@@ -303,6 +366,9 @@ def main():
         code_failures = check_code(temp / 'small', small, budgets['code'])
         transclusion_failures = check_transclusion(temp / 'small', small, budgets['transclusion'])
         references_failures = check_references(temp / 'small', budgets['references'])
+        hierarchy_failures = check_hierarchy(temp / 'small', grown_root(lsg, temp, GROWN_BASE),
+                                             grown_root(lsg, temp, GROWN_BASE + FILLER_PAGES),
+                                             budgets['hierarchy'])
         print(f"{REFERENCES_SCRIPT}: {(temp / 'small' / REFERENCES_SCRIPT).stat().st_size:,}")
         print(f"{JOURNALS_SCRIPT}: {(temp / 'small' / JOURNALS_SCRIPT).stat().st_size:,}")
         print(f"{OUTLINE_SCRIPT}: {(temp / 'small' / OUTLINE_SCRIPT).stat().st_size:,}")
@@ -312,9 +378,11 @@ def main():
     print(f'inline styles: {metrics.gzip_size(INLINE_STYLES.read_bytes()):,} gzip')
     print(f'code styles: {metrics.gzip_size(CODE_STYLES.read_bytes()):,} gzip')
     print(f'transclusion styles: {metrics.gzip_size(TRANSCLUSION_STYLES.read_bytes()):,} gzip')
-    print(f'references styles: {metrics.gzip_size(REFERENCES_STYLES.read_bytes()):,} gzip')
+    print(f'references styles: {metrics.gzip_size(hierarchy_styles(hierarchy=False).encode("utf-8")):,} gzip')
+    print(f'hierarchy styles: {metrics.gzip_size(hierarchy_styles().encode("utf-8")):,} gzip')
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
+                + hierarchy_failures
                 + search_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)

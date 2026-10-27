@@ -62,7 +62,7 @@ fn nested_closed_outlines_keep_skipped_levels_and_following_siblings_separate() 
     assert!(html.contains(&format!("{DISCLOSURE}<summary>Dialogue</summary><ul><li class=\"outline-collapsed\">{DISCLOSURE}<summary>Outer child</summary><ul><li>Inner transcript</li></ul></details></li><li>Outer sibling</li></ul></details></li><li>Following sibling")), "{html}");
     assert_eq!(html.matches(DISCLOSURE).count(), 2);
     assert!(!html.contains("outline-disclosure\" open"));
-    assert!(html.contains("<details open><summary>Hierarchy</summary>"));
+    assert!(html.contains("<details class=\"references-section\" open><summary><span class=\"ref-chevron\"></span><h2>Hierarchy</h2></summary>"));
 }
 
 #[test]

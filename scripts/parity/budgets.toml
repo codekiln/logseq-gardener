@@ -78,7 +78,8 @@ styles_gzip_kb = 1
 # phone heap after opening both sections on mise and scrolling to the end, and a whole-garden build
 # more than build_slowdown_pct slower than the --baseline-lsg binary's.
 [references]
-script_kb = 6
+# 6 before the Hierarchy loader; [hierarchy] script_growth_kb allows 1 more.
+script_kb = 7
 styles_gzip_kb = 1
 fragment_gzip_kb = 100
 open_ms_desktop = 300
@@ -86,3 +87,19 @@ open_ms_phone = 1500
 open_heap_mb = 20
 filter_ms = 50
 build_slowdown_pct = 25
+
+# The Hierarchy section (published-namespace-hierarchy). parity:budgets checks the rows in each
+# page, the gzip size of the hierarchy styles every page carries, the growth of lsg-references.js
+# over its size before the Hierarchy loader, each hierarchy fragment's gzip size, and that the root
+# of a fixture namespace grown by 2,000 pages grows by at most root_growth_kb. parity:perf marks the
+# phone heap after scrolling Microfreak's list to the end, and a whole-garden build more than
+# build_slowdown_pct slower than the --baseline-lsg binary's.
+[hierarchy]
+inline_rows = 100
+styles_gzip_kb = 0.5
+script_baseline_kb = 5.995
+script_growth_kb = 1
+fragment_gzip_kb = 100
+root_growth_kb = 1
+scroll_heap_mb = 20
+build_slowdown_pct = 10
