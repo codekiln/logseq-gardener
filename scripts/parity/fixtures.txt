@@ -14,3 +14,9 @@ AI/Coding/History
 VSCode/Proj/24t3/LearnVSCode/03 Basic Python
 Home
 All pages
+Logseq/Flashcard/Review/Favorite/yazi
+Logseq/Flashcard/Review/Favorite/Zoxide
+Logseq/Flashcard/Review/Favorite
+Logseq/Flashcard
+tmux/Keyshort/Pane/Zoom Pane
+tmux/Keyshort/Copy Mode
