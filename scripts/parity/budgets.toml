@@ -17,7 +17,8 @@ search_p95_ms = 100
 
 # The header and left sidebar on every lsg page (published-app-shell).
 [shell]
-script_kb = 6
+# 6 before the right sidebar's loader.
+script_kb = 6.5
 frame_kb = 6
 
 # The journals feed on the home page (published-journals). parity:budgets checks script_kb;
@@ -130,3 +131,14 @@ fragment_gzip_kb = 100
 root_growth_kb = 1
 scroll_heap_mb = 20
 build_slowdown_pct = 10
+
+# The right sidebar (published-right-sidebar). parity:budgets checks the gzip size of lsg-sidebar.js,
+# that no fixture page requests it before use, and every fixture page's gzip size as a card's
+# transfer. The times and the phone heap after ten cards are measured on the whole encode garden
+# and recorded in docs/parity/performance.md.
+[sidebar]
+script_gzip_kb = 6
+card_ms_desktop = 300
+card_ms_phone = 1500
+card_fetch_gzip_kb = 60
+ten_cards_heap_mb = 20

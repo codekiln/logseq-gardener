@@ -26,3 +26,5 @@ tmux/Keyshort/Pane/Zoom Pane
 tmux/Keyshort/Copy Mode
 Logseq/Flavored Markdown
 LangChain/Academy/LangSmith/M5 Production Observability/L2 Online Evaluation
+VSCode/Proj/24t3/LearnVSCode/01 Terminal
+Contents

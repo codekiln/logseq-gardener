@@ -90,7 +90,8 @@ impl Reader<'_> {
     }
 
     fn collection(&mut self, close: u8, map: bool, depth: usize) -> Result<Form, &'static str> {
-        // Retain only the outer map. Nested config values are read but never evaluated.
+        // Retain the outer map, maps and vectors in its values, and vectors in those maps,
+        // such as `:default-home {:sidebar [..]}`. Nested values are never evaluated.
         let mut values = Vec::new();
         let mut count = 0;
         loop {
@@ -106,17 +107,17 @@ impl Reader<'_> {
             }
             let value = self.form(depth + 1)?.ok_or("unterminated collection")?;
             count += 1;
-            if (map && depth == 0) || (!map && depth == 1) {
+            if (map && depth <= 1) || (!map && (depth == 1 || depth == 2)) {
                 values.push(value);
             }
         }
         if map && count % 2 != 0 {
             return Err("map has an unmatched key");
         }
-        if !map && depth == 1 {
+        if !map && (depth == 1 || depth == 2) {
             return Ok(Form::Collection(values));
         }
-        if !map || depth != 0 {
+        if !map || depth > 1 {
             return Ok(Form::Other);
         }
         let mut pairs = Vec::new();

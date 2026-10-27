@@ -10,6 +10,23 @@
   };
   const desktop = () => { try { return window.matchMedia('(min-width: 640px)').matches; } catch { return true; } };
   const theme = () => window.logseqGardenerTheme;
+  const base = document.currentScript?.src || 'lsg-shell.js';
+  const load = (src, onload) => document.head.append(Object.assign(document.createElement('script'), { src, onload }));
+  const near = name => base.replace(/shell\.js$/, name + '.js');
+  // The right sidebar loads on its first use.
+  let side;
+  const sidebar = event => {
+    if (!desktop()) return;
+    side ||= new Promise(done => load(near('sidebar'), done));
+    side.then(() => window.logseqGardenerSidebar(event));
+  };
+  document.addEventListener('click', event => {
+    const toggle = event.target.closest?.('[data-lsg-right-toggle]');
+    if (!desktop() || !toggle && !(event.shiftKey && event.target.closest?.(':is(main,.lsg-right-sidebar) :is(.bullet,[href^="p-"],[href^="#zoom/"])'))) return;
+    event.preventDefault();
+    event.stopPropagation();
+    sidebar(toggle ? 'toggle' : event);
+  }, true);
   const isOpen = () => root.getAttribute('data-lsg-left-sidebar') === 'open';
   const setSidebar = (open, focus) => {
     if (open) root.setAttribute('data-lsg-left-sidebar', 'open');
@@ -43,6 +60,7 @@
   const go = selector => { const href = $(selector)?.getAttribute('href'); if (href) window.location.assign(href); };
   const actions = {
     tl: () => setSidebar(!isOpen()),
+    tr: () => sidebar('toggle'),
     tt: toggleTheme,
     tw: toggleWide,
     gh: () => window.location.assign('index.html'),
@@ -78,33 +96,22 @@
       return;
     }
     const field = event.target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"])');
+    if (event.altKey && event.shiftKey && event.code === 'KeyC' && !event.ctrlKey && !event.metaKey && !field) { event.preventDefault(); sidebar('contents'); return; }
     if (event.ctrlKey || event.altKey || event.metaKey || field || event.key.length !== 1) { pending = ''; return; }
     const key = event.key.toLowerCase(), now = Date.now(), action = actions[pending + key];
     if (action && now - pendingAt <= 1000) { pending = ''; event.preventDefault(); action(); return; }
     pending = key === 't' || key === 'g' ? key : '';
     pendingAt = now;
   });
-  // The journals feed loader is not needed for first paint; fetch it once the page has loaded.
-  const feed = $('[data-lsg-journals]');
-  if (feed) {
-    const load = () => {
-      const script = document.createElement('script');
-      script.src = feed.getAttribute('data-lsg-journals');
-      document.head.append(script);
-    };
-    if (document.readyState === 'complete') load(); else window.addEventListener('load', load, { once: true });
-  }
-  // Reader collapse, block zoom and reference sections wait for load too. Load them on
-  // every page, because a host can swap content into a page that started without it.
-  const base = document.currentScript?.src || 'lsg-shell.js';
+  // These wait for load. Outline and references load on every page: a host can swap
+  // content into a page that started without them.
   const after = () => {
-    for (const name of ['outline', 'references']) {
-      const script = document.createElement('script');
-      script.src = base.replace(/lsg-shell\.js$/, `lsg-${name}.js`);
-      document.head.append(script);
-    }
+    const feed = $('[data-lsg-journals]'), right = root.getAttribute('data-lsg-right-sidebar');
+    if (feed) load(feed.getAttribute('data-lsg-journals'));
+    for (const name of ['outline', 'references']) load(near(name));
+    if (right === 'open' || !right && $('[data-lsg-sidebar-default]')) sidebar('restore');
   };
   if (document.readyState === 'complete') after(); else window.addEventListener('load', after, { once: true });
-  for (const control of document.querySelectorAll('[data-lsg-left-toggle],[data-lsg-more]')) control.hidden = false;
+  for (const control of document.querySelectorAll('[data-lsg-left-toggle],[data-lsg-more],[data-lsg-right-toggle]')) control.hidden = false;
   $('[data-lsg-left-toggle]')?.setAttribute('aria-expanded', String(isOpen()));
 })();

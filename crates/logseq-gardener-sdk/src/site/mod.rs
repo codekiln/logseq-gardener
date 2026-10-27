@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 
 use crate::garden::{DocumentKind, GardenLoadError, load_garden};
 use crate::garden_config as config;
-use crate::garden_settings::{GardenSettings, resolve_favorites};
+use crate::garden_settings::{GardenSettings, SidebarCard, resolve_favorites, resolve_sidebar};
 use crate::git_dates::GitDates;
 use crate::journals::{JournalDate, JournalFormats, journal_identity};
 use crate::page_list::{PageKind, PageSource, page_list};
@@ -414,7 +414,23 @@ pub fn publish_site_with_options(
     );
     let (favorites, favorite_diagnostics) =
         resolve_favorites(&settings.favorites, &names, &spellings);
-    for message in settings_diagnostics.into_iter().chain(favorite_diagnostics) {
+    let (sidebar, sidebar_diagnostics) = resolve_sidebar(&settings.sidebar, &names);
+    let sidebar = sidebar
+        .into_iter()
+        .map(|card| match card {
+            SidebarCard::Contents => "contents".to_owned(),
+            SidebarCard::Page(route) => route,
+        })
+        .collect();
+    let contents = match names.candidates("contents") {
+        [route] => Some(route.clone()),
+        _ => None,
+    };
+    for message in settings_diagnostics
+        .into_iter()
+        .chain(favorite_diagnostics)
+        .chain(sidebar_diagnostics)
+    {
         report.diagnostics.push(SiteDiagnostic {
             source: "logseq/config.edn".into(),
             message,
@@ -429,6 +445,8 @@ pub fn publish_site_with_options(
         favorites,
         all_pages: index_route,
         journals: feed.first_route(),
+        contents,
+        sidebar,
     };
     let mut homepage_document = None;
     let (reference_config, config_diagnostics) = config::read(&root);
@@ -702,6 +720,11 @@ pub fn publish_site_with_options(
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
     documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());
+    documents.insert(shell::SIDEBAR_ROUTE.to_owned(), shell::sidebar_script());
+    documents.insert(
+        shell::SIDEBAR_STYLES_ROUTE.to_owned(),
+        shell::SIDEBAR_STYLES.to_owned(),
+    );
     documents.insert(references::SCRIPT_ROUTE.to_owned(), references::script());
     if let Some(search) = search {
         let (artifacts, manifest_route, revision) = search.artifacts();
