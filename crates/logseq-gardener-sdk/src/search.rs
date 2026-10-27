@@ -443,7 +443,8 @@ pub struct SearchIndex {
 }
 
 /// Where the publisher splits the index: the largest gzip size of a shard before it
-/// splits by the next character, and the block records per chunk.
+/// splits by the next character, and the block records per chunk. The default shard budget is
+/// the `shard_gzip_kb` budget in `scripts/parity/budgets.toml`, where a KB is 1,000 bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileOptions {
     pub shard_budget: usize,
@@ -453,7 +454,7 @@ pub struct FileOptions {
 impl Default for FileOptions {
     fn default() -> Self {
         Self {
-            shard_budget: 64 * 1024,
+            shard_budget: 64_000,
             chunk_size: 256,
         }
     }
