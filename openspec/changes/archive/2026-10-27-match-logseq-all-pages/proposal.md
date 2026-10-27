@@ -1,6 +1,6 @@
 ## Why
 
-Logseq's All pages screen is a sortable, searchable table of the garden's pages, 40 rows at a time, with each page's backlink count and dates. `lsg` publishes `pages.html` titled `Garden`: one alphabetical list of 10,776 links with journals mixed in, no counts, no sorting, no search and no paging. At 1.27 MB (268 KB gzipped) before its title, it is the largest first paint in the `lsg` build and over the 100 KB budget ([All pages analysis](../../../docs/parity/all-pages.md), [Issue #117 — Publish Logseq's All pages table](https://github.com/codekiln/logseq-gardener/issues/117)).
+Logseq's All pages screen is a sortable, searchable table of the garden's pages, 40 rows at a time, with each page's backlink count and dates. `lsg` publishes `pages.html` titled `Garden`: one alphabetical list of 10,776 links with journals mixed in, no counts, no sorting, no search and no paging. At 1.27 MB (268 KB gzipped) before its title, it is the largest first paint in the `lsg` build and over the 100 KB budget ([All pages analysis](../../../../docs/parity/all-pages.md), [Issue #117 — Publish Logseq's All pages table](https://github.com/codekiln/logseq-gardener/issues/117)).
 
 Logseq's own screen needs the whole graph first: 19.8 s to its title on desktop and 198 s on the phone profile. `lsg` can show the same table with the first 40 rows in static HTML and load the full list only when a reader asks for another view of it.
 

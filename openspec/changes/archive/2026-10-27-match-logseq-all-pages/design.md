@@ -1,6 +1,6 @@
 ## Context
 
-The [All pages analysis](../../../docs/parity/all-pages.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `0ce74d6`, `gh-pages` `8132c95`) with an `lsg` build from `1e72969`. Logseq's screen is a route in its single-page app: it downloads the whole graph (22.6 MB before the title), counts every page's references in the browser and shows 40 rows. `lsg` writes `pages.html` from `site/mod.rs` (the index list, lines 477–640) as one `<ul>` of 10,776 links, 1,266,786 bytes before its title.
+The [All pages analysis](../../../../docs/parity/all-pages.md) compared Logseq's `gh-pages` build of the encode garden (garden commit `0ce74d6`, `gh-pages` `8132c95`) with an `lsg` build from `1e72969`. Logseq's screen is a route in its single-page app: it downloads the whole graph (22.6 MB before the title), counts every page's references in the browser and shows 40 rows. `lsg` writes `pages.html` from `site/mod.rs` (the index list, lines 477–640) as one `<ul>` of 10,776 links, 1,266,786 bytes before its title.
 
 `ReferenceIndex` in `crates/logseq-gardener-sdk/src/references.rs` already finds each page's linked references for the CLI, the language server and the publisher. Its `linked` answer leaves out blocks on the page itself, which matches Logseq's Linked References count but not its Backlinks column.
 
@@ -62,7 +62,7 @@ Dates are written as `<time datetime="…">` in UTC and shown as `yyyy-MM-dd HH:
 
 **Styles.** A new `site/all-pages.css` holds the measured light values from the analysis: heading 36px weight 300 with margin `8px 0 24px`; total 14px at opacity 0.7; header cells 14px weight 400 `rgb(104,112,118)` with `10px 8px` padding and a 2px bottom border; body cells 16px with `6px 8px` padding; stripes `rgb(251,252,253)` and `rgb(236,238,240)`, reusing the table tokens from `published-code-and-tables`. The toolbar sticks to the top. Below 640px wide, only the `Page name` column shows.
 
-**Budgets.** Measured by the [comparison harness](../../specs/parity-comparison-harness/spec.md) on the whole encode garden:
+**Budgets.** Measured by the [comparison harness](../../../specs/parity-comparison-harness/spec.md) on the whole encode garden:
 
 | Measure | Budget |
 | --- | --- |

@@ -24,5 +24,5 @@
 
 - [x] 5.1 Build the encode garden with `parity:build` and compare All pages with the `gh-pages` build at 1280×800 and 390×844 in both themes: heading, total, first rows, column styles, sort by `Backlinks`, search for `mise`, journals toggle; record values, screenshots and page sizes before and after in `verification.md`
 - [x] 5.2 Run `parity:perf` and commit the updated rows in `docs/parity/performance.md` (written by hand; see `verification.md`)
-- [ ] 5.3 Sync this change's `published-namespace-hierarchy` delta only after `match-logseq-hierarchy` is archived (done in the cleanup pull request)
+- [x] 5.3 Sync this change's `published-namespace-hierarchy` delta only after `match-logseq-hierarchy` is archived (done in the cleanup pull request)
 - [x] 5.4 Run `mise run ci`
