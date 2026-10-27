@@ -693,6 +693,18 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
         result
     }
 
+    /// Logseq's Backlinks count: blocks whose references include the page, counting
+    /// namespace children as [`Self::linked`] does and also the page's own blocks.
+    pub fn backlink_count(&self, page: &K) -> usize {
+        let own = self.positions.get(page).map_or(0, |&document| {
+            self.expanded[document]
+                .iter()
+                .filter(|refs| refs.contains(page))
+                .count()
+        });
+        self.linked(page).len() + own
+    }
+
     /// Number of distinct pages among the page's linked references.
     pub fn referring_pages(&self, page: &K) -> usize {
         self.linked(page)
@@ -775,6 +787,22 @@ mod tests {
                 .map(|(page, source)| contribution(page, source))
                 .collect(),
         )
+    }
+
+    #[test]
+    fn backlink_count_adds_the_pages_own_blocks_and_namespace_children() {
+        let index = index(&[
+            ("notes", "- [[mise]]\n- [[mise/Config]]\n- [[tmux]]\n"),
+            ("mise", "- self [[mise]]\n- [[mise/Config]]\n- plain text\n"),
+        ]);
+        let mise = "mise".to_owned();
+        // Two linked blocks on notes, plus two of mise's own blocks.
+        assert_eq!(index.linked(&mise).len(), 2);
+        assert_eq!(index.backlink_count(&mise), 4);
+        // A reference to mise/Config counts for mise/Config, on either page.
+        assert_eq!(index.backlink_count(&"mise/Config".to_owned()), 2);
+        assert_eq!(index.backlink_count(&"tmux".to_owned()), 1);
+        assert_eq!(index.backlink_count(&"AWS".to_owned()), 0);
     }
 
     #[test]

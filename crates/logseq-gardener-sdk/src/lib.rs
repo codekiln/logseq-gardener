@@ -50,8 +50,17 @@ pub mod inline_references;
 /// Stored page names and alias candidate lookup.
 pub mod page_names;
 
+/// Find a page's source file by title, alias or journal date.
+pub mod page_lookup;
+
 /// Linked references, filters, tagged pages and unlinked mentions from one index.
 pub mod references;
+
+/// First and last commit times of page and journal files.
+pub mod git_dates;
+
+/// All pages: every published page with its kind, icon, backlinks and dates.
+pub mod page_list;
 
 /// Namespace hierarchy rows from page titles and aliases, shared by every caller.
 pub mod namespaces;

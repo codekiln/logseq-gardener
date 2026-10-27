@@ -339,6 +339,54 @@ def measure_references(browser, url, profile):
         context.close()
 
 
+ALL_PAGES_QUERIES = ['mise', 'logseq', 'tmux', 'microfreak preset', 'cli tool', 'garden', 'python', 'rust',
+                     'a', 'zz', 'keyshort', 'gitp', 'week', 'docker', 'aws', 'q', 'entity', 'readwise',
+                     'claude code', 'vim']
+ALL_PAGES_PROBE = '''async (queries) => {
+  const box = document.querySelector('.all-pages');
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const start = performance.now();
+  // As in Logseq, each click flips the shared direction: Page name ascending, then Backlinks descending.
+  box.querySelector('th.name .sort').click();
+  box.querySelector('th.backlinks .sort').click();
+  while (box.querySelector('th.backlinks')?.getAttribute('aria-sort') !== 'descending') {
+    if (performance.now() - start > 120000) throw new Error('page list did not load');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  const sortMs = performance.now() - start;
+  const first = box.querySelector('tbody td.name').textContent;
+  const input = box.querySelector('.search');
+  const times = [];
+  for (const query of queries) {
+    input.value = query;
+    const t = performance.now();
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    await settle();
+    times.push(performance.now() - t);
+  }
+  times.sort((a, b) => a - b);
+  return {sort_ms: sortMs, first, search_p95_ms: times[Math.ceil(times.length * 0.95) - 1],
+          search_p50_ms: times[Math.floor(times.length / 2)]};
+}'''
+
+
+def measure_all_pages(browser, url, profile):
+    """Sort All pages by Backlinks, descending, which loads the page list, then search on Enter for each query."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
+    try:
+        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        wait_loaded(page, profile)
+        before = page.evaluate("performance.getEntriesByType('resource').some(e => e.name.includes('_pages/'))")
+        result = page.evaluate(ALL_PAGES_PROBE, ALL_PAGES_QUERIES)
+        result['list_before_interaction'] = before
+        result['peak_heap'] = max(page.evaluate('window.__parity.peak') or 0, heap_now(cdp))
+        return result
+    except Exception as error:
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
 def measure_hierarchy(browser, url, profile):
     """Scroll the Hierarchy list to its end, loading every fragment file, and read the peak heap."""
     context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
@@ -470,8 +518,8 @@ def markdown(results, budgets):
     for row in results.get('build', []):
         if 'baseline' not in row or row['journals'] not in builds:
             continue
-        # The latest feature's budget: Hierarchy, then reference sections, then code.
-        slowdown = next((budgets[table]['build_slowdown_pct'] for table in ('hierarchy', 'references', 'code')
+        # The latest feature's budget: All pages, then Hierarchy, then reference sections, then code.
+        slowdown = next((budgets[table]['build_slowdown_pct'] for table in ('all_pages', 'hierarchy', 'references', 'code')
                          if 'build_slowdown_pct' in budgets.get(table, {})), None)
         current = builds[row['journals']]
         text = f'{current:,.1f}'
@@ -520,6 +568,27 @@ def markdown(results, budgets):
                      limits.get('open_heap_mb') if row['profile'] == 'phone' else None),
             ]
             lines.append(f"| {row['profile']} | " + ' | '.join(cells) + ' |')
+    all_pages_rows = results.get('all_pages', [])
+    if all_pages_rows:
+        limits = budgets.get('all_pages', {})
+        lines += ['', '## All pages', '',
+                  'Time from clicking `Page name` and then `Backlinks` to the table sorted by Backlinks, descending, which loads the page list; the first row; '
+                  'search on Enter for each query once the list has loaded, and the peak JS heap. '
+                  f"The page list is {all_pages_rows[0].get('list_gzip', 0) / 1000:,.1f} KB gzip.", '',
+                  '| Profile | Sort by Backlinks (ms) | First row | Search median (ms) | Search 95th percentile (ms) | Peak JS heap (MB) |',
+                  '| --- | ---: | --- | ---: | ---: | ---: |']
+        for row in all_pages_rows:
+            if 'error' in row:
+                lines.append(f"| {row['profile']} | {row['error']} | | | | |")
+                continue
+            p95 = f"{row['search_p95_ms']:,.0f}"
+            if row['search_p95_ms'] > limits.get(f"search_ms_{row['profile']}", math.inf):
+                p95 = f'**{p95}**'
+            heap = f"{row['peak_heap'] / 1_000_000:,.1f}"
+            if row['profile'] == 'phone' and row['peak_heap'] / 1_000_000 > limits.get('sort_heap_mb', math.inf):
+                heap = f'**{heap}**'
+            lines.append(f"| {row['profile']} | {row['sort_ms']:,.0f} | {row['first']} | "
+                         f"{row['search_p50_ms']:,.0f} | {p95} | {heap} |")
     hierarchy_rows = results.get('hierarchy', [])
     if hierarchy_rows:
         heap_limit = budgets.get('hierarchy', {}).get('scroll_heap_mb')
@@ -670,7 +739,10 @@ def main():
                     row['loads'] = len(good)
                     pages.append(row)
                     print(json.dumps(row, ensure_ascii=False), flush=True)
-        feed, zoom, references, hierarchy = [], [], [], []
+        feed, zoom, references, all_pages, hierarchy = [], [], [], [], []
+        all_pages_target = serve.targets('All pages', names, lsg_index, run / 'site')
+        list_file = run / 'site' / '_pages' / 'list.json'
+        list_gzip = metrics.gzip_size(list_file.read_bytes()) if list_file.exists() else 0
         hierarchy_target = serve.targets(HIERARCHY_PAGE, names, lsg_index, run / 'site')
         zoom_target = serve.targets(ZOOM_PAGE, names, lsg_index, run / 'site')
         references_target = serve.targets(REFERENCES_PAGE, names, lsg_index, run / 'site')
@@ -688,6 +760,11 @@ def main():
                            **measure_references(browser, server.url + references_target['lsg'], profile)}
                     references.append(row)
                     print(json.dumps(row), flush=True)
+                if build == 'lsg' and all_pages_target['lsg'] is not None:
+                    row = {'profile': profile, 'build': build, 'list_gzip': list_gzip,
+                           **measure_all_pages(browser, server.url + all_pages_target['lsg'], profile)}
+                    all_pages.append(row)
+                    print(json.dumps(row, ensure_ascii=False), flush=True)
                 if build == 'lsg' and hierarchy_target['lsg'] is not None:
                     row = {'profile': profile, 'build': build,
                            **measure_hierarchy(browser, server.url + hierarchy_target['lsg'], profile)}
@@ -704,6 +781,7 @@ def main():
     feed = merge(kept.get('feed', []), feed, builds, ('profile', 'build'))
     zoom = merge(kept.get('zoom', []), zoom, builds, ('profile', 'build'))
     references = merge(kept.get('references', []), references, builds, ('profile', 'build'))
+    all_pages = merge(kept.get('all_pages', []), all_pages, builds, ('profile', 'build'))
     hierarchy = merge(kept.get('hierarchy', []), hierarchy, builds, ('profile', 'build'))
     build_rows = measure_build(settings, args.baseline_lsg) if 'lsg' in builds else kept.get('build', [])
     for row in build_rows:
@@ -722,6 +800,7 @@ def main():
         'feed': feed,
         'zoom': zoom,
         'references': references,
+        'all_pages': all_pages,
         'hierarchy': hierarchy,
         'build': build_rows,
     }

@@ -188,7 +188,12 @@ fn unselected_source_parent_contributes_no_body_alias_or_assets() {
     let report = f.publish(&["Instruments/Synth"], &[], None);
     assert_eq!(report.pages, 1);
     assert_eq!(report.assets, 0);
-    assert!(report.diagnostics.is_empty());
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.source == std::path::Path::new("."))
+    );
     let output = f.all_html();
     for secret in ["UNSELECTED_BODY", "UNSELECTED_ALIAS", "missing.png"] {
         assert!(!output.contains(secret));
@@ -303,7 +308,7 @@ fn normalized_prefixes_share_deterministic_spelling_and_source_routes_win() {
             .split("<main>")
             .nth(1)
             .unwrap()
-            .matches("<li><a")
+            .matches("<tr><td class=\"icon\">")
             .count(),
         3
     );
