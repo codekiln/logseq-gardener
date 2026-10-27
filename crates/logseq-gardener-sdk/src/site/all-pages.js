@@ -4,23 +4,8 @@
 // The build trims each line and drops comment lines, so keep statements on their own lines.
 (() => {
   const ROWS = 40;
-  const clean = (s) => s.toLowerCase().replace(/[[ \\/_\]()]+/g, '');
-  // Logseq's fuzzy score (frontend/search.cljs): consecutive matches earn more, then a
-  // length-similarity term, and an exact substring adds 1000.
-  function score(query, name) {
-    const q = clean(query);
-    const s = clean(name);
-    let i = 0, mult = 1, total = 0;
-    for (let j = 0; j < s.length && i < q.length; j++) {
-      if (q[i] === s[j]) {
-        total += mult++;
-        i++;
-      } else mult = 1;
-    }
-    if (i < q.length) return 0;
-    const max = Math.max(q.length, s.length);
-    return total + (max ? 1 - (max - Math.min(q.length, s.length)) / max : 1) + (name.includes(query) ? 1000 : 0);
-  }
+  // __LSG_FUZZY__
+  const score = fuzzyScore;
   const pad = (n) => String(n).padStart(2, '0');
   const local = (seconds) => {
     const d = new Date(seconds * 1000);

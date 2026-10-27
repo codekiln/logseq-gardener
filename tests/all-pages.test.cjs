@@ -3,8 +3,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const raw = readFileSync(path.join(__dirname, '../crates/logseq-gardener-sdk/src/site/all-pages.js'), 'utf8');
-// The same trimming the publisher applies before writing lsg-all-pages.js.
+const site = path.join(__dirname, '../crates/logseq-gardener-sdk/src/site');
+const raw = readFileSync(path.join(site, 'all-pages.js'), 'utf8').replace('// __LSG_FUZZY__', () => readFileSync(path.join(site, 'fuzzy.js'), 'utf8'));
+// The same splicing and trimming the publisher applies before writing lsg-all-pages.js.
 let source = '';
 for (const line of raw.split('\n').map((l) => l.trim())) {
   if (!line || line.startsWith('//')) continue;

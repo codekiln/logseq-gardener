@@ -293,7 +293,8 @@ def main():
                 expect(page.locator('#lsg-search-results a')).to_have_count(4)
                 assert page.locator('#lsg-search-results a').first.get_attribute('href') == '/readable-result/'
                 context.close()
-                # Offline before the first UI import is actionable; prepared reopening stays offline.
+                # Offline before the first UI import is actionable; reopening with fetched
+                # shards and chunks stays offline.
                 context = browser.new_context()
                 page = context.new_page()
                 page.goto(base + '/index.html')
@@ -305,6 +306,8 @@ def main():
                 context.set_offline(False)
                 page.locator('[data-lsg-search]').click()
                 expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                page.locator('#lsg-search-input').fill('needle')
+                expect(page.locator('#lsg-search-results a')).to_have_count(4)
                 page.keyboard.press('Escape')
                 context.set_offline(True)
                 page.locator('[data-lsg-search]').click()

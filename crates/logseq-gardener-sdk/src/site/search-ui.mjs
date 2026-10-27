@@ -1,4 +1,4 @@
-// Shared search controller. Corpus and query engine load only after an explicit open.
+// Shared search controller. The engine and search data load only after an explicit open.
 const revisionPattern = /^[a-f0-9]{16}$/u;
 const fail = () => { throw new Error('Search data is unavailable or from another publication. Retry, or reload this page.'); };
 function staticURL(href, base, origin) {
@@ -16,61 +16,87 @@ export function publicationFromLink(link, base, origin) {
   return Object.freeze({ revision, manifest: manifest.href, origin, key: manifest.href + ':' + revision });
 }
 
+// Loads the manifest, engine and title index on first use, then the shards each query
+// needs and the chunks of the rows it draws. Fetched files stay for the publication.
 export function createSearchLoader({ fetchFile = (...args) => fetch(...args), importEngine = url => import(url) } = {}) {
-  let current = null, cache = null, pending = null, controller = null, generation = 0;
+  let current = null, cache = null, pending = null, controller = null, generation = 0, parts = new Map();
   function cancel() {
     generation++;
     controller?.abort(); controller = null; pending = null;
+    // Unfinished shard and chunk fetches restart on the next query.
+    for (const [key, part] of parts) if (!part.done) parts.delete(key);
   }
   function setPublication(publication) {
     if (current?.key === publication?.key) return false;
-    cancel(); current = publication; cache = null;
+    cancel(); current = publication; cache = null; parts = new Map();
     return true;
   }
-  async function jsonFile(url, signal, bytes) {
+  async function textFile(url, signal) {
     const response = await fetchFile(url, { signal, redirect: 'error', credentials: 'same-origin', cache: 'no-cache' });
     if (!response.ok || (response.url && response.url !== url)) fail();
-    const source = await response.text();
-    if (bytes !== undefined && new TextEncoder().encode(source).length !== bytes) fail();
-    return JSON.parse(source);
+    return response.text();
+  }
+  function signal() {
+    controller ||= new AbortController();
+    const token = generation, active = controller.signal;
+    return { signal: active, check() { if (active.aborted || generation !== token) throw new DOMException('Search closed or publication changed', 'AbortError'); } };
   }
   function load() {
     if (!current) return Promise.reject(new Error('Search is unavailable on this page.'));
     if (cache) return Promise.resolve(cache);
     if (pending) return pending;
-    const publication = current, token = generation;
-    controller = new AbortController();
-    const signal = controller.signal;
-    const active = () => { if (signal.aborted || generation !== token) throw new DOMException('Search closed or publication changed', 'AbortError'); };
+    const publication = current, token = generation, run = signal();
     pending = (async () => {
-      const manifest = await jsonFile(publication.manifest, signal);
-      active();
-      if (manifest.format_version !== 1 || manifest.revision !== publication.revision ||
-          manifest.corpus?.href !== `lsg-search-${publication.revision}.json` ||
-          manifest.engine !== `lsg-search-engine-${publication.revision}.mjs` ||
-          !Number.isSafeInteger(manifest.corpus.bytes) || manifest.corpus.bytes <= 0 ||
-          !Number.isSafeInteger(manifest.corpus.records) || manifest.corpus.records < 0) fail();
-      const corpusURL = staticURL(manifest.corpus.href, publication.manifest, publication.origin);
+      const manifest = JSON.parse(await textFile(publication.manifest, run.signal));
+      run.check();
+      if (manifest?.format_version !== 2 || manifest.revision !== publication.revision ||
+          !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '')) fail();
       const engineURL = staticURL(manifest.engine, publication.manifest, publication.origin);
-      const corpus = await jsonFile(corpusURL.href, signal, manifest.corpus.bytes);
-      active();
       const engine = await importEngine(engineURL.href);
-      active();
-      const index = engine.prepareIndex(manifest, corpus, publication.revision);
-      active();
+      run.check();
+      const prepared = engine.prepareManifest(manifest, publication.revision);
+      const titles = await textFile(staticURL(engine.titlesFile(prepared), publication.manifest, publication.origin).href, run.signal);
+      run.check();
+      const index = engine.createIndex(prepared, titles);
       cache = Object.freeze({ engine, index, publication });
       return cache;
-    })().finally(() => { if (token === generation) { pending = null; controller = null; } });
+    })().finally(() => { if (token === generation) pending = null; });
     return pending;
   }
-  return { setPublication, load, cancel };
+  // Fetch each named file once; concurrent queries share the request.
+  function fetchParts(names, add) {
+    const { publication } = cache, run = signal();
+    return Promise.all(names.map(([key, name, number]) => {
+      if (!parts.has(key)) {
+        const part = { done: false };
+        part.promise = textFile(staticURL(name, publication.manifest, publication.origin).href, run.signal)
+          .then(source => { run.check(); add(number, source); part.done = true; })
+          .catch(problem => { if (parts.get(key) === part) parts.delete(key); throw problem; });
+        parts.set(key, part);
+      }
+      return parts.get(key).promise;
+    })).then(() => run.check());
+  }
+  /** Load the shards `input` needs into the cached index. */
+  function shards(input) {
+    const { engine, index } = cache;
+    return fetchParts(engine.missingShards(index, input).map(key => ['shard:' + key, engine.shardFile(index.manifest, key), key]),
+      (key, source) => engine.addShard(index, key, source));
+  }
+  /** Load the chunks that hold these block numbers into the cached index. */
+  function chunks(blocks) {
+    const { engine, index } = cache;
+    return fetchParts(engine.missingChunks(index, blocks).map(n => ['chunk:' + n, engine.chunkFile(index.manifest, n), n]),
+      (n, source) => engine.addChunk(index, n, source));
+  }
+  return { setPublication, load, shards, chunks, cancel };
 }
 
 export function installSearch(window, document) {
   if (window.logseqGardenerInitSearch) { window.logseqGardenerInitSearch(); return; }
   const loader = createSearchLoader();
   let publication = null, resolvePage = null, dialog = null, input, status, list, retry, reload;
-  let invoker = null, restore = true, prepared = null, task = 0, timer = null, completion = 0;
+  let invoker = null, restore = true, prepared = null, task = 0, timer = null, completion = 0, evaluation = 0;
   const triggerSelector = '[data-lsg-search]';
   const supported = () => typeof window.HTMLDialogElement?.prototype.showModal === 'function';
   const controls = () => [...document.querySelectorAll(triggerSelector)];
@@ -138,23 +164,36 @@ export function installSearch(window, document) {
     dialog.setAttribute('data-lsg-search-state', 'ready');
     list.setAttribute('data-lsg-search-complete', String(++completion));
   }
+  // Rows drawn per query until the grouped dialog replaces this list.
+  const ROWS = 20;
+  // Queries whose shards and chunks are loaded draw at once; otherwise the missing files
+  // load first and the query runs again, unless a newer one replaced it.
   function evaluate() {
     window.cancelAnimationFrame(timer); timer = null;
     if (!dialog?.open || !prepared) return;
+    const token = ++evaluation, data = prepared, value = input.value, { engine, index } = data;
+    const again = () => { if (token === evaluation && prepared === data) evaluate(); };
+    const failed = problem => { if (token === evaluation && prepared === data && dialog.open && problem.name !== 'AbortError') error(); };
+    if (engine.missingShards(index, value).length) { loader.shards(value).then(again, failed); return; }
+    const outcome = engine.query(index, value);
+    if (outcome.error) { clearResults(); announce('Use up to 256 characters and 16 distinct words.'); complete(); return; }
+    const rows = [...outcome.pages.results, ...outcome.blocks.results].slice(0, ROWS);
+    const blocks = rows.filter(row => row.kind === 'block').map(row => row.block);
+    if (engine.missingChunks(index, blocks).length) { loader.chunks(blocks).then(again, failed); return; }
     clearResults();
-    const outcome = prepared.engine.query(prepared.index, input.value);
-    if (outcome.error) { announce('Use up to 256 characters and 16 distinct words.'); complete(); return; }
-    for (const result of outcome.results) {
+    const route = resolvePage || ((_title, href) => new URL(href, publication.manifest).href);
+    for (const result of rows) {
+      const row = result.kind === 'block' ? engine.blockRow(index, result.block) : result;
       const item = make('li');
-      const link = make('a', { href: prepared.engine.resolveResult(result,
-        resolvePage || ((_title, href) => new URL(href, publication.manifest).href)) });
-      link.append(make('span', { class: 'lsg-search-result-title' }, result.title));
-      if (result.ancestors.length) link.append(make('span', { class: 'lsg-search-context' }, result.ancestors.join(' › ')));
-      if (result.text) link.append(make('span', { class: 'lsg-search-snippet' }, result.text));
+      const link = make('a', { href: engine.resolveResult(row, route) });
+      link.append(make('span', { class: 'lsg-search-result-title' }, row.alias || row.title));
+      if (row.alias) link.append(make('span', { class: 'lsg-search-context' }, `alias of ${row.title}`));
+      if (row.parents?.length) link.append(make('span', { class: 'lsg-search-context' }, row.parents.join(' › ')));
+      if (row.text) link.append(make('span', { class: 'lsg-search-snippet' }, engine.snippet(row.text, value)));
       item.append(link); list.append(item);
     }
-    announce(!input.value.trim() ? 'Type to search published pages and notes.'
-      : outcome.results.length ? `${outcome.results.length} results shown.` : 'No results.');
+    announce(!value.trim() ? 'Type to search published pages and notes.'
+      : rows.length ? `${rows.length} results shown.` : 'No results.');
     complete();
   }
   async function load() {

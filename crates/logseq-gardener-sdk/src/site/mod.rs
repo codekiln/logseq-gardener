@@ -13,7 +13,7 @@ mod references;
 mod render;
 mod search;
 mod sequence;
-pub use search::SearchOptions;
+pub use crate::search::SearchOptions;
 mod shell;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -172,14 +172,8 @@ fn fresh_destination(root: &Path, output: &Path) -> Result<PathBuf, SiteError> {
 
 // Fixed routes avoid filename limits and title-derived path components. Check
 // collisions separately; this digest is a deterministic identifier, not a secret.
-fn digest(value: &str) -> String {
-    let mut hash = 0xcbf29ce484222325_u64;
-    for byte in value.as_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    format!("{hash:016x}")
-}
+// The same digest names search files.
+use crate::search::digest;
 
 fn stylesheet_contents(path: &Path) -> Result<Vec<u8>, SiteError> {
     let invalid = |reason| SiteError::InvalidStylesheet {
@@ -710,14 +704,7 @@ pub fn publish_site_with_options(
     documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());
     documents.insert(references::SCRIPT_ROUTE.to_owned(), references::script());
     if let Some(search) = search {
-        let artifacts = search.artifacts();
-        let manifest_route = artifacts
-            .keys()
-            .find(|route| route.starts_with("lsg-search-manifest-"))
-            .expect("search manifest");
-        let manifest: serde_json::Value =
-            serde_json::from_str(&artifacts[manifest_route]).expect("search manifest JSON");
-        let revision = manifest["revision"].as_str().expect("revision");
+        let (artifacts, manifest_route, revision) = search.artifacts();
         let controller = include_str!("search-ui.mjs");
         let controller_route = format!("lsg-search-ui-{}.mjs", digest(controller));
         let startup = include_str!("search-start.mjs")
