@@ -1,5 +1,7 @@
 """Paths, title matching and routes shared by the parity tasks."""
+import html
 import html.parser
+import json
 import os
 import re
 import subprocess
@@ -92,13 +94,32 @@ def lsg_pages(index_html):
     return parser.links
 
 
+LIST_SRC = re.compile(r'data-list-src="([^"]+)"')
+
+
+def lsg_list(list_json):
+    """Map each title in an All pages data file to its page file.
+
+    Rows are [title, route, kind, ...]; a null route is the usual lsg_route(title).
+    """
+    return {row[0]: row[1] or lsg_route(row[0]) for row in json.loads(list_json)}
+
+
 def lsg_index(site):
-    """Map normalized titles to (title, file) for an lsg site directory."""
+    """Map normalized titles to (title, file) for an lsg site directory.
+
+    pages.html holds only the table's first rows, so read every title from the data file it names.
+    """
     site = Path(site)
     index = site / 'pages.html'
     if not index.exists():
         index = site / 'index.html'
-    return {normalize(t): (t, f) for t, f in lsg_pages(index.read_text(encoding='utf-8')).items()}
+    index_html = index.read_text(encoding='utf-8')
+    pages = lsg_pages(index_html)
+    source = LIST_SRC.search(index_html)
+    if source and (site / html.unescape(source.group(1))).exists():
+        pages.update(lsg_list((site / html.unescape(source.group(1))).read_text(encoding='utf-8')))
+    return {normalize(t): (t, f) for t, f in pages.items()}
 
 
 def lsg_route(title):

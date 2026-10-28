@@ -63,6 +63,22 @@ class TitleMappingTest(unittest.TestCase):
             'My Notes/Q & A': 'p-22ec7f0ad9df5075.html',
         })
 
+    def test_lsg_index_reads_the_all_pages_data_file(self):
+        with tempfile.TemporaryDirectory() as site:
+            (Path(site) / '_pages').mkdir()
+            (Path(site) / 'pages.html').write_text(
+                '<div class="all-pages" data-list-src="_pages/list.json"><table><tbody>'
+                '<tr><td><a href="p-07f89207b4ba08a4.html">tmux</a></td></tr></tbody></table></div>',
+                encoding='utf-8')
+            (Path(site) / '_pages' / 'list.json').write_text(
+                '[["tmux",null,"p",3,null,null],["My Notes",null,"n",0,null,null],'
+                '["Renamed","p-0000000000000001.html","p",0,null,null]]', encoding='utf-8')
+            self.assertEqual(common.lsg_index(site), {
+                'tmux': ('tmux', common.lsg_route('tmux')),
+                'my notes': ('My Notes', common.lsg_route('My Notes')),
+                'renamed': ('Renamed', 'p-0000000000000001.html'),
+            })
+
     def test_targets(self):
         index = {'tmux': ('tmux', 'p-1.html')}
         self.assertEqual(serve.targets('Tmux', {'tmux'}, index), {'logseq': '#/page/tmux', 'lsg': 'p-1.html'})
