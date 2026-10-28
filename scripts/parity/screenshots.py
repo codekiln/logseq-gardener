@@ -81,6 +81,33 @@ def capture_slides(browser, site_url, route, out):
         context.close()
 
 
+def capture_sidebar(browser, site_url, site, route, out):
+    """Capture lsg's tmux at 1280 by 800 with a page card, a block card and a Block references card open."""
+    context = browser.new_context(viewport=VIEWPORTS['desktop'], color_scheme='light')
+    page = context.new_page()
+    try:
+        page.goto(site_url + route)
+        page.wait_for_selector('h1', timeout=TITLE_TIMEOUT_MS)
+        found = page.evaluate(common.SIDEBAR_TARGETS, [common.block_ref_href(site, [route]), 1])
+        marks = [mark for mark, present in (('page-0', found['pages']), ('block', found['block']),
+                                            ('refs', found['refs'])) if present]
+        for count, mark in enumerate(marks, 1):
+            page.click(f'[data-parity-sidebar="{mark}"]', modifiers=['Shift'])
+            page.wait_for_function(f"document.querySelectorAll('.lsg-right-cards .lsg-card-page').length >= {count}",
+                                   timeout=TITLE_TIMEOUT_MS)
+        # Clicking the added block reference scrolled the page to its end.
+        page.evaluate('''() => {
+            document.querySelector('[data-parity-sidebar=refs]')?.remove();
+            for (let node = document.querySelector('main'); node; node = node.parentElement) node.scrollTop = 0;
+            window.scrollTo(0, 0);
+        }''')
+        page.wait_for_timeout(500)
+        page.screenshot(path=str(out / 'sidebar-desktop-lsg.png'))
+        return ['sidebar-desktop-lsg.png']
+    finally:
+        context.close()
+
+
 def index_page(rows):
     parts = ['<!doctype html><meta charset="utf-8"><title>Parity screenshots</title>',
              '<style>body{font-family:system-ui;margin:16px}section{margin-bottom:48px}'
@@ -106,6 +133,8 @@ def main():
                         help='desktop (1280 by 800), phone (390 by 844) or all (default)')
     parser.add_argument('--slides', action='store_true',
                         help=f'capture only the View as slides deck of {SLIDES_PAGE} in the lsg build')
+    parser.add_argument('--sidebar', action='store_true',
+                        help=f'capture only {common.SIDEBAR_PAGE} with a page, block and Block references card open in the lsg build')
     args = parser.parse_args()
     from playwright.sync_api import sync_playwright
 
@@ -117,6 +146,15 @@ def main():
         with serve.Server(run / 'site') as lsg, sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             for image in capture_slides(browser, lsg.url, route, out):
+                print(out / image)
+            browser.close()
+        return
+    if args.sidebar:
+        out = run / 'screenshots'
+        out.mkdir(exist_ok=True)
+        with serve.Server(run / 'site') as lsg, sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            for image in capture_sidebar(browser, lsg.url, run / 'site', common.lsg_route(common.SIDEBAR_PAGE), out):
                 print(out / image)
             browser.close()
         return

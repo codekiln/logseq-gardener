@@ -7,6 +7,7 @@
 import argparse
 import contextlib
 import gzip
+import html
 import json
 import math
 import re
@@ -1118,6 +1119,132 @@ def slides_markdown(rows, budgets):
     return lines
 
 
+PAGE_TITLE = re.compile(r'<title>([^<]*)</title>')
+SIDEBAR_CLICK = '''document.addEventListener('click', event => {
+  if (event.shiftKey) window.__parityClick = performance.now();
+}, true);'''
+SIDEBAR_CARDS = "document.querySelectorAll('.lsg-right-cards .lsg-card-page').length"
+
+
+def measure_sidebar(browser, url, site, ref_href):
+    """On SIDEBAR_PAGE at 1280 by 800, Shift-click a page link, a bullet, a block reference and then
+    SIDEBAR_PAGE_CARDS more page links: the time from each click to the card's outline, the page files
+    each card fetched (gzip size on disk), and the JS heap after the last card, after garbage collection."""
+    timeout = PROFILES['desktop']['timeout_ms']
+    context, page, cdp = open_page(browser, 'desktop', 'h1')
+    context.add_init_script(SIDEBAR_CLICK)
+    try:
+        page.goto(url, wait_until='load', timeout=timeout)
+        page.wait_for_timeout(300)
+        found = page.evaluate(common.SIDEBAR_TARGETS, [ref_href, common.SIDEBAR_PAGE_CARDS + 1])
+        order = ['page-0', *(['block'] if found['block'] else []), *(['refs'] if found['refs'] else []),
+                 *(f'page-{n}' for n in range(1, len(found['pages'])))]
+        cards = []
+        for count, mark in enumerate(order, 1):
+            before = page.evaluate("performance.getEntriesByType('resource').length")
+            page.click(f'[data-parity-sidebar="{mark}"]', modifiers=['Shift'])
+            page.wait_for_function(f'{SIDEBAR_CARDS} >= {count}', timeout=timeout, polling='raf')
+            ms = page.evaluate('new Promise(done => requestAnimationFrame(() => '
+                               'done(performance.now() - window.__parityClick)))')
+            fetched = page.evaluate(f"performance.getEntriesByType('resource').slice({before})"
+                                    ".map(e => new URL(e.name).pathname.split('/').pop())"
+                                    ".filter(name => /^p-[0-9a-f]+\\.html$/.test(name))")
+            title = page.evaluate("document.querySelector('.lsg-right-cards .lsg-card .lsg-card-title')"
+                                  "?.textContent.trim() ?? ''")
+            transfer = sum(metrics.gzip_size((site / name).read_bytes()) for name in set(fetched)
+                           if (site / name).exists())
+            cards.append({'type': 'page' if mark.startswith('page') else mark, 'title': title,
+                          'ms': ms, 'transfer': transfer})
+        return {'profile': 'desktop', 'cards': cards,
+                'p95_ms': metrics.percentile([card['ms'] for card in cards], 0.95),
+                'heap': collect_garbage(cdp)}
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'profile': 'desktop', 'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def oversized_cards(site, limit_kb):
+    """Published pages whose gzip size, the transfer of a card for them, exceeds limit_kb."""
+    found = []
+    for path in sorted(Path(site).glob('p-*.html')):
+        data = path.read_bytes()
+        size = metrics.gzip_size(data)
+        if size > limit_kb * 1000:
+            title = PAGE_TITLE.search(data.decode('utf-8'))
+            found.append((size, html.unescape(title.group(1)) if title else path.name))
+    return sorted(found, reverse=True)
+
+
+def sidebar_markdown(row, sizes, budgets):
+    """The right sidebar section of docs/parity/performance.md."""
+    limits = budgets.get('sidebar', {})
+    lines = ['', f'## Right sidebar on {common.SIDEBAR_PAGE}', '',
+             f'On `{common.SIDEBAR_PAGE}` at 1280 by 800, with a cleared sidebar: Shift-click a page link, the first '
+             'bullet, a block reference and then the next '
+             f'{common.SIDEBAR_PAGE_CARDS} distinct page links, one after another, each timed from the click to the '
+             "card's outline drawn; the first click includes loading `lsg-sidebar.js`. `tmux` has no block reference, "
+             'so `parity:perf` adds a link to the first one it finds in the build. Transfer is the gzip size of the '
+             'page files a card fetched; the heap is measured after the last card and garbage collection. Below '
+             '640px there is no sidebar, so there is no phone row. **Bold** marks a value over its `[sidebar]` budget.',
+             '']
+    if 'error' in row:
+        return lines + [f"Not measured: {row['error']}"]
+    cards = row['cards']
+    largest = max(card['transfer'] for card in cards) / 1000
+    p95 = _marked(f"{row['p95_ms']:,.0f}", row['p95_ms'], limits.get('card_ms_desktop'))
+    heap = row['heap'] / 1e6
+    lines += ['| Profile | Cards | Shift-click to card, p95 (ms) | JS heap after the cards (MB) '
+              '| `lsg-sidebar.js` (KB, gzip) | Largest card transfer (KB, gzip) |',
+              '| --- | ---: | ---: | ---: | ---: | ---: |',
+              f"| {row['profile']} | {len(cards)} | {p95} | {_marked(f'{heap:,.1f}', heap, limits.get('ten_cards_heap_mb'))} "
+              f"| {sizes['script'] / 1000:,.1f} "
+              f"| {_marked(f'{largest:,.1f}', largest, limits.get('card_fetch_gzip_kb'))} |",
+              '', '| Card | Type | Shift-click to card (ms) | Transfer (KB, gzip) |', '| --- | --- | ---: | ---: |']
+    for card in cards:
+        ms = _marked(f"{card['ms']:,.0f}", card['ms'], limits.get('card_ms_desktop'))
+        kb = card['transfer'] / 1000
+        transfer = _marked(f'{kb:,.1f}', kb, limits.get('card_fetch_gzip_kb'))
+        title = card['title'].replace('|', r'\|')
+        lines.append(f"| {title} | {card['type']} | {ms} | {transfer} |")
+    over = sizes['oversized']
+    if over:
+        names = ', '.join(f'`{title}` ({size / 1000:,.1f} KB gzip)' for size, title in over)
+        lines += ['', f"{len(over)} published page{'s' if len(over) > 1 else ''} exceed the "
+                  f"{limits.get('card_fetch_gzip_kb')} KB card transfer budget as cards and as pages: {names}. "
+                  'Their content, not the shell, makes up the size.']
+    return lines
+
+
+def measure_sidebar_run(args, sync_playwright):
+    """Measure the right sidebar in a parity run's site; with --record, replace its section of
+    docs/parity/performance.md."""
+    budgets = metrics.load_budgets()
+    site = common.latest_run(args.run) / 'site'
+    route = common.lsg_route(common.SIDEBAR_PAGE)
+    script = site / budgets_check.SIDEBAR_SCRIPT
+    sizes = {'script': metrics.gzip_size(script.read_bytes()) if script.exists() else 0,
+             'oversized': oversized_cards(site, budgets.get('sidebar', {}).get('card_fetch_gzip_kb', 60))}
+    with serve.Server(site) as lsg, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
+        row = measure_sidebar(browser, lsg.url + route, site, common.block_ref_href(site, [route]))
+        print(json.dumps(row, ensure_ascii=False), flush=True)
+        browser.close()
+    block = '\n'.join(sidebar_markdown(row, sizes, budgets))
+    print(block)
+    if args.record:
+        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+        heading = f'\n## Right sidebar on {common.SIDEBAR_PAGE}'
+        start = text.find(heading)
+        if start >= 0:
+            end = text.find('\n## ', start + 1)
+            text = text[:start] + block + '\n' + (text[end:] if end >= 0 else '')
+        else:
+            slides = text.find('\n## View as slides')
+            text = text[:slides] + block + '\n' + text[slides:] if slides >= 0 else text.rstrip('\n') + '\n' + block + '\n'
+        PERFORMANCE_DOC.write_text(text, encoding='utf-8')
+
+
 MEDIA_PAGES = ['Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs',
                'AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025']
 MEDIA_WAIT_MS = 40_000
@@ -1391,6 +1518,9 @@ def main():
     parser.add_argument('--media', action='store_true',
                         help="measure only the video pages in the run's site; with --record, replace their "
                              'section of docs/parity/performance.md')
+    parser.add_argument('--sidebar', action='store_true',
+                        help=f"measure only the right sidebar on {common.SIDEBAR_PAGE} in the run's site; with --record, "
+                             'replace its section of docs/parity/performance.md')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -1407,6 +1537,9 @@ def main():
         return
     if args.media:
         measure_media_run(args, sync_playwright)
+        return
+    if args.sidebar:
+        measure_sidebar_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)
