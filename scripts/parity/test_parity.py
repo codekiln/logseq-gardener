@@ -173,7 +173,10 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
-                                       'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph'})
+                                       'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph',
+                                       'slides'})
+        self.assertEqual(set(loaded['slides']), {'script_gzip_kb', 'open_ms_desktop', 'step_ms_desktop', 'deck_heap_mb'})
+        self.assertEqual(loaded['shell']['script_kb'], 6.6)
         self.assertEqual(set(loaded['graph']), {'data_gzip_kb', 'script_kb', 'worker_kb', 'first_frame_ms_desktop',
                                                 'first_frame_ms_phone', 'heap_mb', 'frame_ms_phone',
                                                 'page_graph_fragment_gzip_kb', 'page_graph_open_ms_desktop',
@@ -290,7 +293,7 @@ class GraphTest(unittest.TestCase):
             self.assertTrue(any('tmux.html: loads graph data' in f for f in failures))
 
     def test_lsg_route_matches_the_publisher(self):
-        self.assertEqual(perf.lsg_route('tmux'), 'p-424036ef4353ec8f.html')
+        self.assertEqual(common.lsg_route('tmux'), 'p-424036ef4353ec8f.html')
 
     def test_graph_markdown_marks_values_over_budget(self):
         report = {
@@ -325,6 +328,17 @@ class BudgetCheckTest(unittest.TestCase):
             (site / 'p-2.html').write_text('<script src="lsg-sidebar.js"></script>', encoding='utf-8')
             failures = budgets.check_sidebar(site, ['p-1.html', 'p-2.html'], limits)
         self.assertEqual(failures, ['p-2.html: requests lsg-sidebar.js before the sidebar is used'])
+
+    def test_slides(self):
+        limits = {'script_gzip_kb': 6}
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            self.assertEqual(budgets.check_slides(site, [], limits), ['lsg-slides.js: missing from the build'])
+            (site / 'lsg-slides.js').write_text('x', encoding='utf-8')
+            (site / 'p-1.html').write_text('<button data-lsg-slides>View as slides</button>', encoding='utf-8')
+            (site / 'p-2.html').write_text('<script src="lsg-slides.js"></script>', encoding='utf-8')
+            failures = budgets.check_slides(site, ['p-1.html', 'p-2.html'], limits)
+        self.assertEqual(failures, ['p-2.html: requests lsg-slides.js before a Slides card renders'])
 
     def test_page_grows_with_garden(self):
         failures = budgets.check({'p-1.html': (20_000, 5_000, 8_000)}, {'p-1.html': (20_500, 5_100, 8_000)},

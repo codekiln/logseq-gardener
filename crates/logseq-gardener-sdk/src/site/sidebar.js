@@ -1,6 +1,6 @@
 // Logseq's right sidebar: cards for pages and blocks beside the current page. lsg-shell.js
-// loads this file on first use and passes it each request: 'toggle', 'contents', 'restore'
-// or a Shift-click event. Cards fetch published page files; nothing loads before use.
+// loads this file on first use and passes it each request: 'toggle', 'contents', 'restore',
+// {type: 'slides'} from View as slides, or a Shift-click event. Cards fetch published page files; nothing loads before use.
 (() => {
   if (window.logseqGardenerSidebar) return;
   const KEY = 'logseq-gardener-right-sidebar';
@@ -21,6 +21,7 @@
     refs: 'M9 6l11 0M9 12l11 0M9 18l11 0M5 6l0 .01M5 12l0 .01M5 18l0 .01',
     contents: 'M9 6l11 0M9 12l11 0M9 18l11 0M5 6l0 .01M5 12l0 .01M5 18l0 .01',
     graph: 'M10 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M3 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M17 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M6.5 17.5 12 13l5.5 4.5M12 7v6',
+    slides: 'M3 4l18 0M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10M12 16l0 4M9 20l6 0M8 12l3 -3l2 2l3 -3',
     help: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M12 17l0 .01M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4',
     chevron: 'M6 9l6 6l6 -6',
     dots: 'M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0',
@@ -129,19 +130,32 @@
   const routeOf = card => card.type === 'contents' ? toggle()?.getAttribute('data-lsg-contents') : card.route;
   const emptyOutline = () => el('ul', { class: 'outline' }, el('li', {}, el('a', { class: 'bullet', href: '#' })));
 
-  // What a card shows: {title, icon, body}. A missing page says so.
-  let graphScript;
+  // What a card shows: {title, icon, body, focus}. A missing page says so.
+  // Scripts a card type needs, loaded with its first card.
+  const scripts = {};
+  const script = name => scripts[name] ||= new Promise(done => document.head.append(Object.assign(document.createElement('script'), { src: new URL(name, base).href, onload: done, onerror: done })));
+  let focusDeck = false;
   async function content(card) {
     if (card.type === 'help') return { title: 'Help', body: help() };
     // The Page graph draws with lsg-graph.js, loaded when the first card opens.
     if (card.type === 'graph') {
       const body = el('div', { class: 'lsg-page-graph' });
-      graphScript ||= new Promise(done => document.head.append(Object.assign(document.createElement('script'), { src: new URL('lsg-graph.js', base).href, onload: done, onerror: done })));
-      await graphScript;
+      await script('lsg-graph.js');
       window.logseqGardenerGraph?.page(body);
       return { title: 'Page graph', body };
     }
     const route = routeOf(card);
+    // A deck reads the page's outline: the live one for the current page unless a block
+    // is zoomed, otherwise the published page file. lsg-slides.js draws the card's body.
+    if (card.type === 'slides') {
+      const doc = route === current() && !document.querySelector('main[data-lsg-zoomed]') ? document : route && await page(route);
+      if (!doc) return { missing: true };
+      await script('lsg-slides.js');
+      const body = window.logseqGardenerSlides?.(doc.querySelector('main>ul.outline')) ?? '';
+      const focus = focusDeck && body && body.querySelector('.reveal');
+      focusDeck = false;
+      return { title: el('a', { href: route }, titleOf(doc)), body, route, focus };
+    }
     const doc = route && await page(route);
     if (!doc) {
       if (card.type === 'contents') return { title: 'Contents', body: el('div', { class: 'lsg-card-page' }, emptyOutline()) };
@@ -228,6 +242,7 @@
     title.replaceChildren(shown.title);
     if (shown.icon) section.querySelector('.lsg-card-icon').replaceChildren(shown.icon);
     body.replaceChildren(shown.body);
+    if (shown.focus) shown.focus.focus();
     window.logseqGardenerInitReferences?.(body);
     window.logseqGardenerInitTheme?.(body);
   }
@@ -283,7 +298,7 @@
     return [
       [['Close', () => remove([card])], many && ['Close others', () => remove(others())], many && ['Close all', () => remove([...state.cards])]],
       [[card.collapsed ? 'Expand' : 'Collapse', () => collapse([card], !card.collapsed)], many && ['Collapse others', () => collapse(others(), true)], many && ['Collapse all', () => collapse(state.cards, true)], many && ['Expand all', () => collapse(state.cards, false)]],
-      [(card.type === 'page' || card.type === 'contents') && routeOf(card) && ['Open as page', () => location.assign(new URL(routeOf(card), base))]],
+      [(card.type === 'page' || card.type === 'contents' || card.type === 'slides') && routeOf(card) && ['Open as page', () => location.assign(new URL(routeOf(card), base))]],
     ].map(group => group.filter(Boolean)).filter(group => group.length);
   }
   function closeMenu(focus = true) {
@@ -416,6 +431,14 @@
     if (!desktop()) return;
     if (request === 'toggle') { state.open = !state.open; render(); return; }
     if (request === 'restore') { render(); return; }
+    if (request?.type === 'slides') {
+      const card = { type: 'slides', route: current() };
+      focusDeck = true;
+      add(card);
+      const deck = sections.get(keyOf(card)).querySelector('.reveal');
+      if (deck) { focusDeck = false; deck.focus(); }
+      return;
+    }
     if (request === 'contents') {
       const has = state.cards.find(card => card.type === 'contents');
       if (has && state.open) remove([has]);

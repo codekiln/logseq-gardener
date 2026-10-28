@@ -171,6 +171,12 @@ Each card has a header that collapses it, a Card menu (close, collapse and expan
 
 The behaviour is in `lsg-sidebar.js` and `lsg-sidebar.css`, which load the first time a reader uses the sidebar, or after the page loads when the sidebar was left open. Cards fetch the published page files. Below 640px there is no sidebar, and Shift-click follows the link.
 
+## View as slides
+
+On a page or journal page, from 640px wide, More starts with View as slides. It adds a Slides card for the page to the top of the right sidebar: each top-level block is a column, and the block and then each of its descendants is a slide below it. Blocks that show nothing make no slide. The deck takes keyboard focus, so the arrow keys (or `h j k l`) move between slides, `n` and Space step through the whole deck, `g` jumps to a slide number or `column/slide`, `o` or Escape shows every slide, `b` blacks the deck out and `f` toggles fullscreen. A block's `background-image::`, `background-color::`, `transition::` and `data-*` properties apply to its slide, as in Logseq.
+
+`lsg-slides.js` loads with the first Slides card and holds the deck's styles. It builds the deck from the page's own outline and keeps only the current slide and its neighbours in the document, so images on distant slides load when the reader gets near them.
+
 ## Graph view
 
 `graph.html` draws every page as a node and every page reference, tag and namespace parent as an edge, as Logseq's graph view does. The header's Graph link and the sidebar's Graph view item open it; they carry Logseq's classes (`cp__header` on the header, `graph-view-nav` on the item), so a stylesheet written to hide Logseq's entry points hides these too. Pages that exist only because a published page names them are nodes that open nothing. Pages that are not published never appear.

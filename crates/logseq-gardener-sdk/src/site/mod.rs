@@ -771,6 +771,7 @@ pub fn publish_site_with_options(
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
     documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());
     documents.insert(shell::SIDEBAR_ROUTE.to_owned(), shell::sidebar_script());
+    documents.insert(shell::SLIDES_ROUTE.to_owned(), shell::slides_script());
     documents.insert(
         shell::SIDEBAR_STYLES_ROUTE.to_owned(),
         shell::SIDEBAR_STYLES.to_owned(),

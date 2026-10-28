@@ -253,9 +253,9 @@ fn explicit_inputs_legacy_format_and_empty_selection() {
     let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
     assert_eq!(report["pages"], 0);
     // The index page, the page list, the shell, outline, references and All pages scripts,
-    // the right sidebar's script and styles, and the graph view's page, script, worker,
-    // styles and data file.
-    assert_eq!(files(&f.0.join("empty")).len(), 13);
+    // the right sidebar's script and styles, the View as slides script, and the graph view's
+    // page, script, worker, styles and data file.
+    assert_eq!(files(&f.0.join("empty")).len(), 14);
     let output = f.0.join("legacy");
     let result = Command::new(env!("CARGO_BIN_EXE_lsg"))
         .arg("publish")

@@ -15,3 +15,15 @@ Each card header SHALL be a button with `aria-expanded` and `aria-controls` hold
 #### Scenario: Slides card menu
 - **WHEN** the sidebar holds only a Slides card for `tmux` and a reader opens its menu
 - **THEN** the menu lists Close, Collapse and Open as page, and Open as page opens `tmux` in the main column
+
+### Requirement: Keep the right sidebar within budgets
+
+The sidebar's behaviour beyond the shell hook SHALL ship as one `lsg-sidebar.js` at the site root, loaded on the reader's first use or, with a saved open sidebar, after the page's `load` event. The comparison harness SHALL check, on the whole encode garden: every fixture page's first paint unchanged apart from the toggle button and within the `[desktop]` and `[phone]` budgets; `lsg-sidebar.js` at most 6.5 KB gzip; Shift-click to a card's outline at p95 within 300 ms desktop and 1,500 ms phone; one card's transfer at most 60 KB gzip; and a peak phone heap of at most 20 MB after ten cards. `parity:budgets` SHALL check the size budgets in CI.
+
+#### Scenario: No script before use
+- **WHEN** a reader with no saved sidebar opens `tmux` and does not use the sidebar
+- **THEN** `lsg-sidebar.js` and no other page's file are requested
+
+#### Scenario: Largest card
+- **WHEN** a reader adds a card for `Person`
+- **THEN** the card's transfer is at most 60 KB gzip

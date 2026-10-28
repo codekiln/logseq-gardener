@@ -232,23 +232,32 @@ impl Outline {
     }
 }
 
-/// A property of the bullet at `index`, from the block after it, or after its quote
-/// when the bullet's content is a quote (`- > …` with `id::` on the next line).
-pub(crate) fn bullet_property<'a>(source: &'a [Block], index: usize, key: &str) -> Option<&'a str> {
+/// Every property of the bullet at `index`, in source order, from the block after it, or
+/// after its quote when the bullet's content is a quote (`- > …` with `id::` on the next
+/// line). Published pages show none of them as rows; callers choose which to use.
+pub fn bullet_properties(
+    source: &[Block],
+    index: usize,
+) -> impl DoubleEndedIterator<Item = (&str, &str)> {
     let next = match (source.get(index), source.get(index + 1)) {
         (Some(Block::Bullet { inline, .. }), Some(Block::Quote { .. })) if inline.is_empty() => {
             index + 2
         }
         _ => index + 1,
     };
-    let Some(Block::Properties { props, .. }) = source.get(next) else {
-        return None;
+    let props = match source.get(next) {
+        Some(Block::Properties { props, .. }) => props.as_slice(),
+        _ => &[],
     };
-    props
-        .iter()
+    props.iter().map(|p| (p.0.trim(), p.1.trim()))
+}
+
+/// A property of the bullet at `index`; the last value wins when a key repeats.
+pub(crate) fn bullet_property<'a>(source: &'a [Block], index: usize, key: &str) -> Option<&'a str> {
+    bullet_properties(source, index)
         .rev()
-        .find(|p| p.0.trim().eq_ignore_ascii_case(key))
-        .map(|p| p.1.trim())
+        .find(|p| p.0.eq_ignore_ascii_case(key))
+        .map(|p| p.1)
 }
 
 pub(crate) fn uuid(value: &str) -> Option<String> {

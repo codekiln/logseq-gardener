@@ -18,7 +18,7 @@ The deck SHALL have one column per top-level block of the page's outline. A colu
 
 #### Scenario: AI Engineer Summit columns
 - **WHEN** the AI Engineer Summit deck opens
-- **THEN** it has 5 columns holding 17, 6, 34, 7 and 9 slides, and the fourth slide of the first column is the `flash back` block with its image
+- **THEN** it has 8 columns holding 17, 6, 34, 7, 1, 22, 18 and 1 slides, and the fourth slide of the first column is the `flash back` block with its image
 
 #### Scenario: Journal page
 - **WHEN** a reader opens slides on `2026-10-23 Fri`
@@ -58,7 +58,7 @@ The deck SHALL have four arrow controls with the accessible names `previous slid
 
 #### Scenario: Keyboard path to the flash back slide
 - **WHEN** a reader opens the AI Engineer Summit deck and presses Down three times
-- **THEN** the `flash back` slide shows, the fourth of 73, and the progress bar is 3/72 of the deck's width
+- **THEN** the `flash back` slide shows, the fourth of 106, and the progress bar is 3/105 of the deck's width
 
 #### Scenario: Right returns to the top
 - **WHEN** a reader on the third slide of the first column presses Right

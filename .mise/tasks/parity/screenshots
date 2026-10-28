@@ -2,10 +2,12 @@
 #MISE description="Save full-page screenshots of the fixture pages from both builds, side by side"
 #USAGE flag "--run <path>" help="Run directory from parity:build and parity:compare (default: the latest)"
 #USAGE flag "--fixtures <path>" help="Fixture list, one page title per line"
+#USAGE flag "--slides" help="Capture only lsg's View as slides deck, on its first slide and in fullscreen"
 set -euo pipefail
 args=()
 if [ -n "${usage_run:-}" ]; then args+=(--run "$usage_run"); fi
 if [ -n "${usage_fixtures:-}" ]; then args+=(--fixtures "$usage_fixtures"); fi
+if [ "${usage_slides:-false}" = "true" ]; then args+=(--slides); fi
 echo "Checking Playwright's Chromium (downloaded on first use)"
 uv run --quiet --script scripts/parity/screenshots.py --help > /dev/null
 uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell

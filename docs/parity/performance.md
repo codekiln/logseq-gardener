@@ -147,6 +147,14 @@ Shift-click on each of the first ten distinct page links on `tmux`, one after an
 
 Two pages exceed the 60 KB card transfer budget as cards and as pages: `Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton` (81.9 KB gzip) and `Ableton/Live/UG/29 Audio Effect Reference` (62.1 KB gzip). Their content, not the shell, makes up the size.
 
+## View as slides
+
+On `AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025` at 1280 by 800: the time from choosing View as slides to the first slide drawn, 95th percentile of 5 fresh windows; the 95th-percentile time from a key to the next slide drawn while stepping through every slide; and the JS heap after that walk, less the heap before opening the deck, both after garbage collection. Phones have no right sidebar and so no Slides card. **Bold** marks a value over its `[slides]` budget.
+
+| Profile | Slides | Open (ms) | Step, 95th percentile (ms) | Heap growth (MB) | Slides in the document | `lsg-slides.js` (KB, transfer) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| desktop | 106 | 83 | 13.9 | 1.5 | 2 | 4.5 |
+
 ## Graph view
 
 From navigating to `graph.html` (Logseq: `#/graph`) to the first frame with every node of the default view drawn; the 95th-percentile frame time while dragging the background; and the peak JS heap after the first frame, the drag and five wheel zooms. Logseq's desktop row comes from the [Graph view analysis](graph-view.md), which measured 38 minutes to its first frame; `parity:perf` does not wait that long. **Bold** marks an `lsg` value over its `[graph]` budget.

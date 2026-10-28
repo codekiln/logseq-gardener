@@ -58,6 +58,29 @@ def capture(page, url, selector, path):
     return None
 
 
+SLIDES_PAGE = 'AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025'
+
+
+def capture_slides(browser, site_url, route, out):
+    """Capture lsg's View as slides deck on its first slide at 1280 by 800, and in fullscreen."""
+    context = browser.new_context(viewport=VIEWPORTS['desktop'], color_scheme='light')
+    page = context.new_page()
+    try:
+        page.goto(site_url + route)
+        page.click('[data-lsg-more]')
+        page.click('[data-lsg-slides]')
+        page.wait_for_selector('.reveal .slides>section.present', timeout=TITLE_TIMEOUT_MS)
+        page.wait_for_timeout(1000)
+        page.screenshot(path=str(out / 'slides-desktop-lsg.png'))
+        page.keyboard.press('f')
+        page.wait_for_function('document.fullscreenElement', timeout=5000)
+        page.wait_for_timeout(1000)
+        page.screenshot(path=str(out / 'slides-fullscreen-lsg.png'))
+        return ['slides-desktop-lsg.png', 'slides-fullscreen-lsg.png']
+    finally:
+        context.close()
+
+
 def index_page(rows):
     parts = ['<!doctype html><meta charset="utf-8"><title>Parity screenshots</title>',
              '<style>body{font-family:system-ui;margin:16px}section{margin-bottom:48px}'
@@ -81,10 +104,22 @@ def main():
     parser.add_argument('--fixtures', default=str(serve.FIXTURES), help='fixture list, one title per line')
     parser.add_argument('--viewport', choices=[*VIEWPORTS, 'all'], default='all',
                         help='desktop (1280 by 800), phone (390 by 844) or all (default)')
+    parser.add_argument('--slides', action='store_true',
+                        help=f'capture only the View as slides deck of {SLIDES_PAGE} in the lsg build')
     args = parser.parse_args()
     from playwright.sync_api import sync_playwright
 
     run = common.latest_run(args.run)
+    if args.slides:
+        out = run / 'screenshots'
+        out.mkdir(exist_ok=True)
+        route = common.lsg_route(SLIDES_PAGE)
+        with serve.Server(run / 'site') as lsg, sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            for image in capture_slides(browser, lsg.url, route, out):
+                print(out / image)
+            browser.close()
+        return
     logseq_dir = run / 'logseq'
     if not logseq_dir.exists():
         raise SystemExit('Logseq build missing; run `mise run parity:compare` first')
