@@ -23,6 +23,9 @@ pub use lsdoc::ast;
 /// Display titles for loaded Markdown page documents.
 pub mod page_titles;
 
+/// Video macros, YouTube timestamps, and which video each timestamp seeks.
+pub mod media;
+
 /// Generate a selected garden as local HTML.
 pub mod site;
 

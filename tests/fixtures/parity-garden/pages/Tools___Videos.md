@@ -1,0 +1,15 @@
+- Video embeds and YouTube timestamps, one of each form the publisher handles.
+- {{video https://www.youtube.com/watch?v=6cqVzgVQJfE}}
+	- {{youtube-timestamp 0}} Intro
+	- {{youtube-timestamp 280}} The review screen
+	- {{youtube-timestamp 3600}} An hour in
+- {{youtube 6cqVzgVQJfE}}
+- {{video https://youtu.be/yxi1O0T4l6k?t=14}}
+- {{video https://www.youtube.com/watch?v=TQsP_PlCY1I&t=205s}}
+- {{video https://www.youtube-nocookie.com/embed/6cqVzgVQJfE}}
+- {{video https://www.loom.com/share/0281766fa2d04bb788eaf19e65135184}}
+- {{vimeo https://vimeo.com/76979871}}
+- {{bilibili https://www.bilibili.com/video/BV1GJ411x7h7?p=2}}
+- {{video https://media.example.org/clip.mp4}}
+- {{video not a url}} and {{video}}
+- ![Film](../assets/film.mp4)

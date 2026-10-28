@@ -136,7 +136,9 @@ fn contains_embed(nodes: &[Inline], depth: usize) -> bool {
         return false;
     }
     nodes.iter().any(|node| match node {
-        Inline::Macro { name, .. } => name.eq_ignore_ascii_case("embed"),
+        Inline::Macro { name, .. } => {
+            name.eq_ignore_ascii_case("embed") || crate::media::is_video_macro(name)
+        }
         Inline::Emphasis { children, .. }
         | Inline::Subscript { children, .. }
         | Inline::Superscript { children, .. }
@@ -159,6 +161,11 @@ pub(super) fn block_label(nodes: &[Inline], depth: usize) -> String {
             | Inline::Subscript { children, .. }
             | Inline::Superscript { children, .. }
             | Inline::Tag { children, .. } => text.push_str(&block_label(children, depth + 1)),
+            Inline::Macro { name, args, .. } if crate::media::is_timestamp_macro(name) => {
+                if let Some(time) = crate::media::Timestamp::from_args(args) {
+                    text.push_str(&time.display());
+                }
+            }
             Inline::Link { url, label, .. } => {
                 if !label.is_empty() {
                     text.push_str(&block_label(label, depth + 1));
@@ -193,6 +200,7 @@ pub(super) fn render_document_with_embeds(
         route,
         documents,
         RenderMode::default(),
+        document,
         asset,
     )
 }
@@ -232,6 +240,7 @@ pub(super) fn render_document_with_source_anchors(
             hide_brackets: !page.show_brackets,
             ..RenderMode::default()
         },
+        document,
         asset,
     )
 }
@@ -243,8 +252,11 @@ pub(super) struct ReferencePresentation {
     pub entries: BTreeMap<usize, String>,
 }
 
+/// `origin` is the whole page `document` was copied from, which binds its timestamps.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_reference_context(
     document: &GardenDocument,
+    origin: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
     targets: &ReferenceTargets<String>,
     route: &str,
@@ -265,10 +277,12 @@ pub(super) fn render_reference_context(
             reference_entries: presentation.entries,
             ..RenderMode::default()
         },
+        origin,
         asset,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_context(
     document: &GardenDocument,
     pages: &crate::page_names::PageNameIndex<String>,
@@ -276,9 +290,11 @@ fn render_context(
     route: &str,
     documents: &BTreeMap<String, EmbedPage>,
     mode: RenderMode,
+    origin: &GardenDocument,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
     let mut renderer = new_renderer(document, pages, targets, route, documents, mode, asset);
+    renderer.media_source = Some(origin);
     renderer.blocks(&document.parsed.blocks, 0);
     super::dialogue::finalize(&mut renderer.html, &renderer.dialogue, &renderer.recordings);
     Rendered {
@@ -329,6 +345,8 @@ fn new_renderer<'a>(
         asset,
         dialogue: Vec::new(),
         recordings: Vec::new(),
+        media_source: None,
+        media: BTreeMap::new(),
     }
 }
 
@@ -372,6 +390,9 @@ pub(super) fn render_crumb(
 
 struct Renderer<'a> {
     dialogue: Vec<super::dialogue::Pending>,
+    /// The document whose videos and timestamps are rendering, for their bindings.
+    media_source: Option<&'a GardenDocument>,
+    media: BTreeMap<PathBuf, crate::media::PageMedia>,
     recordings: Vec<(usize, String)>,
     html: String,
     diagnostics: Vec<String>,
@@ -937,6 +958,12 @@ impl Renderer<'_> {
                 {
                     self.embed(args, depth + 1);
                 }
+                Inline::Macro { name, args, span } if crate::media::is_video_macro(name) => {
+                    self.video(name, args, span.map(|s| s.0), label)
+                }
+                Inline::Macro { name, args, span } if crate::media::is_timestamp_macro(name) => {
+                    self.timestamp(args, span.map(|s| s.0), label)
+                }
                 Inline::Macro { name, args, .. } => self.macro_fallback(name, args),
                 Inline::ExportSnippet { name, content, .. } => {
                     self.literal("export snippet", &format!("@@{name}: {content}@@"))
@@ -1094,7 +1121,9 @@ impl Renderer<'_> {
                     std::mem::replace(&mut self.source, document.relative_path.clone());
                 let previous_text = std::mem::replace(&mut self.text_source, &document.source);
                 let previous_embedded = std::mem::replace(&mut self.embedded, true);
+                let previous_media = self.media_source.replace(document);
                 self.blocks(blocks, depth + 1);
+                self.media_source = previous_media;
                 self.source = previous_source;
                 self.text_source = previous_text;
                 self.embedded = previous_embedded;
@@ -1189,16 +1218,124 @@ impl Renderer<'_> {
             self.html.push_str("</span>");
         }
     }
-    fn macro_fallback(&mut self, name: &str, args: &[String]) {
-        let source = if args.is_empty() {
-            format!("{{{{{name}}}}}")
-        } else {
-            format!("{{{{{name} {}}}}}", args.join(", "))
+    /// Bindings for the document now rendering, computed once per document.
+    fn page_media(&mut self) -> Option<&crate::media::PageMedia> {
+        let document = self.media_source?;
+        Some(
+            self.media
+                .entry(document.relative_path.clone())
+                .or_insert_with(|| crate::media::PageMedia::of(&document.parsed.blocks)),
+        )
+    }
+    /// Whether this content is the page's own, so its videos and timestamps bind to
+    /// players on this page rather than linking out.
+    fn own_media(&self) -> bool {
+        !self.embedded && !self.in_reference && self.source == self.reference_origin
+    }
+    fn video(&mut self, name: &str, args: &[String], offset: Option<usize>, label: bool) {
+        use crate::media::VideoArgument;
+        let source = macro_text(name, args);
+        let argument = crate::media::video(name, args).unwrap_or(VideoArgument::Invalid);
+        let embed = match argument {
+            VideoArgument::Video(embed) if !label && !self.in_reference => embed,
+            VideoArgument::Video(embed) => {
+                // A player cannot sit inside a link or a reference's first line.
+                self.diagnostic(format!(
+                    "Video inside a link or reference shown as a link: {source}"
+                ));
+                self.text(&embed.watch_url);
+                return;
+            }
+            VideoArgument::Empty | VideoArgument::Invalid
+                if !name.eq_ignore_ascii_case("video") =>
+            {
+                self.diagnostic(format!(
+                    "Video macro without a recognisable video omitted: {source}"
+                ));
+                return;
+            }
+            other => {
+                let title = if other == VideoArgument::Empty {
+                    "Empty URL"
+                } else {
+                    "Invalid URL"
+                };
+                self.diagnostic(format!("{title} in video macro: {source}"));
+                self.html
+                    .push_str(&format!("<span class=\"warning\" title=\"{title}\">"));
+                self.text(&source);
+                self.html.push_str("</span>");
+                return;
+            }
         };
+        let number = if self.own_media() {
+            offset
+                .and_then(|offset| self.page_media()?.video_at(offset).map(|(n, _)| n))
+                .map(|n| format!(" data-lsg-video=\"{n}\""))
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let start = embed
+            .start
+            .map(|s| format!(" data-start=\"{s}\""))
+            .unwrap_or_default();
+        self.html.push_str(&format!(
+            "<div class=\"lsg-video\"{number} data-provider=\"{}\" data-embed=\"{}\"{start}><a class=\"lsg-video-play\" href=\"{}\" aria-label=\"Play {} video\"></a></div>",
+            embed.provider.key(),
+            escape(&embed.embed_url),
+            escape(&embed.watch_url),
+            embed.provider.name(),
+        ));
+    }
+    fn timestamp(&mut self, args: &[String], offset: Option<usize>, label: bool) {
+        let Some(time) = crate::media::Timestamp::from_args(args) else {
+            self.diagnostic(format!(
+                "Invalid YouTube timestamp omitted: {}",
+                macro_text("youtube-timestamp", args)
+            ));
+            return;
+        };
+        let display = time.display();
+        if label || self.in_reference {
+            self.text(&display);
+            return;
+        }
+        let own = self.own_media();
+        let bound = offset.and_then(|offset| {
+            let media = self.page_media()?;
+            let (_, video) = media.timestamp_at(offset)?;
+            let index = video?;
+            Some((
+                index,
+                crate::media::watch_at(&media.videos[index], time.seconds),
+            ))
+        });
+        match bound {
+            Some((index, href)) => {
+                let number = if own {
+                    format!(
+                        " data-lsg-video=\"{index}\" data-seconds=\"{}\"",
+                        time.seconds
+                    )
+                } else {
+                    String::new()
+                };
+                self.html.push_str(&format!(
+                    "<a class=\"svg-small youtube-timestamp\"{number} href=\"{}\">{display}</a>",
+                    escape(&href)
+                ));
+            }
+            None => self.html.push_str(&format!(
+                "<span class=\"svg-small youtube-timestamp\">{display}</span>"
+            )),
+        }
+    }
+    fn macro_fallback(&mut self, name: &str, args: &[String]) {
+        let source = macro_text(name, args);
         match name.to_ascii_lowercase().as_str() {
             // Other parity issues own these macros; they keep the literal fallback.
-            "embed" | "query" | "video" | "youtube" | "youtube-timestamp" | "cards" | "cloze"
-            | "namespace" | "tweet" => {
+            "embed" | "query" | "cards" | "cloze" | "namespace" | "tweet" => {
                 self.literal("macro (including embeds and queries)", &source)
             }
             // Renderers need plugins, which a published site does not load.
@@ -1229,7 +1366,8 @@ impl Renderer<'_> {
             path
         };
         let audio = is_audio(path);
-        if !audio && !is_raster_image(path) {
+        let video = is_video_file(path);
+        if !audio && !video && !is_raster_image(path) {
             return false;
         }
         let name = if label.is_empty() {
@@ -1246,7 +1384,15 @@ impl Renderer<'_> {
         let original = !self.embedded && self.source == self.reference_origin;
         let recording = route.split('#').next().unwrap_or(route).to_owned();
         let route = escape(route);
-        if audio {
+        if video {
+            let extension = path
+                .rsplit_once('.')
+                .map_or("", |(_, e)| e)
+                .to_ascii_lowercase();
+            self.html.push_str(&format!(
+                "<div class=\"asset-ref-wrap\" data-ext=\"{extension}\"><video src=\"{route}\" controls preload=\"none\" aria-label=\"{name}\"></video></div>"
+            ));
+        } else if audio {
             self.html.push_str(&format!(
                 "<audio controls preload=\"none\" aria-label=\"{name}\" src=\"{route}\""
             ));
@@ -1446,6 +1592,23 @@ fn is_audio(path: &str) -> bool {
         matches!(
             extension.to_ascii_lowercase().as_str(),
             "mp3" | "wav" | "ogg"
+        )
+    })
+}
+
+fn macro_text(name: &str, args: &[String]) -> String {
+    if args.is_empty() {
+        format!("{{{{{name}}}}}")
+    } else {
+        format!("{{{{{name} {}}}}}", args.join(", "))
+    }
+}
+
+fn is_video_file(path: &str) -> bool {
+    path.rsplit_once('.').is_some_and(|(_, extension)| {
+        matches!(
+            extension.to_ascii_lowercase().as_str(),
+            "mp4" | "webm" | "mov"
         )
     })
 }
@@ -1728,18 +1891,16 @@ mod tests {
                 .html
                 .contains("<audio controls preload=\"none\" aria-label=\"Song\" src=\"assets/copied.mp3\">Song</audio> <a href=\"assets/copied.mp3\" download>Song</a>")
         );
-        assert!(
-            rendered
-                .html
-                .contains("<a href=\"assets/copied.mp4\">Film</a>")
-        );
+        assert!(rendered.html.contains(
+            "<div class=\"asset-ref-wrap\" data-ext=\"mp4\"><video src=\"assets/copied.mp4\" controls preload=\"none\" aria-label=\"Film\"></video></div>"
+        ));
         assert_eq!(
             rendered
                 .diagnostics
                 .iter()
                 .filter(|d| d.contains("Non-image asset"))
                 .count(),
-            2
+            1
         );
     }
 
@@ -2141,11 +2302,15 @@ mod tests {
     #[test]
     fn unknown_macros_show_warnings_and_owned_macros_keep_fallbacks() {
         let rendered = render_with(
-            "- {{pdf x}}\n- {{Foo a, b}}\n- {{renderer :x}}\n- {{query (todo now)}}\n",
+            "- {{pdf x}}\n- {{Foo a, b}}\n- {{renderer :x}}\n- {{query (todo now)}}\n- {{vimeo https://vimeo.com/76979871}}\n- {{bilibili BV1GJ411x7h7}}\n",
             &[],
             true,
         );
         let html = &rendered.html;
+        assert!(html.contains("data-provider=\"vimeo\""));
+        assert!(html.contains("data-provider=\"bilibili\""));
+        assert!(!html.contains("Unsupported macro name: vimeo"));
+        assert!(!html.contains("Unsupported macro name: bilibili"));
         assert!(html.contains(
             "<span class=\"warning\" title=\"Unsupported macro name: pdf\">{{pdf x}}</span>"
         ));

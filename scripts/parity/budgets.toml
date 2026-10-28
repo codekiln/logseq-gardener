@@ -172,3 +172,19 @@ script_gzip_kb = 6
 open_ms_desktop = 300
 step_ms_desktop = 50
 deck_heap_mb = 10
+
+# Video embeds and YouTube timestamps (published-media-embeds). parity:budgets checks media.js
+# (uncompressed), media.css (gzip), the largest video placeholder's markup on the fixture garden, that
+# only pages with a video load media.js and media.css, and that no fixture page's first paint holds an
+# iframe or a third-party script. parity:perf --media counts third-party requests before a click on the
+# whole encode garden. The timestamp page is measured on the whole encode garden with parity:build:
+# its gzip size may grow by at most timestamp_page_growth_gzip_kb over the baseline from before the
+# change.
+[media]
+script_kb = 3
+styles_gzip_kb = 1
+placeholder_kb = 0.6
+timestamp_page = "Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton"
+timestamp_page_baseline_gzip_kb = 73.931
+timestamp_page_growth_gzip_kb = 20
+third_party_requests_before_click = 0
