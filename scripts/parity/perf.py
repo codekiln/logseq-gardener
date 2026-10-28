@@ -957,6 +957,209 @@ def measure_search_site(args, sync_playwright):
         raise SystemExit('\n'.join(failures))
 
 
+GRAPH_PAGES = ['Foam', 'tmux', 'Person']
+GRAPH_MARK = "performance.getEntriesByName('lsg-graph-first-frame').length > 0"
+# Samples frame times while the reader pans; FRAME_COLLECT returns the intervals in ms.
+FRAME_RECORDER = '''() => {
+  const state = window.__frames = {times: [], on: true};
+  const step = time => { state.times.push(time); if (state.on) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}'''
+FRAME_COLLECT = '''() => {
+  const state = window.__frames; state.on = false;
+  return state.times.slice(1).map((time, i) => time - state.times[i]);
+}'''
+
+
+def measure_graph(browser, url, profile):
+    """Open graph.html: the first frame, a pan and a zoom with frame times, the peak heap, and
+    whether the worker loaded although no force changed."""
+    context, page, cdp = open_page(browser, profile, 'canvas')
+    timeout = PROFILES[profile]['timeout_ms']
+    try:
+        page.goto(url, wait_until='commit', timeout=timeout)
+        page.wait_for_function(GRAPH_MARK, timeout=timeout, polling=50)
+        result = {'first_frame_ms': page.evaluate("performance.getEntriesByName('lsg-graph-first-frame')[0].startTime")}
+        page.wait_for_timeout(500)
+        box = page.locator('.lsg-graph-canvas').bounding_box()
+        # Start in the bottom-left corner, outside the fitted graph, so the drag pans instead of moving a node.
+        x, y = box['x'] + 8, box['y'] + box['height'] - 8
+        page.evaluate(FRAME_RECORDER)
+        page.mouse.move(x, y)
+        page.mouse.down()
+        for step in range(40):
+            page.mouse.move(x + step * 4, y - step * 2)
+        page.mouse.up()
+        frames = page.evaluate(FRAME_COLLECT)
+        page.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+        for _ in range(5):
+            page.mouse.wheel(0, -200)
+            page.wait_for_timeout(50)
+        page.wait_for_timeout(500)
+        result['pan_p95_ms'] = metrics.percentile(frames, 0.95)
+        result['frames'] = len(frames)
+        result['peak_heap'] = max(page.evaluate('window.__parity.peak') or 0, heap_now(cdp))
+        result['worker_loaded'] = page.evaluate(
+            "performance.getEntriesByType('resource').some(e => e.name.includes('worker'))")
+        result['renderer'] = page.evaluate(
+            "(() => { const gl = document.createElement('canvas').getContext('webgl2'); "
+            "const i = gl && gl.getExtension('WEBGL_debug_renderer_info'); "
+            "return i ? gl.getParameter(i.UNMASKED_RENDERER_WEBGL) : 'none'; })()")
+        result['data_transfer'] = page.evaluate(
+            "performance.getEntriesByType('resource').filter(e => e.name.includes('_graph/'))"
+            ".reduce((t, e) => t + e.encodedBodySize, 0)")
+        return result
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def measure_page_graph(browser, url, profile):
+    """Open the right sidebar on a page and time a click on Page graph to the card's first frame."""
+    context, page, _ = open_page(browser, profile, 'h1')
+    timeout = PROFILES[profile]['timeout_ms']
+    try:
+        page.goto(url, wait_until='load', timeout=timeout)
+        page.click('[data-lsg-right-toggle]')
+        page.wait_for_selector('[data-add=graph]', timeout=timeout)
+        page.evaluate('window.__start = performance.now()')
+        page.click('[data-add=graph]')
+        page.wait_for_function(GRAPH_MARK, timeout=timeout, polling=20)
+        return {
+            'open_ms': page.evaluate("performance.getEntriesByName('lsg-graph-first-frame')[0].startTime - window.__start"),
+            'file': page.evaluate("performance.getEntriesByType('resource').filter(e => e.name.includes('_graph/'))"
+                                  ".map(e => e.name.split('/').slice(-2).join('/'))[0] || null"),
+        }
+    except Exception as error:
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def lsg_route(title):
+    """An lsg page's file: p-<FNV-1a 64 of the title's UTF-8>.html."""
+    digest = 0xcbf29ce484222325
+    for byte in title.encode('utf-8'):
+        digest = ((digest ^ byte) * 0x100000001b3) % (1 << 64)
+    return f'p-{digest:016x}.html'
+
+
+def _marked(text, value, limit):
+    return f'**{text}**' if limit is not None and value is not None and value > limit else text
+
+
+def graph_markdown(report, budgets):
+    """The graph view and Page graph sections of docs/parity/performance.md."""
+    limits = budgets.get('graph', {})
+    lines = ['', '## Graph view', '',
+             'From navigating to `graph.html` (Logseq: `#/graph`) to the first frame with every node of the default '
+             'view drawn; the 95th-percentile frame time while dragging the background; and the peak JS heap after '
+             'the first frame, the drag and five wheel zooms. Logseq\'s desktop row comes from the '
+             '[Graph view analysis](graph-view.md), which measured 38 minutes to its first frame; `parity:perf` '
+             'does not wait that long. **Bold** marks an `lsg` value over its `[graph]` budget.', '',
+             '| Profile | Build | First frame (ms) | Pan frame time, 95th percentile (ms) | Peak JS heap (MB) '
+             '| Graph data (KB, gzip) | Worker loaded |',
+             '| --- | --- | ---: | ---: | ---: | ---: | --- |']
+    lines.append('| desktop | logseq | 2,291,000 | – | 2,340 | 19,800 (`db.gz`) | – |')
+    for row in report['graph']:
+        profile = row['profile']
+        if 'error' in row:
+            lines.append(f"| {profile} | {row['build']} | {row['error']} | | | | |")
+        else:
+            first = _marked(f"{row['first_frame_ms']:,.0f}", row['first_frame_ms'], limits.get(f'first_frame_ms_{profile}'))
+            phone = profile == 'phone'
+            pan = _marked(f"{row['pan_p95_ms']:,.0f}", row['pan_p95_ms'], limits.get('frame_ms_phone') if phone else None)
+            heap = _marked(f"{row['peak_heap'] / 1e6:,.1f}", row['peak_heap'] / 1e6, limits.get('heap_mb') if phone else None)
+            worker = 'yes' if row['worker_loaded'] else 'no'
+            lines.append(f"| {profile} | lsg | {first} | {pan} | {heap} | {row['data_transfer'] / 1000:,.0f} | {worker} |")
+    renderers = sorted({row['renderer'] for row in report['graph'] if row.get('renderer')})
+    if renderers:
+        lines += ['', 'WebGL renderer: ' + '; '.join(f'`{r}`' for r in renderers) + '.']
+    sizes = report['sizes']
+    size, _ = sizes['largest_neighbourhood']
+    lines += ['', f"`lsg`'s graph files: `_graph/default.bin` {sizes['data'] / 1000:,.0f} KB as stored (gzip), "
+              f"`lsg-graph.js` with its styles {sizes['script'] / 1000:,.1f} KB gzip, the worker "
+              f"{sizes['worker'] / 1000:,.1f} KB gzip, {sizes['neighbourhoods']:,} neighbourhood files, the largest "
+              f"{size / 1000:,.1f} KB gzip.",
+              '', '## Page graph', '',
+              "Time from clicking `Page graph` in the right sidebar to the card's first frame, and the file it fetched. "
+              'Below 640px there is no right sidebar, so the phone rows use a 1280px window with the phone '
+              "profile's CPU and network throttling.", '',
+              '| Page | Profile | Open (ms) | File |', '| --- | --- | ---: | --- |']
+    for row in report['page_graph']:
+        if 'error' in row:
+            lines.append(f"| {row['page']} | {row['profile']} | {row['error']} | |")
+            continue
+        limit = limits.get(f"page_graph_open_ms_{row['profile']}")
+        lines.append(f"| {row['page']} | {row['profile']} | {_marked(f'{row['open_ms']:,.0f}', row['open_ms'], limit)} "
+                     f"| `{row['file']}` |")
+    build = report.get('build')
+    if build:
+        slow = (build['seconds'] / build['baseline_seconds'] - 1) * 100
+        text = _marked(f"{build['seconds']:,.1f}", slow, limits.get('build_slowdown_pct'))
+        lines += ['', f"Whole-garden build with the run's options, the fastest of {BUILD_RUNS} runs: {text} seconds "
+                  f"with the graph, {build['baseline_seconds']:,.1f} seconds with the baseline "
+                  f"`{Path(build['baseline']).name}` ({slow:+.0f}%; budget +{limits.get('build_slowdown_pct')}%)."]
+    return lines
+
+
+def measure_graph_run(args, sync_playwright):
+    """Measure the graph view and Page graph in a parity run's site; with --record, replace their
+    sections of docs/parity/performance.md."""
+    budgets = metrics.load_budgets()
+    run = common.latest_run(args.run)
+    site = run / 'site'
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    report = {'graph': [], 'page_graph': [], 'sizes': budgets_check.graph_sizes(site)}
+    with serve.Server(site) as lsg, sync_playwright() as playwright:
+        # Headless Chromium draws WebGL on the CPU (SwiftShader) unless it is given the GPU; a phone has one.
+        gpu = ['--enable-gpu'] + (['--use-angle=metal'] if sys.platform == 'darwin' else [])
+        browser = playwright.chromium.launch(args=['--enable-precise-memory-info', *gpu])
+        for profile in profiles:
+            row = {'profile': profile, 'build': 'lsg', **measure_graph(browser, lsg.url + 'graph.html', profile)}
+            report['graph'].append(row)
+            print(json.dumps(row), flush=True)
+            # The right sidebar needs 640px; the phone rows keep the phone's CPU and network throttling.
+            PROFILES['wide-' + profile] = {**PROFILES[profile], 'viewport': {'width': 1280, 'height': 800},
+                                           'mobile': False, 'scale': 1}
+            for name in GRAPH_PAGES:
+                route = lsg_route(name)
+                if not (site / route).exists():
+                    continue
+                row = {'page': name, 'profile': profile,
+                       **measure_page_graph(browser, lsg.url + route, 'wide-' + profile)}
+                report['page_graph'].append(row)
+                print(json.dumps(row, ensure_ascii=False), flush=True)
+        browser.close()
+    if args.baseline_lsg:
+        settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory(prefix='lsg-graph-build-') as temp:
+            options = settings['lsg_options']
+            report['build'] = {
+                'seconds': time_publish(common.lsg_binary(), settings['garden'], Path(temp) / 'new', options),
+                'baseline_seconds': time_publish(args.baseline_lsg, settings['garden'], Path(temp) / 'old', options),
+                'baseline': str(args.baseline_lsg),
+            }
+    (run / 'graph-perf.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    print('\n'.join(graph_markdown(report, budgets)))
+    if args.record:
+        record_graph_sections(report, budgets)
+
+
+def record_graph_sections(report, budgets):
+    """Replace the graph sections of docs/parity/performance.md; they sit before the search sections."""
+    text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+    start = text.find('\n## Graph view')
+    if start >= 0:
+        end = text.find('\n## Search', start)
+        text = text[:start] + (text[end:] if end >= 0 else '\n')
+    block = '\n'.join(graph_markdown(report, budgets))
+    search = text.find('\n## Search')
+    text = text[:search] + block + '\n' + text[search:] if search >= 0 else text.rstrip('\n') + '\n' + block + '\n'
+    PERFORMANCE_DOC.write_text(text, encoding='utf-8')
+
+
 def record_search_sections(report, budgets):
     """Replace the search sections at the end of docs/parity/performance.md with this measurement."""
     text = PERFORMANCE_DOC.read_text(encoding='utf-8')
@@ -982,6 +1185,9 @@ def main():
     parser.add_argument('--record', action='store_true',
                         help='rewrite docs/parity/performance.md; with --search-site, its search sections and '
                              'docs/parity/search-performance.json')
+    parser.add_argument('--graph', action='store_true',
+                        help="measure only the graph view and Page graph in the run's site; with --record, "
+                             'replace their sections of docs/parity/performance.md')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -989,6 +1195,9 @@ def main():
 
     if args.search_site:
         measure_search_site(args, sync_playwright)
+        return
+    if args.graph:
+        measure_graph_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)

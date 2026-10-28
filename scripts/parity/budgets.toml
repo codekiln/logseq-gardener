@@ -142,3 +142,21 @@ card_ms_desktop = 300
 card_ms_phone = 1500
 card_fetch_gzip_kb = 60
 ten_cards_heap_mb = 20
+
+# The graph view and Page graph (published-graph-view, published-page-graph). parity:budgets checks
+# the data file, the script with its styles, the worker and every neighbourhood file on the fixture
+# garden, and that no other page loads graph data or the graph script; parity:perf --graph marks the
+# rest on the whole encode garden. KB of scripts and styles are compacted gzip; the data files are
+# stored gzip-compressed.
+[graph]
+data_gzip_kb = 600
+script_kb = 30
+worker_kb = 8
+first_frame_ms_desktop = 1000
+first_frame_ms_phone = 3000
+heap_mb = 50
+frame_ms_phone = 50
+page_graph_fragment_gzip_kb = 100
+page_graph_open_ms_desktop = 300
+page_graph_open_ms_phone = 1500
+build_slowdown_pct = 25
