@@ -4,7 +4,7 @@
 
 Measured on 2026-10-28 by publishing garden commit `083106d` with `--journals`, a page holding the query, and `SOURCE_DATE_EPOCH` set to 2026-10-27 12:00 UTC.
 
-| Measure | Before (`main` 6406199) | After | Logseq `gh-pages` `8132c95` |
+| Measure | Before (`main` f54a8d7) | After | Logseq `gh-pages` `8132c95` |
 | --- | --- | --- | --- |
 | `(between -30d today)` results | 75 | 76 | 76 |
 
