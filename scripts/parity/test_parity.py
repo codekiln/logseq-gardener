@@ -328,6 +328,28 @@ class GraphTest(unittest.TestCase):
         self.assertIn('| tmux | desktop | 120 | `p/x.json` |', text)
         self.assertIn('**15.0** seconds', text)
 
+    def test_sidebar_markdown_marks_values_over_budget(self):
+        cards = [{'type': 'page', 'title': 'GitHub/Star', 'ms': 400, 'transfer': 11_300},
+                 {'type': 'refs', 'title': 'Block references', 'ms': 30, 'transfer': 61_000}]
+        row = {'profile': 'desktop', 'cards': cards, 'p95_ms': 400, 'heap': 2.2e6}
+        sizes = {'script': 6_200, 'oversized': [(88_100, 'Big|Page')]}
+        text = '\n'.join(perf.sidebar_markdown(row, sizes, metrics.load_budgets()))
+        self.assertIn('| desktop | 2 | **400** | 2.2 | 6.2 | **61.0** |', text)
+        self.assertIn('| GitHub/Star | page | **400** | 11.3 |', text)
+        self.assertIn('| Block references | refs | 30 | **61.0** |', text)
+        self.assertIn('`Big|Page` (88.1 KB gzip)', text)
+        error = '\n'.join(perf.sidebar_markdown({'profile': 'desktop', 'error': 'TimeoutError: x'}, sizes, {}))
+        self.assertIn('Not measured: TimeoutError: x', error)
+
+    def test_block_ref_href_prefers_listed_pages_and_names_same_page_links(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            self.assertIsNone(common.block_ref_href(site))
+            (site / 'p-1.html').write_text('<a class="block-ref-link" href="p-9.html#block-a">x</a>', encoding='utf-8')
+            (site / 'p-2.html').write_text('<a class="block-ref-link" href="#block-b">y</a>', encoding='utf-8')
+            self.assertEqual(common.block_ref_href(site), 'p-9.html#block-a')
+            self.assertEqual(common.block_ref_href(site, ['p-2.html']), 'p-2.html#block-b')
+
 
 class BudgetCheckTest(unittest.TestCase):
     limits = {'desktop': {'data_before_title_kb': 100, 'script_before_title_kb': 16}}

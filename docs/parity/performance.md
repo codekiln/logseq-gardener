@@ -139,13 +139,29 @@ Rows in the page before scrolling, rows after scrolling the list to its end, and
 
 ## Right sidebar on tmux
 
-Shift-click on each of the first ten distinct page links on `tmux`, one after another, timed from the click to the card's outline, with a cleared sidebar; the first click includes loading `lsg-sidebar.js`. Measured by hand in the browser on the `match-logseq-right-sidebar` change with garden commit cc1bb2eb, served from localhost; `parity:perf` does not measure the sidebar yet. Below 640px there is no sidebar, so the phone profile has no row.
+On `tmux` at 1280 by 800, with a cleared sidebar: Shift-click a page link, the first bullet, a block reference and then the next 10 distinct page links, one after another, each timed from the click to the card's outline drawn; the first click includes loading `lsg-sidebar.js`. `tmux` has no block reference, so `parity:perf` adds a link to the first one it finds in the build. Transfer is the gzip size of the page files a card fetched; the heap is measured after the last card and garbage collection. Below 640px there is no sidebar, so there is no phone row. **Bold** marks a value over its `[sidebar]` budget.
 
-| Profile | Build | Shift-click to card, p95 (ms) | JS heap after ten cards (MB) | `lsg-sidebar.js` (KB, gzip) | `Person` card transfer (KB, gzip) |
-| --- | --- | ---: | ---: | ---: | ---: |
-| desktop | lsg | 27 | 3.1 | 5.7 | 14.2 |
+| Profile | Cards | Shift-click to card, p95 (ms) | JS heap after the cards (MB) | `lsg-sidebar.js` (KB, gzip) | Largest card transfer (KB, gzip) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| desktop | 13 | 58 | 2.2 | 6.2 | 13.9 |
 
-Two pages exceed the 60 KB card transfer budget as cards and as pages: `Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton` (81.9 KB gzip) and `Ableton/Live/UG/29 Audio Effect Reference` (62.1 KB gzip). Their content, not the shell, makes up the size.
+| Card | Type | Shift-click to card (ms) | Transfer (KB, gzip) |
+| --- | --- | ---: | ---: |
+| GitHub/Star | page | 58 | 11.3 |
+| tmux | block | 20 | 13.9 |
+| Block references | refs | 29 | 13.7 |
+| 2026-07-04 Sat | page | 9 | 11.2 |
+| tmux/Idea/Pomodoro with status line and silent flash | page | 19 | 10.3 |
+| tmux/Idea/Toggl Track status in status line | page | 10 | 10.2 |
+| tmux/Config | page | 9 | 9.6 |
+| Catppuccin | page | 8 | 11.1 |
+| oh-my-tmux | page | 19 | 11.4 |
+| Person/Grégory Pakosz | page | 18 | 9.9 |
+| tmux/Docs/Getting Started | page | 9 | 9.6 |
+| Person/Brian P. Hogan/Book/25/tmux 3 | page | 18 | 9.9 |
+| tmux/man | page | 8 | 9.5 |
+
+2 published pages exceed the 60 KB card transfer budget as cards and as pages: `Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton` (88.1 KB gzip), `Ableton/Live/UG/29 Audio Effect Reference` (62.3 KB gzip). Their content, not the shell, makes up the size.
 
 ## View as slides
 

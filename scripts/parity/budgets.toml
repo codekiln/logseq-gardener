@@ -134,8 +134,8 @@ build_slowdown_pct = 10
 
 # The right sidebar (published-right-sidebar). parity:budgets checks the gzip size of lsg-sidebar.js,
 # that no fixture page requests it before use, and every fixture page's gzip size as a card's
-# transfer. The times and the phone heap after ten cards are measured on the whole encode garden
-# and recorded in docs/parity/performance.md.
+# transfer. parity:perf --sidebar marks the Shift-click times, card transfers and the heap after
+# thirteen cards on tmux in the whole encode garden.
 [sidebar]
 # 6 before the Slides card type, which needed 0.25 more.
 script_gzip_kb = 6.5

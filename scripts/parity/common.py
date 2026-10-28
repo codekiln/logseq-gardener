@@ -107,3 +107,51 @@ def lsg_route(title):
     for byte in title.encode('utf-8'):
         digest = ((digest ^ byte) * 0x100000001b3) % (1 << 64)
     return f'p-{digest:016x}.html'
+
+
+# The right sidebar on tmux: a page card, a block card, a Block references card, then ten page cards.
+SIDEBAR_PAGE = 'tmux'
+SIDEBAR_PAGE_CARDS = 10
+BLOCK_REF = re.compile(r'<a class="block-ref-link" href="([^"]*#block-[^"]+)"')
+# Marks the controls to Shift-click with data-parity-sidebar: `block` (the first visible bullet),
+# `refs` (a block reference link added to the page, since tmux has none) and `page-<n>` (distinct
+# page links, the current page excluded). Takes [block reference href, page links wanted].
+SIDEBAR_TARGETS = '''([refHref, wanted]) => {
+  const main = document.querySelector('main');
+  const shown = node => node.getClientRects().length > 0;
+  const bullet = [...main.querySelectorAll('ul.outline .bullet')].find(shown);
+  bullet?.setAttribute('data-parity-sidebar', 'block');
+  if (refHref) {
+    const link = document.createElement('a');
+    link.className = 'block-ref-link';
+    link.setAttribute('href', refHref);
+    link.setAttribute('data-parity-sidebar', 'refs');
+    link.textContent = 'Block reference';
+    main.append(link);
+  }
+  const seen = new Set([location.pathname.split('/').pop()]);
+  const pages = [];
+  for (const link of main.querySelectorAll('a[href^="p-"]:not(.block-ref-link)')) {
+    const href = link.getAttribute('href');
+    if (href.includes('#') || seen.has(href) || !shown(link)) continue;
+    seen.add(href);
+    link.setAttribute('data-parity-sidebar', 'page-' + pages.length);
+    pages.push(href);
+    if (pages.length === wanted) break;
+  }
+  return {block: !!bullet, refs: !!refHref, pages};
+}'''
+
+
+def block_ref_href(site, first=()):
+    """A block reference link's href from the site, as a page file and #block- fragment; the pages
+    in `first` are searched before the rest."""
+    site = Path(site)
+    for path in [*(site / name for name in first), *sorted(site.glob('p-*.html'))]:
+        if not path.exists():
+            continue
+        match = BLOCK_REF.search(path.read_text(encoding='utf-8'))
+        if match:
+            href = match.group(1)
+            return path.name + href if href.startswith('#') else href
+    return None
