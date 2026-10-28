@@ -219,3 +219,14 @@ Every keystroke of the query list. An unanswered keystroke is one whose results 
 | phone | lsg | 36 | 0 | 26 | 286 | 12 | 262 | 26 | 0 |
 
 Whole-garden build with journals, the fastest of 3 runs: 13.3 seconds with `--search`, 11.4 seconds without (+17%; budget +25%).
+
+## Video embeds
+
+Each page loaded in a fresh window and left for 40 seconds, then its first bound timestamp clicked. Player requests count every request to a video provider or Google host before that click, where Logseq makes about 1.2 MB of them per page; other hosts are the page's own remote images. **Bold** marks a value over its `[media]` budget.
+
+| Page | Profile | Videos | Timestamps | Player area (px) | Player requests before a click | Other hosts | Player after the click |
+| --- | --- | ---: | ---: | --- | ---: | --- | --- |
+| Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs | desktop | 1 | 13 | 728x315 | 0 | none | `https://www.youtube.com/embed/6cqVzgVQJfE` with `start=0` |
+| Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs | phone | 1 | 13 | 298x178 | 0 | none | `https://www.youtube.com/embed/6cqVzgVQJfE` with `start=0` |
+| AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025 | desktop | 2 | 0 | 728x315 | 0 | `do3z7e6uuakno.cloudfront.net`, `pbs.twimg.com`, `swyx.io`, `www.swyx.io` | none |
+| AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025 | phone | 2 | 0 | 298x178 | 0 | `swyx.io`, `www.swyx.io` | none |
