@@ -6,7 +6,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::ast::Projection;
+use crate::ast::{Block, Projection};
 
 /// A read-only collection of Markdown documents, sorted by relative path.
 #[derive(Debug, Clone, PartialEq)]
@@ -151,7 +151,7 @@ pub fn load_garden(root: impl AsRef<Path>) -> Result<Garden, GardenLoadError> {
     for (relative_path, kind) in files {
         let path = root.join(&relative_path);
         let source = fs::read_to_string(&path).map_err(|error| io_error(&path, error))?;
-        let parsed = lsdoc::parse_to_projection(&source);
+        let parsed = parse_document(&source);
         documents.push(GardenDocument {
             relative_path,
             kind,
@@ -160,6 +160,39 @@ pub fn load_garden(root: impl AsRef<Path>) -> Result<Garden, GardenLoadError> {
         });
     }
     Ok(Garden { documents })
+}
+
+/// Parse a page's Markdown into Logseq's blocks.
+///
+/// Logseq starts a block at every heading, so a heading line written without a bullet,
+/// such as `# [[Filed]]` after a bulleted block, is a block of its own rather than more
+/// text of the bullet above. The parser reports such a line as a heading; this turns it
+/// into a bullet at the same level.
+pub fn parse_document(source: &str) -> Projection {
+    let mut parsed = lsdoc::parse_to_projection(source);
+    for block in &mut parsed.blocks {
+        if let Block::Heading {
+            level,
+            size,
+            inline,
+            marker,
+            priority,
+            htags,
+            span,
+        } = block
+        {
+            *block = Block::Bullet {
+                level: *level,
+                size: *size,
+                inline: std::mem::take(inline),
+                marker: marker.take(),
+                priority: priority.take(),
+                htags: std::mem::take(htags),
+                span: span.take(),
+            };
+        }
+    }
+    parsed
 }
 
 fn collect_files(
@@ -200,4 +233,41 @@ fn collect_files(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::outline::Outline;
+
+    #[test]
+    fn unbulleted_heading_starts_a_block() {
+        let parsed = parse_document("- bulleted [[A]]\n# [[Filed]]\n\t- child\n- next\n");
+        let outline = Outline::from_blocks(&parsed.blocks);
+        let shape: Vec<_> = outline
+            .blocks
+            .iter()
+            .map(|b| (b.depth, b.heading, b.id.to_string()))
+            .collect();
+        assert_eq!(
+            shape,
+            [
+                (1, None, "1".to_owned()),
+                (1, Some(1), "2".to_owned()),
+                (2, None, "2.1".to_owned()),
+                (1, None, "3".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn headings_inside_quotes_stay_text() {
+        let parsed = parse_document("- a\n  > # quoted\n");
+        let bullets = parsed
+            .blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Bullet { .. }))
+            .count();
+        assert_eq!(bullets, 1);
+    }
 }
