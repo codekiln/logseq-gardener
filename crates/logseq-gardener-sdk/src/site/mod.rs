@@ -8,6 +8,7 @@ mod graph;
 mod graph_layout;
 mod hierarchy;
 mod journals;
+mod media;
 mod outline;
 mod page_status;
 mod properties;
@@ -240,6 +241,7 @@ fn html_page(
     } else {
         String::new()
     };
+    let media_head = media::head(main);
     let frame = shell.render(route, home);
     let shell_styles = shell::STYLES;
     let shell_script = shell::SCRIPT_ROUTE;
@@ -262,7 +264,7 @@ fn html_page(
     let theme_script = include_str!("theme.js");
     let theme_styles = include_str!("theme.css");
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}{navigation_styles}{outline_styles}{inline_styles}{code_styles}{transclusion_styles}{references_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script><style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}{navigation_styles}{outline_styles}{inline_styles}{code_styles}{transclusion_styles}{references_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{media_head}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
     )
 }
 
@@ -767,6 +769,10 @@ pub fn publish_site_with_options(
             dialogue::SCRIPT_ROUTE.to_owned(),
             dialogue::SCRIPT.to_owned(),
         );
+    }
+    if documents.values().any(|html| html.contains(media::MARKER)) {
+        documents.insert(media::SCRIPT_ROUTE.to_owned(), media::SCRIPT.to_owned());
+        documents.insert(media::STYLES_ROUTE.to_owned(), media::STYLES.to_owned());
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
     documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());

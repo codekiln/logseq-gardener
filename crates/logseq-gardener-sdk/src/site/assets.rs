@@ -68,6 +68,7 @@ pub(super) fn resolve_asset(
             | "ogg"
             | "wav"
             | "webm"
+            | "mov"
     ) {
         return Err(format!("unsupported asset extension: {extension}"));
     }

@@ -173,7 +173,7 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
-                                       'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph',
+                                       'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
                                        'slides'})
         self.assertEqual(set(loaded['slides']), {'script_gzip_kb', 'open_ms_desktop', 'step_ms_desktop', 'deck_heap_mb'})
         self.assertEqual(loaded['shell']['script_kb'], 6.6)
@@ -204,6 +204,24 @@ class MetricsTest(unittest.TestCase):
         for profile in budgets.profiles(loaded).values():
             self.assertEqual(set(profile), {'data_before_title_kb', 'script_before_title_kb', 'title_ms',
                                             'peak_heap_mb', 'search_p95_ms'})
+
+
+class MediaBudgetTest(unittest.TestCase):
+    def test_placeholder_sizes(self):
+        one = '<div class="lsg-video" data-provider="youtube"><a class="lsg-video-play" href="x"></a></div>'
+        self.assertEqual(budgets.placeholder_sizes(f'<p>{one}</p>{one}'), [len(one), len(one)])
+        self.assertEqual(budgets.placeholder_sizes('<p>no video</p>'), [])
+
+    def test_player_hosts(self):
+        self.assertTrue(perf.is_player_host('i.ytimg.com'))
+        self.assertTrue(perf.is_player_host('www.youtube.com'))
+        self.assertFalse(perf.is_player_host('pbs.twimg.com'))
+        self.assertFalse(perf.is_player_host('notyoutube.com'))
+
+    def test_media_budget_keys(self):
+        loaded = metrics.load_budgets()
+        self.assertLessEqual({'script_kb', 'styles_gzip_kb', 'placeholder_kb', 'timestamp_page_growth_gzip_kb',
+                              'third_party_requests_before_click'}, set(loaded['media']))
 
 
 class PerfMergeTest(unittest.TestCase):

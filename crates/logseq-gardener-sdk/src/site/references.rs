@@ -572,6 +572,7 @@ impl<'a> References<'a> {
             }
             let copy_rendered = render::render_reference_context(
                 &copy,
+                document,
                 context.names,
                 context.targets,
                 source,

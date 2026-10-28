@@ -145,6 +145,12 @@ fn plain(nodes: &[Inline], names: &PageNameIndex<String>, depth: usize) -> Strin
             } if matches!(protocol.to_ascii_lowercase().as_str(), "http" | "https") => {
                 text.push_str(&plain(label, names, depth + 1));
             }
+            Inline::Macro { name, args, .. } if crate::media::is_timestamp_macro(name) => {
+                match crate::media::Timestamp::from_args(args) {
+                    Some(time) => text.push_str(&time.display()),
+                    None => text.push(' '),
+                }
+            }
             _ => text.push(' '),
         }
     }

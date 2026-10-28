@@ -153,6 +153,54 @@ def check_slides(site, pages, slides):
     return failures
 
 
+MEDIA_SCRIPT = 'media.js'
+MEDIA_STYLES = 'media.css'
+MEDIA_MARKER = 'class="lsg-video"'
+
+
+def placeholder_sizes(text):
+    """Byte sizes of every video placeholder in a page's markup."""
+    sizes, start = [], text.find('<div ' + MEDIA_MARKER)
+    while start >= 0:
+        end = text.find('</div>', start) + len('</div>')
+        sizes.append(len(text[start:end].encode('utf-8')))
+        start = text.find('<div ' + MEDIA_MARKER, end)
+    return sizes
+
+
+def check_media(site, pages, media):
+    """Return failure messages for the media script and styles, placeholders, and pages that load
+    media code or a third party before a click."""
+    site = Path(site)
+    failures = []
+    for name in (MEDIA_SCRIPT, MEDIA_STYLES):
+        if not (site / name).exists():
+            return [f'{name}: missing from the build']
+    script = (site / MEDIA_SCRIPT).stat().st_size
+    if script > media['script_kb'] * 1000:
+        failures.append(f'{MEDIA_SCRIPT}: {script:,} exceeds {media["script_kb"] * 1000:,}')
+    styles = metrics.gzip_size((site / MEDIA_STYLES).read_bytes())
+    if styles > media['styles_gzip_kb'] * 1000:
+        failures.append(f'{MEDIA_STYLES}: {styles:,} gzip exceeds {media["styles_gzip_kb"] * 1000:,}')
+    videos = 0
+    for page in pages:
+        text = (site / page).read_text(encoding='utf-8')
+        sizes = placeholder_sizes(text)
+        videos += len(sizes)
+        loads = MEDIA_SCRIPT in text or MEDIA_STYLES in text
+        if loads and not sizes:
+            failures.append(f'{page}: loads media code without a video')
+        if sizes and not loads:
+            failures.append(f'{page}: has a video but does not load {MEDIA_SCRIPT}')
+        if sizes and max(sizes) > media['placeholder_kb'] * 1000:
+            failures.append(f'{page}: video placeholder {max(sizes):,} exceeds {media["placeholder_kb"] * 1000:,.0f}')
+        if '<iframe' in text or 'youtube.com/iframe_api' in text:
+            failures.append(f'{page}: first paint loads a third-party player')
+    if not videos:
+        failures.append('no fixture page has a video placeholder')
+    return failures
+
+
 GRAPH_SCRIPT = 'lsg-graph.js'
 GRAPH_STYLES = 'lsg-graph.css'
 GRAPH_WORKER = 'lsg-graph-worker.js'
@@ -551,6 +599,10 @@ def main():
         slides_failures = check_slides(temp / 'small', small, budgets['slides'])
         print(f"{SLIDES_SCRIPT}: {metrics.gzip_size((temp / 'small' / SLIDES_SCRIPT).read_bytes()):,} gzip")
         graph_failures = check_graph(temp / 'small', small, budgets['graph'])
+        media_failures = check_media(temp / 'small', small, budgets['media'])
+        print(f"{MEDIA_SCRIPT}: {(temp / 'small' / MEDIA_SCRIPT).stat().st_size:,}; {MEDIA_STYLES}: "
+              f"{metrics.gzip_size((temp / 'small' / MEDIA_STYLES).read_bytes()):,} gzip; largest placeholder "
+              f"{max(max(placeholder_sizes((temp / 'small' / p).read_text(encoding='utf-8')), default=0) for p in small):,}")
         sizes = graph_sizes(temp / 'small')
         print(f"graph: data {sizes['data']:,} gzip, script and styles {sizes['script']:,} gzip, "
               f"worker {sizes['worker']:,} gzip, {sizes['neighbourhoods']} neighbourhood files, "
@@ -580,7 +632,7 @@ def main():
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
                 + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
-                + search_failures + all_pages_failures)
+                + search_failures + all_pages_failures + media_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

@@ -1118,6 +1118,105 @@ def slides_markdown(rows, budgets):
     return lines
 
 
+MEDIA_PAGES = ['Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs',
+               'AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025']
+MEDIA_WAIT_MS = 40_000
+# Hosts that serve the players and their tracking; a page's own remote images are counted apart.
+PLAYER_HOSTS = ('youtube.com', 'youtube-nocookie.com', 'ytimg.com', 'googlevideo.com', 'google.com',
+                'gstatic.com', 'googleapis.com', 'doubleclick.net', 'vimeo.com', 'vimeocdn.com', 'loom.com',
+                'bilibili.com', 'hdslb.com')
+
+
+def is_player_host(host):
+    return any(host == name or host.endswith('.' + name) for name in PLAYER_HOSTS)
+
+
+def measure_media(browser, url, profile, wait_ms=MEDIA_WAIT_MS):
+    """Load a page with videos, wait, and count requests to other hosts; then click the first
+    timestamp and report whether a player loaded at its time."""
+    from urllib.parse import urlsplit
+    origin = urlsplit(url).netloc
+    context, page, _ = open_page(browser, profile, 'h1')
+    requests = []
+    page.on('request', lambda request: requests.append(urlsplit(request.url).netloc))
+    try:
+        page.goto(url, wait_until='load', timeout=PROFILES[profile]['timeout_ms'])
+        page.wait_for_timeout(wait_ms)
+        other = [host for host in requests if host and host != origin]
+        result = {
+            'videos': page.locator('.lsg-video').count(),
+            'timestamps': page.locator('a.youtube-timestamp[data-lsg-video]').count(),
+            'player_requests_before_click': len([host for host in other if is_player_host(host)]),
+            'other_hosts': sorted({host for host in other if not is_player_host(host)}),
+            'player_box': page.evaluate("(() => { const r = document.querySelector('.lsg-video')"
+                                        "?.getBoundingClientRect(); return r ? [r.width, r.height] : null })()"),
+        }
+        stamp = page.locator('a.youtube-timestamp[data-lsg-video]').first
+        if result['timestamps']:
+            stamp.click()
+            result['loaded_src'] = page.evaluate(
+                "document.querySelector('.lsg-video iframe')?.src || null")
+        return result
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def media_markdown(rows, budgets):
+    """The Video embeds section of docs/parity/performance.md."""
+    limit = budgets.get('media', {}).get('third_party_requests_before_click')
+    if not rows:
+        return []
+    lines = ['', '## Video embeds', '',
+             f'Each page loaded in a fresh window and left for {MEDIA_WAIT_MS // 1000} seconds, then its first '
+             'bound timestamp clicked. Player requests count every request to a video provider or Google host '
+             'before that click, where Logseq makes about 1.2 MB of them per page; other hosts are the page\'s own '
+             'remote images. **Bold** marks a value over its `[media]` budget.', '',
+             '| Page | Profile | Videos | Timestamps | Player area (px) | Player requests before a click '
+             '| Other hosts | Player after the click |',
+             '| --- | --- | ---: | ---: | --- | ---: | --- | --- |']
+    for row in rows:
+        if 'error' in row:
+            lines.append(f"| {row['page']} | {row['profile']} | {row['error']} | | | | | |")
+            continue
+        box = 'x'.join(f'{v:.0f}' for v in row['player_box']) if row['player_box'] else ''
+        third = _marked(str(row['player_requests_before_click']), row['player_requests_before_click'], limit)
+        hosts = ', '.join(f'`{host}`' for host in row['other_hosts']) or 'none'
+        src = row.get('loaded_src') or ''
+        loaded = f"`{src.split('?')[0]}` with `{'start=' + src.split('start=')[1].split('&')[0] if 'start=' in src else 'no start'}`" if src else 'none'
+        lines.append(f"| {row['page']} | {row['profile']} | {row['videos']} | {row['timestamps']} | {box} "
+                     f"| {third} | {hosts} | {loaded} |")
+    return lines
+
+
+def measure_media_run(args, sync_playwright):
+    """Measure video pages in a parity run's site; with --record, replace their section of
+    docs/parity/performance.md."""
+    budgets = metrics.load_budgets()
+    site = common.latest_run(args.run) / 'site'
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    rows = []
+    with serve.Server(site) as lsg, sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        for name in MEDIA_PAGES:
+            for profile in profiles:
+                row = {'page': name, 'profile': profile,
+                       **measure_media(browser, lsg.url + common.lsg_route(name), profile)}
+                rows.append(row)
+                print(json.dumps(row, ensure_ascii=False), flush=True)
+        browser.close()
+    block = '\n'.join(media_markdown(rows, budgets))
+    print(block)
+    if args.record:
+        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+        start = text.find('\n## Video embeds')
+        if start >= 0:
+            end = text.find('\n## ', start + 1)
+            text = text[:start] + (text[end:] if end >= 0 else '\n')
+        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+
+
 def measure_slides_run(args, sync_playwright):
     """Measure View as slides in a parity run's site; with --record, replace its section of
     docs/parity/performance.md."""
@@ -1289,6 +1388,9 @@ def main():
     parser.add_argument('--slides', action='store_true',
                         help="measure only View as slides in the run's site; with --record, replace its section "
                              'of docs/parity/performance.md')
+    parser.add_argument('--media', action='store_true',
+                        help="measure only the video pages in the run's site; with --record, replace their "
+                             'section of docs/parity/performance.md')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -1302,6 +1404,9 @@ def main():
         return
     if args.slides:
         measure_slides_run(args, sync_playwright)
+        return
+    if args.media:
+        measure_media_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)
