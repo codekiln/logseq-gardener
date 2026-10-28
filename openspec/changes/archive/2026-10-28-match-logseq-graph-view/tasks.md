@@ -35,5 +35,5 @@
 - [x] 6.2 Compare the Page graph card on `Contrando`, `Foam`, `tmux`, `Person` and `Logseq` with Logseq's, with Show Journals off and on, and record the counts
 - [x] 6.3 Measure the phone heap and frame time; if they miss the budget, apply the reference-only fallback from the design and record the measurement
 - [x] 6.4 Run `parity:perf --record` and commit the graph rows in `docs/parity/performance.md`
-- [ ] 6.5 Sync this change's `published-app-shell` delta only after `match-logseq-right-sidebar` is archived (left for the cleanup pull request; the right sidebar change is archived)
+- [x] 6.5 Sync this change's `published-app-shell` delta only after `match-logseq-right-sidebar` is archived (left for the cleanup pull request; the right sidebar change is archived)
 - [x] 6.6 Run `mise run ci`
