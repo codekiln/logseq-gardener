@@ -221,7 +221,8 @@ impl<K: Ord + Clone> Contribution<K> {
             let source = document.source.get(byte..end_byte).unwrap_or_default();
             // Page properties sit before the first bullet, even when other text follows them.
             let leading = level == 0;
-            let mut names = lsdoc::refs(source, "markdown").page;
+            // Page names inside an advanced query are part of the query, not references.
+            let mut names = lsdoc::refs(&without_query_blocks(source), "markdown").page;
             let mut property_names = BTreeSet::new();
             for block in &blocks[start..end] {
                 let Block::Properties { props, .. } = block else {
@@ -353,6 +354,29 @@ impl<K> Contribution<K> {
     pub fn excluded_from_graph(&self) -> bool {
         self.exclude_from_graph
     }
+}
+
+/// The text with each `#+BEGIN_QUERY` … `#+END_QUERY` block blanked out, as Logseq's
+/// parser skips query blocks when it collects a block's references.
+fn without_query_blocks(source: &str) -> std::borrow::Cow<'_, str> {
+    let upper = source.to_ascii_uppercase();
+    if !upper.contains("#+BEGIN_QUERY") {
+        return source.into();
+    }
+    let mut text = source.as_bytes().to_vec();
+    let mut from = 0;
+    while let Some(start) = upper[from..].find("#+BEGIN_QUERY").map(|i| i + from) {
+        let end = upper[start..]
+            .find("#+END_QUERY")
+            .map_or(source.len(), |i| start + i + "#+END_QUERY".len());
+        for byte in &mut text[start..end] {
+            if *byte != b'\n' {
+                *byte = b' ';
+            }
+        }
+        from = end;
+    }
+    String::from_utf8_lossy(&text).into_owned().into()
 }
 
 /// The names in a `tags::` value: comma-separated entries, each a `[[link]]`, a `#tag` or a
@@ -885,6 +909,17 @@ mod tests {
                 .map(|(page, source)| contribution(page, source))
                 .collect(),
         )
+    }
+
+    #[test]
+    fn advanced_query_text_names_no_page() {
+        let index = index(&[(
+            "notes",
+            "- Queries\n\t- #+BEGIN_QUERY\n\t  {:title \"t\" :query [[tmux]]}\n\t  #+END_QUERY\n- {{query [[mise]]}}\n- [[AWS]] after\n",
+        )]);
+        assert!(index.linked(&"tmux".to_owned()).is_empty());
+        assert!(index.linked(&"mise".to_owned()).is_empty());
+        assert_eq!(index.linked(&"AWS".to_owned()).len(), 1);
     }
 
     #[test]

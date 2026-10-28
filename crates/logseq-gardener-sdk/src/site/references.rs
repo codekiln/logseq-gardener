@@ -19,11 +19,16 @@ use crate::transclusion::{EmbedPage, ReferenceTargets};
 /// The shared references script, written once at the site root.
 pub(super) const SCRIPT_ROUTE: &str = "lsg-references.js";
 
-/// `references.js` without comments or indentation, joining lines after `;`, `{`, `}`
-/// and `,`, where no statement can end.
+/// `references.js` without comments or indentation.
 pub(super) fn script() -> String {
+    minify(include_str!("references.js"))
+}
+
+/// A script without comments or indentation, joining lines after `;`, `{`, `}` and `,`,
+/// where no statement can end.
+pub(super) fn minify(source: &str) -> String {
     let mut script = String::new();
-    for line in include_str!("references.js").lines().map(str::trim) {
+    for line in source.lines().map(str::trim) {
         if line.is_empty() || line.starts_with("//") {
             continue;
         }
@@ -74,9 +79,21 @@ pub(super) struct References<'a> {
     property_targets: Option<BTreeMap<String, BTreeSet<String>>>,
     property_rows: BTreeMap<String, BTreeMap<String, String>>,
     show_brackets: bool,
+    /// Generated namespace pages by lower-cased title, for names no selected page owns.
+    by_name: BTreeMap<String, String>,
 }
 
 impl<'a> References<'a> {
+    /// The page a written name or alias names: a selected page, else a generated
+    /// namespace page; `None` when the name is missing or ambiguous.
+    pub fn resolve(&self, names: &PageNameIndex<String>, name: &str) -> Option<String> {
+        match names.candidates(name) {
+            [route] => Some(route.clone()),
+            [] => self.by_name.get(&lookup_key(name)).cloned(),
+            _ => None,
+        }
+    }
+
     pub fn new(
         selected: &[(String, String, &'a GardenDocument)],
         names: &PageNameIndex<String>,
@@ -140,6 +157,7 @@ impl<'a> References<'a> {
             aliases: aliases.get(route).cloned().unwrap_or_default(),
         });
         Self {
+            by_name: by_name.clone(),
             index: ReferenceIndex::build(pages, contributions),
             sources: selected
                 .iter()
@@ -167,6 +185,21 @@ impl<'a> References<'a> {
             }
         }
         anchors
+    }
+
+    /// Each selected page's source, by route.
+    pub fn sources(&self) -> &BTreeMap<String, &'a GardenDocument> {
+        &self.sources
+    }
+
+    /// Journal dates by route.
+    pub fn dates(&self) -> &BTreeMap<String, JournalDate> {
+        &self.dates
+    }
+
+    /// A page's title, or its route when the index does not know it.
+    pub fn page_title<'t>(&'t self, route: &'t str) -> &'t str {
+        self.title(route)
     }
 
     /// The shared reference index, keyed by route.
@@ -316,6 +349,7 @@ impl<'a> References<'a> {
                 blocks,
                 Some(target),
                 &numbers,
+                GroupStyle::References,
                 context,
                 asset,
                 sections,
@@ -374,7 +408,16 @@ impl<'a> References<'a> {
                 files: Vec::new(),
                 diagnostics: Vec::new(),
             };
-            groups.group(source, blocks, None, &none, context, asset, &mut quiet)
+            groups.group(
+                source,
+                blocks,
+                None,
+                &none,
+                GroupStyle::References,
+                context,
+                asset,
+                &mut quiet,
+            )
         });
         // A page with no mentions has no file; the script shows the zero count.
         let (source, fallback) = if files.is_empty() {
@@ -471,6 +514,39 @@ impl<'a> References<'a> {
         format!("{REFS}/{}", name(0))
     }
 
+    /// One page's group of a query's results, in Logseq's `.custom-query-page-result` box,
+    /// or without the page box when `grouped` is false. Each block shows its breadcrumb.
+    pub fn query_group(
+        &self,
+        source: &str,
+        blocks: &[BlockId],
+        grouped: bool,
+        context: &Context<'_, '_>,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+        diagnostics: &mut Vec<String>,
+    ) -> String {
+        let mut sections = Sections {
+            tagged: String::new(),
+            linked: String::new(),
+            unlinked: String::new(),
+            files: Vec::new(),
+            diagnostics: Vec::new(),
+        };
+        let style = GroupStyle::Query { grouped };
+        let html = self.group(
+            source,
+            blocks,
+            None,
+            &BTreeMap::new(),
+            style,
+            context,
+            asset,
+            &mut sections,
+        );
+        diagnostics.extend(sections.diagnostics);
+        html
+    }
+
     /// One page's group. `target` is set for linked references, which number their blocks,
     /// link their bullets to the source and show breadcrumbs.
     #[allow(clippy::too_many_arguments)]
@@ -480,17 +556,31 @@ impl<'a> References<'a> {
         blocks: &[BlockId],
         target: Option<&String>,
         numbers: &BTreeMap<BlockId, usize>,
+        style: GroupStyle,
         context: &Context<'_, '_>,
         asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
         sections: &mut Sections,
     ) -> String {
         let route = render::escape(source);
-        let mut html = format!(
-            "<div class=\"references-blocks-item\"><details class=\"references-group\" open><summary class=\"foldable-title\"><span class=\"ref-chevron\"></span><a href=\"{route}\">{}</a></summary>",
-            render::escape(self.title(source))
-        );
+        let title = render::escape(self.title(source));
+        let (mut html, close) = match style {
+            GroupStyle::References => (
+                format!(
+                    "<div class=\"references-blocks-item\"><details class=\"references-group\" open><summary class=\"foldable-title\"><span class=\"ref-chevron\"></span><a href=\"{route}\">{title}</a></summary>"
+                ),
+                "</details></div>",
+            ),
+            GroupStyle::Query { grouped: true } => (
+                format!(
+                    "<div class=\"custom-query-page-result\"><details class=\"references-group\" open><summary class=\"foldable-title\"><span class=\"ref-chevron\"></span><a class=\"page-ref\" href=\"{route}\">{title}</a></summary>"
+                ),
+                "</details></div>",
+            ),
+            GroupStyle::Query { grouped: false } => (String::new(), ""),
+        };
+        let crumbs = target.is_some() || matches!(style, GroupStyle::Query { .. });
         let Some(document) = self.sources.get(source) else {
-            html.push_str("</details></div>");
+            html.push_str(close);
             return html;
         };
         let mut rendered: Vec<(usize, usize)> = Vec::new();
@@ -514,6 +604,7 @@ impl<'a> References<'a> {
                         .and_then(|targets| targets.get(source))
                         .is_some_and(|targets| targets.contains(target))
                 });
+                let visible = visible || matches!(style, GroupStyle::Query { .. });
                 html.push_str(&format!(
                     "<div class=\"references-block\"{number}><div class=\"blocks-container\"><p class=\"backlink-context\"><a href=\"{route}{}\">{}</a></p>",
                     if visible { "#page-properties" } else { "" },
@@ -531,7 +622,7 @@ impl<'a> References<'a> {
             }
             rendered.push((block.start, block.subtree_end));
             html.push_str("<div class=\"references-block\">");
-            if target.is_some() && block.parent.is_some() {
+            if crumbs && block.parent.is_some() {
                 html.push_str(&self.breadcrumb(id, source, document, context, asset));
             }
             html.push_str("<div class=\"blocks-container\">");
@@ -589,7 +680,7 @@ impl<'a> References<'a> {
             sections.diagnostics.extend(copy_rendered.diagnostics);
             html.push_str("</div></div>");
         }
-        html.push_str("</details></div>");
+        html.push_str(close);
         html
     }
 
@@ -635,6 +726,13 @@ impl<'a> References<'a> {
             crumbs.join("<span class=\"crumb-sep\" aria-hidden=\"true\"></span>")
         )
     }
+}
+
+/// Whether a group belongs to a reference section or to a query's results.
+#[derive(Clone, Copy)]
+enum GroupStyle {
+    References,
+    Query { grouped: bool },
 }
 
 /// Logseq's count text: `N Linked References`, `1 Linked Reference`, `F of N Linked References`.

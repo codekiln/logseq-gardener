@@ -71,5 +71,8 @@ pub mod git_dates;
 /// All pages: every published page with its kind, icon, backlinks and dates.
 pub mod page_list;
 
+/// Logseq's simple query language and advanced query maps, evaluated at build time.
+pub mod query;
+
 /// Namespace hierarchy rows from page titles and aliases, shared by every caller.
 pub mod namespaces;

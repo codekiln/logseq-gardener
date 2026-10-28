@@ -174,7 +174,10 @@ class MetricsTest(unittest.TestCase):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
-                                       'slides'})
+                                       'slides', 'queries'})
+        self.assertEqual(set(loaded['queries']), {'script_kb', 'styles_gzip_kb', 'in_page_gzip_kb',
+                                                  'fragment_gzip_kb', 'open_ms_desktop', 'open_ms_phone',
+                                                  'open_heap_mb', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['slides']), {'script_gzip_kb', 'open_ms_desktop', 'step_ms_desktop', 'deck_heap_mb'})
         self.assertEqual(loaded['shell']['script_kb'], 6.6)
         self.assertEqual(set(loaded['graph']), {'data_gzip_kb', 'script_kb', 'worker_kb', 'first_frame_ms_desktop',
@@ -204,6 +207,19 @@ class MetricsTest(unittest.TestCase):
         for profile in budgets.profiles(loaded).values():
             self.assertEqual(set(profile), {'data_before_title_kb', 'script_before_title_kb', 'title_ms',
                                             'peak_heap_mb', 'search_p95_ms'})
+
+
+class QueriesBudgetTest(unittest.TestCase):
+    def test_query_boxes(self):
+        one = '<div class="custom-query" data-lsg-query="q1"><div class="th">x</div><div>y</div></div>'
+        collapsed = '<details class="custom-query lsg-query-collapsed"><summary>t</summary><div></div></details>'
+        self.assertEqual(budgets.query_boxes(f'<li>{one}</li><p>{collapsed}</p>'), [one, collapsed])
+        self.assertEqual(budgets.query_boxes('<p>no query</p>'), [])
+
+    def test_query_fragment_names(self):
+        self.assertTrue(budgets.QUERY_FRAGMENT.search('p-0123-q2-1.html'))
+        self.assertTrue(budgets.QUERY_FRAGMENT.search('p-0123-q2-alt-3.html'))
+        self.assertFalse(budgets.QUERY_FRAGMENT.search('p-0123-linked-1.html'))
 
 
 class MediaBudgetTest(unittest.TestCase):

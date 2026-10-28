@@ -12,6 +12,7 @@ mod media;
 mod outline;
 mod page_status;
 mod properties;
+mod queries;
 mod references;
 mod render;
 mod search;
@@ -314,7 +315,7 @@ pub fn publish_site_with_options(
     let garden = load_garden(source_root).map_err(SiteError::Garden)?;
     // Reading the git history takes seconds on a large garden; it runs while pages render.
     let git_root = root.clone();
-    let git_dates = std::thread::spawn(move || GitDates::read(git_root));
+    let git_dates = queries::LazyDates::new(std::thread::spawn(move || GitDates::read(git_root)));
     let mut report = SiteReport {
         pages: 0,
         journals: 0,
@@ -522,6 +523,44 @@ pub fn publish_site_with_options(
     for (_, route, document) in &selected {
         targets.add_page(route.clone(), &document.parsed.blocks);
     }
+    let resolve = |name: &str| reference_index.resolve(&names, name);
+    let queries = queries::Queries::new(
+        &reference_index,
+        &resolve,
+        &journal_formats,
+        build_date,
+        references::Context {
+            config: &reference_config,
+            names: &names,
+            targets: &targets,
+            documents: &selected_documents,
+        },
+        &git_dates,
+    );
+    // Default journal queries render under the build date's journal; Datalog ones cannot.
+    let default_queries: Vec<String> = config::read_text(&root)
+        .ok()
+        .flatten()
+        .map(|text| crate::query::default_journal_queries(&text))
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|text| {
+            let datalog = matches!(
+                crate::query::parse_advanced(text, build_date, &journal_formats),
+                Ok(crate::query::AdvancedQuery {
+                    query: crate::query::AdvancedBody::Datalog,
+                    ..
+                })
+            );
+            if datalog {
+                report.diagnostics.push(SiteDiagnostic {
+                    source: "logseq/config.edn".into(),
+                    message: "Default journal query skipped: this published site evaluates queries in the simple query language only".to_owned(),
+                });
+            }
+            !datalog
+        })
+        .collect();
     let mut search = options
         .search
         .as_ref()
@@ -571,9 +610,25 @@ pub fn publish_site_with_options(
             render::PageRender {
                 source_anchors,
                 show_brackets: settings.show_brackets,
+                queries: Some(&queries),
             },
             &mut asset,
         );
+        let mut rendered = rendered;
+        if journal_dates.get(&route) == Some(&build_date) && !default_queries.is_empty() {
+            let mut boxes = String::new();
+            for text in &default_queries {
+                let query = queries.default_query(&route, text, &mut asset);
+                boxes.push_str(&query.html);
+                rendered.diagnostics.extend(query.diagnostics);
+            }
+            if !boxes.is_empty() {
+                rendered
+                    .html
+                    .push_str(&format!("<div class=\"lsg-default-queries\">{boxes}</div>"));
+            }
+        }
+        documents.extend(queries.take_files());
         if let Some(search) = &mut search {
             search.admit(&route, &rendered.source_anchors);
         }
@@ -673,11 +728,11 @@ pub fn publish_site_with_options(
             );
         }
     }
-    let (dates, dates_diagnostic) = git_dates.join().expect("git history reader panicked");
+    let (dates, dates_diagnostic) = git_dates.get();
     if let Some(message) = dates_diagnostic {
         report.diagnostics.push(SiteDiagnostic {
             source: ".".into(),
-            message,
+            message: message.clone(),
         });
     }
     let list = page_list(
@@ -773,6 +828,21 @@ pub fn publish_site_with_options(
     if documents.values().any(|html| html.contains(media::MARKER)) {
         documents.insert(media::SCRIPT_ROUTE.to_owned(), media::SCRIPT.to_owned());
         documents.insert(media::STYLES_ROUTE.to_owned(), media::STYLES.to_owned());
+    }
+    let query_head = queries::head();
+    let mut has_queries = false;
+    for (route, html) in &mut documents {
+        if route.ends_with(".html")
+            && !route.starts_with("_refs/")
+            && html.contains(queries::MARKER)
+        {
+            *html = html.replacen("</head>", &(query_head.clone() + "</head>"), 1);
+            has_queries = true;
+        }
+    }
+    if has_queries {
+        documents.insert(queries::SCRIPT_ROUTE.to_owned(), queries::script());
+        documents.insert(queries::STYLES_ROUTE.to_owned(), queries::STYLES.to_owned());
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
     documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());

@@ -3,6 +3,7 @@
 import argparse
 import html.parser
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -198,6 +199,64 @@ def check_media(site, pages, media):
             failures.append(f'{page}: first paint loads a third-party player')
     if not videos:
         failures.append('no fixture page has a video placeholder')
+    return failures
+
+
+QUERIES_SCRIPT = 'lsg-queries.js'
+QUERIES_STYLES = 'lsg-queries.css'
+QUERIES_MARKER = 'class="custom-query'
+QUERY_FRAGMENT = re.compile(r'-q\d+(-alt)?-\d+\.html$')
+
+
+def query_boxes(text):
+    """The markup of each query box in a page: from its opening tag to its closing tag."""
+    boxes = []
+    for match in re.finditer(r'<(div|details) class="custom-query', text):
+        tag, depth, position = match.group(1), 0, match.start()
+        for token in re.finditer(rf'<{tag}\b|</{tag}>', text[match.start():]):
+            depth += -1 if token.group().startswith('</') else 1
+            if depth == 0:
+                boxes.append(text[position:match.start() + token.end()])
+                break
+    return boxes
+
+
+def check_queries(site, pages, queries):
+    """Return failure messages for the query script and styles, the pages that load them, each
+    query box's in-page part and each query fragment file."""
+    site = Path(site)
+    failures = []
+    for name in (QUERIES_SCRIPT, QUERIES_STYLES):
+        if not (site / name).exists():
+            return [f'{name}: missing from the build']
+    script = (site / QUERIES_SCRIPT).stat().st_size
+    if script > queries['script_kb'] * 1000:
+        failures.append(f'{QUERIES_SCRIPT}: {script:,} exceeds {queries["script_kb"] * 1000:,}')
+    styles = metrics.gzip_size((site / QUERIES_STYLES).read_bytes())
+    if styles > queries['styles_gzip_kb'] * 1000:
+        failures.append(f'{QUERIES_STYLES}: {styles:,} gzip exceeds {queries["styles_gzip_kb"] * 1000:,}')
+    boxes = 0
+    for page in pages:
+        text = (site / page).read_text(encoding='utf-8')
+        found = query_boxes(text)
+        boxes += len(found)
+        loads = QUERIES_SCRIPT in text or QUERIES_STYLES in text
+        if loads and not found:
+            failures.append(f'{page}: loads query code without a query')
+        if found and not loads:
+            failures.append(f'{page}: has a query but does not load {QUERIES_SCRIPT}')
+        for box in found:
+            size = metrics.gzip_size(box.encode('utf-8'))
+            if size > queries['in_page_gzip_kb'] * 1000:
+                failures.append(f'{page}: query box {size:,} gzip exceeds {queries["in_page_gzip_kb"] * 1000:,}')
+    if not boxes:
+        failures.append('no fixture page has a query box')
+    for fragment in sorted((site / REFERENCES_DIR).glob('*.html')):
+        if not QUERY_FRAGMENT.search(fragment.name):
+            continue
+        size = metrics.gzip_size(fragment.read_bytes())
+        if size > queries['fragment_gzip_kb'] * 1000:
+            failures.append(f'{fragment.name}: {size:,} gzip exceeds {queries["fragment_gzip_kb"] * 1000:,}')
     return failures
 
 
@@ -603,6 +662,9 @@ def main():
         print(f"{MEDIA_SCRIPT}: {(temp / 'small' / MEDIA_SCRIPT).stat().st_size:,}; {MEDIA_STYLES}: "
               f"{metrics.gzip_size((temp / 'small' / MEDIA_STYLES).read_bytes()):,} gzip; largest placeholder "
               f"{max(max(placeholder_sizes((temp / 'small' / p).read_text(encoding='utf-8')), default=0) for p in small):,}")
+        queries_failures = check_queries(temp / 'small', small, budgets['queries'])
+        print(f"{QUERIES_SCRIPT}: {(temp / 'small' / QUERIES_SCRIPT).stat().st_size:,}; {QUERIES_STYLES}: "
+              f"{metrics.gzip_size((temp / 'small' / QUERIES_STYLES).read_bytes()):,} gzip")
         sizes = graph_sizes(temp / 'small')
         print(f"graph: data {sizes['data']:,} gzip, script and styles {sizes['script']:,} gzip, "
               f"worker {sizes['worker']:,} gzip, {sizes['neighbourhoods']} neighbourhood files, "
@@ -632,7 +694,7 @@ def main():
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
                 + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
-                + search_failures + all_pages_failures + media_failures)
+                + search_failures + all_pages_failures + media_failures + queries_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

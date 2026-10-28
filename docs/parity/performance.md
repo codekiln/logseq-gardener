@@ -246,3 +246,14 @@ Each page loaded in a fresh window and left for 40 seconds, then its first bound
 | Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs | phone | 1 | 13 | 298x178 | 0 | none | `https://www.youtube.com/embed/6cqVzgVQJfE` with `start=0` |
 | AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025 | desktop | 2 | 0 | 728x315 | 0 | `do3z7e6uuakno.cloudfront.net`, `pbs.twimg.com`, `swyx.io`, `www.swyx.io` | none |
 | AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025 | phone | 2 | 0 | 298x178 | 0 | `swyx.io`, `www.swyx.io` | none |
+
+## Queries
+
+`Parity/Queries` holds the queries analysis's test queries, added to a copy of the whole garden. Open is the time from opening the collapsed `Blocks that mention tmux` query (603 results in Logseq) to its first group drawn; the heap is read after every query fragment on the page has loaded, after garbage collection. **Bold** marks a value over its `[queries]` budget.
+
+| Profile | Title (ms) | Data before title | Script before title | Open (ms) | Groups after scrolling | Heap after all fragments (MB) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| desktop | 121 | 57,390 | 12,392 | 20 | 568 | 1.2 |
+| phone | 374 | 57,390 | 12,392 | 618 | 568 | 1.2 |
+
+Whole-garden build with `Parity/Queries`: 14.48 s against 14.25 s for the baseline binary (+1.6%, budget 10%).

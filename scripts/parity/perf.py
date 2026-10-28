@@ -1344,6 +1344,115 @@ def measure_media_run(args, sync_playwright):
         PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
 
 
+QUERIES_PAGE = 'Parity/Queries'
+QUERIES_PAGE_SOURCE = Path(__file__).resolve().parent / 'testdata' / 'queries-page.md'
+QUERIES_OPEN = '''() => new Promise((resolve) => {
+  const box = [...document.querySelectorAll('.lsg-query-collapsed')]
+    .find((q) => q.textContent.includes('Blocks that mention tmux'));
+  const start = performance.now();
+  box.open = true;
+  const done = () => box.querySelector('.custom-query-page-result')
+    ? requestAnimationFrame(() => resolve(performance.now() - start)) : setTimeout(done, 5);
+  done();
+})'''
+
+
+def queries_garden(garden, temp):
+    """A copy of the garden with QUERIES_PAGE, the analysis's test queries, added."""
+    copy = Path(temp) / 'garden'
+    shutil.copytree(garden, copy, ignore=shutil.ignore_patterns('.git'))
+    (copy / 'pages' / 'Parity___Queries.md').write_text(QUERIES_PAGE_SOURCE.read_text(encoding='utf-8'),
+                                                        encoding='utf-8')
+    return copy
+
+
+def measure_queries(browser, url, profile):
+    """Load QUERIES_PAGE, open the collapsed tmux query to its first group, then scroll until every
+    query fragment has loaded and read the JS heap after garbage collection."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
+    try:
+        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        wait_loaded(page, profile)
+        result = page.evaluate(COLLECT)
+        result['open_ms'] = page.evaluate(QUERIES_OPEN)
+        for _ in range(200):
+            before = page.evaluate('document.querySelectorAll(".lsg-query-more").length')
+            if not before:
+                break
+            page.evaluate("document.querySelector('.lsg-query-more').scrollIntoView()")
+            page.wait_for_timeout(200)
+        result['groups'] = page.evaluate('document.querySelectorAll(".custom-query-page-result").length')
+        result['heap'] = collect_garbage(cdp)
+        return result
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def queries_markdown(rows, builds, budgets):
+    """The Queries section of docs/parity/performance.md."""
+    limits = budgets.get('queries', {})
+    lines = ['', '## Queries', '',
+             f'`{QUERIES_PAGE}` holds the queries analysis\'s test queries, added to a copy of the whole garden. '
+             'Open is the time from opening the collapsed `Blocks that mention tmux` query (603 results in '
+             'Logseq) to its first group drawn; the heap is read after every query fragment on the page has '
+             'loaded, after garbage collection. **Bold** marks a value over its `[queries]` budget.', '',
+             '| Profile | Title (ms) | Data before title | Script before title | Open (ms) '
+             '| Groups after scrolling | Heap after all fragments (MB) |',
+             '| --- | ---: | ---: | ---: | ---: | ---: | ---: |']
+    for row in rows:
+        if 'error' in row:
+            lines.append(f"| {row['profile']} | {row['error']} | | | | | |")
+            continue
+        heap_mb = row['heap'] / 1e6
+        opened = _marked(f"{row['open_ms']:.0f}", row['open_ms'], limits.get(f"open_ms_{row['profile']}"))
+        heap = _marked(f'{heap_mb:.1f}', heap_mb, limits.get('open_heap_mb') if row['profile'] == 'phone' else None)
+        lines.append(f"| {row['profile']} | {row['title_ms']:.0f} | {row['data_before_title']:,} "
+                     f"| {row['script_before_title']:,} | {opened} | {row['groups']} | {heap} |")
+    for row in builds:
+        lines += ['', f"Whole-garden build with `{QUERIES_PAGE}`: {row['seconds']:.2f} s against "
+                      f"{row['baseline_seconds']:.2f} s for the baseline binary "
+                      f"({row['slowdown_pct']:+.1f}%, budget {limits.get('build_slowdown_pct')}%)."]
+    return lines
+
+
+def measure_queries_run(args, sync_playwright):
+    """Measure QUERIES_PAGE on a copy of the run's garden; with --record, replace the Queries
+    section of docs/parity/performance.md."""
+    budgets = metrics.load_budgets()
+    run = common.latest_run(args.run)
+    settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    rows, builds = [], []
+    with tempfile.TemporaryDirectory(prefix='lsg-queries-') as temp:
+        garden = queries_garden(settings['garden'], temp)
+        site = Path(temp) / 'site'
+        options = [*settings['lsg_options'], '--include', QUERIES_PAGE.split('/')[0]]
+        seconds = time_publish(common.lsg_binary(), str(garden), site, options)
+        if args.baseline_lsg:
+            baseline = time_publish(args.baseline_lsg, str(garden), Path(temp) / 'baseline', options)
+            builds.append({'seconds': seconds, 'baseline_seconds': baseline,
+                           'slowdown_pct': (seconds / baseline - 1) * 100})
+        with serve.Server(site) as lsg, sync_playwright() as playwright:
+            browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
+            for profile in profiles:
+                row = {'profile': profile,
+                       **measure_queries(browser, lsg.url + common.lsg_route(QUERIES_PAGE), profile)}
+                rows.append(row)
+                print(json.dumps(row), flush=True)
+            browser.close()
+    block = '\n'.join(queries_markdown(rows, builds, budgets))
+    print(block)
+    if args.record:
+        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+        start = text.find('\n## Queries')
+        if start >= 0:
+            end = text.find('\n## ', start + 1)
+            text = text[:start] + (text[end:] if end >= 0 else '\n')
+        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+
+
 def measure_slides_run(args, sync_playwright):
     """Measure View as slides in a parity run's site; with --record, replace its section of
     docs/parity/performance.md."""
@@ -1521,6 +1630,9 @@ def main():
     parser.add_argument('--sidebar', action='store_true',
                         help=f"measure only the right sidebar on {common.SIDEBAR_PAGE} in the run's site; with --record, "
                              'replace its section of docs/parity/performance.md')
+    parser.add_argument('--queries', action='store_true',
+                        help=f"measure only {QUERIES_PAGE}, the queries analysis's test queries, on a copy of the "
+                             "run's garden; with --record, replace its section of docs/parity/performance.md")
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -1540,6 +1652,9 @@ def main():
         return
     if args.sidebar:
         measure_sidebar_run(args, sync_playwright)
+        return
+    if args.queries:
+        measure_queries_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)

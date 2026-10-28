@@ -188,3 +188,20 @@ timestamp_page = "Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie 
 timestamp_page_baseline_gzip_kb = 73.931
 timestamp_page_growth_gzip_kb = 20
 third_party_requests_before_click = 0
+
+# Queries (published-queries). parity:budgets checks lsg-queries.js (uncompressed) and
+# lsg-queries.css (gzip), that only pages with a query box load them, each query box's in-page part
+# and each query fragment file (gzip) on the fixture garden, and, through [desktop] and [phone], that
+# the fixture's Tools/Queries page stays within the first-paint budgets and does not grow when the
+# garden gains 2,000 pages. parity:perf marks opening the collapsed tmux query to its first group,
+# the phone heap after all its fragments load, and a whole-garden build more than
+# build_slowdown_pct slower than the --baseline-lsg binary's.
+[queries]
+script_kb = 2
+styles_gzip_kb = 1
+in_page_gzip_kb = 30
+fragment_gzip_kb = 100
+open_ms_desktop = 300
+open_ms_phone = 1500
+open_heap_mb = 20
+build_slowdown_pct = 10
