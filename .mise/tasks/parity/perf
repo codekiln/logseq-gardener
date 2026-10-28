@@ -10,6 +10,7 @@
 #USAGE flag "--search-output <path>" help="JSON output for standalone search measurements"
 #USAGE flag "--search-queries <path>" help="Search query fixture list"
 #USAGE flag "--record" help="Rewrite docs/parity/performance.md with the results (with --search-site, its search sections)"
+#USAGE flag "--graph" help="Measure only the graph view and Page graph in the run's site (with --record, their sections)"
 #USAGE flag "--baseline-lsg <path>" help="Also time a whole-garden build with this lsg binary, such as one built before a feature"
 set -euo pipefail
 args=()
@@ -23,6 +24,7 @@ if [ -n "${usage_search_path:-}" ]; then args+=(--search-path "$usage_search_pat
 if [ -n "${usage_search_output:-}" ]; then args+=(--search-output "$usage_search_output"); fi
 if [ -n "${usage_search_queries:-}" ]; then args+=(--search-queries "$usage_search_queries"); fi
 if [ "${usage_record:-false}" = "true" ]; then args+=(--record); fi
+if [ "${usage_graph:-false}" = "true" ]; then args+=(--graph); fi
 if [ -n "${usage_baseline_lsg:-}" ]; then args+=(--baseline-lsg "$usage_baseline_lsg"); fi
 echo "Checking Playwright's Chromium (downloaded on first use)"
 uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell

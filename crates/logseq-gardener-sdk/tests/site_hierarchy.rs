@@ -49,10 +49,19 @@ impl Fixture {
         }))
         .unwrap()
     }
+    /// Every file except the graph's data files, which hold titles as data rather than markup.
+    fn all_markup(&self) -> String {
+        files(&self.0.join("site"))
+            .into_iter()
+            .filter(|(path, _)| !path.starts_with("_graph"))
+            .map(|(_, bytes)| String::from_utf8_lossy(&bytes).into_owned())
+            .collect()
+    }
     fn all_html(&self) -> String {
         files(&self.0.join("site"))
             .into_values()
-            .map(|bytes| String::from_utf8(bytes).unwrap())
+            // The graph's binary data file holds titles as UTF-8 too, so it is searched as well.
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
             .collect()
     }
 }
@@ -329,7 +338,7 @@ fn escaped_hierarchy_keeps_homepage_media_and_generated_homepage_is_unavailable(
     f.write("Include___Details.md", "- EMBEDDED_DETAILS\n");
     let report = f.publish(&["R&D", "Include/Details"], &[], Some("R&D/<tag>/Leaf"));
     assert_eq!(report.pages, 2);
-    let output = f.all_html();
+    let output = f.all_markup();
     assert!(!output.contains("<tag>"));
     assert!(output.contains("R&amp;D/&lt;tag&gt;"));
     let homepage = fs::read_to_string(f.0.join("site/index.html")).unwrap();

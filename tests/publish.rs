@@ -253,8 +253,9 @@ fn explicit_inputs_legacy_format_and_empty_selection() {
     let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
     assert_eq!(report["pages"], 0);
     // The index page, the page list, the shell, outline, references and All pages scripts,
-    // and the right sidebar's script and styles.
-    assert_eq!(files(&f.0.join("empty")).len(), 8);
+    // the right sidebar's script and styles, and the graph view's page, script, worker,
+    // styles and data file.
+    assert_eq!(files(&f.0.join("empty")).len(), 13);
     let output = f.0.join("legacy");
     let result = Command::new(env!("CARGO_BIN_EXE_lsg"))
         .arg("publish")
@@ -367,7 +368,8 @@ fn selected_media_renders_without_leaking_private_or_excluded_recordings() {
     let page = generated
         .iter()
         .find(|(p, _)| {
-            p.extension().is_some_and(|e| e == "html") && p.file_name().unwrap() != "index.html"
+            p.extension().is_some_and(|e| e == "html")
+                && !["index.html", "graph.html"].contains(&p.file_name().unwrap().to_str().unwrap())
         })
         .unwrap()
         .1;

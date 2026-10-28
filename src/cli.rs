@@ -293,6 +293,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
             search: args.search.then(SearchOptions::default),
             journals: args.journals,
             build_date: None,
+            layout_cache: None,
         },
     )
     .map_err(|error| Failure {

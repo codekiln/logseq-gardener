@@ -104,6 +104,25 @@ pub struct Contribution<K> {
     pub filters: Filter<K>,
     /// Each block's own text, lower-cased, without logbooks or code.
     text: Vec<String>,
+    /// Each block's references as the garden graph reads them, in block order.
+    graph: Vec<GraphRefs<K>>,
+    /// Names in the leading `tags::` that name no known page.
+    unresolved_tags: BTreeSet<String>,
+    /// The leading properties set `exclude-from-graph-view:: true`.
+    exclude_from_graph: bool,
+}
+
+/// One block's references as the garden graph reads them. Only [`crate::graph`] uses
+/// these; linked references and the other answers read [`RefBlock::refs`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct GraphRefs<K> {
+    /// Known pages the block names itself, without the namespace parents that
+    /// [`RefBlock::refs`] adds.
+    pub direct: BTreeSet<K>,
+    /// Names the block writes that name no known page, as written.
+    pub unresolved: BTreeSet<String>,
+    /// The block's property names, lower-cased, such as `prev` for `prev::`.
+    pub property_names: BTreeSet<String>,
 }
 
 /// A page the index knows by name: a published page or a generated namespace page.
@@ -193,6 +212,9 @@ impl<K: Ord + Clone> Contribution<K> {
             tags: BTreeSet::new(),
             filters: Filter::default(),
             text: Vec::new(),
+            graph: Vec::new(),
+            unresolved_tags: BTreeSet::new(),
+            exclude_from_graph: false,
         };
         let mut parents: Vec<(u32, usize)> = Vec::new();
         for (start, end, subtree_end, level, byte, end_byte, is_properties) in units {
@@ -200,11 +222,19 @@ impl<K: Ord + Clone> Contribution<K> {
             // Page properties sit before the first bullet, even when other text follows them.
             let leading = level == 0;
             let mut names = lsdoc::refs(source, "markdown").page;
+            let mut property_names = BTreeSet::new();
             for block in &blocks[start..end] {
                 let Block::Properties { props, .. } = block else {
                     continue;
                 };
                 for prop in props {
+                    property_names.insert(prop.0.trim().to_lowercase());
+                    if leading
+                        && prop.0.eq_ignore_ascii_case("exclude-from-graph-view")
+                        && prop.1.trim().eq_ignore_ascii_case("true")
+                    {
+                        result.exclude_from_graph = true;
+                    }
                     // Values name pages; property names are storage details.
                     names.extend(lsdoc::refs(&prop.1, "markdown").page);
                     if prop.0.eq_ignore_ascii_case("tags") {
@@ -216,7 +246,16 @@ impl<K: Ord + Clone> Contribution<K> {
                             tag_names(&prop.1)
                         };
                         if leading {
-                            result.tags.extend(tags.iter().filter_map(|n| resolve(n)));
+                            for tag in &tags {
+                                match resolve(tag) {
+                                    Some(page) => {
+                                        result.tags.insert(page);
+                                    }
+                                    None => {
+                                        result.unresolved_tags.insert(tag.clone());
+                                    }
+                                }
+                            }
                         }
                         names.extend(tags);
                     } else if prop.0.eq_ignore_ascii_case("filters") && leading {
@@ -246,6 +285,25 @@ impl<K: Ord + Clone> Contribution<K> {
                     parents
                 })
                 .collect();
+            let mut graph = GraphRefs {
+                direct: BTreeSet::new(),
+                unresolved: BTreeSet::new(),
+                property_names,
+            };
+            for name in &names {
+                match resolve(name) {
+                    Some(page) => {
+                        graph.direct.insert(page);
+                    }
+                    None => {
+                        let name = name.trim();
+                        if !name.is_empty() {
+                            graph.unresolved.insert(name.to_owned());
+                        }
+                    }
+                }
+            }
+            result.graph.push(graph);
             let refs = match properties {
                 Some(targets) if is_properties => targets.clone(),
                 _ => names.iter().filter_map(|name| resolve(name)).collect(),
@@ -277,6 +335,23 @@ impl<K: Ord + Clone> Contribution<K> {
             }
         }
         result
+    }
+}
+
+impl<K> Contribution<K> {
+    /// Each block's references as the garden graph reads them, in block order.
+    pub fn graph_refs(&self) -> &[GraphRefs<K>] {
+        &self.graph
+    }
+
+    /// Names in the leading `tags::` that name no known page.
+    pub fn unresolved_tags(&self) -> &BTreeSet<String> {
+        &self.unresolved_tags
+    }
+
+    /// Whether the leading properties set `exclude-from-graph-view:: true`.
+    pub fn excluded_from_graph(&self) -> bool {
+        self.exclude_from_graph
     }
 }
 
@@ -717,6 +792,29 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
     pub fn title(&self, page: &K) -> Option<&str> {
         self.titles.get(page).map(String::as_str)
     }
+
+    /// Every page the index knows by name, with its title.
+    pub fn pages(&self) -> impl Iterator<Item = (&K, &str)> {
+        self.titles
+            .iter()
+            .map(|(page, title)| (page, title.as_str()))
+    }
+
+    /// Each document's contribution, in the order the index holds them.
+    pub fn contributions(&self) -> &[Contribution<K>] {
+        &self.contributions
+    }
+
+    /// A document's blocks' references with namespace parents added, by position in
+    /// [`Self::contributions`].
+    pub fn expanded_refs(&self, document: usize) -> &[BTreeSet<K>] {
+        &self.expanded[document]
+    }
+
+    /// The page's namespace parents that the index knows, nearest first.
+    pub fn namespace_parents(&self, page: &K) -> &[K] {
+        self.parents.get(page).map_or(&[], Vec::as_slice)
+    }
 }
 
 #[cfg(test)]
@@ -868,6 +966,30 @@ mod tests {
         assert_eq!(index.linked(&"tmux".to_owned()).len(), 1);
         assert_eq!(index.linked(&"Term".to_owned()).len(), 1);
         assert!(index.block(index.linked(&"Term".to_owned())[0]).properties);
+    }
+
+    #[test]
+    fn graph_references_record_property_names_without_changing_linked_references() {
+        let source = "tags:: Term, Unknown Tag\nexclude-from-graph-view:: true\n\n- AWS:: [[tmux]]\n- [[mise/Config]] [[Nowhere]]\n";
+        let page = contribution("card", source);
+        let graph = page.graph_refs();
+        assert!(graph[0].property_names.contains("tags"));
+        assert!(graph[0].property_names.contains("exclude-from-graph-view"));
+        assert!(graph[1].property_names.contains("aws"));
+        assert!(graph[0].direct.contains("Term"));
+        assert_eq!(
+            page.unresolved_tags().iter().collect::<Vec<_>>(),
+            ["Unknown Tag"]
+        );
+        assert!(page.excluded_from_graph());
+        // Direct references leave out the namespace parents that `refs` adds.
+        assert!(graph[2].direct.contains("mise/Config") && !graph[2].direct.contains("mise"));
+        assert!(page.blocks[2].refs.contains("mise"));
+        assert!(graph[2].unresolved.contains("Nowhere"));
+        let index = index(&[("card", source)]);
+        assert!(index.linked(&"AWS".to_owned()).is_empty());
+        assert_eq!(index.linked(&"tmux".to_owned()).len(), 1);
+        assert_eq!(index.linked(&"mise".to_owned()).len(), 1);
     }
 
     #[test]

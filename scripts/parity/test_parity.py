@@ -173,7 +173,11 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
-                                       'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar'})
+                                       'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph'})
+        self.assertEqual(set(loaded['graph']), {'data_gzip_kb', 'script_kb', 'worker_kb', 'first_frame_ms_desktop',
+                                                'first_frame_ms_phone', 'heap_mb', 'frame_ms_phone',
+                                                'page_graph_fragment_gzip_kb', 'page_graph_open_ms_desktop',
+                                                'page_graph_open_ms_phone', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['all_pages']), {'paging_page_gzip_kb', 'growth_kb', 'script_gzip_kb',
                                                     'list_gzip_kb', 'sort_heap_mb', 'search_ms_desktop',
                                                     'search_ms_phone', 'build_slowdown_pct'})
@@ -254,6 +258,54 @@ class PerfMergeTest(unittest.TestCase):
         measured = [{'page': 'tmux', 'profile': 'desktop', 'build': 'lsg', 'title_ms': 30}]
         merged = perf.merge(kept, measured, ['lsg'], ('page', 'profile', 'build'))
         self.assertEqual([(r['build'], r['title_ms']) for r in merged], [('logseq', 15000), ('lsg', 30)])
+
+
+class GraphTest(unittest.TestCase):
+    LIMITS = {'data_gzip_kb': 1, 'script_kb': 1, 'worker_kb': 1, 'page_graph_fragment_gzip_kb': 1}
+
+    def site(self, temp, data=100, neighbourhood=b'{}', page='<html>tmux</html>'):
+        site = Path(temp)
+        (site / '_graph/p').mkdir(parents=True)
+        (site / '_graph/default.bin').write_bytes(os.urandom(data))
+        (site / '_graph/p/0000000000000000.json').write_bytes(neighbourhood)
+        for name in ('lsg-graph.js', 'lsg-graph.css', 'lsg-graph-worker.js'):
+            (site / name).write_text('x')
+        (site / 'graph.html').write_text('<script src="lsg-graph.js"></script>')
+        (site / 'tmux.html').write_text(page)
+        return site
+
+    def test_graph_files_within_budget(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = self.site(temp)
+            self.assertEqual(budgets.check_graph(site, ['graph.html', 'tmux.html'], self.LIMITS), [])
+            self.assertEqual(budgets.graph_sizes(site)['neighbourhoods'], 1)
+
+    def test_graph_files_over_budget_and_pages_that_load_them(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = self.site(temp, data=2000, neighbourhood=os.urandom(2000),
+                             page='<script src="lsg-graph.js"></script>')
+            failures = budgets.check_graph(site, ['graph.html', 'tmux.html'], self.LIMITS)
+            self.assertEqual(len(failures), 3, failures)
+            self.assertTrue(any('_graph/default.bin' in f for f in failures))
+            self.assertTrue(any('tmux.html: loads graph data' in f for f in failures))
+
+    def test_lsg_route_matches_the_publisher(self):
+        self.assertEqual(perf.lsg_route('tmux'), 'p-424036ef4353ec8f.html')
+
+    def test_graph_markdown_marks_values_over_budget(self):
+        report = {
+            'graph': [{'profile': 'phone', 'build': 'lsg', 'first_frame_ms': 3500, 'pan_p95_ms': 20,
+                       'peak_heap': 10e6, 'worker_loaded': False, 'data_transfer': 400_000}],
+            'page_graph': [{'page': 'tmux', 'profile': 'desktop', 'open_ms': 120, 'file': 'p/x.json'}],
+            'sizes': {'data': 400_000, 'script': 11_000, 'worker': 2_700, 'largest_neighbourhood': (85_000, 'x.json'),
+                      'neighbourhoods': 3},
+            'build': {'seconds': 15.0, 'baseline_seconds': 10.0, 'baseline': '/tmp/lsg'},
+        }
+        text = '\n'.join(perf.graph_markdown(report, metrics.load_budgets()))
+        self.assertIn('| phone | lsg | **3,500** | 20 | 10.0 | 400 | no |', text)
+        self.assertIn('| desktop | logseq | 2,291,000 |', text)
+        self.assertIn('| tmux | desktop | 120 | `p/x.json` |', text)
+        self.assertIn('**15.0** seconds', text)
 
 
 class BudgetCheckTest(unittest.TestCase):

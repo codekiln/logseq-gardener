@@ -20,6 +20,7 @@
     block: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0',
     refs: 'M9 6l11 0M9 12l11 0M9 18l11 0M5 6l0 .01M5 12l0 .01M5 18l0 .01',
     contents: 'M9 6l11 0M9 12l11 0M9 18l11 0M5 6l0 .01M5 12l0 .01M5 18l0 .01',
+    graph: 'M10 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M3 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M17 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M6.5 17.5 12 13l5.5 4.5M12 7v6',
     help: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M12 17l0 .01M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4',
     chevron: 'M6 9l6 6l6 -6',
     dots: 'M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0',
@@ -129,8 +130,17 @@
   const emptyOutline = () => el('ul', { class: 'outline' }, el('li', {}, el('a', { class: 'bullet', href: '#' })));
 
   // What a card shows: {title, icon, body}. A missing page says so.
+  let graphScript;
   async function content(card) {
     if (card.type === 'help') return { title: 'Help', body: help() };
+    // The Page graph draws with lsg-graph.js, loaded when the first card opens.
+    if (card.type === 'graph') {
+      const body = el('div', { class: 'lsg-page-graph' });
+      graphScript ||= new Promise(done => document.head.append(Object.assign(document.createElement('script'), { src: new URL('lsg-graph.js', base).href, onload: done, onerror: done })));
+      await graphScript;
+      window.logseqGardenerGraph?.page(body);
+      return { title: 'Page graph', body };
+    }
     const route = routeOf(card);
     const doc = route && await page(route);
     if (!doc) {
@@ -166,6 +176,7 @@
       ['t w', 'Toggle wide mode'],
       ['g h', 'Go to home'],
       ['g a', 'Go to all pages'],
+      has('[data-lsg-graph-shortcut]') && ['g g', 'Go to the graph view'],
       has('[data-lsg-journals-link]') && ['g j', 'Go to journals'],
       has('[data-lsg-search]') && ['mod k', 'Search'],
       ['alt shift c', 'Toggle the Contents card'],
@@ -181,6 +192,7 @@
   const handle = el('div', { class: 'lsg-right-resize', role: 'separator', tabindex: '0', 'aria-orientation': 'vertical', 'aria-label': 'Resize right sidebar' });
   const bar = el('div', { class: 'lsg-right-bar' },
     el('button', { type: 'button', class: 'lsg-right-tab', 'data-add': 'contents' }, 'Contents'),
+    el('button', { type: 'button', class: 'lsg-right-tab', 'data-add': 'graph' }, 'Page graph'),
     el('button', { type: 'button', class: 'lsg-right-tab', 'data-add': 'help' }, 'Help'));
   const list = el('div', { class: 'lsg-right-cards' });
   aside.append(handle, bar, list);

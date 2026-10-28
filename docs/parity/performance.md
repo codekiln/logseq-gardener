@@ -3,7 +3,7 @@
 - measured: 2026-10-26
 - garden commit: 0ce74d6
 - gh-pages commit: 8132c95
-- lsg: 0.0.0 (b490d68); the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only; the search sections: search format version 2 on a2284e0 with garden commit 75ef84c and `gh-pages` b491e00 on 2026-10-27, both builds, from `parity:perf --search-site` (see [Search performance](search-performance.md))
+- lsg: 0.0.0 (b490d68); the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only; the search sections: search format version 2 on a2284e0 with garden commit 75ef84c and `gh-pages` b491e00 on 2026-10-27, both builds, from `parity:perf --search-site` (see [Search performance](search-performance.md)); the graph view and Page graph sections: the graph view change on 73d9c2f with garden commit cc1bb2e, `lsg` only, from `parity:perf --graph`
 - profiles: desktop, phone
 - loads per page, logseq: 1
 - loads per page, lsg: 3
@@ -146,6 +146,35 @@ Shift-click on each of the first ten distinct page links on `tmux`, one after an
 | desktop | lsg | 27 | 3.1 | 5.7 | 14.2 |
 
 Two pages exceed the 60 KB card transfer budget as cards and as pages: `Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton` (81.9 KB gzip) and `Ableton/Live/UG/29 Audio Effect Reference` (62.1 KB gzip). Their content, not the shell, makes up the size.
+
+## Graph view
+
+From navigating to `graph.html` (Logseq: `#/graph`) to the first frame with every node of the default view drawn; the 95th-percentile frame time while dragging the background; and the peak JS heap after the first frame, the drag and five wheel zooms. Logseq's desktop row comes from the [Graph view analysis](graph-view.md), which measured 38 minutes to its first frame; `parity:perf` does not wait that long. **Bold** marks an `lsg` value over its `[graph]` budget.
+
+| Profile | Build | First frame (ms) | Pan frame time, 95th percentile (ms) | Peak JS heap (MB) | Graph data (KB, gzip) | Worker loaded |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| desktop | logseq | 2,291,000 | – | 2,340 | 19,800 (`db.gz`) | – |
+| desktop | lsg | 76 | 9 | 9.9 | 409 | no |
+| phone | lsg | 2,871 | 10 | 10.2 | 409 | no |
+
+WebGL renderer: `ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)`.
+
+`lsg`'s graph files: `_graph/default.bin` 409 KB as stored (gzip), `lsg-graph.js` with its styles 11.3 KB gzip, the worker 2.7 KB gzip, 13,467 neighbourhood files, the largest 85.0 KB gzip.
+
+## Page graph
+
+Time from clicking `Page graph` in the right sidebar to the card's first frame, and the file it fetched. Below 640px there is no right sidebar, so the phone rows use a 1280px window with the phone profile's CPU and network throttling.
+
+| Page | Profile | Open (ms) | File |
+| --- | --- | ---: | --- |
+| Foam | desktop | 221 | `p/077e10850d78a1dc.json` |
+| tmux | desktop | 153 | `p/424036ef4353ec8f.json` |
+| Person | desktop | 164 | `p/40d76f1f51639ec0.json` |
+| Foam | phone | 435 | `p/077e10850d78a1dc.json` |
+| tmux | phone | 578 | `p/424036ef4353ec8f.json` |
+| Person | phone | 821 | `p/40d76f1f51639ec0.json` |
+
+Whole-garden build with the run's options, the fastest of 3 runs: 15.3 seconds with the graph, 12.9 seconds with the baseline `lsg` (+19%; budget +25%).
 
 ## Search index
 

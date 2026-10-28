@@ -161,7 +161,9 @@ fn shell_cost_is_fixed_per_page() {
     assert!(include_str!("../src/site/shell.js").len() <= 6_500);
     let other = f.page("OTHER_BODY");
     let frame = &other[other.find("<body>").unwrap()..other.find("<main>").unwrap()];
-    assert!(frame.len() <= 3_000, "{}", frame.len());
+    // The graph view's header link and sidebar item added about 300 bytes; the [shell]
+    // frame_kb budget in scripts/parity/budgets.toml is 6,000.
+    assert!(frame.len() <= 3_300, "{}", frame.len());
 }
 
 #[test]
@@ -187,4 +189,45 @@ fn default_sidebar_cards_reach_the_toggle_and_unresolved_names_are_reported() {
     assert!(sidebar.contains("window.logseqGardenerSidebar"));
     assert!(!sidebar.contains("\n//") && !sidebar.contains("\n "));
     assert!(f.file("lsg-sidebar.css").contains(".lsg-right-sidebar"));
+}
+
+#[test]
+fn graph_entry_points_use_logseqs_classes_and_follow_the_shortcut_setting() {
+    let f = Fixture::new(CONFIG);
+    f.publish(None);
+    let tmux = f.page("TMUX_BODY");
+    let frame = before(&tmux, "<main>");
+    assert!(frame.contains("<header class=\"lsg-header cp__header\">"));
+    let order = [
+        "aria-label=\"Home\"",
+        "href=\"graph.html#/graph\" aria-label=\"Graph\"",
+        "aria-label=\"More\"",
+        "<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view data-lsg-graph-shortcut>",
+        "data-lsg-all-pages",
+    ];
+    let positions: Vec<_> = order.iter().map(|item| frame.find(item).unwrap()).collect();
+    assert!(
+        positions.windows(2).all(|pair| pair[0] < pair[1]),
+        "{frame}"
+    );
+    assert!(frame.contains(">g g</span>"));
+    // The graph page itself marks its sidebar item and exists.
+    let graph = f.file("graph.html");
+    assert!(
+        before(&graph, "<main>")
+            .contains("data-lsg-graph-view data-lsg-graph-shortcut aria-current=\"page\"")
+    );
+    assert!(graph.contains("class=\"graph-filters\""));
+    assert!(graph.contains("<script defer src=\"lsg-graph.js\"></script>"));
+    // No other page loads graph data or the graph script.
+    assert!(!tmux.contains("_graph/") && !tmux.contains("lsg-graph.js"));
+
+    let off = Fixture::new(r#"{:shortcuts {:go/graph-view false}}"#);
+    off.publish(None);
+    let frame = off.page("TMUX_BODY");
+    let frame = before(&frame, "<main>");
+    assert!(
+        frame.contains("<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view>")
+    );
+    assert!(!frame.contains("g g"));
 }

@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::garden_config::{self, Form};
+use crate::graph::{ForceSettings, GraphSettings};
 use crate::journals::{DEFAULT_FILE_NAME_FORMAT, DEFAULT_TITLE_FORMAT, DateFormat};
 use crate::page_names::{PageNameIndex, lookup_key};
 
@@ -54,6 +55,12 @@ pub struct GardenSettings {
     pub show_brackets: bool,
     /// `:default-home {:sidebar …}`: the right sidebar's cards on a reader's first visit.
     pub sidebar: Vec<String>,
+    /// `:graph/settings`: which pages the graph view draws at first.
+    pub graph: GraphSettings,
+    /// `:graph/forcesettings`: the graph layout's forces.
+    pub forces: ForceSettings,
+    /// `g g` opens the graph view unless `:shortcuts {:go/graph-view false}`.
+    pub graph_shortcut: bool,
 }
 
 impl Default for GardenSettings {
@@ -65,6 +72,9 @@ impl Default for GardenSettings {
             journal_file_name_format: DEFAULT_FILE_NAME_FORMAT.to_owned(),
             show_brackets: true,
             sidebar: Vec::new(),
+            graph: GraphSettings::default(),
+            forces: ForceSettings::default(),
+            graph_shortcut: true,
         }
     }
 }
@@ -187,6 +197,25 @@ impl GardenSettings {
                     }
                     continue;
                 }
+                ":graph/settings" => {
+                    read_graph_settings(value, &mut settings.graph, &mut diagnostics);
+                    continue;
+                }
+                ":graph/forcesettings" => {
+                    read_force_settings(value, &mut settings.forces, &mut diagnostics);
+                    continue;
+                }
+                ":shortcuts" => {
+                    if let Form::Map(entries) = value {
+                        for (key, value) in entries {
+                            if matches!(key, Form::Atom(ref k) if k == ":go/graph-view") {
+                                // Logseq turns a shortcut off with `false`; a key string keeps it.
+                                settings.graph_shortcut = !matches!(value, Form::Atom(ref v) if v == "false" || v == "nil");
+                            }
+                        }
+                    }
+                    continue;
+                }
                 ":favorites" => {
                     let entries = match value {
                         Form::Collection(items) => items
@@ -219,6 +248,58 @@ impl GardenSettings {
             }
         }
         (settings, diagnostics)
+    }
+}
+
+/// Read `:graph/settings`; an entry that is not a boolean keeps its default.
+fn read_graph_settings(value: Form, graph: &mut GraphSettings, diagnostics: &mut Vec<String>) {
+    let Form::Map(entries) = value else {
+        diagnostics.push("Graph setting :graph/settings is not a map; using defaults".into());
+        return;
+    };
+    for (key, value) in entries {
+        let Form::Atom(key) = key else { continue };
+        let flag = match key.as_str() {
+            ":journal?" => &mut graph.journals,
+            ":orphan-pages?" => &mut graph.orphan_pages,
+            ":builtin-pages?" => &mut graph.builtin_pages,
+            ":excluded-pages?" => &mut graph.excluded_pages,
+            _ => continue,
+        };
+        match value {
+            Form::Atom(ref v) if v == "true" => *flag = true,
+            Form::Atom(ref v) if v == "false" || v == "nil" => *flag = false,
+            _ => diagnostics.push(format!(
+                "Graph setting {key} is not a boolean; using {}",
+                *flag
+            )),
+        }
+    }
+}
+
+/// Read `:graph/forcesettings`; an entry that is not a whole number keeps its default.
+fn read_force_settings(value: Form, forces: &mut ForceSettings, diagnostics: &mut Vec<String>) {
+    let Form::Map(entries) = value else {
+        diagnostics.push("Graph setting :graph/forcesettings is not a map; using defaults".into());
+        return;
+    };
+    for (key, value) in entries {
+        let Form::Atom(key) = key else { continue };
+        let number = match key.as_str() {
+            ":link-dist" => &mut forces.link_distance,
+            ":charge-strength" => &mut forces.charge_strength,
+            ":charge-range" => &mut forces.charge_range,
+            _ => continue,
+        };
+        match value {
+            Form::Atom(ref v) if v.parse::<i32>().is_ok_and(|n| n.abs() <= 100_000) => {
+                *number = v.parse().expect("checked above");
+            }
+            _ => diagnostics.push(format!(
+                "Graph setting {key} is not a whole number; using {}",
+                *number
+            )),
+        }
     }
 }
 
@@ -382,6 +463,61 @@ mod tests {
         let (settings, diagnostics) = GardenSettings::parse(r#"{:default-home {:sidebar 1}}"#);
         assert!(settings.sidebar.is_empty());
         assert_eq!(diagnostics.len(), 1);
+    }
+
+    #[test]
+    fn reads_graph_settings_forces_and_the_graph_shortcut() {
+        let (settings, diagnostics) = GardenSettings::parse("{}");
+        assert_eq!(settings.graph, GraphSettings::default());
+        assert!(!settings.graph.journals && !settings.graph.orphan_pages);
+        assert_eq!(
+            (
+                settings.forces.link_distance,
+                settings.forces.charge_strength,
+                settings.forces.charge_range
+            ),
+            (70, -600, 600)
+        );
+        assert!(settings.graph_shortcut && diagnostics.is_empty());
+        let (settings, diagnostics) = GardenSettings::parse(
+            "{:graph/settings {:journal? true :orphan-pages? true :builtin-pages? false :excluded-pages? true}
+              :graph/forcesettings {:link-dist 120 :charge-strength -300 :charge-range 900}
+              :shortcuts {:go/graph-view false :go/home \"g h\"}}",
+        );
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(settings.graph.journals && settings.graph.orphan_pages);
+        assert!(!settings.graph.builtin_pages && settings.graph.excluded_pages);
+        assert_eq!(
+            (
+                settings.forces.link_distance,
+                settings.forces.charge_strength,
+                settings.forces.charge_range
+            ),
+            (120, -300, 900)
+        );
+        assert!(!settings.graph_shortcut);
+    }
+
+    #[test]
+    fn malformed_graph_settings_keep_defaults_with_diagnostics() {
+        let (settings, diagnostics) = GardenSettings::parse(
+            "{:graph/settings {:journal? \"yes\"} :graph/forcesettings {:link-dist 1.5} :shortcuts {:go/graph-view \"g g\"}}",
+        );
+        assert!(!settings.graph.journals);
+        assert_eq!(settings.forces.link_distance, 70);
+        assert!(settings.graph_shortcut);
+        assert_eq!(
+            diagnostics,
+            [
+                "Graph setting :journal? is not a boolean; using false",
+                "Graph setting :link-dist is not a whole number; using 70",
+            ]
+        );
+        let (_, diagnostics) = GardenSettings::parse("{:graph/settings [true]}");
+        assert_eq!(
+            diagnostics,
+            ["Graph setting :graph/settings is not a map; using defaults"]
+        );
     }
 
     #[test]

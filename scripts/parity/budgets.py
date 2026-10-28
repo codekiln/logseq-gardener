@@ -135,6 +135,53 @@ def check_sidebar(site, pages, sidebar):
     return failures
 
 
+GRAPH_SCRIPT = 'lsg-graph.js'
+GRAPH_STYLES = 'lsg-graph.css'
+GRAPH_WORKER = 'lsg-graph-worker.js'
+GRAPH_DATA = '_graph/default.bin'
+GRAPH_NEIGHBOURHOODS = '_graph/p'
+
+
+def graph_sizes(site):
+    """Sizes of the graph files in a site: the data file as stored (gzip), the script with its
+    styles and the worker (gzip), and the largest neighbourhood file (gzip) with its name."""
+    site = Path(site)
+    neighbourhoods = sorted(((metrics.gzip_size(p.read_bytes()), p.name)
+                             for p in (site / GRAPH_NEIGHBOURHOODS).glob('*.json')), reverse=True)
+    return {
+        'data': (site / GRAPH_DATA).stat().st_size,
+        'script': metrics.gzip_size((site / GRAPH_SCRIPT).read_bytes() + (site / GRAPH_STYLES).read_bytes()),
+        'worker': metrics.gzip_size((site / GRAPH_WORKER).read_bytes()),
+        'largest_neighbourhood': neighbourhoods[0] if neighbourhoods else (0, None),
+        'neighbourhoods': len(neighbourhoods),
+    }
+
+
+def check_graph(site, pages, graph):
+    """Return failure messages for the graph files over budget and pages that load graph data."""
+    site = Path(site)
+    for name in (GRAPH_DATA, GRAPH_SCRIPT, GRAPH_STYLES, GRAPH_WORKER, 'graph.html'):
+        if not (site / name).exists():
+            return [f'{name}: missing from the build']
+    sizes = graph_sizes(site)
+    failures = []
+    for key, limit, label in (('data', 'data_gzip_kb', GRAPH_DATA),
+                              ('script', 'script_kb', f'{GRAPH_SCRIPT} and {GRAPH_STYLES}'),
+                              ('worker', 'worker_kb', GRAPH_WORKER)):
+        if sizes[key] > graph[limit] * 1000:
+            failures.append(f'{label}: {sizes[key]:,} gzip exceeds {graph[limit] * 1000:,}')
+    size, name = sizes['largest_neighbourhood']
+    if size > graph['page_graph_fragment_gzip_kb'] * 1000:
+        failures.append(f'{GRAPH_NEIGHBOURHOODS}/{name}: {size:,} gzip exceeds {graph["page_graph_fragment_gzip_kb"] * 1000:,}')
+    for page in pages:
+        if page == 'graph.html':
+            continue
+        text = (site / page).read_text(encoding='utf-8')
+        if '_graph/' in text or GRAPH_SCRIPT in text or GRAPH_WORKER in text:
+            failures.append(f'{page}: loads graph data or the graph script before use')
+    return failures
+
+
 def check_journals(small_site, older_site, journals):
     """Return failure messages for the feed loader and a home page that grew with older journals."""
     script = small_site / JOURNALS_SCRIPT
@@ -390,6 +437,9 @@ def check_search(site, limits, profiles):
     if startup.stat().st_size > limits['bootstrap_kb'] * 1000:
         failures.append('search bootstrap exceeds its initial-script budget')
     for page in site_pages(site):
+        # The graph view's renderer is that page's content; [graph] script_kb budgets it.
+        if page == 'graph.html':
+            continue
         parser = _BlockingResources(all_scripts=True)
         parser.feed((site / page).read_text(encoding='utf-8'))
         script = parser.inline_script + sum((site / p).stat().st_size for p in parser.files if p.endswith(('.js', '.mjs')))
@@ -480,6 +530,11 @@ def main():
         print(f"search title index: {index['titles_gzip']:,} gzip, {index['titles_decoded']:,} decoded; "
               f"largest shard {index['shards'][0][1]:,} gzip, largest chunk {index['chunks'][0][1]:,} gzip")
         sidebar_failures = check_sidebar(temp / 'small', small, budgets['sidebar'])
+        graph_failures = check_graph(temp / 'small', small, budgets['graph'])
+        sizes = graph_sizes(temp / 'small')
+        print(f"graph: data {sizes['data']:,} gzip, script and styles {sizes['script']:,} gzip, "
+              f"worker {sizes['worker']:,} gzip, {sizes['neighbourhoods']} neighbourhood files, "
+              f"largest {sizes['largest_neighbourhood'][0]:,} gzip")
         print(f"{SIDEBAR_SCRIPT}: {metrics.gzip_size((temp / 'small' / SIDEBAR_SCRIPT).read_bytes()):,} gzip")
         journal_failures = check_journals(temp / 'small', temp / 'older', budgets['journals'])
         print(f"{SHELL_SCRIPT}: {(temp / 'small' / SHELL_SCRIPT).stat().st_size:,}")
@@ -504,7 +559,7 @@ def main():
     print(f'hierarchy styles: {metrics.gzip_size(hierarchy_styles().encode("utf-8")):,} gzip')
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
-                + hierarchy_failures + sidebar_failures
+                + hierarchy_failures + sidebar_failures + graph_failures
                 + search_failures + all_pages_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
