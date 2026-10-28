@@ -115,7 +115,11 @@ fn header_and_sidebar_follow_logseq_order_with_resolved_favorites() {
             .iter()
             .all(|m| m.contains("names no published page"))
     );
-    assert_eq!(f.file("lsg-shell.js"), include_str!("../src/site/shell.js"));
+    // The build strips the script's comment lines and indentation.
+    let shell = f.file("lsg-shell.js");
+    assert!(shell.contains("window.logseqGardenerShell = true;"));
+    assert!(shell.contains("window.logseqGardenerCards(event)"));
+    assert!(!shell.contains("\n  "));
     let index = f.file("index.html");
     let frame = before(&index, "<main>");
     assert!(!frame.contains("aria-label=\"Home\""));
@@ -180,12 +184,15 @@ fn view_as_slides_is_the_first_more_item_on_page_routes_only() {
 fn shell_cost_is_fixed_per_page() {
     let f = Fixture::new(CONFIG);
     f.publish(None);
-    assert!(include_str!("../src/site/shell.js").len() <= 6_600);
+    // The [shell] script_kb budget in scripts/parity/budgets.toml, raised for the
+    // flashcard review's loader.
+    assert!(f.file("lsg-shell.js").len() <= 6_900);
     let other = f.page("OTHER_BODY");
     let frame = &other[other.find("<body>").unwrap()..other.find("<main>").unwrap()];
-    // The graph view's header link and sidebar item added about 300 bytes; the [shell]
-    // frame_kb budget in scripts/parity/budgets.toml is 6,000.
-    assert!(frame.len() <= 3_300, "{}", frame.len());
+    // The graph view's header link and sidebar item added about 300 bytes, and the
+    // Flashcards item with its icon about 400; the [shell] frame_kb budget in
+    // scripts/parity/budgets.toml is 6,000.
+    assert!(frame.len() <= 3_700, "{}", frame.len());
 }
 
 #[test]

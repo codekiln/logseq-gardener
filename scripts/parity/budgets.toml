@@ -17,8 +17,9 @@ search_p95_ms = 100
 
 # The header and left sidebar on every lsg page (published-app-shell).
 [shell]
-# 6 before the right sidebar's loader, 6.5 before View as slides.
-script_kb = 6.6
+# 6 before the right sidebar's loader, 6.5 before View as slides, 6.6 before Queries; the
+# flashcards entry in the left sidebar and its loader took 0.3 more.
+script_kb = 6.9
 frame_kb = 6
 
 # The journals feed on the home page (published-journals). parity:budgets checks script_kb;
@@ -61,11 +62,12 @@ build_slowdown_pct = 25
 
 # Inline markup (published-inline-markup). parity:budgets checks the gzip size of the inline
 # styles every page carries, and that the largest fixture page grows by at most
-# largest_page_growth_kb over its gzip size before inline markup (7,479 bytes on 2026-10-25).
+# largest_page_growth_kb over its gzip size before inline markup (7,479 bytes on 2026-10-25). 2 before
+# the Flashcards sidebar item, which adds about 80 bytes of gzip to every page.
 [inline]
 styles_gzip_kb = 1
 largest_page_baseline_gzip_kb = 7.479
-largest_page_growth_kb = 2
+largest_page_growth_kb = 2.1
 
 # Fenced code and tables (published-code-and-tables). parity:budgets checks the gzip size of the
 # code and table styles every page carries, and that the largest fixture page with fenced code
@@ -204,4 +206,22 @@ fragment_gzip_kb = 100
 open_ms_desktop = 300
 open_ms_phone = 1500
 open_heap_mb = 20
+build_slowdown_pct = 10
+
+# Flashcards (published-flashcards). parity:budgets checks lsg-flashcards.js (uncompressed),
+# lsg-flashcards.css, the all-cards deck file and every card batch (gzip), that no page links the
+# review script (it loads on first use), and that the fixture deck page grows by at most
+# deck_page_growth_gzip_kb over its gzip size without the deck widget. parity:perf --flashcards
+# marks opening the review to its first card, the phone heap after scoring fifty cards, and a
+# whole-garden build more than build_slowdown_pct slower than the --baseline-lsg binary's.
+[flashcards]
+script_kb = 8
+styles_gzip_kb = 1.5
+deck_gzip_kb = 8
+card_batch_gzip_kb = 30
+deck_page = "Tools/Flashcards"
+deck_page_growth_gzip_kb = 4
+open_ms_desktop = 300
+open_ms_phone = 1500
+review_heap_mb = 20
 build_slowdown_pct = 10

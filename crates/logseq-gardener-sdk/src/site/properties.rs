@@ -62,7 +62,8 @@ fn internal(key: &str) -> bool {
             | "file"
             | "file-path"
             | "file-name"
-    ) || key.starts_with("logseq-proxy-")
+    ) || crate::cards::is_hidden_property(key)
+        || key.starts_with("logseq-proxy-")
         || key.starts_with("logseq.")
         || key.starts_with("publishing/")
 }

@@ -27,7 +27,7 @@ A new SDK module, `cards`, provides:
 
 - `cards(index) -> Vec<Card>`: every block whose references include the page `card`, written `#card`, `#[[card]]`, `[[card]]` or `[[Card]]`, outside code. A `Card` holds the block id, its page, its ancestors, and its schedule read from `card-repeats`, `card-next-schedule`, `card-last-interval`, `card-ease-factor`, `card-last-reviewed` and `card-last-score`.
 - `deck_queries(index) -> Vec<DeckQuery>`: the argument of every `{{cards}}` macro in the selected documents, in page-name then outline order, with an empty argument meaning `All` and a bare name becoming `[[name]]`, as `srs.cljs` does.
-- `deck(query, index, now) -> Deck`: the cards that `query::evaluate` returns for `(and <query> [[card]])`, with `due` and `total`. A card is due when it has no `card-repeats` or fewer than 1, no `card-next-schedule`, or a schedule before `now`. Due cards are sorted by the `card-next-schedule` text, unscheduled first, as Logseq sorts them.
+- `deck(query, index, now) -> Deck`: the cards that `query::evaluate` returns for `(and <query> [[card]])`, with `due` and `total`. A card is due when it has no `card-repeats` or fewer than 1, no `card-next-schedule`, or a schedule before `now`. Due cards are sorted by the `card-next-schedule` text, unscheduled first, as Logseq sorts them; cards with equal text keep page-title then outline order.
 - `HIDDEN_CARD_PROPERTIES`: the six `card-*` keys, joined to the SDK's built-in hidden properties, so no page, reference, embed, search record or review shows them.
 
 The SDK holds no HTML.
@@ -143,3 +143,19 @@ Decided by the agent without codekiln: no. `card` is one of Logseq's built-in pa
 ### 9 - What lives in the SDK and what in the publisher?
 
 Decided by the agent without codekiln: the SDK selects cards, lists deck queries, selects and orders decks with the shared query evaluator, decides which cards are due at a given time, and holds the hidden `card-*` properties. The publisher renders the sidebar item, card styles, the widget, the dialog, the deck and card files, cloze, and the scoring script. The CLI and language server can then use the same deck operations, as the shared-engine comment on #106 asks.
+
+### 10 - In what order do cards with the same schedule come?
+
+Decided by the agent without codekiln: in page-title order, then outline order, during the Apply step. Logseq keeps the order its database returns, which follows when each block was created in the desktop app, so 168 unscheduled cards tie and its first `All` card (`Lazygit/Keyshort/Commit`) and first `[[yazi]]` card cannot be derived from the files. Every count matches Logseq's; only the order of tied cards differs. The scenarios name the cards this order gives.
+
+### 11 - Does an empty `{{cards}}` appear in the `Switch to` menu?
+
+Decided by the agent without codekiln: no. An empty argument is `All`, which the menu already lists last, so the encode garden's menu still has 30 entries.
+
+### 12 - How does `lsg-shell.js` stay within 6.9 KB with the loader?
+
+Decided by the agent without codekiln: the build writes it with the same comment and indentation stripping as the other scripts (6,432 bytes with the loader), so the loader and the cloze toggle fit with room to spare.
+
+### 13 - Do the `card-*` keys become graph nodes?
+
+Decided by the agent without codekiln: no. They are hidden built-in properties, which Logseq does not turn into pages, so the graph view's property pages leave them out too.

@@ -139,6 +139,7 @@ fn contains_embed(nodes: &[Inline], depth: usize) -> bool {
         Inline::Macro { name, .. } => {
             name.eq_ignore_ascii_case("embed")
                 || name.eq_ignore_ascii_case("query")
+                || name.eq_ignore_ascii_case("cards")
                 || crate::media::is_video_macro(name)
         }
         Inline::Emphasis { children, .. }
@@ -227,6 +228,15 @@ pub(super) trait QueryBoxes {
         text: &str,
         asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
     ) -> QueryBox;
+    /// A `{{cards …}}` deck widget whose arguments, joined by `, `, are `text`; `None`
+    /// keeps the macro's literal text.
+    fn cards(
+        &self,
+        _text: &str,
+        _asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> Option<QueryBox> {
+        None
+    }
 }
 
 /// A rendered query and its diagnostics.
@@ -555,12 +565,14 @@ impl Renderer<'_> {
                 } else {
                     slide_attributes(blocks, index)
                 };
+                let card = crate::cards::mentions_card(inline);
                 let item_start = format!(
                     "<li{}{reference_attributes}{slide}>",
-                    if collapsed {
-                        " class=\"outline-collapsed\""
-                    } else {
-                        ""
+                    match (collapsed, card) {
+                        (true, true) => " class=\"outline-collapsed lsg-card\"",
+                        (true, false) => " class=\"outline-collapsed\"",
+                        (false, true) => " class=\"lsg-card\"",
+                        (false, false) => "",
                     }
                 );
                 while levels.last().is_some_and(|(previous, _)| previous > level) {
@@ -1212,9 +1224,12 @@ impl Renderer<'_> {
             self.html.push_str("</span></span>");
             return;
         }
+        let card = crate::cards::is_card_name(target);
         let candidates = self.pages.candidates(target);
         let route = if let [route] = candidates {
             Some(route.clone())
+        } else if card {
+            None
         } else {
             let reason = if candidates.len() > 1 {
                 "Ambiguous selected page reference"
@@ -1227,7 +1242,8 @@ impl Renderer<'_> {
         // Logseq's faint `[[` `]]` come from the stylesheet, which saves their bytes on
         // every reference; `no-brackets` turns them off for a garden that hides them.
         self.html.push_str(&format!(
-            "<span class=\"page-reference{}{}\">",
+            "<span class=\"page-reference{}{}{}\">",
+            if card { " lsg-card-ref" } else { "" },
             if route.is_some() { "" } else { " unresolved" },
             if self.show_brackets {
                 ""
@@ -1256,8 +1272,10 @@ impl Renderer<'_> {
             self.text(&text);
             return;
         }
+        let card = crate::cards::is_card_name(&name);
+        let class = if card { "tag lsg-card-ref" } else { "tag" };
         if self.in_reference {
-            self.html.push_str("<span class=\"tag\">");
+            self.html.push_str(&format!("<span class=\"{class}\">"));
             self.text(&text);
             self.html.push_str("</span>");
             return;
@@ -1265,17 +1283,20 @@ impl Renderer<'_> {
         let candidates = self.pages.candidates(&name);
         if let [route] = candidates {
             self.html
-                .push_str(&format!("<a class=\"tag\" href=\"{}\">", escape(route)));
+                .push_str(&format!("<a class=\"{class}\" href=\"{}\">", escape(route)));
             self.text(&text);
             self.html.push_str("</a>");
         } else {
-            let reason = if candidates.len() > 1 {
-                "Ambiguous selected tag"
-            } else {
-                "Unresolved or excluded tag"
-            };
-            self.diagnostic(format!("{reason}: {name}"));
-            self.html.push_str("<span class=\"tag\">");
+            // `card` is one of Logseq's built-in pages, so it is never reported.
+            if !card {
+                let reason = if candidates.len() > 1 {
+                    "Ambiguous selected tag"
+                } else {
+                    "Unresolved or excluded tag"
+                };
+                self.diagnostic(format!("{reason}: {name}"));
+            }
+            self.html.push_str(&format!("<span class=\"{class}\">"));
             self.text(&text);
             self.html.push_str("</span>");
         }
@@ -1406,7 +1427,22 @@ impl Renderer<'_> {
                     self.diagnostic(message);
                 }
             }
-            "embed" | "query" | "cards" | "cloze" | "namespace" | "tweet" => {
+            "cards" if self.queries.is_some() && !self.embedded && !self.in_reference => {
+                let queries = self.queries.expect("checked above");
+                match queries.cards(&args.join(", "), self.asset) {
+                    Some(rendered) => {
+                        self.html.push_str(&rendered.html);
+                        for message in rendered.diagnostics {
+                            self.diagnostic(message);
+                        }
+                    }
+                    None => self.literal("macro (including embeds and queries)", &source),
+                }
+            }
+            "cloze" => self
+                .html
+                .push_str(&super::flashcards::cloze(&args.join(", "))),
+            "embed" | "query" | "cards" | "namespace" | "tweet" => {
                 self.literal("macro (including embeds and queries)", &source)
             }
             // Renderers need plugins, which a published site does not load.
@@ -2321,20 +2357,56 @@ mod tests {
             ("multi word", "p-multi.html"),
         ];
         let rendered = render_with(
-            "- #Keyshort #[[multi word]] #card [see #Keyshort](https://example.com)\n",
+            "- #Keyshort #[[multi word]] #Missing [see #Keyshort](https://example.com)\n",
             &pages,
             true,
         );
         let html = rendered.html;
         assert!(html.contains("<a class=\"tag\" href=\"p-keyshort.html\">#Keyshort</a>"));
         assert!(html.contains("<a class=\"tag\" href=\"p-multi.html\">#multi word</a>"));
-        assert!(html.contains("<span class=\"tag\">#card</span>"));
+        assert!(html.contains("<span class=\"tag\">#Missing</span>"));
         assert_eq!(html.matches("class=\"tag\"").count(), 3, "{html}");
         assert!(
             rendered
                 .diagnostics
                 .iter()
-                .any(|d| d == "Unresolved or excluded tag: card")
+                .any(|d| d == "Unresolved or excluded tag: Missing")
+        );
+    }
+
+    #[test]
+    fn card_blocks_and_card_references_are_marked_without_diagnostics() {
+        let rendered = render_with(
+            "- Front #card\n\t- Back\n- Other [[Card]]\n- Plain `#card`\n",
+            &[],
+            true,
+        );
+        let html = rendered.html;
+        assert!(html.contains("<li class=\"lsg-card\"><a class=\"bullet\" href=\"#\"></a>Front <span class=\"tag lsg-card-ref\">#card</span>"), "{html}");
+        assert!(html.contains("<li class=\"lsg-card\"><a class=\"bullet\" href=\"#\"></a>Other <span class=\"page-reference lsg-card-ref unresolved\">"), "{html}");
+        assert_eq!(html.matches("lsg-card\"").count(), 2, "{html}");
+        assert!(
+            rendered.diagnostics.is_empty(),
+            "{:?}",
+            rendered.diagnostics
+        );
+    }
+
+    #[test]
+    fn cloze_renders_hidden_answers() {
+        let html = render_with(
+            "- {{cloze Paris}} and {{cloze Rome \\\\ Italy}}\n",
+            &[],
+            true,
+        )
+        .html;
+        assert!(
+            html.contains("<span class=\"cloze\" data-cloze=\"[Paris]\">[...]</span>"),
+            "{html}"
+        );
+        assert!(
+            html.contains("<span class=\"cloze\" data-cloze=\"[Rome]\">(Italy)</span>"),
+            "{html}"
         );
     }
 

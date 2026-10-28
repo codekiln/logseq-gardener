@@ -547,6 +547,83 @@ impl<'a> References<'a> {
         html
     }
 
+    /// A card's breadcrumb (its page, then its nearest ancestors), its front (the block
+    /// without its children) and its back (the children), each as HTML.
+    pub fn card_parts(
+        &self,
+        id: BlockId,
+        context: &Context<'_, '_>,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+        diagnostics: &mut Vec<String>,
+    ) -> (String, String, String) {
+        let source = self.index.page(id).clone();
+        let Some(document) = self.sources.get(&source) else {
+            return Default::default();
+        };
+        let block = self.index.block(id);
+        let page = format!(
+            "<a class=\"page-ref\" href=\"{}\">{}</a>",
+            render::escape(&source),
+            render::escape(self.title(&source))
+        );
+        let crumb = if block.parent.is_some() {
+            let ancestors = self.breadcrumb(id, &source, document, context, asset);
+            ancestors.replacen(
+                "<div class=\"breadcrumb block-parents\">",
+                &format!("<div class=\"breadcrumb block-parents\">{page}<span class=\"crumb-sep\" aria-hidden=\"true\"></span>"),
+                1,
+            )
+        } else {
+            format!("<div class=\"breadcrumb block-parents\">{page}</div>")
+        };
+        let blocks = &document.parsed.blocks;
+        let split = (block.start + 1..block.subtree_end)
+            .find(|&index| matches!(blocks.get(index), Some(Block::Bullet { .. })))
+            .unwrap_or(block.subtree_end);
+        let mut slice = |range: std::ops::Range<usize>, base: u32| {
+            if range.is_empty() {
+                return String::new();
+            }
+            let mut copy = GardenDocument {
+                relative_path: document.relative_path.clone(),
+                kind: document.kind,
+                source: String::new(),
+                parsed: lsdoc::ast::Projection {
+                    blocks: blocks[range].to_vec(),
+                    refs: lsdoc::ast::Refs {
+                        page: Vec::new(),
+                        block: Vec::new(),
+                    },
+                },
+            };
+            for copied in &mut copy.parsed.blocks {
+                if let Block::Bullet { level, .. } = copied {
+                    *level = level.saturating_sub(base) + 1;
+                }
+            }
+            let rendered = render::render_reference_context(
+                &copy,
+                document,
+                context.names,
+                context.targets,
+                &source,
+                context.documents,
+                render::ReferencePresentation {
+                    open_depth: 64,
+                    show_brackets: self.show_brackets,
+                    entries: BTreeMap::new(),
+                    paths: BTreeMap::new(),
+                },
+                asset,
+            );
+            diagnostics.extend(rendered.diagnostics);
+            rendered.html
+        };
+        let front = slice(block.start..split, block.level);
+        let back = slice(split..block.subtree_end, block.level + 1);
+        (crumb, front, back)
+    }
+
     /// One page's group. `target` is set for linked references, which number their blocks,
     /// link their bullets to the source and show breadcrumbs.
     #[allow(clippy::too_many_arguments)]
