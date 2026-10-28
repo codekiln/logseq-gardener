@@ -17,8 +17,8 @@ search_p95_ms = 100
 
 # The header and left sidebar on every lsg page (published-app-shell).
 [shell]
-# 6 before the right sidebar's loader.
-script_kb = 6.5
+# 6 before the right sidebar's loader, 6.5 before View as slides.
+script_kb = 6.6
 frame_kb = 6
 
 # The journals feed on the home page (published-journals). parity:budgets checks script_kb;
@@ -137,7 +137,8 @@ build_slowdown_pct = 10
 # transfer. The times and the phone heap after ten cards are measured on the whole encode garden
 # and recorded in docs/parity/performance.md.
 [sidebar]
-script_gzip_kb = 6
+# 6 before the Slides card type, which needed 0.25 more.
+script_gzip_kb = 6.5
 card_ms_desktop = 300
 card_ms_phone = 1500
 card_fetch_gzip_kb = 60
@@ -160,3 +161,14 @@ page_graph_fragment_gzip_kb = 100
 page_graph_open_ms_desktop = 300
 page_graph_open_ms_phone = 1500
 build_slowdown_pct = 25
+
+# View as slides (published-slides). parity:budgets checks the gzip size of lsg-slides.js, which
+# carries its styles, and that no fixture page requests it before a Slides card renders.
+# parity:perf --slides marks the rest on the AI Engineer Summit deck in the whole encode garden:
+# choosing View as slides to the first slide, one step to the next slide drawn, and the JS heap
+# growth after stepping through every slide, all on the desktop profile.
+[slides]
+script_gzip_kb = 6
+open_ms_desktop = 300
+step_ms_desktop = 50
+deck_heap_mb = 10

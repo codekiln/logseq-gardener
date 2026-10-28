@@ -12,7 +12,22 @@ pub(super) const SIDEBAR_STYLES: &str = include_str!("sidebar.css");
 
 /// `sidebar.js` without indentation or comment lines, which keeps it within its gzip budget.
 pub(super) fn sidebar_script() -> String {
-    include_str!("sidebar.js")
+    compact(include_str!("sidebar.js"))
+}
+
+/// View as slides, loaded with the first Slides card.
+pub(super) const SLIDES_ROUTE: &str = "lsg-slides.js";
+
+/// `slides.js` with `slides.css` inside it, compacted like the sidebar script, so a deck
+/// costs one request.
+pub(super) fn slides_script() -> String {
+    let styles = include_str!("slides.css").replace('\n', "");
+    debug_assert!(!styles.contains(['\'', '\\']));
+    compact(include_str!("slides.js")).replace("__LSG_SLIDES_CSS__", &styles)
+}
+
+fn compact(script: &str) -> String {
+    script
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with("//"))
@@ -49,7 +64,7 @@ pub(super) const STYLES: &str = concat!(
     ".lsg-left-sidebar ul[aria-labelledby] a{display:block;padding-left:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lsg-favorites-heading{margin:20px 8px 6px;color:var(--lsg-muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}",
     ".lsg-shortcut{margin-left:auto;color:var(--lsg-muted);font-size:12px;letter-spacing:.1em}",
     ".lsg-sidebar-shade{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.4)}.lsg-sidebar-shade[hidden]{display:none}",
-    "@media(max-width:639.98px){.lsg-right-toggle{display:none!important}}@media(min-width:640px){html[data-lsg-right-sidebar=open] body{padding-right:var(--lsg-right-width,40vw)}}",
+    "@media(max-width:639.98px){.lsg-right-toggle,[data-lsg-slides]{display:none!important}}@media(min-width:640px){html[data-lsg-right-sidebar=open] body{padding-right:var(--lsg-right-width,40vw)}}",
     "@media(min-width:640px){.lsg-left-sidebar{z-index:10;width:246px}html[data-lsg-left-sidebar=open] body{padding-left:246px}html[data-lsg-left-sidebar=open] .lsg-header{margin-left:-246px}.lsg-sidebar-shade{display:none!important}}",
 );
 
@@ -136,8 +151,14 @@ impl Shell {
                 escape(&self.sidebar.join(" "))
             ));
         }
+        // View as slides opens a right-sidebar card, so it is on page routes only.
+        let slides = if !home && route.starts_with("p-") {
+            "<button type=\"button\" role=\"menuitem\" data-lsg-slides>View as slides</button>"
+        } else {
+            ""
+        };
         format!(
-            "<header class=\"lsg-header cp__header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<a class=\"lsg-button button\" href=\"graph.html#/graph\" aria-label=\"Graph\"><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path id=\"lsg-i-graph\" d=\"{hierarchy}\"/></svg></a><button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden><button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view{graph_attribute}{graph_current}><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><use href=\"#lsg-i-graph\"/></svg><span>Graph view</span>{graph_hint}</a></li><li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
+            "<header class=\"lsg-header cp__header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<a class=\"lsg-button button\" href=\"graph.html#/graph\" aria-label=\"Graph\"><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path id=\"lsg-i-graph\" d=\"{hierarchy}\"/></svg></a><button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden>{slides}<button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view{graph_attribute}{graph_current}><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><use href=\"#lsg-i-graph\"/></svg><span>Graph view</span>{graph_hint}</a></li><li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
             menu = icon(MENU),
             hierarchy = HIERARCHY,
             graph_current = current(route, "graph.html"),

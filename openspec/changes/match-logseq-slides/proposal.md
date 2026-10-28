@@ -14,7 +14,7 @@ Logseq builds the deck from the whole graph it loads into the browser, then fetc
 - Four arrow controls with accessible names, a progress bar, and reveal.js's keys as Logseq configures them: arrows and `h j k l`, `n`, `p`, Space, Shift with an arrow, `b` or `.` to pause, `g` to jump, Escape or `o` for the overview, `f` for the browser's fullscreen. The deck takes keyboard focus when it opens and after a click.
 - The Slides card is saved with the other sidebar cards and restored after the page's `load` event.
 - `lsg-slides.js` with its styles loads on the first Slides card. It keeps the reveal.js class names the garden's `custom.css` targets (`.reveal`, `.slides`) so the garden's code-block rules apply.
-- A new `[slides]` budget table caps the script, the time to the first slide, one step, and the phone heap after opening the largest fixture deck. The `[shell]` script budget rises from 6.5 KB to 6.6 KB for the menu item's handler.
+- A new `[slides]` budget table caps the script, the time to the first slide, one step, and the phone heap after opening the largest fixture deck. The `[shell]` script budget rises from 6.5 KB to 6.6 KB for the menu item's handler, and the `[sidebar]` script budget from 6 KB to 6.5 KB gzip for the Slides card type.
 
 ## Capabilities
 
@@ -25,7 +25,7 @@ Logseq builds the deck from the whole graph it loads into the browser, then fetc
 ### Modified Capabilities
 
 - `published-app-shell`: the More menu gains View as slides on page routes; the shell script budget becomes 6.6 KB.
-- `published-right-sidebar`: a Slides card type joins page, block, Block references, Contents and Help cards, with its own saved state.
+- `published-right-sidebar`: a Slides card type joins page, block, Block references, Contents and Help cards, with its own saved state; `lsg-sidebar.js` may be 6.5 KB gzip.
 
 ## Impact
 

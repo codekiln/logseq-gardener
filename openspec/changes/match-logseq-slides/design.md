@@ -32,7 +32,7 @@ Since the analysis, `match-logseq-right-sidebar` has been applied and archived: 
 
 **The Slides card.** `lsg-sidebar.js` gains the card type `slides`. Its header title is the page's title as a link to the page, its icon is Logseq's `presentation` icon, and its menu offers the page-card items, Open as page included. Its body is the tip line (`Tip: press f to go fullscreen`, `f` in a `code` element) and a `div.reveal` 400px tall filling the card's width. On first render the card loads `lsg-slides.js` once and calls `window.logseqGardenerSlides(deck, outline)`, where `outline` is the page's `ul.outline`: taken from the live document when the card's route is the current page, otherwise from the page file fetched through the sidebar's existing route cache. The card is saved and restored like the other cards; a restored Slides card loads `lsg-slides.js` after the page's `load` event, with the rest of the sidebar.
 
-**Slide order.** Each top-level `li` is a column. A column holds the block itself, without its children, then every descendant at any depth as its own slide, in outline order, as Logseq's `slide.cljs` does. A block whose slide would be empty (no content once bullets, property rows and children are removed) makes no slide, and a column with no slides is dropped. On the AI Engineer Summit page this gives 5 columns of 17, 6, 34, 7 and 9 slides, 73 in all, where Logseq shows 7 columns and 75 slides, two of them blank.
+**Slide order.** Each top-level `li` is a column. A column holds the block itself, without its children, then every descendant at any depth as its own slide, in outline order, as Logseq's `slide.cljs` does. A block whose slide would be empty (no content once bullets, property rows and children are removed) makes no slide, and a column with no slides is dropped. On the AI Engineer Summit page this gives 8 columns of 17, 6, 34, 7, 1, 22, 18 and 1 slides, 106 in all. Logseq shows 7 columns of 1, 17, 6, 34, 7, 1 and 9 slides, 75 in all: a blank slide for the property block, and a deck that ends inside the workshop 3 block, at `Feedback Loops from Online Evaluators`, just before that block's second embed of the same block, so the rest of workshop 3, the workshop 4 block and the last image never appear. The Apply step measured this on the `gh-pages` build; the first five content columns match.
 
 **Slide content.** A slide is a clone of the block's content element without the `ul` of children, bullets, collapse controls and property rows. Headings, images, page links, block references, embeds and code blocks keep their page markup and styles. Links inside a slide behave as links in a card do, so Shift-click adds a card. Slides have no height limit, as in Logseq; fullscreen shows tall slides.
 
@@ -54,6 +54,7 @@ Since the analysis, `match-logseq-right-sidebar` has been applied and archived: 
 | --- | --- |
 | Every fixture page's first paint, desktop and phone | unchanged except the menu item (under 0.15 KB), within `data_before_title_kb` 100 and `script_before_title_kb` 16 |
 | `[shell]` `script_kb` | 6.6 (from 6.5); `frame_kb` stays 6 |
+| `[sidebar]` `script_gzip_kb` | 6.5 (from 6), for the Slides card type |
 | `lsg-slides.js` with its styles, gzip | 6 KB, never requested before a Slides card renders |
 | Choosing View as slides to the first slide, p95, desktop | 300 ms on the AI Engineer Summit page |
 | One step (Right or Down) to the next slide drawn, p95, desktop | 50 ms |
@@ -64,7 +65,7 @@ Since the analysis, `match-logseq-right-sidebar` has been applied and archived: 
 ## Risks / Trade-offs
 
 - [An own deck script instead of reveal.js] → Fewer reveal.js features (fragments, speaker notes, plugins, auto-animate effects). Logseq configures none of them, so the reader sees no difference; the script is about a quarter of reveal.js's size and keeps memory bounded by rendering only nearby slides.
-- [Dropping blank slides changes Logseq's counts] → The AI Engineer Summit deck has 73 slides where Logseq has 75. The two missing slides are blank: the page's property block and an empty block. Tests count against 73 and record Logseq's 75.
+- [The deck differs from Logseq's counts] → The AI Engineer Summit deck has 106 slides where Logseq has 75. Logseq's extra slide is the blank property block; its deck also stops before the second embed of one block in the workshop 3 block, which `lsg` does not copy, since every block of the published outline belongs in the deck. Tests count against `lsg`'s outline and `verification.md` records Logseq's numbers.
 - [The shell script budget rises again] → 0.1 KB for one handler on every page; the alternative, putting the item in `lsg-sidebar.js`, cannot draw the item before the sidebar loads.
 - [Slide attributes add markup to some pages] → Only blocks with slide keys gain attributes; on the encode garden that is `Logseq/Doc/slide`.
 - [A tall slide is cut off in the 400px card] → Logseq behaves the same way; fullscreen shows the whole slide.
@@ -110,3 +111,7 @@ Decided by the agent without codekiln: no, in `lsg-slides.js` from the page's ou
 ### 10 - Does the shell script budget rise?
 
 Decided by the agent without codekiln: yes, from 6.5 KB to 6.6 KB for the menu item's handler, at most 0.1 KB. `lsg-shell.js` has 37 bytes left, and the item must work before the sidebar script has loaded.
+
+### 11 - Does the right sidebar's script budget rise?
+
+Decided by the agent without codekiln, during Apply: yes, `[sidebar]` `script_gzip_kb` from 6 to 6.5. `lsg-sidebar.js` was 5,935 bytes gzip of 6,000 before this change; the Slides card type, its icon and its focus handling need about 250 more even after the deck's own markup moved into `lsg-slides.js`, which loads only with a Slides card. The sidebar script still loads only on first use, so no page's first paint changes.

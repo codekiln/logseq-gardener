@@ -135,6 +135,24 @@ def check_sidebar(site, pages, sidebar):
     return failures
 
 
+SLIDES_SCRIPT = 'lsg-slides.js'
+
+
+def check_slides(site, pages, slides):
+    """Return failure messages for View as slides: its script, and pages that request it."""
+    script = site / SLIDES_SCRIPT
+    if not script.exists():
+        return [f'{SLIDES_SCRIPT}: missing from the build']
+    failures = []
+    size = metrics.gzip_size(script.read_bytes())
+    if size > slides['script_gzip_kb'] * 1000:
+        failures.append(f'{SLIDES_SCRIPT}: {size:,} gzip exceeds {slides["script_gzip_kb"] * 1000:,}')
+    for page in pages:
+        if SLIDES_SCRIPT.encode() in (site / page).read_bytes():
+            failures.append(f'{page}: requests {SLIDES_SCRIPT} before a Slides card renders')
+    return failures
+
+
 GRAPH_SCRIPT = 'lsg-graph.js'
 GRAPH_STYLES = 'lsg-graph.css'
 GRAPH_WORKER = 'lsg-graph-worker.js'
@@ -530,6 +548,8 @@ def main():
         print(f"search title index: {index['titles_gzip']:,} gzip, {index['titles_decoded']:,} decoded; "
               f"largest shard {index['shards'][0][1]:,} gzip, largest chunk {index['chunks'][0][1]:,} gzip")
         sidebar_failures = check_sidebar(temp / 'small', small, budgets['sidebar'])
+        slides_failures = check_slides(temp / 'small', small, budgets['slides'])
+        print(f"{SLIDES_SCRIPT}: {metrics.gzip_size((temp / 'small' / SLIDES_SCRIPT).read_bytes()):,} gzip")
         graph_failures = check_graph(temp / 'small', small, budgets['graph'])
         sizes = graph_sizes(temp / 'small')
         print(f"graph: data {sizes['data']:,} gzip, script and styles {sizes['script']:,} gzip, "
@@ -559,7 +579,7 @@ def main():
     print(f'hierarchy styles: {metrics.gzip_size(hierarchy_styles().encode("utf-8")):,} gzip')
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
-                + hierarchy_failures + sidebar_failures + graph_failures
+                + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
                 + search_failures + all_pages_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)

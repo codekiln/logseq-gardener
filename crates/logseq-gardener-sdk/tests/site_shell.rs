@@ -155,10 +155,32 @@ fn gardens_without_favorites_omit_the_heading_and_keep_controls_hidden_without_s
 }
 
 #[test]
+fn view_as_slides_is_the_first_more_item_on_page_routes_only() {
+    let f = Fixture::new(CONFIG);
+    f.publish(Some("Other"));
+    let item = "<button type=\"button\" role=\"menuitem\" data-lsg-slides>View as slides</button>";
+    let tmux = f.page("TMUX_BODY");
+    assert!(
+        tmux.contains(&format!("aria-label=\"More\" hidden>{item}<button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>")),
+        "{tmux}"
+    );
+    // The home page, All pages and the graph view have no deck to show.
+    for name in ["index.html", "pages.html", "graph.html"] {
+        let html = f.file(name);
+        assert!(html.contains("data-lsg-theme-toggle"), "{name}");
+        assert!(!html.contains(item), "{name}");
+    }
+    // The right sidebar does not exist below 640px, so neither does the item.
+    assert!(tmux.contains(
+        "@media(max-width:639.98px){.lsg-right-toggle,[data-lsg-slides]{display:none!important}}"
+    ));
+}
+
+#[test]
 fn shell_cost_is_fixed_per_page() {
     let f = Fixture::new(CONFIG);
     f.publish(None);
-    assert!(include_str!("../src/site/shell.js").len() <= 6_500);
+    assert!(include_str!("../src/site/shell.js").len() <= 6_600);
     let other = f.page("OTHER_BODY");
     let frame = &other[other.find("<body>").unwrap()..other.find("<main>").unwrap()];
     // The graph view's header link and sidebar item added about 300 bytes; the [shell]

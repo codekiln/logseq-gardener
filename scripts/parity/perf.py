@@ -1037,12 +1037,110 @@ def measure_page_graph(browser, url, profile):
         context.close()
 
 
-def lsg_route(title):
-    """An lsg page's file: p-<FNV-1a 64 of the title's UTF-8>.html."""
-    digest = 0xcbf29ce484222325
-    for byte in title.encode('utf-8'):
-        digest = ((digest ^ byte) * 0x100000001b3) % (1 << 64)
-    return f'p-{digest:016x}.html'
+SLIDES_PAGE = 'AI/ES/25/ws/What I Learned at the AI Engineer Summit Workshops 2025'
+SLIDES_OPENS = 5
+# Step from keydown to the next frame, which draws the new slide; report a step per slide.
+SLIDES_STEPS = '''async () => {
+  const deck = document.querySelector('.reveal');
+  const frame = () => new Promise(done => requestAnimationFrame(() => done()));
+  const times = [];
+  for (let moved = true; moved;) {
+    const before = deck.querySelector('.slides>section.present');
+    const start = performance.now();
+    deck.dispatchEvent(new KeyboardEvent('keydown', {key: 'n', bubbles: true, cancelable: true}));
+    await frame();
+    moved = deck.querySelector('.slides>section.present') !== before;
+    if (moved) times.push(performance.now() - start);
+  }
+  return times;
+}'''
+
+
+def measure_slides(browser, url, profile):
+    """Choose View as slides on a page: the time to the first slide drawn, over SLIDES_OPENS fresh
+    windows; then the time of every step through the deck, and the JS heap growth after the walk."""
+    timeout = PROFILES[profile]['timeout_ms']
+    opens, result = [], {}
+    try:
+        for attempt in range(SLIDES_OPENS):
+            context, page, cdp = open_page(browser, profile, 'h1')
+            try:
+                page.goto(url, wait_until='load', timeout=timeout)
+                page.wait_for_timeout(300)
+                before = collect_garbage(cdp)
+                page.click('[data-lsg-more]')
+                page.evaluate('window.__start = performance.now()')
+                page.click('[data-lsg-slides]')
+                page.wait_for_function("document.querySelector('.reveal .slides>section.present')",
+                                       timeout=timeout, polling='raf')
+                opens.append(page.evaluate('new Promise(done => requestAnimationFrame(() => '
+                                           'done(performance.now() - window.__start)))'))
+                if attempt:
+                    continue
+                result['script_transfer'] = page.evaluate(
+                    "performance.getEntriesByType('resource').filter(e => e.name.includes('lsg-slides'))"
+                    ".reduce((t, e) => t + e.encodedBodySize, 0)")
+                steps = page.evaluate(SLIDES_STEPS)
+                result['slides'] = len(steps) + 1
+                result['step_p95_ms'] = metrics.percentile(steps, 0.95)
+                result['heap_growth'] = collect_garbage(cdp) - before
+                result['in_document'] = page.evaluate("document.querySelectorAll('.reveal .slides>section').length")
+            finally:
+                context.close()
+        result['open_p95_ms'] = metrics.percentile(opens, 0.95)
+        return result
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+
+
+def slides_markdown(rows, budgets):
+    """The View as slides section of docs/parity/performance.md."""
+    limits = budgets.get('slides', {})
+    lines = ['', '## View as slides', '',
+             f'On `{SLIDES_PAGE}` at 1280 by 800: the time from choosing View as slides to the first slide drawn, '
+             f'95th percentile of {SLIDES_OPENS} fresh windows; the 95th-percentile time from a key to the next '
+             'slide drawn while stepping through every slide; and the JS heap after that walk, less the heap before '
+             'opening the deck, both after garbage collection. Phones have no right sidebar and so no Slides card. '
+             '**Bold** marks a value over its `[slides]` budget.', '',
+             '| Profile | Slides | Open (ms) | Step, 95th percentile (ms) | Heap growth (MB) '
+             '| Slides in the document | `lsg-slides.js` (KB, transfer) |',
+             '| --- | ---: | ---: | ---: | ---: | ---: | ---: |']
+    for row in rows:
+        if 'error' in row:
+            lines.append(f"| {row['profile']} | {row['error']} | | | | | |")
+            continue
+        open_ = _marked(f"{row['open_p95_ms']:,.0f}", row['open_p95_ms'], limits.get('open_ms_desktop'))
+        step = _marked(f"{row['step_p95_ms']:,.1f}", row['step_p95_ms'], limits.get('step_ms_desktop'))
+        heap = row['heap_growth'] / 1e6
+        heap = _marked(f'{heap:,.1f}', heap, limits.get('deck_heap_mb'))
+        lines.append(f"| {row['profile']} | {row['slides']} | {open_} | {step} | {heap} | {row['in_document']} "
+                     f"| {row['script_transfer'] / 1000:,.1f} |")
+    return lines
+
+
+def measure_slides_run(args, sync_playwright):
+    """Measure View as slides in a parity run's site; with --record, replace its section of
+    docs/parity/performance.md."""
+    budgets = metrics.load_budgets()
+    site = common.latest_run(args.run) / 'site'
+    rows = []
+    with serve.Server(site) as lsg, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
+        row = {'profile': 'desktop', **measure_slides(browser, lsg.url + common.lsg_route(SLIDES_PAGE), 'desktop')}
+        rows.append(row)
+        print(json.dumps(row), flush=True)
+        browser.close()
+    print('\n'.join(slides_markdown(rows, budgets)))
+    if args.record:
+        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+        start = text.find('\n## View as slides')
+        if start >= 0:
+            end = text.find('\n## ', start + 1)
+            text = text[:start] + (text[end:] if end >= 0 else '\n')
+        block = '\n'.join(slides_markdown(rows, budgets))
+        graph = text.find('\n## Graph view')
+        text = text[:graph] + block + '\n' + text[graph:] if graph >= 0 else text.rstrip('\n') + '\n' + block + '\n'
+        PERFORMANCE_DOC.write_text(text, encoding='utf-8')
 
 
 def _marked(text, value, limit):
@@ -1124,7 +1222,7 @@ def measure_graph_run(args, sync_playwright):
             PROFILES['wide-' + profile] = {**PROFILES[profile], 'viewport': {'width': 1280, 'height': 800},
                                            'mobile': False, 'scale': 1}
             for name in GRAPH_PAGES:
-                route = lsg_route(name)
+                route = common.lsg_route(name)
                 if not (site / route).exists():
                     continue
                 row = {'page': name, 'profile': profile,
@@ -1188,6 +1286,9 @@ def main():
     parser.add_argument('--graph', action='store_true',
                         help="measure only the graph view and Page graph in the run's site; with --record, "
                              'replace their sections of docs/parity/performance.md')
+    parser.add_argument('--slides', action='store_true',
+                        help="measure only View as slides in the run's site; with --record, replace its section "
+                             'of docs/parity/performance.md')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -1198,6 +1299,9 @@ def main():
         return
     if args.graph:
         measure_graph_run(args, sync_playwright)
+        return
+    if args.slides:
+        measure_slides_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)

@@ -6,7 +6,7 @@ use crate::ast::{Block, Inline, ListItem, Url};
 use crate::garden::GardenDocument;
 use crate::garden_config::Form;
 use crate::inline_references::tag_page_name;
-use crate::outline::{Outline, OutlineBlock, TaskMarker};
+use crate::outline::{Outline, OutlineBlock, TaskMarker, bullet_properties};
 use crate::transclusion::{
     EmbedOutcome, EmbedPage, Embeds, Nesting, ReferenceOutcome, ReferenceTargets, Transclusion,
 };
@@ -25,6 +25,35 @@ struct Task<'a> {
     /// The parser's word, shown as text when it is not a known marker.
     word: Option<&'a str>,
     priority: Option<&'a str>,
+}
+
+/// The block properties reveal.js reads as slide attributes, as `data-slide-<key>` on the
+/// block's item; a leading `data-` in the key is written once, and a repeated key keeps
+/// its last value. View as slides copies them onto the slide.
+fn slide_attributes(blocks: &[Block], index: usize) -> String {
+    let mut attributes: Vec<(String, &str)> = Vec::new();
+    for (key, value) in bullet_properties(blocks, index) {
+        let key = key.to_ascii_lowercase();
+        let slide = key.starts_with("background-")
+            || key.starts_with("data-")
+            || matches!(
+                key.as_str(),
+                "transition" | "transition-speed" | "auto-animate" | "visibility"
+            );
+        let name = key.strip_prefix("data-").unwrap_or(&key);
+        if !slide
+            || name.is_empty()
+            || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        {
+            continue;
+        }
+        attributes.retain(|(other, _)| other != name);
+        attributes.push((name.to_owned(), value));
+    }
+    attributes
+        .iter()
+        .map(|(name, value)| format!(" data-slide-{name}=\"{}\"", escape(value)))
+        .collect()
 }
 
 /// A paragraph of line breaks and spaces, such as a blank line after page properties.
@@ -459,8 +488,13 @@ impl Renderer<'_> {
                         |href| format!("<a class=\"bullet\" href=\"{}\"></a>", escape(href)),
                     )
                 });
+                let slide = if self.embedded {
+                    String::new()
+                } else {
+                    slide_attributes(blocks, index)
+                };
                 let item_start = format!(
-                    "<li{}{reference_attributes}>",
+                    "<li{}{reference_attributes}{slide}>",
                     if collapsed {
                         " class=\"outline-collapsed\""
                     } else {
@@ -1512,6 +1546,46 @@ mod tests {
             rendered.html.matches("<li>").count(),
             rendered.html.matches("</li>").count()
         );
+    }
+
+    #[test]
+    fn slide_properties_become_item_attributes() {
+        // Shaped like Logseq/Doc/slide, including its three-space property indent.
+        let rendered = render(
+            "- # Slides\n\t- Powered by Reveal.js\n\t  background-image:: https://example.com/a.jpg?w=1&q=75\n\t- ## Functionality\n\t\t- Add a background\n\t\t   background-image:: https://example.com/b.jpg\n\t\t  logseq.order-list-type:: number\n\t\t- Data\n\t\t  data-State:: intro\n\t\t  transition:: zoom\n\t\t  tags:: slides\n\t\t  data-state:: outro\n",
+        );
+        let html = rendered.html.replace(BULLET, "");
+        assert!(
+            html.contains("<li data-slide-background-image=\"https://example.com/a.jpg?w=1&amp;q=75\">Powered by Reveal.js"),
+            "{html}"
+        );
+        assert!(
+            html.contains(
+                "<li data-slide-background-image=\"https://example.com/b.jpg\">Add a background"
+            ),
+            "{html}"
+        );
+        assert!(
+            html.contains("<li data-slide-transition=\"zoom\" data-slide-state=\"outro\">Data"),
+            "{html}"
+        );
+        assert!(
+            !html.contains("order-list-type") && !html.contains("tags"),
+            "{html}"
+        );
+        assert!(
+            !html.contains("background-image::"),
+            "properties stay hidden: {html}"
+        );
+    }
+
+    #[test]
+    fn blocks_without_slide_keys_gain_no_attributes() {
+        // Shaped like tmux: properties, but none reveal.js reads.
+        let rendered = render(
+            "tags:: Terminal\n\n- [[tmux]] is a terminal multiplexer\n  id:: 6512bd43-d9ca-4f3b-9b5c-1d2e3f4a5b6c\n  collapsed:: true\n\t- prefix\n  heading:: 2\n",
+        );
+        assert!(!rendered.html.contains("data-slide-"), "{}", rendered.html);
     }
 
     #[test]

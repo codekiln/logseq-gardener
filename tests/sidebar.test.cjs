@@ -5,112 +5,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const source = readFileSync(path.join(__dirname, '../crates/logseq-gardener-sdk/src/site/sidebar.js'), 'utf8');
 
-// A small DOM: elements, text, the selectors the sidebar script uses, and listeners.
-function compound(text) {
-  const parts = { tag: null, classes: [], ids: [], attrs: [], scope: false };
-  for (const [token] of text.matchAll(/:scope|\.[\w-]+|#[\w-]+|\[[^\]]+\]|[\w-]+/g)) {
-    if (token === ':scope') parts.scope = true;
-    else if (token[0] === '.') parts.classes.push(token.slice(1));
-    else if (token[0] === '#') parts.ids.push(token.slice(1));
-    else if (token[0] === '[') {
-      const [, name, op, value] = token.match(/^\[([\w-]+)(?:(\^?=)"?([^"\]]*)"?)?\]$/);
-      parts.attrs.push([name, op, value]);
-    } else parts.tag = token.toUpperCase();
-  }
-  return parts;
-}
-function matchesCompound(el, parts, scope) {
-  if (!el || el.nodeType !== 1) return false;
-  if (parts.scope && el !== scope) return false;
-  if (parts.tag && el.tagName !== parts.tag) return false;
-  if (!parts.classes.every(c => el.classList.contains(c))) return false;
-  if (!parts.ids.every(id => el.id === id)) return false;
-  return parts.attrs.every(([name, op, value]) => {
-    const actual = el.getAttribute(name);
-    if (actual === null) return false;
-    return !op || (op === '=' ? actual === value : actual.startsWith(value));
-  });
-}
-function matches(el, selector, scope) {
-  return selector.split(',').some(one => {
-    const tokens = one.trim().replace(/\s*>\s*/g, ' > ').split(/\s+/);
-    const step = (node, i) => {
-      if (!matchesCompound(node, compound(tokens[i]), scope)) return false;
-      if (i === 0) return true;
-      if (tokens[i - 1] === '>') return step(node.parentElement, i - 2);
-      for (let up = node.parentElement; up; up = up.parentElement) if (step(up, i - 1)) return true;
-      return false;
-    };
-    return step(el, tokens.length - 1);
-  });
-}
-class Node {
-  constructor() { this.parentElement = null; this.childNodes = []; }
-  remove() { if (this.parentElement) { const list = this.parentElement.childNodes; list.splice(list.indexOf(this), 1); this.parentElement = null; } }
-  after(other) { const p = this.parentElement; other.remove(); p.childNodes.splice(p.childNodes.indexOf(this) + 1, 0, other); other.parentElement = p; }
-}
-class Text extends Node {
-  constructor(text) { super(); this.nodeType = 3; this.text = text; }
-  get textContent() { return this.text; }
-  cloneNode() { return new Text(this.text); }
-}
-class Element extends Node {
-  constructor(tag, attrs = {}) {
-    super();
-    this.nodeType = 1; this.tagName = tag.toUpperCase(); this.attrs = new Map(Object.entries(attrs)); this.listeners = {};
-    const el = this;
-    this.classList = {
-      contains: c => (el.attrs.get('class') ?? '').split(' ').includes(c),
-      add: c => { if (!el.classList.contains(c)) el.attrs.set('class', ((el.attrs.get('class') ?? '') + ' ' + c).trim()); },
-      remove: c => el.attrs.set('class', (el.attrs.get('class') ?? '').split(' ').filter(x => x && x !== c).join(' ')),
-      toggle: (c, force) => { const on = force ?? !el.classList.contains(c); if (on) el.classList.add(c); else el.classList.remove(c); return on; },
-    };
-  }
-  get id() { return this.attrs.get('id') ?? ''; }
-  get open() { return this.attrs.has('open'); }
-  set open(value) { if (value) this.attrs.set('open', ''); else this.attrs.delete('open'); }
-  get hidden() { return this.attrs.has('hidden'); }
-  set hidden(value) { if (value) this.attrs.set('hidden', ''); else this.attrs.delete('hidden'); }
-  get children() { return this.childNodes.filter(n => n.nodeType === 1); }
-  get textContent() { return this.childNodes.map(n => n.textContent).join(''); }
-  set textContent(text) { this.replaceChildren(text); }
-  getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
-  setAttribute(name, value) { this.attrs.set(name, String(value)); }
-  removeAttribute(name) { this.attrs.delete(name); }
-  append(...nodes) {
-    for (let node of nodes) {
-      if (typeof node === 'string') node = new Text(node);
-      node.remove();
-      node.parentElement = this;
-      this.childNodes.push(node);
-    }
-  }
-  prepend(node) { node.remove(); node.parentElement = this; this.childNodes.unshift(node); }
-  insertBefore(node, before) {
-    node.remove();
-    node.parentElement = this;
-    const at = before ? this.childNodes.indexOf(before) : -1;
-    if (at < 0) this.childNodes.push(node); else this.childNodes.splice(at, 0, node);
-  }
-  replaceChildren(...nodes) { for (const node of [...this.childNodes]) node.remove(); this.append(...nodes); }
-  descendants() { return this.children.flatMap(c => [c, ...c.descendants()]); }
-  querySelectorAll(selector) { return this.descendants().filter(el => matches(el, selector, this)); }
-  querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
-  matches(selector) { return matches(this, selector, null); }
-  closest(selector) { for (let el = this; el; el = el.parentElement) if (el.matches(selector)) return el; return null; }
-  contains(other) { for (let el = other; el; el = el.parentElement) if (el === this) return true; return false; }
-  cloneNode() {
-    const copy = new Element(this.tagName, Object.fromEntries(this.attrs));
-    for (const child of this.childNodes) copy.append(child.cloneNode(true));
-    return copy;
-  }
-  addEventListener(type, callback) { (this.listeners[type] ||= []).push(callback); }
-  removeEventListener(type, callback) { this.listeners[type] = (this.listeners[type] || []).filter(c => c !== callback); }
-  focus() { state.focused = this; }
-  getBoundingClientRect() { return { width: Number(this.style?.width ?? 512) }; }
-}
-// h('li', {class: 'x'}, child, 'text') builds markup.
-const h = (tag, attrs = {}, ...children) => { const el = new Element(tag, attrs); el.append(...children); return el; };
+const { Element, h } = require('./mini-dom.cjs');
+Element.onFocus = el => { state.focused = el; };
 const li = (anchor, ...content) => h('li', {}, ...(anchor ? [h('span', { id: 'block-' + anchor })] : []), h('a', { class: 'bullet', href: '#' }), ...content);
 
 function makeDocument(body) {
@@ -351,6 +247,63 @@ test('an unpublished page says so and offers Close', async () => {
   assert.match(s.cards()[0].textContent, /This page is not published\./);
   s.fire(s.cards()[0].querySelector('.lsg-card-dismiss'), 'click');
   assert.equal(s.cards().length, 0);
+});
+
+test('View as slides adds a Slides card for the current page and focuses its deck', async () => {
+  const s = load();
+  const decks = [];
+  s.window.logseqGardenerSlides = outline => {
+    const deck = h('div', { class: 'reveal', tabindex: '0' });
+    decks.push([deck, outline]);
+    return h('div', { class: 'lsg-slides-card' }, deck);
+  };
+  s.request({ type: 'slides' });
+  await settle();
+  const scripts = s.document.head.querySelectorAll('script');
+  assert.deepEqual(scripts.map(script => script.src), ['https://garden.test/lsg-slides.js']);
+  scripts[0].onload();
+  await settle();
+  // The deck reads the live outline of the current page; nothing is fetched.
+  assert.deepEqual(state.fetched, []);
+  assert.equal(decks.length, 1);
+  assert.equal(decks[0][1], s.main.querySelector('ul.outline'));
+  const card = s.cards()[0];
+  const link = card.querySelector('.lsg-card-title a');
+  assert.equal(link.getAttribute('href'), 'p-tmux.html');
+  assert.equal(link.textContent, 'tmux');
+  const deck = card.querySelector('.reveal');
+  assert.equal(deck, decks[0][0]);
+  assert.equal(state.focused, deck);
+  assert.deepEqual(s.saved().cards, [{ type: 'slides', route: 'p-tmux.html', collapsed: false }]);
+  s.fire(card.querySelector('.lsg-card-menu'), 'click');
+  const items = s.aside.querySelectorAll('[role=menuitem]');
+  assert.deepEqual(items.map(item => item.textContent), ['Close', 'Collapse', 'Open as page']);
+  s.fire(items.at(-1), 'click');
+  assert.equal(state.assigned, 'https://garden.test/p-tmux.html');
+  // Choosing it again moves the card to the top, focuses the deck and loads the script once.
+  s.shift(s.main.querySelector('a[href^="p-"]'));
+  await settle();
+  state.focused = null;
+  s.request({ type: 'slides' });
+  await settle();
+  assert.equal(s.cards()[0], card);
+  assert.equal(state.focused, deck);
+  assert.equal(s.document.head.querySelectorAll('script').length, 1);
+});
+
+test('a restored Slides card for another page reads that page file', async () => {
+  const s = load({ stored: { 'logseq-gardener-right-sidebar': JSON.stringify({ open: true, width: 0, cards: [{ type: 'slides', route: 'p-pomodoro.html' }] }) } });
+  const decks = [];
+  s.window.logseqGardenerSlides = outline => { decks.push(outline); return h('div', {}, h('div', { class: 'reveal' })); };
+  s.request('restore');
+  await settle();
+  s.document.head.querySelector('script').onload();
+  await settle();
+  assert.deepEqual(state.fetched, ['p-pomodoro.html']);
+  assert.equal(decks[0].children.length, 2);
+  assert.equal(s.titles()[0], 'tmux/Idea/Pomodoro');
+  // A restored card does not take focus from the page.
+  assert.equal(state.focused, null);
 });
 
 test('phones keep the page: requests are ignored', () => {

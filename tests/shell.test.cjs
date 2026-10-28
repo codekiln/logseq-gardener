@@ -22,12 +22,14 @@ function element(selectors, extra = {}) {
     matches: selector => selector.split(',').some(part => selectors.includes(part.trim())),
     closest(selector) { for (let at = this; at; at = at.parent) if (at.matches(selector)) return at; return null; },
     focus() { state.focused = this; },
+    // A hidden item, or one CSS hides at phone width, has no boxes.
+    getClientRects() { return this.hidden || this.phoneHidden?.() ? [] : [{}]; },
     ...extra,
   };
   return node;
 }
 let state;
-function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null, graph = true } = {}) {
+function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null, graph = true, slides = false } = {}) {
   state = { focused: null, assigned: null };
   const values = new Map(Object.entries(stored));
   const root = element(['html']);
@@ -37,7 +39,9 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   const menu = element(['#lsg-more-menu']); menu.parent = moreBox;
   const themeItem = element(['[data-lsg-theme-toggle]', '[role="menuitem"]']); themeItem.hidden = false; themeItem.parent = menu;
   const systemItem = element(['[data-lsg-theme-system]', '[role="menuitem"]']); systemItem.parent = menu;
-  menu.querySelectorAll = () => [themeItem, systemItem];
+  const slidesItem = element(['[data-lsg-slides]', '[role="menuitem"]']); slidesItem.hidden = false; slidesItem.parent = menu;
+  slidesItem.phoneHidden = () => !desktop;
+  menu.querySelectorAll = () => slides ? [slidesItem, themeItem, systemItem] : [themeItem, systemItem];
   const shade = element(['[data-lsg-sidebar-shade]']);
   const sidebar = element(['.lsg-left-sidebar']);
   const link = element(['.lsg-left-sidebar a']); link.parent = sidebar;
@@ -48,6 +52,7 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   // The page-link selector holds commas inside :is(), which element() splits on.
   const pageLink = element([], { matches: selector => selector.includes(':is(main,.lsg-right-sidebar)') });
   const all = [toggle, more, menu, themeItem, systemItem, shade, allPages, right];
+  if (slides) all.push(slidesItem);
   if (defaults) { right.setAttribute('data-lsg-sidebar-default', 'contents'); all.push(element(['[data-lsg-sidebar-default]'])); }
   if (saved) root.setAttribute('data-lsg-right-sidebar', saved);
   if (journals) {
@@ -89,7 +94,7 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   vm.runInContext(source, vm.createContext({ window, document, Date, Promise }));
   const click = (target, extra = {}) => document.fire('click', { target, preventDefault() {}, stopPropagation() {}, ...extra });
   const key = (k, target = page, extra = {}) => document.fire('keydown', { key: k, target, preventDefault() {}, ...extra });
-  return { right, pageLink, window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
+  return { slidesItem, right, pageLink, window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
 }
 test('controls appear once the script runs and the sidebar state is saved', () => {
   const f = fixture();
@@ -133,6 +138,22 @@ test('More opens with focus on Toggle theme, moves with arrows and closes on Esc
   f.key('ArrowDown'); assert.equal(f.document.activeElement, f.themeItem);
   f.key('Escape'); assert.equal(f.menu.hidden, true); assert.equal(f.document.activeElement, f.more);
   f.click(f.more); f.click(f.page); assert.equal(f.menu.hidden, true);
+});
+test('View as slides comes first in More and asks the right sidebar for a Slides card', async () => {
+  const f = fixture({ slides: true });
+  f.click(f.more); assert.equal(f.document.activeElement, f.slidesItem);
+  f.key('ArrowDown'); assert.equal(f.document.activeElement, f.themeItem);
+  f.key('ArrowUp'); f.click(f.slidesItem);
+  assert.equal(f.menu.hidden, true);
+  // The deck takes focus, so focus does not return to More.
+  assert.notEqual(f.document.activeElement, f.more);
+  assert.ok(loaded());
+  await settle();
+  assert.equal(JSON.stringify(state.sidebar), '[{"type":"slides"}]');
+});
+test('below 640px More skips View as slides', () => {
+  const f = fixture({ slides: true, desktop: false });
+  f.click(f.more); assert.equal(f.document.activeElement, f.themeItem);
 });
 test('Toggle theme switches appearance and Use system theme clears the choice', () => {
   const f = fixture({ appearance: 'dark' });

@@ -99,3 +99,11 @@ def lsg_index(site):
     if not index.exists():
         index = site / 'index.html'
     return {normalize(t): (t, f) for t, f in lsg_pages(index.read_text(encoding='utf-8')).items()}
+
+
+def lsg_route(title):
+    """An lsg page's file: p-<FNV-1a 64 of the title's UTF-8>.html."""
+    digest = 0xcbf29ce484222325
+    for byte in title.encode('utf-8'):
+        digest = ((digest ^ byte) * 0x100000001b3) % (1 << 64)
+    return f'p-{digest:016x}.html'

@@ -39,7 +39,7 @@
     if (!open && focus) button?.focus();
   };
   const menu = () => $('#lsg-more-menu');
-  const items = () => [...(menu()?.querySelectorAll('[role="menuitem"]') ?? [])].filter(item => !item.hidden);
+  const items = () => [...(menu()?.querySelectorAll('[role="menuitem"]') ?? [])].filter(item => item.getClientRects().length);
   const setMenu = (open, focus = true) => {
     const list = menu(), button = $('[data-lsg-more]');
     if (!list || !button) return;
@@ -73,10 +73,11 @@
   document.addEventListener('click', event => {
     const target = event.target;
     if (menu() && !menu().hidden && !target.closest?.('.lsg-more')) setMenu(false, false);
-    const control = target.closest?.('[data-lsg-left-toggle],[data-lsg-more],[data-lsg-theme-toggle],[data-lsg-theme-system],[data-lsg-sidebar-shade],.lsg-left-sidebar a');
+    const control = target.closest?.('[data-lsg-left-toggle],[data-lsg-more],[data-lsg-slides],[data-lsg-theme-toggle],[data-lsg-theme-system],[data-lsg-sidebar-shade],.lsg-left-sidebar a');
     if (!control) return;
     if (control.matches('[data-lsg-left-toggle]')) setSidebar(!isOpen());
     else if (control.matches('[data-lsg-more]')) setMenu(menu()?.hidden);
+    else if (control.matches('[data-lsg-slides]')) { setMenu(false, false); sidebar({ type: 'slides' }); }
     else if (control.matches('[data-lsg-theme-toggle]')) { toggleTheme(); setMenu(false); }
     else if (control.matches('[data-lsg-theme-system]')) { theme()?.set('system'); setMenu(false); }
     else if (control.matches('[data-lsg-sidebar-shade]')) setSidebar(false, true);
