@@ -1,0 +1,1 @@
+- No page links here; [[Tools/Queries]] names this page only inside an advanced query, so it has no linked references.

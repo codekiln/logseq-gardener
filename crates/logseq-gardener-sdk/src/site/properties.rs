@@ -17,6 +17,12 @@ pub(super) struct PropertyView {
     pub sequence_keys: BTreeSet<String>,
 }
 
+/// Properties a query table leaves out: Logseq's built-in keys, except `alias`, which
+/// Logseq shows as a column.
+pub(super) fn is_internal(key: &str) -> bool {
+    internal(key) && !matches!(key, "alias" | "aliases")
+}
+
 fn internal(key: &str) -> bool {
     matches!(
         key,

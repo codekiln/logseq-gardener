@@ -241,9 +241,12 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
     ] {
         assert!(page.contains(content), "missing {content}: {page}");
     }
-    // Only these exact publisher-owned helpers are executable.
-    assert_eq!(page.matches("<script").count(), 3);
+    // Only these exact publisher-owned helpers are executable; the query adds its own.
+    assert_eq!(page.matches("<script").count(), 4);
     assert!(page.contains("<script defer src=\"lsg-shell.js\"></script>"));
+    assert!(page.contains("<script defer src=\"lsg-queries.js\"></script>"));
+    assert!(page.contains("Live query for pages"));
+    assert!(!page.contains("{{query"));
     assert!(page.contains(&format!(
         "<script data-lsg-theme-script>{}</script>",
         include_str!("../src/site/theme.js")

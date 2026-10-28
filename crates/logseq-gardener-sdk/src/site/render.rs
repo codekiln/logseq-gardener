@@ -137,7 +137,9 @@ fn contains_embed(nodes: &[Inline], depth: usize) -> bool {
     }
     nodes.iter().any(|node| match node {
         Inline::Macro { name, .. } => {
-            name.eq_ignore_ascii_case("embed") || crate::media::is_video_macro(name)
+            name.eq_ignore_ascii_case("embed")
+                || name.eq_ignore_ascii_case("query")
+                || crate::media::is_video_macro(name)
         }
         Inline::Emphasis { children, .. }
         | Inline::Subscript { children, .. }
@@ -205,8 +207,37 @@ pub(super) fn render_document_with_embeds(
     )
 }
 
+/// Renders query boxes in a page's own outline. Elsewhere, such as in references, embeds
+/// and query results, a query keeps its literal text.
+pub(super) trait QueryBoxes {
+    /// A `{{query …}}` macro whose arguments, joined by `, `, are `text`, in the bullet
+    /// that starts at byte `block` of the page's source.
+    fn simple(
+        &self,
+        page: &str,
+        block: Option<usize>,
+        text: &str,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> QueryBox;
+    /// A `#+BEGIN_QUERY` block whose map is `text`.
+    fn advanced(
+        &self,
+        page: &str,
+        block: Option<usize>,
+        text: &str,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> QueryBox;
+}
+
+/// A rendered query and its diagnostics.
+pub(super) struct QueryBox {
+    pub html: String,
+    pub diagnostics: Vec<String>,
+}
+
 #[derive(Default)]
-struct RenderMode {
+struct RenderMode<'q> {
+    queries: Option<&'q dyn QueryBoxes>,
     hide_brackets: bool,
     reference_depth: Option<i64>,
     source_anchors: BTreeSet<usize>,
@@ -214,10 +245,12 @@ struct RenderMode {
     reference_entries: BTreeMap<usize, String>,
 }
 
-/// How a page's own outline renders: which blocks keep source anchors, and brackets.
-pub(super) struct PageRender {
+/// How a page's own outline renders: which blocks keep source anchors, brackets, and
+/// what renders its queries.
+pub(super) struct PageRender<'q> {
     pub source_anchors: BTreeSet<usize>,
     pub show_brackets: bool,
+    pub queries: Option<&'q dyn QueryBoxes>,
 }
 
 pub(super) fn render_document_with_source_anchors(
@@ -236,6 +269,7 @@ pub(super) fn render_document_with_source_anchors(
         route,
         documents,
         RenderMode {
+            queries: page.queries,
             source_anchors: page.source_anchors,
             hide_brackets: !page.show_brackets,
             ..RenderMode::default()
@@ -283,15 +317,15 @@ pub(super) fn render_reference_context(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_context(
-    document: &GardenDocument,
-    pages: &crate::page_names::PageNameIndex<String>,
-    targets: &ReferenceTargets<String>,
+fn render_context<'a>(
+    document: &'a GardenDocument,
+    pages: &'a crate::page_names::PageNameIndex<String>,
+    targets: &'a ReferenceTargets<String>,
     route: &str,
-    documents: &BTreeMap<String, EmbedPage>,
-    mode: RenderMode,
-    origin: &GardenDocument,
-    asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    documents: &'a BTreeMap<String, EmbedPage<'a>>,
+    mode: RenderMode<'a>,
+    origin: &'a GardenDocument,
+    asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
     let mut renderer = new_renderer(document, pages, targets, route, documents, mode, asset);
     renderer.media_source = Some(origin);
@@ -311,7 +345,7 @@ fn new_renderer<'a>(
     targets: &'a ReferenceTargets<String>,
     route: &str,
     documents: &'a BTreeMap<String, EmbedPage<'a>>,
-    mode: RenderMode,
+    mode: RenderMode<'a>,
     asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Renderer<'a> {
     let page = route.to_owned();
@@ -347,6 +381,8 @@ fn new_renderer<'a>(
         recordings: Vec::new(),
         media_source: None,
         media: BTreeMap::new(),
+        queries: mode.queries,
+        bullet: None,
     }
 }
 
@@ -389,6 +425,10 @@ pub(super) fn render_crumb(
 }
 
 struct Renderer<'a> {
+    /// Renders query boxes in a page's own outline.
+    queries: Option<&'a dyn QueryBoxes>,
+    /// Byte offset of the bullet being rendered, which a query names as its block.
+    bullet: Option<usize>,
     dialogue: Vec<super::dialogue::Pending>,
     /// The document whose videos and timestamps are rendering, for their bindings.
     media_source: Option<&'a GardenDocument>,
@@ -484,6 +524,7 @@ impl Renderer<'_> {
                 let Some(item) = outline_blocks[index] else {
                     unreachable!("every bullet is in the outline")
                 };
+                self.bullet = span.as_ref().map(|span| span.0);
                 let collapsed = (self
                     .reference_depth
                     .is_some_and(|limit| i64::from(*level) >= limit)
@@ -617,6 +658,27 @@ impl Renderer<'_> {
                     self.html.push_str("<blockquote>");
                     self.blocks(children, depth + 1);
                     self.html.push_str("</blockquote>");
+                }
+                Block::Custom {
+                    name,
+                    span: Some(span),
+                    ..
+                } if name.eq_ignore_ascii_case("query")
+                    && self.queries.is_some()
+                    && !self.embedded =>
+                {
+                    let text = self.text_source.get(span.0..span.1).unwrap_or_default();
+                    let body = text
+                        .split_once('\n')
+                        .map_or("", |(_, rest)| rest)
+                        .rsplit_once("#+END_")
+                        .map_or(text, |(body, _)| body);
+                    let queries = self.queries.expect("checked above");
+                    let rendered = queries.advanced(&self.page, self.bullet, body, self.asset);
+                    self.html.push_str(&rendered.html);
+                    for message in rendered.diagnostics {
+                        self.diagnostic(message);
+                    }
                 }
                 Block::Custom { name, children, .. } => {
                     self.diagnostic(format!(
@@ -1335,6 +1397,15 @@ impl Renderer<'_> {
         let source = macro_text(name, args);
         match name.to_ascii_lowercase().as_str() {
             // Other parity issues own these macros; they keep the literal fallback.
+            "query" if self.queries.is_some() && !self.embedded && !self.in_reference => {
+                let queries = self.queries.expect("checked above");
+                let rendered =
+                    queries.simple(&self.page, self.bullet, &args.join(", "), self.asset);
+                self.html.push_str(&rendered.html);
+                for message in rendered.diagnostics {
+                    self.diagnostic(message);
+                }
+            }
             "embed" | "query" | "cards" | "cloze" | "namespace" | "tweet" => {
                 self.literal("macro (including embeds and queries)", &source)
             }
@@ -2211,6 +2282,7 @@ mod tests {
             super::PageRender {
                 source_anchors: BTreeSet::new(),
                 show_brackets,
+                queries: None,
             },
             &mut |_, _| Ok("assets/a.png".into()),
         )
