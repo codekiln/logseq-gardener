@@ -178,3 +178,17 @@ fn private_descendant_withholds_closed_page_and_assets_before_expansion() {
             .exists()
     );
 }
+
+#[test]
+fn outline_blocks_break_long_words_to_fit_a_phone_screen() {
+    let f = Fixture::new();
+    f.write(
+        "pages/Notes___Start.md",
+        "- Parent\n\t- [[Ableton/Live/Mode/Arrangement]]\n",
+    );
+    f.publish();
+    let page = f.html("Notes/Start");
+    let style = &page[page.find(".outline li{").unwrap()..];
+    let rule = &style[..style.find('}').unwrap()];
+    assert!(rule.contains("overflow-wrap:anywhere"), "{rule}");
+}
