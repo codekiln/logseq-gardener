@@ -30,11 +30,11 @@ The SDK SHALL list the argument of every `{{cards}}` macro in the selected docum
 
 ### Requirement: Order and count due cards for a given time
 
-Given a time, the SDK SHALL treat a card as due when it has no `card-repeats` or fewer than 1, no `card-next-schedule`, or a `card-next-schedule` before that time. It SHALL order a deck's due cards by the `card-next-schedule` text with unscheduled cards first, and SHALL give each deck's due and total counts.
+Given a time, the SDK SHALL treat a card as due when it has no `card-repeats` or fewer than 1, no `card-next-schedule`, or a `card-next-schedule` before that time. It SHALL order a deck's due cards by the `card-next-schedule` text with unscheduled cards first, keeping cards with equal text in page-title then outline order, and SHALL give each deck's due and total counts.
 
 #### Scenario: Counts on a date
 - **WHEN** the SDK counts decks over the encode garden at commit `083106d` for 2026-10-27T04:33Z
-- **THEN** `All` is `430/432`, `[[VSCode]]` is `71/73`, `[[yazi]]` is `18/18`, and the first due card of `All` is on `Lazygit/Keyshort/Commit`
+- **THEN** `All` is `430/432`, `[[VSCode]]` is `71/73`, `(and [[VSCode/Keyshort/Git]] )` is `9/10`, `[[yazi]]` is `18/18`, and the first due card of `All` is the first unscheduled card in page-title order, on `1Password/Quick Access`
 
 ### Requirement: Hide the scheduling properties everywhere
 

@@ -1453,6 +1453,130 @@ def measure_queries_run(args, sync_playwright):
         PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
 
 
+FLASHCARDS_PAGE = 'Parity/Flashcards'
+FLASHCARDS_DECK = 'Parity/Flashcards Deck'
+FLASHCARDS_CARDS = 60
+FLASHCARDS_SCORED = 50
+FLASHCARDS_OPEN = '''() => new Promise((resolve) => {
+  const open = document.querySelector('.cards-review[data-lsg-deck] .cards-review-open');
+  open.scrollIntoView();
+  const start = performance.now();
+  open.click();
+  const done = () => document.querySelector('.lsg-review-card article')
+    ? requestAnimationFrame(() => resolve(performance.now() - start)) : setTimeout(done, 5);
+  done();
+})'''
+
+
+def flashcards_garden(garden, temp):
+    """A copy of the garden with FLASHCARDS_PAGE: FLASHCARDS_CARDS cloze cards that name the deck
+    page and a {{cards}} widget for that deck."""
+    copy = Path(temp) / 'garden'
+    shutil.copytree(garden, copy, ignore=shutil.ignore_patterns('.git'))
+    lines = ['- # Flashcards', f'- {{{{cards [[{FLASHCARDS_DECK}]]}}}}']
+    for number in range(FLASHCARDS_CARDS):
+        lines += [f'- Question {number}: the answer is {{{{cloze answer {number}}}}} [[{FLASHCARDS_DECK}]] #card',
+                  f'\t- Explanation {number}']
+    (copy / 'pages' / 'Parity___Flashcards.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    return copy
+
+
+def measure_flashcards(browser, url, profile):
+    """Load FLASHCARDS_PAGE, open the review from its deck widget to the first card, then score
+    FLASHCARDS_SCORED cards (s until the scoring buttons show, then r to mark it remembered) and read the JS heap
+    after garbage collection. A site without flashcards returns {'skipped': ...}."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
+    try:
+        page.goto(url, wait_until='commit', timeout=PROFILES[profile]['timeout_ms'])
+        wait_loaded(page, profile)
+        if page.query_selector('[data-lsg-flashcards]') is None or page.query_selector('.cards-review[data-lsg-deck]') is None:
+            return {'skipped': 'no flashcards in this site'}
+        result = page.evaluate(COLLECT)
+        result['open_ms'] = page.evaluate(FLASHCARDS_OPEN)
+        scored = 0
+        for _ in range(FLASHCARDS_SCORED):
+            # A cloze card shows its answers, then its clozes, before the scoring buttons.
+            for _ in range(3):
+                page.wait_for_selector('.lsg-review-actions button', timeout=5000)
+                if page.query_selector('.lsg-review-actions [data-key="r"]'):
+                    break
+                page.keyboard.press('s')
+                page.wait_for_timeout(20)
+            page.keyboard.press('r')
+            scored += 1
+            page.wait_for_selector('.lsg-review-card article', timeout=5000)
+        result['scored'] = scored
+        result['heap'] = collect_garbage(cdp)
+        return result
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def flashcards_markdown(rows, builds, budgets):
+    """The Flashcards section of docs/parity/performance.md."""
+    limits = budgets.get('flashcards', {})
+    lines = ['', '## Flashcards', '',
+             f'`{FLASHCARDS_PAGE}` holds {FLASHCARDS_CARDS} cloze cards and a `{{{{cards}}}}` deck, added to a copy of '
+             'the whole garden. Open is the time from clicking the deck\'s Review cards button to the first card '
+             f'drawn; the heap is read after scoring {FLASHCARDS_SCORED} cards (`s` until the buttons show, then `r`), after garbage '
+             'collection. **Bold** marks a value over its `[flashcards]` budget.', '',
+             '| Profile | Title (ms) | Data before title | Script before title | Open (ms) | Cards scored '
+             '| Heap after scoring (MB) |',
+             '| --- | ---: | ---: | ---: | ---: | ---: | ---: |']
+    for row in rows:
+        if 'error' in row or 'skipped' in row:
+            lines.append(f"| {row['profile']} | {row.get('error') or row['skipped']} | | | | | |")
+            continue
+        heap_mb = row['heap'] / 1e6
+        opened = _marked(f"{row['open_ms']:.0f}", row['open_ms'], limits.get(f"open_ms_{row['profile']}"))
+        heap = _marked(f'{heap_mb:.1f}', heap_mb, limits.get('review_heap_mb') if row['profile'] == 'phone' else None)
+        lines.append(f"| {row['profile']} | {row['title_ms']:.0f} | {row['data_before_title']:,} "
+                     f"| {row['script_before_title']:,} | {opened} | {row['scored']} | {heap} |")
+    for row in builds:
+        lines += ['', f"Whole-garden build with `{FLASHCARDS_PAGE}`: {row['seconds']:.2f} s against "
+                      f"{row['baseline_seconds']:.2f} s for the baseline binary "
+                      f"({row['slowdown_pct']:+.1f}%, budget {limits.get('build_slowdown_pct')}%)."]
+    return lines
+
+
+def measure_flashcards_run(args, sync_playwright):
+    """Measure FLASHCARDS_PAGE on a copy of the run's garden; with --record, replace the Flashcards
+    section of docs/parity/performance.md."""
+    budgets = metrics.load_budgets()
+    run = common.latest_run(args.run)
+    settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    rows, builds = [], []
+    with tempfile.TemporaryDirectory(prefix='lsg-flashcards-') as temp:
+        garden = flashcards_garden(settings['garden'], temp)
+        site = Path(temp) / 'site'
+        options = [*settings['lsg_options'], '--include', FLASHCARDS_PAGE.split('/')[0]]
+        seconds = time_publish(common.lsg_binary(), str(garden), site, options)
+        if args.baseline_lsg:
+            baseline = time_publish(args.baseline_lsg, str(garden), Path(temp) / 'baseline', options)
+            builds.append({'seconds': seconds, 'baseline_seconds': baseline,
+                           'slowdown_pct': (seconds / baseline - 1) * 100})
+        with serve.Server(site) as lsg, sync_playwright() as playwright:
+            browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
+            for profile in profiles:
+                row = {'profile': profile,
+                       **measure_flashcards(browser, lsg.url + common.lsg_route(FLASHCARDS_PAGE), profile)}
+                rows.append(row)
+                print(json.dumps(row), flush=True)
+            browser.close()
+    block = '\n'.join(flashcards_markdown(rows, builds, budgets))
+    print(block)
+    if args.record and not any('skipped' in row for row in rows):
+        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+        start = text.find('\n## Flashcards')
+        if start >= 0:
+            end = text.find('\n## ', start + 1)
+            text = text[:start] + (text[end:] if end >= 0 else '\n')
+        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+
+
 def measure_slides_run(args, sync_playwright):
     """Measure View as slides in a parity run's site; with --record, replace its section of
     docs/parity/performance.md."""
@@ -1633,6 +1757,9 @@ def main():
     parser.add_argument('--queries', action='store_true',
                         help=f"measure only {QUERIES_PAGE}, the queries analysis's test queries, on a copy of the "
                              "run's garden; with --record, replace its section of docs/parity/performance.md")
+    parser.add_argument('--flashcards', action='store_true',
+                        help=f"measure only {FLASHCARDS_PAGE}, {FLASHCARDS_CARDS} cloze cards and a deck, on a copy of "
+                             "the run's garden; with --record, replace its section of docs/parity/performance.md")
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -1655,6 +1782,9 @@ def main():
         return
     if args.queries:
         measure_queries_run(args, sync_playwright)
+        return
+    if args.flashcards:
+        measure_flashcards_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)

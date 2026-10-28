@@ -14,7 +14,7 @@ A card block SHALL render with Logseq's card style: the `shadow-md` box shadow, 
 
 #### Scenario: yazi deck
 - **WHEN** a reader opens `Logseq/Flashcard/Review/Favorite/yazi` built for 2026-10-27
-- **THEN** the widget reads `[[yazi]]` and `18/18`, shows `yazi/Keyshort/Copy GitHub markdown link` first, and no literal `{{cards`
+- **THEN** the widget reads `[[yazi]]` and `18/18`, shows the deck's first due card, the unscheduled card on `git/Alias/md-url`, and no literal `{{cards`
 
 #### Scenario: Empty deck
 - **WHEN** a reader opens `Logseq/Flashcard/Review/Favorite/Zoxide`

@@ -27,6 +27,10 @@
     event.stopPropagation();
     sidebar(toggle ? 'toggle' : event);
   }, true);
+  // The flashcard review loads on its first use.
+  let cards;
+  const review = event => (cards ||= new Promise(done => load(near('flashcards'), done))).then(() => window.logseqGardenerCards(event));
+  const flash = () => $('[data-lsg-flashcards]') && review();
   const isOpen = () => root.getAttribute('data-lsg-left-sidebar') === 'open';
   const setSidebar = (open, focus) => {
     if (open) root.setAttribute('data-lsg-left-sidebar', 'open');
@@ -67,13 +71,15 @@
     ga: () => go('[data-lsg-all-pages]'),
     gj: () => go('[data-lsg-journals-link]'),
     gg: () => go('[data-lsg-graph-shortcut]'),
+    gf: flash,
+    tc: flash,
   };
   // The search dialog lists these actions as its commands.
   window.logseqGardenerShell = Object.freeze({ actions: Object.freeze({ ...actions }) });
   document.addEventListener('click', event => {
     const target = event.target;
     if (menu() && !menu().hidden && !target.closest?.('.lsg-more')) setMenu(false, false);
-    const control = target.closest?.('[data-lsg-left-toggle],[data-lsg-more],[data-lsg-slides],[data-lsg-theme-toggle],[data-lsg-theme-system],[data-lsg-sidebar-shade],.lsg-left-sidebar a');
+    const control = target.closest?.('[data-lsg-left-toggle],[data-lsg-more],[data-lsg-slides],[data-lsg-theme-toggle],[data-lsg-theme-system],[data-lsg-sidebar-shade],[data-lsg-deck],.cloze,.lsg-left-sidebar a');
     if (!control) return;
     if (control.matches('[data-lsg-left-toggle]')) setSidebar(!isOpen());
     else if (control.matches('[data-lsg-more]')) setMenu(menu()?.hidden);
@@ -81,6 +87,8 @@
     else if (control.matches('[data-lsg-theme-toggle]')) { toggleTheme(); setMenu(false); }
     else if (control.matches('[data-lsg-theme-system]')) { theme()?.set('system'); setMenu(false); }
     else if (control.matches('[data-lsg-sidebar-shade]')) setSidebar(false, true);
+    else if (control.matches('.cloze')) [control.textContent, control.dataset.cloze] = [control.dataset.cloze, control.textContent];
+    else if (control.matches('[data-lsg-deck],[data-lsg-flashcards]')) { if (control.dataset.lsgFlashcards != null) event.preventDefault(); review(event); }
     else if (!desktop()) setSidebar(false);
   });
   let pending = '', pendingAt = 0;

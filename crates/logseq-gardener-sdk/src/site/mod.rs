@@ -4,6 +4,7 @@ mod all_pages;
 mod assets;
 mod code;
 mod dialogue;
+mod flashcards;
 mod graph;
 mod graph_layout;
 mod hierarchy;
@@ -452,7 +453,8 @@ pub fn publish_site_with_options(
     } else {
         "index.html"
     };
-    let shell = shell::Shell {
+    let mut shell = shell::Shell {
+        flashcards: None,
         graph_shortcut: settings.graph_shortcut,
         favorites,
         all_pages: index_route,
@@ -537,6 +539,32 @@ pub fn publish_site_with_options(
         },
         &git_dates,
     );
+    // Decks are chosen with the query evaluator, then fixed at the build time.
+    let flashcards = settings.features.flashcards.then(|| {
+        let now = match options.build_date {
+            Some(date) => date.unix_days() * 86_400,
+            None => journals::build_seconds(),
+        };
+        flashcards::Flashcards::new(
+            &reference_index,
+            queries.graph(),
+            &resolve,
+            build_date,
+            &journal_formats,
+            now,
+            references::Context {
+                config: &reference_config,
+                names: &names,
+                targets: &targets,
+                documents: &selected_documents,
+            },
+        )
+    });
+    shell.flashcards = flashcards.as_ref().map(flashcards::Flashcards::due);
+    let boxes = PageBoxes {
+        queries: &queries,
+        flashcards: flashcards.as_ref(),
+    };
     // Default journal queries render under the build date's journal; Datalog ones cannot.
     let default_queries: Vec<String> = config::read_text(&root)
         .ok()
@@ -610,7 +638,7 @@ pub fn publish_site_with_options(
             render::PageRender {
                 source_anchors,
                 show_brackets: settings.show_brackets,
-                queries: Some(&queries),
+                queries: Some(&boxes),
             },
             &mut asset,
         );
@@ -829,6 +857,30 @@ pub fn publish_site_with_options(
         documents.insert(media::SCRIPT_ROUTE.to_owned(), media::SCRIPT.to_owned());
         documents.insert(media::STYLES_ROUTE.to_owned(), media::STYLES.to_owned());
     }
+    if let Some(flashcards) = &flashcards {
+        documents.extend(flashcards.files(&mut asset));
+        for message in flashcards.take_diagnostics() {
+            report.diagnostics.push(SiteDiagnostic {
+                source: "flashcards".into(),
+                message,
+            });
+        }
+        let widget_head = format!("<style>{}</style>", flashcards::WIDGET_STYLES);
+        for (route, html) in &mut documents {
+            if route.ends_with(".html")
+                && !route.starts_with("_refs/")
+                && !route.starts_with("flashcards/")
+                && html.contains(flashcards::MARKER)
+            {
+                *html = html.replacen("</head>", &(widget_head.clone() + "</head>"), 1);
+            }
+        }
+        documents.insert(flashcards::SCRIPT_ROUTE.to_owned(), flashcards::script());
+        documents.insert(
+            flashcards::STYLES_ROUTE.to_owned(),
+            flashcards::STYLES.to_owned(),
+        );
+    }
     let query_head = queries::head();
     let mut has_queries = false;
     for (route, html) in &mut documents {
@@ -844,7 +896,7 @@ pub fn publish_site_with_options(
         documents.insert(queries::SCRIPT_ROUTE.to_owned(), queries::script());
         documents.insert(queries::STYLES_ROUTE.to_owned(), queries::STYLES.to_owned());
     }
-    documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::SCRIPT.to_owned());
+    documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::script());
     documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());
     documents.insert(shell::SIDEBAR_ROUTE.to_owned(), shell::sidebar_script());
     documents.insert(shell::SLIDES_ROUTE.to_owned(), shell::slides_script());
@@ -891,6 +943,12 @@ pub fn publish_site_with_options(
     }
     let directory = output.join(all_pages::LIST_DIRECTORY);
     fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
+    if documents.contains_key(flashcards::DECK_LIST) {
+        for directory in flashcards::DIRECTORIES {
+            let directory = output.join(directory);
+            fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
+        }
+    }
     for directory in [graph::DIRECTORY, graph::NEIGHBOURHOODS] {
         let directory = output.join(directory);
         fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
@@ -940,4 +998,39 @@ fn write_files(output: &Path, documents: BTreeMap<String, String>) -> Result<(),
             .into_iter()
             .try_for_each(|worker| worker.join().expect("file writer panicked"))
     })
+}
+
+/// What renders a page's query boxes and deck widgets.
+struct PageBoxes<'x, 'r, 'a> {
+    queries: &'x queries::Queries<'r, 'a>,
+    flashcards: Option<&'x flashcards::Flashcards<'r, 'a>>,
+}
+
+impl render::QueryBoxes for PageBoxes<'_, '_, '_> {
+    fn simple(
+        &self,
+        page: &str,
+        block: Option<usize>,
+        text: &str,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> render::QueryBox {
+        self.queries.simple(page, block, text, asset)
+    }
+    fn advanced(
+        &self,
+        page: &str,
+        block: Option<usize>,
+        text: &str,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> render::QueryBox {
+        self.queries.advanced(page, block, text, asset)
+    }
+    fn cards(
+        &self,
+        text: &str,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> Option<render::QueryBox> {
+        self.flashcards
+            .map(|flashcards| flashcards.widget(text, asset))
+    }
 }

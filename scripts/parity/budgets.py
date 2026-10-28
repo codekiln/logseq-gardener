@@ -260,6 +260,82 @@ def check_queries(site, pages, queries):
     return failures
 
 
+FLASHCARDS_SCRIPT = 'lsg-flashcards.js'
+FLASHCARDS_STYLES = 'lsg-flashcards.css'
+FLASHCARDS_ALL = 'flashcards/decks/all.json'
+FLASHCARDS_BATCHES = 'flashcards/cards'
+
+
+def without_deck_widgets(text):
+    """A page without its deck widgets: the inline style blocks that hold the widget styles and each
+    `cards-review` element, from its opening tag to its closing tag."""
+    text = re.sub(r'<style>[^<]*\.cards-review[^<]*</style>', '', text)
+    while True:
+        match = re.search(r'<div class="cards-review', text)
+        if not match:
+            return text
+        depth = 0
+        for token in re.finditer(r'<div\b|</div>', text[match.start():]):
+            depth += -1 if token.group().startswith('</') else 1
+            if depth == 0:
+                text = text[:match.start()] + text[match.start() + token.end():]
+                break
+        else:
+            return text
+
+
+def check_flashcards(site, pages, flashcards):
+    """Return failure messages for the flashcards script, styles, all-cards deck and card batches,
+    for a page that links the review script, and for the deck page's growth over its size without
+    the deck widgets."""
+    site = Path(site)
+    failures = []
+    for name in (FLASHCARDS_SCRIPT, FLASHCARDS_STYLES, FLASHCARDS_ALL):
+        if not (site / name).exists():
+            return [f'{name}: missing from the build']
+    script = (site / FLASHCARDS_SCRIPT).stat().st_size
+    if script > flashcards['script_kb'] * 1000:
+        failures.append(f'{FLASHCARDS_SCRIPT}: {script:,} exceeds {flashcards["script_kb"] * 1000:,.0f}')
+    styles = metrics.gzip_size((site / FLASHCARDS_STYLES).read_bytes())
+    if styles > flashcards['styles_gzip_kb'] * 1000:
+        failures.append(f'{FLASHCARDS_STYLES}: {styles:,} gzip exceeds {flashcards["styles_gzip_kb"] * 1000:,.0f}')
+    deck = metrics.gzip_size((site / FLASHCARDS_ALL).read_bytes())
+    if deck > flashcards['deck_gzip_kb'] * 1000:
+        failures.append(f'{FLASHCARDS_ALL}: {deck:,} gzip exceeds {flashcards["deck_gzip_kb"] * 1000:,.0f}')
+    for batch in sorted((site / FLASHCARDS_BATCHES).glob('*.html')):
+        size = metrics.gzip_size(batch.read_bytes())
+        if size > flashcards['card_batch_gzip_kb'] * 1000:
+            failures.append(f'{batch.name}: {size:,} gzip exceeds {flashcards["card_batch_gzip_kb"] * 1000:,.0f}')
+    for page in pages:
+        if FLASHCARDS_SCRIPT in (site / page).read_text(encoding='utf-8'):
+            failures.append(f'{page}: links {FLASHCARDS_SCRIPT}, which loads when the review opens')
+    title = flashcards['deck_page']
+    deck_page = site / common.lsg_route(title)
+    if not deck_page.exists():
+        failures.append(f'{title}: no deck page in the build')
+    else:
+        text = deck_page.read_text(encoding='utf-8')
+        if 'class="cards-review' not in text:
+            failures.append(f'{title}: has no deck widget')
+        growth = metrics.gzip_size(text.encode('utf-8')) - metrics.gzip_size(without_deck_widgets(text).encode('utf-8'))
+        if growth > flashcards['deck_page_growth_gzip_kb'] * 1000:
+            failures.append(f'{title}: deck widgets add {growth:,} gzip, over '
+                            f'{flashcards["deck_page_growth_gzip_kb"] * 1000:,.0f}')
+    return failures
+
+
+def flashcards_summary(site, flashcards):
+    """The sizes check_flashcards compares, as one line."""
+    site = Path(site)
+    text = (site / common.lsg_route(flashcards['deck_page'])).read_text(encoding='utf-8')
+    growth = metrics.gzip_size(text.encode('utf-8')) - metrics.gzip_size(without_deck_widgets(text).encode('utf-8'))
+    batches = [metrics.gzip_size(b.read_bytes()) for b in (site / FLASHCARDS_BATCHES).glob('*.html')]
+    return (f"{FLASHCARDS_SCRIPT}: {(site / FLASHCARDS_SCRIPT).stat().st_size:,}; {FLASHCARDS_STYLES}: "
+            f"{metrics.gzip_size((site / FLASHCARDS_STYLES).read_bytes()):,} gzip; {FLASHCARDS_ALL}: "
+            f"{metrics.gzip_size((site / FLASHCARDS_ALL).read_bytes()):,} gzip; largest card batch "
+            f"{max(batches, default=0):,} gzip; deck page growth {growth:,} gzip")
+
+
 GRAPH_SCRIPT = 'lsg-graph.js'
 GRAPH_STYLES = 'lsg-graph.css'
 GRAPH_WORKER = 'lsg-graph-worker.js'
@@ -665,6 +741,9 @@ def main():
         queries_failures = check_queries(temp / 'small', small, budgets['queries'])
         print(f"{QUERIES_SCRIPT}: {(temp / 'small' / QUERIES_SCRIPT).stat().st_size:,}; {QUERIES_STYLES}: "
               f"{metrics.gzip_size((temp / 'small' / QUERIES_STYLES).read_bytes()):,} gzip")
+        flashcards_failures = check_flashcards(temp / 'small', small, budgets['flashcards'])
+        if not any('missing from the build' in f or 'no deck page' in f for f in flashcards_failures):
+            print(flashcards_summary(temp / 'small', budgets['flashcards']))
         sizes = graph_sizes(temp / 'small')
         print(f"graph: data {sizes['data']:,} gzip, script and styles {sizes['script']:,} gzip, "
               f"worker {sizes['worker']:,} gzip, {sizes['neighbourhoods']} neighbourhood files, "
@@ -694,7 +773,7 @@ def main():
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
                 + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
-                + search_failures + all_pages_failures + media_failures + queries_failures)
+                + search_failures + all_pages_failures + media_failures + queries_failures + flashcards_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

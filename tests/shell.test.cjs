@@ -117,7 +117,7 @@ test('g g opens the graph view unless the garden turns the shortcut off', () => 
 test('search commands run the shell actions', () => {
   const f = fixture();
   const { actions } = f.window.logseqGardenerShell;
-  assert.deepEqual(Object.keys(actions).sort(), ['ga', 'gg', 'gh', 'gj', 'tl', 'tr', 'tt', 'tw']);
+  assert.deepEqual(Object.keys(actions).sort(), ['ga', 'gf', 'gg', 'gh', 'gj', 'tc', 'tl', 'tr', 'tt', 'tw']);
   actions.tl(); assert.equal(f.root.getAttribute('data-lsg-left-sidebar'), 'open');
   actions.tw(); assert.equal(f.root.getAttribute('data-lsg-wide'), 'true');
   assert.ok(Object.isFrozen(actions));

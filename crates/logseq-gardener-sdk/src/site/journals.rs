@@ -21,15 +21,19 @@ const LATER_BATCH: usize = 7;
 
 /// The UTC date of `SOURCE_DATE_EPOCH`, or of the system clock when it is unset or invalid.
 pub(super) fn build_date() -> JournalDate {
-    let seconds = std::env::var("SOURCE_DATE_EPOCH")
+    JournalDate::from_unix_days(build_seconds().div_euclid(86_400))
+}
+
+/// Unix seconds of `SOURCE_DATE_EPOCH`, or of the system clock when it is unset or invalid.
+pub(super) fn build_seconds() -> i64 {
+    std::env::var("SOURCE_DATE_EPOCH")
         .ok()
         .and_then(|value| value.trim().parse::<i64>().ok())
         .unwrap_or_else(|| {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_or(0, |elapsed| elapsed.as_secs() as i64)
-        });
-    JournalDate::from_unix_days(seconds.div_euclid(86_400))
+        })
 }
 
 /// Which journals appear in which batch file.

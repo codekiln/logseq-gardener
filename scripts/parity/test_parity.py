@@ -174,12 +174,16 @@ class MetricsTest(unittest.TestCase):
         loaded = metrics.load_budgets()
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
-                                       'slides', 'queries'})
+                                       'slides', 'queries', 'flashcards'})
+        self.assertEqual(set(loaded['flashcards']), {'script_kb', 'styles_gzip_kb', 'deck_gzip_kb',
+                                                     'card_batch_gzip_kb', 'deck_page', 'deck_page_growth_gzip_kb',
+                                                     'open_ms_desktop', 'open_ms_phone', 'review_heap_mb',
+                                                     'build_slowdown_pct'})
         self.assertEqual(set(loaded['queries']), {'script_kb', 'styles_gzip_kb', 'in_page_gzip_kb',
                                                   'fragment_gzip_kb', 'open_ms_desktop', 'open_ms_phone',
                                                   'open_heap_mb', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['slides']), {'script_gzip_kb', 'open_ms_desktop', 'step_ms_desktop', 'deck_heap_mb'})
-        self.assertEqual(loaded['shell']['script_kb'], 6.6)
+        self.assertEqual(loaded['shell']['script_kb'], 6.9)
         self.assertEqual(set(loaded['graph']), {'data_gzip_kb', 'script_kb', 'worker_kb', 'first_frame_ms_desktop',
                                                 'first_frame_ms_phone', 'heap_mb', 'frame_ms_phone',
                                                 'page_graph_fragment_gzip_kb', 'page_graph_open_ms_desktop',
@@ -220,6 +224,38 @@ class QueriesBudgetTest(unittest.TestCase):
         self.assertTrue(budgets.QUERY_FRAGMENT.search('p-0123-q2-1.html'))
         self.assertTrue(budgets.QUERY_FRAGMENT.search('p-0123-q2-alt-3.html'))
         self.assertFalse(budgets.QUERY_FRAGMENT.search('p-0123-linked-1.html'))
+
+
+class FlashcardsBudgetTest(unittest.TestCase):
+    def test_without_deck_widgets(self):
+        widget = ('<div class="cards-review" data-lsg-deck="d1"><div class="cards-title">x</div>'
+                  '<div class="cards-first"><div>y</div></div></div>')
+        empty = '<div class="cards-review cards-empty"><code>Cards: z</code></div>'
+        page = f'<style>.cards-review{{padding:12px}}</style><style>p{{}}</style><p>a</p>{widget}<p>b</p>{empty}'
+        self.assertEqual(budgets.without_deck_widgets(page), '<style>p{}</style><p>a</p><p>b</p>')
+        self.assertEqual(budgets.without_deck_widgets('<p>no deck</p>'), '<p>no deck</p>')
+
+    def test_flashcards_checks(self):
+        limits = {'script_kb': 1, 'styles_gzip_kb': 1, 'deck_gzip_kb': 1, 'card_batch_gzip_kb': 1,
+                  'deck_page': 'Tools/Flashcards', 'deck_page_growth_gzip_kb': 1}
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            self.assertIn('missing from the build', budgets.check_flashcards(site, [], limits)[0])
+            (site / 'flashcards' / 'decks').mkdir(parents=True)
+            (site / 'flashcards' / 'cards').mkdir()
+            (site / 'lsg-flashcards.js').write_text('x' * 1001)
+            (site / 'lsg-flashcards.css').write_text('a{}')
+            (site / 'flashcards' / 'decks' / 'all.json').write_text('{}')
+            (site / 'flashcards' / 'cards' / '0.html').write_text('<p>card</p>')
+            (site / common.lsg_route('Tools/Flashcards')).write_text(
+                '<div class="cards-review" data-lsg-deck="d1"><p>x</p></div>')
+            (site / 'p-other.html').write_text('<script src="lsg-flashcards.js"></script>')
+            failures = budgets.check_flashcards(site, ['p-other.html'], limits)
+            self.assertEqual(len(failures), 2)
+            self.assertTrue(failures[0].startswith('lsg-flashcards.js: 1,001 exceeds 1,000'))
+            self.assertIn('p-other.html: links lsg-flashcards.js', failures[1])
+            (site / 'lsg-flashcards.js').write_text('x')
+            self.assertEqual(budgets.check_flashcards(site, [], limits), [])
 
 
 class MediaBudgetTest(unittest.TestCase):

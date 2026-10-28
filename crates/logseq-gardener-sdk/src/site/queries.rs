@@ -131,7 +131,7 @@ impl<'r, 'a> Queries<'r, 'a> {
         std::mem::take(&mut self.files.borrow_mut())
     }
 
-    fn graph(&self) -> &QueryGraph<'r, String> {
+    pub fn graph(&self) -> &QueryGraph<'r, String> {
         self.graph.get_or_init(|| {
             QueryGraph::new(
                 self.refs.index(),

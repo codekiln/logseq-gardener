@@ -1,0 +1,9 @@
+- # Flashcards
+	- The capital of France is {{cloze Paris}} #card
+		- Paris has been the capital since 987.
+	- tmux sends its commands after the prefix key [[Tools/tmux]] #card
+		- C-b by default.
+- Deck with cards
+	- {{cards [[Tools/tmux]]}}
+- Deck with no cards
+	- {{cards [[Nothing Here]]}}

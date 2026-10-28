@@ -4,7 +4,10 @@ use crate::garden_settings::Favorite;
 
 /// Shared behaviour file written once at the site root.
 pub(super) const SCRIPT_ROUTE: &str = "lsg-shell.js";
-pub(super) const SCRIPT: &str = include_str!("shell.js");
+/// `shell.js` without comments or indentation.
+pub(super) fn script() -> String {
+    super::references::minify(include_str!("shell.js"))
+}
 /// The right sidebar, loaded on first use.
 pub(super) const SIDEBAR_ROUTE: &str = "lsg-sidebar.js";
 pub(super) const SIDEBAR_STYLES_ROUTE: &str = "lsg-sidebar.css";
@@ -63,6 +66,7 @@ pub(super) const STYLES: &str = concat!(
     ".lsg-left-sidebar a:hover{background:var(--lsg-surface)}.lsg-left-sidebar a[aria-current=page]{background:var(--lsg-surface);font-weight:600}",
     ".lsg-left-sidebar ul[aria-labelledby] a{display:block;padding-left:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lsg-favorites-heading{margin:20px 8px 6px;color:var(--lsg-muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}",
     ".lsg-shortcut{margin-left:auto;color:var(--lsg-muted);font-size:12px;letter-spacing:.1em}",
+    ".lsg-badge{margin-left:4px;padding:0 12px;border-radius:9999px;background:var(--lsg-surface);font-size:12px;font-weight:500}",
     ".lsg-sidebar-shade{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.4)}.lsg-sidebar-shade[hidden]{display:none}",
     "@media(max-width:639.98px){.lsg-right-toggle,[data-lsg-slides]{display:none!important}}@media(min-width:640px){html[data-lsg-right-sidebar=open] body{padding-right:var(--lsg-right-width,40vw)}}",
     "@media(min-width:640px){.lsg-left-sidebar{z-index:10;width:246px}html[data-lsg-left-sidebar=open] body{padding-left:246px}html[data-lsg-left-sidebar=open] .lsg-header{margin-left:-246px}.lsg-sidebar-shade{display:none!important}}",
@@ -82,6 +86,8 @@ pub(super) struct Shell {
     pub contents: Option<String>,
     /// Right sidebar cards for a first visit: `contents` or page routes.
     pub sidebar: Vec<String>,
+    /// Cards due at the build time; `None` when flashcards are turned off.
+    pub flashcards: Option<usize>,
 }
 
 fn icon(path: &str) -> String {
@@ -151,6 +157,17 @@ impl Shell {
                 escape(&self.sidebar.join(" "))
             ));
         }
+        let flashcards = self.flashcards.map_or_else(String::new, |due| {
+            let badge = if due > 0 {
+                format!("<span class=\"lsg-badge\" data-lsg-due>{due}</span>")
+            } else {
+                String::new()
+            };
+            format!(
+                "<li class=\"flashcards-nav\"><a href=\"#\" role=\"button\" data-lsg-flashcards>{}<span>Flashcards</span><span class=\"lsg-shortcut\" aria-hidden=\"true\">g f</span>{badge}</a></li>",
+                icon(super::flashcards::INFINITY)
+            )
+        });
         // View as slides opens a right-sidebar card, so it is on page routes only.
         let slides = if !home && route.starts_with("p-") {
             "<button type=\"button\" role=\"menuitem\" data-lsg-slides>View as slides</button>"
@@ -158,7 +175,7 @@ impl Shell {
             ""
         };
         format!(
-            "<header class=\"lsg-header cp__header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<a class=\"lsg-button button\" href=\"graph.html#/graph\" aria-label=\"Graph\"><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path id=\"lsg-i-graph\" d=\"{hierarchy}\"/></svg></a><button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden>{slides}<button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view{graph_attribute}{graph_current}><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><use href=\"#lsg-i-graph\"/></svg><span>Graph view</span>{graph_hint}</a></li><li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
+            "<header class=\"lsg-header cp__header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<a class=\"lsg-button button\" href=\"graph.html#/graph\" aria-label=\"Graph\"><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path id=\"lsg-i-graph\" d=\"{hierarchy}\"/></svg></a><button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden>{slides}<button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}{flashcards}<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view{graph_attribute}{graph_current}><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><use href=\"#lsg-i-graph\"/></svg><span>Graph view</span>{graph_hint}</a></li><li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
             menu = icon(MENU),
             hierarchy = HIERARCHY,
             graph_current = current(route, "graph.html"),

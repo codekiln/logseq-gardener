@@ -76,3 +76,6 @@ pub mod query;
 
 /// Namespace hierarchy rows from page titles and aliases, shared by every caller.
 pub mod namespaces;
+
+/// Flashcards: card blocks, `{{cards}}` decks and which cards are due.
+pub mod cards;

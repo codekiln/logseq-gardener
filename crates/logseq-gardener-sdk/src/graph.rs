@@ -130,7 +130,8 @@ const BUILT_IN_PAGES: [&str; 17] = [
 ];
 
 /// Property names that Logseq does not turn into pages: its editable and hidden built-in
-/// properties, apart from `alias`, `aliases` and `tags`, whose values are references.
+/// properties, apart from `alias`, `aliases` and `tags`, whose values are references. The
+/// flashcard properties are [`crate::cards::HIDDEN_PROPERTIES`].
 const BUILT_IN_PROPERTIES: [&str; 48] = [
     "title",
     "icon",
@@ -186,6 +187,7 @@ const BUILT_IN_PROPERTIES: [&str; 48] = [
 fn property_page(name: &str) -> bool {
     !name.is_empty()
         && !BUILT_IN_PROPERTIES.contains(&name)
+        && !crate::cards::is_hidden_property(name)
         && !matches!(name, "now" | "later" | "done")
 }
 
