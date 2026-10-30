@@ -3,8 +3,13 @@
 
   // AgentSkills covers tools that implement the shared skill format. Claude Code
   // needs its own generated copy, and Codex needs a generated AGENTS.md.
-  "targets": ["agentsskills", "claudecode", "codexcli"],
-  "features": ["rules", "skills"],
+  // Permissions go to Claude Code only, so scheduled runs can merge PRs
+  // without changing Codex's approval settings.
+  "targets": {
+    "agentsskills": ["skills"],
+    "claudecode": ["rules", "skills", "permissions"],
+    "codexcli": ["rules", "skills"],
+  },
 
   // Keep every generated file inside this repository and remove stale output.
   "outputRoots": ["."],
