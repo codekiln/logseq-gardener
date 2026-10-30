@@ -167,6 +167,31 @@ test('a page opened at a zoom address zooms, and an unknown address keeps the pa
   assert.equal(g.main.hasAttribute('data-lsg-zoomed'), false);
 });
 
+test('reinitializing a zoom preserves collapse choices while changed routes and main replacements still zoom', () => {
+  const f = fixture();
+  const state = page(f.main, '#zoom/1');
+  const view = f.main.querySelector('.lsg-zoom');
+  const arrow = f.two.querySelector(':scope>.lsg-arrow');
+  state.click(arrow);
+  state.init(f.main);
+  state.init(f.two);
+  state.rerun();
+  assert.equal(f.main.querySelector('.lsg-zoom'), view);
+  assert.equal(f.two.classList.contains('folded'), true);
+  assert.equal(f.two.querySelectorAll(':scope>.lsg-arrow').length, 1);
+  assert.equal(arrow.getAttribute('aria-expanded'), 'false');
+
+  state.go('#zoom/1.1');
+  assert.equal(f.main.querySelector('.lsg-zoom ul.outline').children[0], f.two);
+  assert.equal(f.two.classList.contains('folded'), false);
+
+  const replacement = fixture();
+  f.main.replaceWith(replacement.main);
+  state.init(replacement.main);
+  assert.equal(replacement.main.querySelector('.lsg-zoom ul.outline').children[0], replacement.two);
+  assert.equal(replacement.main.querySelectorAll('.lsg-zoom').length, 1);
+});
+
 test('the arrow folds and unfolds ordinary and authored collapsed blocks', () => {
   const f = fixture();
   const state = page(f.main);

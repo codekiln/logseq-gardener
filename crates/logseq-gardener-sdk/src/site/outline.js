@@ -86,6 +86,7 @@
     return text.length > 80 ? text.slice(0, 79) + '…' : text;
   }
   function zoom(id) {
+    if (zoomed?.id === id && zoomed.view.isConnected) return;
     unzoom();
     const main = document.querySelector('main');
     const box = main?.querySelector('ul.outline')?.parentElement;
@@ -128,7 +129,7 @@
     view.append(crumb, ul);
     main.prepend(view);
     main.setAttribute('data-lsg-zoomed', '');
-    zoomed = { li, mark, view, main, states };
+    zoomed = { id, li, mark, view, main, states };
     window.scrollTo(0, 0);
   }
   function route() {
