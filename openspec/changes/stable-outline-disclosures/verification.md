@@ -1,6 +1,6 @@
 # Disclosure control verification
 
-Full `mise run ci` passed, including strict OpenSpec validation, RuleSync, release checks and unchanged publication budgets. The controller is 7,927 bytes under its 8,000-byte limit. Nine focused controller tests cover stable ownership before hover, nested activation, ordinary and authored state, native fragment reveal, repeated initialization, replacement/feed outlines, zoom, Back restoration and unknown routes.
+Full `mise run ci` passed, including strict OpenSpec validation, RuleSync, release checks and unchanged publication budgets. The outline controller remains within its existing size limit. Nine focused controller tests cover stable ownership before hover, nested activation, ordinary and authored state, native fragment reveal, repeated initialization, replacement/feed outlines, zoom, Back restoration and unknown routes.
 
 The release was published against an unchanged generic nested fixture. Native Space activation worked before hover. Activating the authored H1 button outside its summary opened the disclosure once. Continuous pointer movement from nested H3 text through the gutter reached its own button; clicking folded H3 alone while H1 and H2 remained open. Hit-testing 37 samples along that path retained the H3 owner.
 
