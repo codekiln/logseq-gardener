@@ -13,6 +13,12 @@ node = "24.14.0"
 uv = "0.13.3"
 "npm:@fission-ai/openspec" = "1.6.0"
 "npm:rulesync" = "9.6.3"
+# Installs the git hooks that regenerate Rulesync output after a pull or checkout.
+lefthook = "2.2.2"
 "cargo:https://github.com/codekiln/clilint" = { version = "rev:200e92a5d76420e8c47fd9e623da704b355dbc7d", locked = true, crate = "clilint", bin = "clilint", install_env = { RUSTUP_TOOLCHAIN = "1.97.0" } }
 release-plz = "0.3.169"
 cargo-dist = "0.32.0"
+
+# Install the lefthook git hooks when entering this repo. Idempotent.
+[hooks]
+enter = "lefthook install"

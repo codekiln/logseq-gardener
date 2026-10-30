@@ -1,0 +1,16 @@
+# Keep generated AI config in sync with the .rulesync/ source of truth.
+# After a pull (post-merge) or branch checkout (post-checkout), regenerate
+# every tool's config. Rulesync output is gitignored, so these hooks are what
+# put it in place.
+#
+# `mise x --` ensures rulesync resolves via mise even in a hook's minimal PATH.
+
+post-merge:
+  commands:
+    rulesync:
+      run: mise x -- rulesync generate
+
+post-checkout:
+  commands:
+    rulesync:
+      run: mise x -- rulesync generate
