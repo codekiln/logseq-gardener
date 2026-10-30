@@ -36,13 +36,17 @@ def main():
             before = {p: p.read_bytes() for p in graph.rglob('*.md')}
             subprocess.run([str(args.binary.resolve()), 'publish', '--graph', str(graph), '--output', str(root / name), '--filename-format', 'triple-lowbar', '--include', 'Notes', '--search'], check=True, capture_output=True)
             assert all(p.read_bytes() == content for p, content in before.items())
-        # Reuse the conservative parity parser; count every initially referenced script.
+        # Count every initial script on the fixture's ordinary reading pages.
+        # Graph and All pages have their own controller budgets in parity:budgets.
         sizes = []
         for path in root.glob('*/*.html'):
+            if '<title>Notes' not in path.read_text():
+                continue
             resources = _BlockingResources(all_scripts=True)
             resources.feed(path.read_text())
             size = resources.inline_script + sum((path.parent / ref).stat().st_size for ref in resources.files if not ref.endswith('.css'))
             sizes.append(size)
+        assert len(sizes) == 6, sizes
         assert max(sizes) <= 16000, max(sizes)
         print(f'Enabled Properties + Search initial script: {max(sizes):,} (limit 16,000)')
         def route(base, title):
