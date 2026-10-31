@@ -152,7 +152,12 @@
     if (card.type === 'graph') {
       const body = el('div', { class: 'lsg-page-graph' });
       await script('lsg-graph.js');
-      window.logseqGardenerGraph?.page(body);
+      if (window.logseqGardenerGraph) window.logseqGardenerGraph.page(body);
+      else {
+        // The script failed to load; Retry fetches it again.
+        delete scripts['lsg-graph.js'];
+        body.append(el('p', {}, 'The page graph could not be loaded.'), el('button', { type: 'button', class: 'lsg-card-retry' }, 'Retry'));
+      }
       return { title: 'Page graph', body };
     }
     const route = routeOf(card);
@@ -366,6 +371,8 @@
     if (target.closest('.lsg-card-head')) { real(card); collapse([card], !card.collapsed); return; }
     if (target.closest('.lsg-card-menu')) { real(card); open?.button === target.closest('.lsg-card-menu') ? closeMenu() : openMenu(target.closest('.lsg-card-menu'), card); return; }
     if (target.closest('.lsg-card-close,.lsg-card-dismiss')) { real(card); remove([card]); return; }
+    // Retry refills the card; focus waits on its header, since the button goes away.
+    if (target.closest('.lsg-card-retry')) { section.querySelector('.lsg-card-head').focus(); section.filled = false; fill(section); return; }
     // A plain click on a bullet inside a card zooms into that block in the main column.
     const bullet = target.closest('.bullet');
     const li = bullet?.closest('li[data-lsg-block]');

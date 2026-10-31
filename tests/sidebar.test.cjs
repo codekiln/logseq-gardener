@@ -368,6 +368,30 @@ test('a host that rewrites page addresses keeps Shift-click, card links and save
   assert.deepEqual([...new Set(state.fetched)].sort(), ['gitpa/GitP/A/', 'gitpa/GitP/A/Session/26/10/28-Wed/', 'gitpa/GitP/A/Session/26/10/29-Thu/', 'gitpa/Microfreak/', 'gitpa/Terminal/']);
 });
 
+test('a Page graph card whose script fails to load offers Retry, which loads the script again', async () => {
+  const s = load();
+  s.fire(s.aside.querySelector('[data-add=graph]'), 'click');
+  await settle();
+  assert.equal(s.cards()[0].querySelector('.lsg-card-loading').textContent, 'Loading…');
+  s.document.head.querySelector('script').onerror();
+  await settle();
+  const card = s.cards()[0];
+  assert.equal(s.titles()[0], 'Page graph');
+  assert.equal(card.querySelector('.lsg-card-body p').textContent, 'The page graph could not be loaded.');
+  // Retry keeps the card and focus on its header while the script loads again.
+  s.fire(card.querySelector('.lsg-card-retry'), 'click');
+  assert.equal(s.cards().length, 1);
+  assert.equal(state.focused, card.querySelector('.lsg-card-head'));
+  await settle();
+  const scripts = s.document.head.querySelectorAll('script');
+  assert.deepEqual(scripts.map(script => script.src), ['https://garden.test/lsg-graph.js', 'https://garden.test/lsg-graph.js']);
+  s.window.logseqGardenerGraph = { page: body => body.append(h('canvas', { class: 'lsg-graph-canvas' })) };
+  scripts[1].onload();
+  await settle();
+  assert.ok(card.querySelector('.lsg-page-graph .lsg-graph-canvas'));
+  assert.equal(card.querySelector('.lsg-card-retry'), null);
+});
+
 test('phones keep the page: requests are ignored', () => {
   const s = load({ desktop: false });
   s.request('toggle');
