@@ -12,6 +12,7 @@ mod journals;
 mod media;
 mod outline;
 mod page_status;
+mod plugins;
 mod properties;
 mod queries;
 mod references;
@@ -63,6 +64,10 @@ pub struct SiteOptions {
     /// Directory that keeps the graph view's layout between builds, keyed by the graph's
     /// content; `None` lays the graph out on every build. Created when missing.
     pub layout_cache: Option<PathBuf>,
+    /// Plugin manifest files, checked by [`crate::plugins::read_manifests`] before output is
+    /// created. With at least one plugin, every page carries plugin metadata and loads the
+    /// browser host after first paint; with none, pages are unchanged.
+    pub plugins: Vec<PathBuf>,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -106,6 +111,8 @@ pub enum SiteError {
     InvalidHomepage,
     /// Selected pages have ambiguous names or colliding output routes.
     Collision { title: String },
+    /// A plugin manifest is invalid, names unusable files or repeats another plugin's id.
+    InvalidPlugin(crate::plugins::PluginError),
     /// A filesystem operation failed; a write failure can leave partial new output.
     Io { path: PathBuf, source: io::Error },
 }
@@ -120,6 +127,7 @@ impl fmt::Display for SiteError {
             }
             Self::InvalidHomepage => write!(f, "homepage must identify one selected visible page"),
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
+            Self::InvalidPlugin(error) => error.fmt(f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
     }
@@ -130,6 +138,7 @@ impl Error for SiteError {
         match self {
             Self::Garden(error) => Some(error),
             Self::Title(error) => Some(error),
+            Self::InvalidPlugin(error) => Some(error),
             Self::Io { source, .. } => Some(source),
             _ => None,
         }
@@ -310,6 +319,8 @@ pub fn publish_site_with_options(
         .map(stylesheet_contents)
         .transpose()?;
     let stylesheet_route = stylesheet.as_ref().map(|_| "custom.css");
+    let plugin_manifests =
+        crate::plugins::read_manifests(&options.plugins).map_err(SiteError::InvalidPlugin)?;
     let source_root = root.as_ref();
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
@@ -597,6 +608,7 @@ pub fn publish_site_with_options(
     let mut copied: BTreeMap<String, (PathBuf, Vec<u8>)> = BTreeMap::new();
     let mut documents = BTreeMap::new();
     let mut feed_bodies = BTreeMap::new();
+    let mut site_pages = Vec::new();
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     code::prepare(selected.iter().map(|(_, _, document)| *document));
     let mut asset = |source: &Path, url: &str| {
@@ -701,7 +713,15 @@ pub fn publish_site_with_options(
             + &sections.unlinked;
         documents.extend(sections.files);
         documents.extend(hierarchy_section.files);
+        let id = Some(lookup_key(&title));
         if homepage_route.as_ref() == Some(&route) {
+            site_pages.push(plugins::SitePage {
+                id: id.clone(),
+                title: title.clone(),
+                url: "index.html".to_owned(),
+                kind: "home",
+                properties: Some(route.clone()),
+            });
             homepage_document = Some(html_document(
                 &title,
                 &body,
@@ -711,6 +731,13 @@ pub fn publish_site_with_options(
                 true,
             ));
         }
+        site_pages.push(plugins::SitePage {
+            id,
+            title: title.clone(),
+            url: route.clone(),
+            kind: if is_journal { "journal" } else { "page" },
+            properties: Some(route.clone()),
+        });
         documents.insert(
             route.clone(),
             html_document(&title, &body, stylesheet_route, &shell, &route, false),
@@ -739,6 +766,13 @@ pub fn publish_site_with_options(
             let hierarchy_section =
                 hierarchy.bottom_view(&node.title, &node.route, settings.show_brackets);
             documents.extend(hierarchy_section.files);
+            site_pages.push(plugins::SitePage {
+                id: Some(lookup_key(&node.title)),
+                title: node.title.clone(),
+                url: node.route.clone(),
+                kind: "namespace",
+                properties: None,
+            });
             documents.insert(
                 node.route.clone(),
                 html_document(
@@ -783,6 +817,17 @@ pub fn publish_site_with_options(
     );
     for (route, main) in all_pages::screens(&list, index_route) {
         let home = route == index_route && !has_homepage;
+        site_pages.push(plugins::SitePage {
+            id: None,
+            title: "All pages".to_owned(),
+            url: route.clone(),
+            kind: if route == "index.html" {
+                "home"
+            } else {
+                "list"
+            },
+            properties: None,
+        });
         let html = html_page(
             "All pages",
             &main,
@@ -825,6 +870,13 @@ pub fn publish_site_with_options(
     documents.insert(graph::STYLES_ROUTE.to_owned(), graph::styles());
     for (route, body) in feed.render(&feed_bodies) {
         let home = route == "index.html";
+        site_pages.push(plugins::SitePage {
+            id: None,
+            title: "Journals".to_owned(),
+            url: route.clone(),
+            kind: if home { "home" } else { "list" },
+            properties: None,
+        });
         documents.insert(
             route.clone(),
             html_page(
@@ -933,6 +985,54 @@ pub fn publish_site_with_options(
         documents.insert(controller_route, controller.to_owned());
         documents.insert(startup_route, startup);
     }
+    documents.extend(graph_files.neighbourhoods());
+    // The graph's layout data files are left out: they are still being computed, and they
+    // follow from the pages and settings that the other files already reflect.
+    let plugin_files = plugins::files(&plugin_manifests);
+    let revision = plugins::revision(
+        documents
+            .iter()
+            .map(|(route, text)| (route.as_str(), text.as_bytes()))
+            .chain(
+                copied
+                    .iter()
+                    .map(|(route, (_, contents))| (route.as_str(), contents.as_slice())),
+            )
+            .chain(
+                stylesheet
+                    .iter()
+                    .map(|contents| ("custom.css", contents.as_slice())),
+            )
+            .chain(
+                plugin_files
+                    .iter()
+                    .map(|(route, contents)| (route.as_str(), *contents)),
+            ),
+    );
+    if !plugin_manifests.is_empty() {
+        let (host_route, host) = plugins::host(&plugin_manifests);
+        let none = Vec::new();
+        for page in &site_pages {
+            let visible = page
+                .properties
+                .as_ref()
+                .map_or(&none, |route| &property_views[route].visible);
+            let head = plugins::page_head(page, &revision, &plugin_manifests, visible, &host_route);
+            if let Some(html) = documents.get_mut(&page.url) {
+                *html = html.replacen("</head>", &(head + "</head>"), 1);
+            }
+        }
+        documents.insert(host_route, host);
+    }
+    documents.insert(
+        plugins::SITE_MANIFEST.to_owned(),
+        plugins::site_manifest(
+            &site_pages,
+            copied.keys().cloned(),
+            &plugin_manifests,
+            &revision,
+        ),
+    );
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     if documents
         .keys()
@@ -953,8 +1053,14 @@ pub fn publish_site_with_options(
         let directory = output.join(directory);
         fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
     }
-    documents.extend(graph_files.neighbourhoods());
     write_files(&output, documents)?;
+    for (route, contents) in plugin_files {
+        let path = output.join(&route);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| io_error(parent, error))?;
+        }
+        fs::write(&path, contents).map_err(|error| io_error(&path, error))?;
+    }
     for (route, bytes) in graph_files.finish() {
         let path = output.join(route);
         fs::write(&path, bytes).map_err(|error| io_error(&path, error))?;

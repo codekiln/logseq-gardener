@@ -1,0 +1,9 @@
+{
+  "id": "fixture-badge",
+  "apiVersion": 1,
+  "version": "1.0.0",
+  "module": "badge.mjs",
+  "styles": ["badge.css"],
+  "activation": "on-demand",
+  "pageProperties": ["badge"]
+}

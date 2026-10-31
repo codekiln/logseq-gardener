@@ -1,0 +1,9 @@
+{
+  "id": "fixture-recorder",
+  "apiVersion": 1,
+  "version": "1.0.0",
+  "module": "recorder.mjs",
+  "styles": ["recorder.css"],
+  "activation": "after-load",
+  "pageProperties": ["recording"]
+}

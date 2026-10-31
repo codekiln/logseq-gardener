@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Verify the plugin host in Chromium: playback across navigation, on-demand loading, fragments, failures and listener counts"
+#USAGE flag "--screenshots <dir>" help="Save screenshots of the fixture recording playing across navigation"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+cargo build --locked
+uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell
+args=()
+if [ -n "${usage_screenshots:-}" ]; then args+=(--screenshots "$usage_screenshots"); fi
+uv run --quiet --script scripts/plugins/browser.py --binary target/debug/lsg ${args[@]+"${args[@]}"}
