@@ -128,3 +128,34 @@ test('early activations persist before the controller arrives', () => {
     f.fire('pagehide'); f.flush(); assert.equal(f.stored().open, !open);
   }
 });
+test('a document restored from the Back/Forward cache applies the current choice, fallback and fragment', () => {
+  for (const loaded of [false, true]) {
+    for (const configured of [false, true]) {
+      const f = fixture({saved:{open:false,seen:2000000000000}});
+      const page = f.root(configured); f.window.logseqGardenerInitProperties(page);
+      f.document.nodes = [page.details];
+      if (loaded) f.load();
+      assert.equal(page.details.open, false);
+      // Another page stored the opposite choice before Back returned here.
+      f.values.set(key, JSON.stringify({open:true,seen:2000000000000}));
+      f.fire('pageshow', {persisted:false});
+      assert.equal(page.details.open, false);
+      f.advance(1000);
+      f.fire('pageshow', {persisted:true});
+      assert.equal(page.details.open, true);
+      if (loaded) assert.equal(f.stored().seen, 2000000000000 + 1000);
+      // Without a stored choice, the configured default returns.
+      f.values.delete(key);
+      f.fire('pageshow', {persisted:true});
+      assert.equal(page.details.open, configured);
+      // A fragment inside Properties keeps the section open.
+      f.values.set(key, JSON.stringify({open:false,seen:2000000000000}));
+      const target = {};
+      f.context.location.hash = '#page-properties';
+      f.document.getElementById = id => id === 'page-properties' ? target : null;
+      page.details.contains = node => node === target;
+      f.fire('pageshow', {persisted:true});
+      assert.equal(page.details.open, true);
+    }
+  }
+});

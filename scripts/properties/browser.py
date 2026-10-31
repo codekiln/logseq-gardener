@@ -237,13 +237,58 @@ def main():
                 p.goto(base + closed)
                 expect(p.locator('.page-properties > details')).not_to_have_attribute('open', '')
                 blocked.close()
+                # Back/Forward cache restores apply the current preference, the configured
+                # fallback and fragment priority. Playwright disables the cache by default, and
+                # Chromium's headless shell never uses it, so this case needs Google Chrome.
+                try:
+                    cached = playwright.chromium.launch(channel='chrome', ignore_default_args=['--disable-back-forward-cache'])
+                except Exception as error:
+                    raise SystemExit('The Back/Forward cache check needs Google Chrome: ' + str(error).splitlines()[0])
+                p = cached.new_page()
+                d = p.locator('.page-properties > details')
+                s = p.locator('#page-properties')
+                def visit(path):
+                    p.goto(base + path)
+                    p.wait_for_function('!window.logseqGardenerInitProperties.k')
+                    p.evaluate("addEventListener('pageshow',e=>window.restored=e.persisted)")
+                def back():
+                    # A cache restore fires pageshow without a new load event.
+                    p.go_back(wait_until='commit')
+                    p.wait_for_function('document.readyState==="complete"')
+                    assert p.evaluate('window.restored') is True, 'Back did not restore a cached document'
+                visit(one)
+                s.click()
+                p.wait_for_function('(key)=>JSON.parse(localStorage.getItem(key))?.open===false', arg=key)
+                visit(two)
+                expect(d).not_to_have_attribute('open', '')
+                s.click()
+                p.wait_for_function('(key)=>JSON.parse(localStorage.getItem(key))?.open===true', arg=key)
+                back()
+                expect(d).to_have_attribute('open', '')
+                assert p.evaluate('(key)=>Date.now()-JSON.parse(localStorage.getItem(key)).seen<1000', key)
+                # Without a stored choice the configured default returns.
+                s.click()
+                p.wait_for_function('(key)=>JSON.parse(localStorage.getItem(key))?.open===false', arg=key)
+                visit(two)
+                p.evaluate('(key)=>localStorage.removeItem(key)', key)
+                back()
+                expect(d).to_have_attribute('open', '')
+                # A fragment inside Properties keeps it open over a closed preference.
+                visit(two)
+                p.evaluate('(key)=>localStorage.setItem(key,JSON.stringify({open:false,seen:Date.now()}))', key)
+                visit(one + '#page-properties')
+                expect(d).to_have_attribute('open', '')
+                visit(two)
+                back()
+                expect(d).to_have_attribute('open', '')
+                cached.close()
                 nojs = browser.new_context(java_script_enabled=False)
                 p = nojs.new_page()
                 p.goto(base + one)
                 expect(p.locator('.page-properties > details')).to_have_attribute('open', '')
                 nojs.close()
                 browser.close()
-                print('PASS: configured defaults, both choices, sliding expiry, invalid/blocked storage, base paths, early restore, SPA/fragment ordering, native keyboard and held-module activation')
+                print('PASS: configured defaults, both choices, sliding expiry, invalid/blocked storage, base paths, early restore, SPA/fragment ordering, native keyboard, held-module activation and Back/Forward cache restores')
         finally:
             server.shutdown()
             server.server_close()

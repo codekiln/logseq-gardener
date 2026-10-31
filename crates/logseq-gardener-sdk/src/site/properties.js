@@ -32,4 +32,6 @@ document.addEventListener('click', event => {
 });
 initialize();
 delete early.c;
+// A Back/Forward cache restore re-reads the preference through visit(), which renews it.
+early.r = visit;
 window.logseqGardenerInitProperties = initialize;
