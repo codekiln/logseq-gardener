@@ -141,6 +141,70 @@ fn cli_publishes_links_assets_and_diagnostics_without_excluded_content_or_source
     assert!(String::from_utf8_lossy(&human.stdout).contains("Published 1 pages"));
 }
 #[test]
+fn timings_report_every_phase_and_leave_output_and_published_files_unchanged() {
+    const PHASES: [&str; 9] = [
+        "read", "parse", "index", "plugins", "render", "history", "search", "graph", "write",
+    ];
+    let f = Fixture::new();
+    f.write(
+        "pages/Notes___Start.md",
+        "- [[Notes/Other]] PRIVATE_TITLE_SENTINEL\n",
+    );
+    f.write("pages/Notes___Other.md", "- SELECTED_PAGE\n");
+    let plain = f.publish(&f.0.join("plain"), &["--include", "Notes", "--search"]);
+    let timed = f.publish(
+        &f.0.join("timed"),
+        &["--include", "Notes", "--search", "--timings"],
+    );
+    assert!(
+        plain.status.success() && timed.status.success(),
+        "{timed:?}"
+    );
+    let replace =
+        |output: &Output, site: &str| String::from_utf8_lossy(&output.stdout).replace(site, "SITE");
+    assert_eq!(replace(&plain, "plain"), replace(&timed, "timed"));
+    assert_eq!(files(&f.0.join("plain")), files(&f.0.join("timed")));
+    // Diagnostics come first; the timings line is the last line of stderr.
+    let stderr = String::from_utf8_lossy(&timed.stderr);
+    assert_eq!(
+        stderr.lines().count(),
+        String::from_utf8_lossy(&plain.stderr).lines().count() + 1
+    );
+    let line = stderr.lines().last().unwrap();
+    assert!(line.starts_with("Timings in milliseconds: read "), "{line}");
+    assert!(line.contains("; total "), "{line}");
+    assert!(
+        !line.contains("Notes") && !line.contains("SENTINEL"),
+        "{line}"
+    );
+    let json = f.publish(
+        &f.0.join("json"),
+        &["--include", "Notes", "--timings", "--format", "json"],
+    );
+    assert!(json.status.success(), "{json:?}");
+    let report: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    let phases: Vec<&str> = report["timings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|phase| phase["phase"].as_str().unwrap())
+        .collect();
+    assert_eq!(phases, PHASES);
+    let sum: f64 = report["timings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|phase| phase["ms"].as_f64().unwrap())
+        .sum();
+    assert!((sum - report["total_ms"].as_f64().unwrap()).abs() < 1.0);
+    let untimed = f.publish(
+        &f.0.join("untimed"),
+        &["--include", "Notes", "--format", "json"],
+    );
+    let untimed: serde_json::Value = serde_json::from_slice(&untimed.stdout).unwrap();
+    assert!(untimed.get("timings").is_none() && untimed.get("total_ms").is_none());
+}
+#[test]
 fn errors_have_empty_stdout_and_preserve_fatal_vs_argument_exits() {
     let f = Fixture::new();
     f.write("pages/Notes.md", "- visible\n");

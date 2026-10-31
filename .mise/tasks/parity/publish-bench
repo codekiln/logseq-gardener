@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#MISE description="Time lsg publish cold and warm, with phase times, and check the recorded rows"
+#USAGE flag "--corpus <name>" help="gitpa-sized, encode-garden or all (default: gitpa-sized)"
+#USAGE flag "--garden <path>" help="Encode garden to publish (default: the encode garden from ghq)"
+#USAGE flag "--runs <count>" help="Warm builds after the cold one; the fastest counts (default: 5)"
+#USAGE flag "--record" help="Append the rows to docs/parity/publication-speed.json"
+#USAGE flag "--check" help="Fail when a warm build exceeds the limit set by the recorded rows"
+#USAGE flag "--output <path>" help="Write the rows as JSON to this file"
+set -euo pipefail
+args=()
+if [ -n "${usage_corpus:-}" ]; then args+=(--corpus "$usage_corpus"); fi
+if [ -n "${usage_garden:-}" ]; then args+=(--garden "$usage_garden"); fi
+if [ -n "${usage_runs:-}" ]; then args+=(--runs "$usage_runs"); fi
+if [ "${usage_record:-false}" = "true" ]; then args+=(--record); fi
+if [ "${usage_check:-false}" = "true" ]; then args+=(--check); fi
+if [ -n "${usage_output:-}" ]; then args+=(--output "$usage_output"); fi
+python3 scripts/parity/publish_bench.py ${args[@]+"${args[@]}"}

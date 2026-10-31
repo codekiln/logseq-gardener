@@ -31,7 +31,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::garden::{GardenLoadError, load_garden};
+use crate::garden::{GardenLoadError, load_garden_timed};
 use crate::garden_config as config;
 use crate::garden_settings::{GardenSettings, SidebarCard, resolve_favorites, resolve_sidebar};
 use crate::git_dates::GitDates;
@@ -41,6 +41,7 @@ use crate::page_names::lookup_key;
 use crate::page_titles::{FilenameFormat, PageTitleError};
 use crate::publication::{Publication, SelectError};
 use crate::publishing::NamespaceSelection;
+use crate::timing::{Stopwatch, Timings};
 
 /// Logseq's page references, tags, outside links, emphasis, inline code, images and
 /// macro warnings, added to every page.
@@ -102,6 +103,14 @@ pub struct SiteReport {
     pub withheld_pages: usize,
     /// Unsupported or unresolved constructs in selected source.
     pub diagnostics: Vec<SiteDiagnostic>,
+    /// Wall-clock time of each publication phase, in this order: `read` (finding and reading
+    /// source files and checking options), `parse`, `index` (selection, names, references,
+    /// queries and search records), `plugins` (waiting for build plugins), `render` (page and
+    /// list documents), `history` (waiting for the git history read), `search` (search files),
+    /// `graph` (waiting for graph layouts and neighbourhoods) and `write`. Waiting phases
+    /// measure only the time the publisher waited for work that ran alongside other phases.
+    /// Timings never affect the published files.
+    pub timings: Timings,
 }
 
 /// A publication that could not complete.
@@ -336,6 +345,7 @@ pub fn publish_site_with_options(
     selection: &NamespaceSelection,
     options: &SiteOptions,
 ) -> Result<SiteReport, SiteError> {
+    let mut stopwatch = Stopwatch::start();
     let stylesheet = options
         .stylesheet
         .as_deref()
@@ -348,7 +358,7 @@ pub fn publish_site_with_options(
     let source_root = root.as_ref();
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
-    let mut garden = load_garden(source_root).map_err(SiteError::Garden)?;
+    let mut garden = load_garden_timed(source_root, &mut stopwatch).map_err(SiteError::Garden)?;
     // Reading the git history takes seconds on a large garden; it runs while pages render.
     let git_root = root.clone();
     let git_dates = queries::LazyDates::new(std::thread::spawn(move || GitDates::read(git_root)));
@@ -359,6 +369,7 @@ pub fn publish_site_with_options(
         skipped_journals: 0,
         withheld_pages: 0,
         diagnostics: Vec::new(),
+        timings: Timings::default(),
     };
     let (settings, settings_diagnostics) = GardenSettings::read(&root);
     let shadowed = crate::publication::remove_shadowed(&mut garden, format, &settings);
@@ -620,10 +631,12 @@ pub fn publish_site_with_options(
     let mut documents = BTreeMap::new();
     let mut feed_bodies = BTreeMap::new();
     let mut site_pages = Vec::new();
+    stopwatch.lap("index");
     let contributions = match pending_plugins {
         None => crate::contributions::Resolved::default(),
         Some((view, threads)) => collect_contributions(&build_plugins, &view, threads)?,
     };
+    stopwatch.lap("plugins");
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     code::prepare(selected.iter().map(|(_, _, document)| *document));
     let mut asset = |source: &Path, url: &str| {
@@ -825,7 +838,9 @@ pub fn publish_site_with_options(
             );
         }
     }
+    stopwatch.lap("render");
     let (dates, dates_diagnostic) = git_dates.get();
+    stopwatch.lap("history");
     if let Some(message) = dates_diagnostic {
         report.diagnostics.push(SiteDiagnostic {
             source: ".".into(),
@@ -998,6 +1013,7 @@ pub fn publish_site_with_options(
         shell::SIDEBAR_STYLES.to_owned(),
     );
     documents.insert(references::SCRIPT_ROUTE.to_owned(), references::script());
+    stopwatch.lap("render");
     if let Some(search) = search {
         let (artifacts, manifest_route, revision) = search.artifacts();
         let controller = include_str!("search-ui.mjs");
@@ -1026,7 +1042,10 @@ pub fn publish_site_with_options(
         documents.insert(controller_route, controller.to_owned());
         documents.insert(startup_route, startup);
     }
-    documents.extend(graph_files.neighbourhoods());
+    stopwatch.lap("search");
+    let neighbourhoods = graph_files.neighbourhoods();
+    stopwatch.lap("graph");
+    documents.extend(neighbourhoods);
     // The graph's layout data files are left out: they are still being computed, and they
     // follow from the pages and settings that the other files already reflect.
     if !contributions.rows.is_empty() {
@@ -1097,6 +1116,9 @@ pub fn publish_site_with_options(
             &revision,
         ),
     );
+    stopwatch.lap("render");
+    let graph_data = graph_files.finish();
+    stopwatch.lap("graph");
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     if documents
         .keys()
@@ -1125,7 +1147,7 @@ pub fn publish_site_with_options(
         }
         fs::write(&path, contents).map_err(|error| io_error(&path, error))?;
     }
-    for (route, bytes) in graph_files.finish() {
+    for (route, bytes) in graph_data {
         let path = output.join(route);
         fs::write(&path, bytes).map_err(|error| io_error(&path, error))?;
     }
@@ -1142,6 +1164,8 @@ pub fn publish_site_with_options(
         let path = output.join(route);
         fs::write(&path, contents).map_err(|error| io_error(&path, error))?;
     }
+    stopwatch.lap("write");
+    report.timings = stopwatch.finish();
     Ok(report)
 }
 

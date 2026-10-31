@@ -100,6 +100,8 @@ struct PublishArgs {
     exclude: Vec<String>,
     #[arg(long)]
     plugin: Vec<PathBuf>,
+    #[arg(long)]
+    timings: bool,
     #[command(subcommand)]
     command: Option<PublishCommand>,
 }
@@ -271,6 +273,11 @@ fn lookup(args: LookupArgs, format: Format) -> Result<Response, Failure> {
     Ok(Response { stdout, stderr })
 }
 
+/// Milliseconds to one decimal place.
+fn milliseconds(elapsed: std::time::Duration) -> f64 {
+    (elapsed.as_secs_f64() * 10_000.0).round() / 10.0
+}
+
 fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
     let required =
         |name: &str| Failure::from(format!("missing required --{name}; use 'lsg publish help'"));
@@ -318,16 +325,37 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
             index.display()
         )),
         Format::Json => {
-            output::json_document(&json!({"format_version": 1, "command_path": ["publish"],
+            let mut document = json!({"format_version": 1, "command_path": ["publish"],
             "pages": report.pages, "journals": report.journals, "assets": report.assets, "withheld_pages": report.withheld_pages,
             "skipped_journals": report.skipped_journals, "diagnostic_count": report.diagnostics.len(),
-            "output_directory": output.to_string_lossy(), "index_path": index.to_string_lossy()}))
+            "output_directory": output.to_string_lossy(), "index_path": index.to_string_lossy()});
+            if args.timings {
+                document["timings"] =
+                    json!(report.timings.phases().iter()
+                    .map(|time| json!({"phase": time.phase, "ms": milliseconds(time.elapsed)}))
+                    .collect::<Vec<_>>());
+                document["total_ms"] = json!(milliseconds(report.timings.total()));
+            }
+            output::json_document(&document)
         }
     };
-    let stderr = report
+    let mut stderr: String = report
         .diagnostics
         .iter()
         .map(|diagnostic| format!("{}: {}\n", diagnostic.source.display(), diagnostic.message))
         .collect();
+    if args.timings && matches!(format, Format::Human) {
+        let phases: Vec<String> = report
+            .timings
+            .phases()
+            .iter()
+            .map(|time| format!("{} {}", time.phase, milliseconds(time.elapsed)))
+            .collect();
+        stderr.push_str(&format!(
+            "Timings in milliseconds: {}; total {}\n",
+            phases.join(", "),
+            milliseconds(report.timings.total())
+        ));
+    }
     Ok(Response { stdout, stderr })
 }

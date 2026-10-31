@@ -16,6 +16,8 @@ import compare  # noqa: E402
 import logseq_db  # noqa: E402
 import metrics  # noqa: E402
 import perf  # noqa: E402
+import publish_bench  # noqa: E402
+import sample_garden  # noqa: E402
 import serve  # noqa: E402
 
 TESTDATA = HERE / 'testdata'
@@ -171,6 +173,41 @@ class BuildPluginBudgetTest(unittest.TestCase):
         self.assertEqual(budgets.derived_rows('<ul class="outline"><li>a</li></ul>'), '')
 
 
+class PublishBenchTest(unittest.TestCase):
+    BUDGET = {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100}
+    CORPUS = {'name': 'gitpa-sized', 'digest': 'abc'}
+
+    def row(self, warm, cpu='Model A', runner='github-actions', digest='abc'):
+        return {'corpus': {'name': 'gitpa-sized', 'digest': digest}, 'warm_s': warm,
+                'environment': {'runner': runner, 'cpu': cpu}}
+
+    def limit(self, rows, cpu='Model A'):
+        return publish_bench.limit_for(rows, self.CORPUS, {'runner': 'github-actions', 'cpu': cpu}, self.BUDGET)[0]
+
+    def test_rows_on_the_same_processor_set_a_tight_limit(self):
+        rows = [self.row(10), self.row(11), self.row(30, cpu='Model B')]
+        self.assertAlmostEqual(self.limit(rows), 13.2)
+
+    def test_another_processor_falls_back_to_the_slowest_row_with_the_wide_allowance(self):
+        rows = [self.row(10), self.row(30, cpu='Model B')]
+        self.assertAlmostEqual(self.limit(rows, cpu='Model C'), 60)
+
+    def test_rows_for_another_corpus_or_runner_are_ignored(self):
+        rows = [self.row(10, digest='other'), self.row(10, runner='local')]
+        self.assertIsNone(self.limit(rows))
+
+    def test_the_sample_garden_has_gitpas_shape(self):
+        rng = sample_garden.random.Random(sample_garden.SEED)
+        words = sample_garden.vocabulary(rng)
+        titles = sample_garden.titles(rng, words)
+        self.assertEqual(len(titles), sample_garden.PAGES)
+        self.assertEqual(len(set(titles)), sample_garden.PAGES)
+        # Every namespace parent is a page of its own.
+        for title in titles:
+            if '/' in title:
+                self.assertIn(title.rsplit('/', 1)[0], titles)
+
+
 class MetricsTest(unittest.TestCase):
     def test_gzip_size(self):
         data = b'tmux ' * 1000
@@ -223,6 +260,8 @@ class MetricsTest(unittest.TestCase):
                                                        'process_pages_ms_per_page': 0.1,
                                                        'process_blocks_ms_per_page': 0.3,
                                                        'peak_memory_growth_pct': 15})
+        # Publication speed (publication-speed); the design's tolerances.
+        self.assertEqual(loaded.pop('publication'), {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
                                        'slides', 'queries', 'flashcards', 'loading'})

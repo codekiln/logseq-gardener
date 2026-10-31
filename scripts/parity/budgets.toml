@@ -259,3 +259,13 @@ in_process_blocks_ms_per_page = 0.05
 process_pages_ms_per_page = 0.1
 process_blocks_ms_per_page = 0.3
 peak_memory_growth_pct = 15
+
+# Publication speed (publication-speed). parity:publish-bench --check compares the fastest warm
+# build of each corpus with the rows recorded in docs/parity/publication-speed.json for the same
+# corpus and runner. Rows on the same processor model allow slowdown_pct over the slowest of them:
+# repeated GitHub runs on one model spread by about 6%. Without such a row, the slowest row allows
+# unknown_cpu_slowdown_pct: GitHub's ubuntu-latest runners took 15.5 to 28.8 seconds for the
+# same encode garden build in October 2026, depending on the machine.
+[publication]
+slowdown_pct = 20
+unknown_cpu_slowdown_pct = 100
