@@ -25,7 +25,7 @@ Delete the downloaded private-key file after confirming the secret is stored. Gi
 
 1. Pull request CI validates the Conventional Emoji Commit title and runs `mise run ci`.
 2. GitHub squash-merges the pull request after the required checks pass.
-3. `prepare-release.yml` runs on `main` with a short-lived GitHub App token.
+3. `prepare-release.yml` runs on `main` with a short-lived GitHub App token. To run it without waiting for a merge, use `gh workflow run prepare-release.yml --repo codekiln/logseq-gardener`; it runs only on `main`.
 4. release-plz creates or updates one release pull request and the workflow enables squash auto-merge.
 5. After that pull request passes the same required checks and merges, release-plz creates the `v<version>` tag.
 6. The dist-generated `release.yml` workflow runs the repository checks, builds all configured targets, creates archives and SHA-256 checksums, and completes the GitHub Release only after every required job succeeds.
