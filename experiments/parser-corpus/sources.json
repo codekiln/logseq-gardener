@@ -1,0 +1,5 @@
+{
+  "corpus": {"repo": "github.com/pengx17/knowledge-garden", "revision": "cdec71d89e30a3018c1e33b79a958b1e9f7fee59", "license": "None declared; read locally, no text committed"},
+  "lsdoc": {"repo": "github.com/martinkoutecky/lsdoc", "revision": "32e63ef095c711d6d9947257bf5fd07d540fa59d", "license": "AGPL-3.0-only"},
+  "logseq": {"repo": "github.com/logseq/og", "revision": "6e7afa8eb040686ff057156ee877193b581dd369", "branch": "version/file", "license": "AGPL-3.0 with additional permission"}
+}
