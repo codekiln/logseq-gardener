@@ -336,6 +336,32 @@ pub(crate) fn read_text(root: &Path) -> Result<Option<String>, &'static str> {
         .map_err(|_| "cannot read config.edn as UTF-8")
 }
 
+/// The string entries of `:hidden`, Logseq's list of path prefixes to leave out of the graph.
+///
+/// A config that cannot be read or parsed hides nothing; the settings readers report it.
+pub(crate) fn hidden_patterns(root: &Path) -> Vec<String> {
+    let Ok(Some(text)) = read_text(root) else {
+        return Vec::new();
+    };
+    let Ok(pairs) = top_level(&text) else {
+        return Vec::new();
+    };
+    pairs
+        .into_iter()
+        .filter_map(|(key, value)| match (key, value) {
+            (Form::Atom(key), Form::Collection(values)) if key == ":hidden" => Some(values),
+            _ => None,
+        })
+        .next_back()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|value| match value {
+            Form::Str(pattern) => Some(pattern),
+            _ => None,
+        })
+        .collect()
+}
+
 pub(crate) fn read(root: &Path) -> (ReferenceConfig, Vec<String>) {
     match read_text(root) {
         Ok(None) => (ReferenceConfig::default(), Vec::new()),
@@ -491,6 +517,32 @@ mod tests {
         fs::remove_file(&path).unwrap();
         fs::create_dir(&path).unwrap();
         assert!(read(&root).1[0].contains("regular file"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn hidden_patterns_keep_the_string_entries_of_the_last_hidden_vector() {
+        let root = std::env::temp_dir().join(format!(
+            "gardener-hidden-config-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        fs::create_dir_all(root.join("logseq")).unwrap();
+        assert!(hidden_patterns(&root).is_empty());
+        let path = root.join("logseq/config.edn");
+        fs::write(
+            &path,
+            r#"{;; :hidden ["/commented"]
+             :hidden ["/archived" "README.md" :keyword "../CLAUDE.md"]
+             :nested {:hidden ["nested"]}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            hidden_patterns(&root),
+            ["/archived", "README.md", "../CLAUDE.md"]
+        );
+        fs::write(&path, "{:hidden [").unwrap();
+        assert!(hidden_patterns(&root).is_empty());
         fs::remove_dir_all(root).unwrap();
     }
 

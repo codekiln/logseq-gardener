@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use logseq_gardener_sdk::ast::{Block, Inline};
-use logseq_gardener_sdk::garden::{DocumentKind, GardenLoadError, load_garden};
+use logseq_gardener_sdk::garden::{DocumentKind, Garden, GardenLoadError, load_garden};
+use logseq_gardener_sdk::page_names::lookup_key;
+use logseq_gardener_sdk::page_titles::{FilenameFormat, page_title};
 
 static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
 
@@ -95,8 +97,9 @@ fn loads_only_visible_markdown_in_deterministic_path_order() {
         "pages/ignored.org",
         "pages/ignored.MD",
         "pages/ignored.txt",
-        "assets/image.md",
-        "stray.md",
+        ".hidden-root/note.md",
+        "assets/image.MD",
+        "stray.txt",
     ] {
         fixture.write(path, [0xff]); // A skipped file must never be read or decoded.
     }
@@ -246,5 +249,205 @@ fn unreadable_markdown_reports_its_path() {
     assert_eq!(error.path(), path);
     assert!(
         matches!(error, GardenLoadError::Io { source, .. } if source.kind() == std::io::ErrorKind::PermissionDenied)
+    );
+}
+
+fn paths(garden: &Garden) -> Vec<&str> {
+    garden
+        .documents
+        .iter()
+        .map(|document| document.relative_path.to_str().unwrap())
+        .collect()
+}
+
+fn git(root: &Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(status.status.success(), "git {args:?}: {status:?}");
+}
+
+#[test]
+fn loads_markdown_from_every_folder_with_the_page_kind_outside_journals() {
+    let fixture = Fixture::new();
+    fixture.write("pages/a.md", "- a");
+    fixture.write("journals/2026_10_28.md", "- day");
+    fixture.write("tools-docs/PARAMETERS.md", "- parameters");
+    fixture.write("assets/report.md", "- report");
+    let garden = load_garden(&fixture.0).unwrap();
+    assert_eq!(
+        paths(&garden),
+        [
+            "assets/report.md",
+            "journals/2026_10_28.md",
+            "pages/a.md",
+            "tools-docs/PARAMETERS.md"
+        ]
+    );
+    let kinds: Vec<_> = garden.documents.iter().map(|d| d.kind).collect();
+    assert_eq!(
+        kinds,
+        [
+            DocumentKind::Page,
+            DocumentKind::Journal,
+            DocumentKind::Page,
+            DocumentKind::Page
+        ]
+    );
+    let parameters = &garden.documents[3];
+    assert!(!parameters.in_note_directory());
+    assert!(garden.documents[2].in_note_directory());
+    assert_eq!(
+        page_title(parameters, FilenameFormat::TripleLowbar).unwrap(),
+        "PARAMETERS"
+    );
+}
+
+#[test]
+fn skips_the_paths_logseq_skips() {
+    let fixture = Fixture::new();
+    fixture.write("pages/kept.md", "- kept");
+    fixture.write("notes/kept.md", "- kept");
+    fixture.write("logseq/bakery/kept.md", "- kept");
+    for path in [
+        ".agents/skill.md",
+        "notes/.draft.md",
+        "node_modules/package/README.md",
+        "notes/node_modules/package/README.md",
+        "pages/node_modules/a.md",
+        "logseq/bak/pages/a.md",
+        "logseq/.recycle/pages/a.md",
+        "logseq/version-files/base/pages/a.md",
+    ] {
+        fixture.write(path, [0xff]); // A skipped file must never be read or decoded.
+    }
+    let garden = load_garden(&fixture.0).unwrap();
+    assert_eq!(
+        paths(&garden),
+        ["logseq/bakery/kept.md", "notes/kept.md", "pages/kept.md"]
+    );
+}
+
+#[test]
+fn hidden_entries_use_logseqs_prefix_rule_in_every_folder() {
+    let fixture = Fixture::new();
+    fixture.write(
+        "logseq/config.edn",
+        r#"{:hidden ["README.md" "../CLAUDE.md" "worktrees" "/pages/secret" "journals/2026_01_01.md"]}"#,
+    );
+    for path in [
+        "README.md",
+        "worktrees/one/pages/a.md",
+        "pages/secret.md",
+        "pages/secrets/b.md",
+        "journals/2026_01_01.md",
+    ] {
+        fixture.write(path, [0xff]);
+    }
+    fixture.write("CLAUDE.md", "- claude");
+    fixture.write("pages/README.md", "- readme");
+    fixture.write("journals/2026_01_02.md", "- day");
+    let garden = load_garden(&fixture.0).unwrap();
+    assert_eq!(
+        paths(&garden),
+        ["CLAUDE.md", "journals/2026_01_02.md", "pages/README.md"]
+    );
+}
+
+#[test]
+fn git_ignored_files_are_skipped_outside_the_note_directories_only() {
+    let fixture = Fixture::new();
+    git(&fixture.0, &["init", "--quiet"]);
+    fixture.write(".gitignore", "tools\npages/ignored.md\nnotes/ignored.md\n");
+    fixture.write("tools/README.md", [0xff]);
+    fixture.write("tools/nested/deep.md", [0xff]);
+    fixture.write("notes/ignored.md", [0xff]);
+    fixture.write("notes/kept.md", "- kept");
+    fixture.write("tracked/kept.md", "- tracked");
+    fixture.write("pages/draft.md", "- untracked draft");
+    fixture.write("pages/ignored.md", "- ignored page");
+    git(&fixture.0, &["add", "tracked/kept.md"]);
+    let garden = load_garden(&fixture.0).unwrap();
+    assert_eq!(
+        paths(&garden),
+        [
+            "notes/kept.md",
+            "pages/draft.md",
+            "pages/ignored.md",
+            "tracked/kept.md"
+        ]
+    );
+}
+
+#[test]
+fn without_a_git_work_tree_no_git_filter_applies() {
+    let fixture = Fixture::new();
+    fixture.write(".gitignore", "tools\n");
+    fixture.write("pages/a.md", "- a");
+    fixture.write("tools/README.md", "- tool docs");
+    let inside_work_tree = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&fixture.0)
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .output()
+        .is_ok_and(|output| output.status.success());
+    if inside_work_tree {
+        return; // The temporary folder sits in a repository; the case cannot be set up.
+    }
+    let garden = load_garden(&fixture.0).unwrap();
+    assert_eq!(paths(&garden), ["pages/a.md", "tools/README.md"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinks_and_special_files_outside_the_note_directories_are_skipped() {
+    use std::os::unix::fs::symlink;
+    use std::os::unix::net::UnixListener;
+    let fixture = Fixture::new();
+    fixture.write("pages/real.md", "- real");
+    fs::create_dir(fixture.0.join("tools")).unwrap();
+    symlink(
+        fixture.0.join("pages/real.md"),
+        fixture.0.join("tools/linked.md"),
+    )
+    .unwrap();
+    symlink(
+        fixture.0.join("pages"),
+        fixture.0.join("tools/linked-folder"),
+    )
+    .unwrap();
+    symlink(fixture.0.join("missing"), fixture.0.join("broken.md")).unwrap();
+    let _listener = UnixListener::bind(fixture.0.join("tools/socket.md")).unwrap();
+    let garden = load_garden(&fixture.0).unwrap();
+    assert_eq!(paths(&garden), ["pages/real.md"]);
+}
+
+#[test]
+fn note_directory_pages_win_title_collisions() {
+    let fixture = Fixture::new();
+    fixture.write("pages/PARAMETERS.md", "- maintained");
+    fixture.write("mise-tasks/PARAMETERS.md", "- tool copy");
+    fixture.write("mise-tasks/other.md", "- other");
+    fixture.write(
+        "notes/Renamed.md",
+        "title:: other\n- same title as mise-tasks/other.md",
+    );
+    let mut garden = load_garden(&fixture.0).unwrap();
+    let removed = garden.remove_shadowed_documents(|document| {
+        page_title(document, FilenameFormat::TripleLowbar)
+            .ok()
+            .map(|title| lookup_key(&title))
+    });
+    assert_eq!(removed, [PathBuf::from("mise-tasks/PARAMETERS.md")]);
+    assert_eq!(
+        paths(&garden),
+        [
+            "mise-tasks/other.md",
+            "notes/Renamed.md",
+            "pages/PARAMETERS.md"
+        ]
     );
 }

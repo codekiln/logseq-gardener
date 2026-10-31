@@ -225,3 +225,9 @@ open_ms_desktop = 300
 open_ms_phone = 1500
 review_heap_mb = 20
 build_slowdown_pct = 10
+
+# Loading Markdown from every garden folder (match-logseq-garden-markdown-files). No page's markup
+# changes, so the [desktop] and [phone] rows cover first paint. parity:perf --baseline-lsg marks a
+# whole-garden build more than build_slowdown_pct slower than the baseline binary's.
+[loading]
+build_slowdown_pct = 5
