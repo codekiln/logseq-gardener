@@ -32,11 +32,102 @@ The publisher resolves page titles, aliases, explicit outline references, and pa
 
 Visibility also applies to embedded content, referenced assets, reference indexes and optional search data. Mixed-visibility fixtures in [publisher tests](../crates/logseq-gardener-sdk/tests/site.rs) and [embed tests](../crates/logseq-gardener-sdk/tests/site_embeds.rs) check generated files for excluded content. Local diagnostics stay outside the site. Review the report and retained source content before publishing a sensitive garden.
 
+## Site manifest
+
+Every build writes `lsg-site.json` at the output root, so build tools can read routes without parsing HTML. Generated pages never request it.
+
+```json
+{
+  "apiVersion": 1,
+  "revision": "102ef744a7e1b199",
+  "pages": [
+    {"id": "show/episode 1", "title": "Show/Episode 1", "url": "p-0e2769dd320a1844.html", "kind": "page"},
+    {"id": null, "title": "Journals", "url": "index.html", "kind": "home"}
+  ],
+  "assets": ["assets/a-ffc572edff75a892.mp4"]
+}
+```
+
+- `id` is the page's lower-cased name, as Logseq identifies pages. Generated lists (All pages, the journals feed) have `null`. A homepage at `index.html` has its page's id.
+- `kind` is `page`, `journal`, `namespace` (a namespace page with no file), `home` (`index.html`) or `list`. The graph view is not listed.
+- `revision` changes when any generated file changes, except the graph view's layout data.
+- `pages` is sorted by `url` and `assets` by path, so identical input produces identical bytes. Withheld and excluded pages, and assets only they use, are absent.
+
+A build with plugins adds `plugins`: each plugin's `id`, `version`, `module`, `styles` and `activation`, with paths relative to the output root.
+
+## Plugins
+
+A plugin adds browser behavior to a published site, such as a recording player that keeps playing while the reader moves between pages. Pass its manifest with `--plugin PATH`; repeat the option for more plugins. Rust callers set `SiteOptions::plugins`.
+
+```json
+{
+  "id": "episode-player",
+  "apiVersion": 1,
+  "version": "1.0.0",
+  "module": "player.mjs",
+  "styles": ["player.css"],
+  "activation": "after-load",
+  "pageProperties": ["recording"]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Lower-case letters, digits and single hyphens; unique in the build. Files go to `plugins/<id>/`. |
+| `apiVersion` | The host API version. This build supports `1`. |
+| `version` | The plugin's own version, copied to `lsg-site.json`. |
+| `module` | An ES module (`.js` or `.mjs`), relative to the manifest's folder. |
+| `styles` | Optional stylesheets (`.css`), relative to the manifest's folder. The host adds each once. |
+| `activation` | `after-load` imports the module on every page; `on-demand` imports it on the first page whose metadata has an entry for the plugin. |
+| `pageProperties` | Optional page property names the plugin reads. |
+
+The build checks every manifest before it creates the output directory and stops with the manifest's path and the problem when a field is missing, unknown or malformed, `apiVersion` is unsupported, two manifests share an `id`, or a module or stylesheet path is absolute, contains `..`, passes through a symlink, is not a regular file or collides with another file of the plugin. Plugins are ordered by `id`, so argument order does not change the output. The SDK's `plugins::read_manifests` runs the same checks for other callers. [`tests/fixtures/plugins/recorder`](../tests/fixtures/plugins/recorder) is a complete example.
+
+### What a page carries
+
+With at least one plugin, every page except the graph view gets two tags before `</head>`:
+
+- `<script type="application/json" data-lsg-page>` with the page's `id`, `title`, `url`, the site `revision`, and `plugins`: for each plugin, the values of its `pageProperties` that the page shows readers, as authored text. A property hidden by `:block-hidden-properties`, a page without page properties enabled (`:publishing/page-properties?`) and a withheld page give the plugin nothing; a page with none of a plugin's properties has no entry for it.
+- A module script that imports `lsg-host-<digest>.mjs` after first paint.
+
+Without plugins, pages are unchanged and no host or plugin code is requested.
+
+### Host API
+
+The module's default export is `{ id, apiVersion: 1, setup(host) }`, with `id` matching the manifest. The host checks the export, then calls `setup` once per document; `setup` may return a cleanup function. A mismatched export or a failing import is logged to the console and skipped; the page keeps working.
+
+`host` provides:
+
+- `apiVersion`: `1`.
+- `document` and `baseURL` (the site root).
+- `onPageAdopted(listener)`: calls `listener` now for the current page and after every later navigation, with `{ page: { id, title, url }, main, revision, metadata, signal }`. `metadata` is this plugin's entry from the page metadata, or `{}`. `signal` is aborted before the page is replaced; pass it to `addEventListener` for page-scoped listeners. Returns a function that removes the listener.
+- `persistentRegion(localId)`: returns `{ element, dispose }`, where `element` is a `<div data-lsg-plugin="<id>" data-lsg-region="<localId>">` at the end of `<body>`, outside `<main>`, kept across navigations.
+
+If `setup` throws, the host removes that plugin's regions and listeners, logs the error, and the other plugins keep working. When the page unloads, the host aborts the page signal, calls every cleanup once and removes the plugins' regions.
+
+### Navigation
+
+With plugins, the host owns navigation. A plain left click on a link to another page of the site, and Back and Forward between such pages, adopt the next page in the same document:
+
+1. Fetch and parse the page. A response overtaken by a newer navigation is dropped.
+2. Compare its `revision` with the current page's. When they differ, the site was rebuilt: the current page stays, and a notice offers a link that loads the new version normally, so a playing recording is not cut off.
+3. Abort the current page's signal.
+4. Replace `<main>`, the title and the page metadata, update the left sidebar and the header's page-specific buttons, add any styles and scripts the new page needs, and push a history entry.
+5. Run lsg's page initializers (outline arrows and zoom, references, All pages, journals, queries, theme controls) on the new `<main>`. Other scripts register more with `window.logseqGardenerPage(init)`; `init(main, signal)` runs now and after every navigation.
+6. Notify plugins.
+7. Reveal the fragment, as a full page load would, and move focus to it.
+
+A fetch failure, or a page without metadata such as the graph view, loads normally. Modified clicks, links with a `target` or `download`, and links within the same page keep their usual behavior.
+
+### Trust
+
+Plugins run in the reader's browser with the page's full access; the publisher does not sandbox them. Use only plugins you would add to the site yourself. The publisher limits what data reaches a plugin to the page properties readers can already see.
+
 ## Current work
 
 [The initial publishing outcome](https://github.com/codekiln/logseq-gardener/issues/11) and [Logseq site parity work](https://github.com/codekiln/logseq-gardener/issues/106) record delivered behavior and validation. Gitpa now [builds its podcast site with a pinned Gardener revision](https://github.com/codekiln/gitpa/blob/main/.github/workflows/gh-pages.yml); its [preparation code](https://github.com/codekiln/gitpa/blob/main/scripts/build_site.py) supplies site-specific presentation.
 
-[Garden-wide Markdown loading](https://github.com/codekiln/logseq-gardener/pull/254) and [optional site plugin hooks](https://github.com/codekiln/logseq-gardener/pull/255) are proposals awaiting implementation. [Issue #195 — plugin ownership and consumer contract](https://github.com/codekiln/logseq-gardener/issues/195) coordinates the shared host with Gitpa. [Issue #3 — parser compatibility](https://github.com/codekiln/logseq-gardener/issues/3) retains the broader adoption evidence and remaining comparison work.
+[Garden-wide Markdown loading](https://github.com/codekiln/logseq-gardener/pull/254) is a proposal awaiting implementation. [Issue #195 — plugin ownership and consumer contract](https://github.com/codekiln/logseq-gardener/issues/195) coordinates the plugin host with Gitpa, which plans to replace its HTML rewriting with a plugin ([Gitpa issue #93](https://github.com/codekiln/gitpa/issues/93)). [Issue #3 — parser compatibility](https://github.com/codekiln/logseq-gardener/issues/3) retains the broader adoption evidence and remaining comparison work.
 
 ## Sources
 
