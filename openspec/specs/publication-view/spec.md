@@ -1,6 +1,6 @@
 ## Purpose
 
-Give build plugins and other SDK callers a read-only list of the pages and blocks a build publishes. The view applies the same namespace selection, `public:: false` withholding and alias resolution as the publisher, and leaves out source paths, withheld pages and hidden properties.
+A build plugin needs to know which pages and blocks `lsg publish` puts on the site. The SDK builds that read-only list, called the publication view, and `lsg publish` hands it to each build plugin; any Rust program that uses the SDK can build it too. The SDK and `lsg publish` use the same code to pick namespaces, hold back pages marked `public:: false` and resolve aliases, so a plugin and the published site agree on which pages exist. A plugin sees only what a reader of the site could see: the view holds no file paths from the computer that runs `lsg publish`, no held-back pages and no hidden properties.
 
 ## Requirements
 
