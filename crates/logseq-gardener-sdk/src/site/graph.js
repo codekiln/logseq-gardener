@@ -78,8 +78,9 @@
     const pick = (array, T) => T.from(order, i => array[i]);
     return { n: order.length, links: a.length, flags: pick(g.flags, Uint8Array), degree: new Uint32Array(order.length), x: pick(g.x, Float32Array), y: pick(g.y, Float32Array), a: Uint32Array.from(a), b: Uint32Array.from(b), title: i => g.title(order[i]) };
   }
-  const load = (path, as) => fetch(new URL(path, base)).then(response => {
-    if (!response.ok) throw new Error(response.status);
+  // A data file. A server's refusal carries its status, which tells a missing file from a lost connection.
+  const load = (path, as, signal) => fetch(new URL(path, base), { signal }).then(response => {
+    if (!response.ok) throw Object.assign(new Error('HTTP ' + response.status), { status: response.status });
     // Data files are stored gzip-compressed so they stay small on any host.
     if (as === 'arrayBuffer') return new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
     return response[as]();
@@ -421,12 +422,57 @@
     return self;
   }
 
+  // A graph's data load. After WAIT ms the box shows a spinner, `Loading the <what>…` and Cancel;
+  // a cancelled load offers to load it again and a failed one to retry. The status stays in
+  // the page while empty, so screen readers announce each message. Returns the function that
+  // starts a load; a new load replaces the one in progress.
+  const WAIT = 500;
+  function progress(graph, what, task) {
+    const text = el('span'), button = el('button', { type: 'button', class: 'lsg-graph-action', hidden: '' });
+    const overlay = el('div', { class: 'lsg-graph-loading' }, el('p', { role: 'status' }, el('span', { class: 'lsg-graph-spinner' }), text), button);
+    graph.box.append(overlay);
+    let state = '', controller = null, timer = 0;
+    const show = (next, message = '', label = '') => {
+      const focused = overlay.contains(document.activeElement);
+      state = next;
+      if (next) graph.box.setAttribute('data-lsg-load', next); else graph.box.removeAttribute('data-lsg-load');
+      text.textContent = message;
+      button.textContent = label;
+      button.hidden = !label;
+      if (focused) (label ? button : graph.canvas).focus();
+    };
+    async function run() {
+      controller?.abort();
+      clearTimeout(timer);
+      const mine = controller = new AbortController(), signal = mine.signal;
+      const loading = () => show('loading', `Loading the ${what}…`, 'Cancel');
+      // A message on screen gives way at once; otherwise a fast load shows nothing.
+      if (state) loading(); else timer = setTimeout(loading, WAIT);
+      try {
+        await Promise.race([task(signal), new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)))]);
+        if (controller === mine) show('');
+      } catch {
+        if (controller !== mine) return;
+        if (signal.aborted) show('cancelled', `The ${what} was not loaded.`, `Load the ${what}`);
+        else show('failed', `The ${what} could not be loaded.`, 'Retry');
+      } finally {
+        if (controller === mine) { clearTimeout(timer); controller = null; }
+      }
+    }
+    button.addEventListener('click', event => {
+      // The second click of a double-click lands on the button's next label.
+      if (event.detail > 1) return;
+      if (state === 'loading') controller?.abort(); else run();
+    });
+    return run;
+  }
+
   // Session settings on graph.html: the switches, forces and title filters.
   const read = () => { try { return JSON.parse(sessionStorage.getItem(STORE) || 'null'); } catch { return null; } };
   const save = value => { try { sessionStorage.setItem(STORE, JSON.stringify(value)); } catch { /* Settings last for this page. */ } };
 
   // graph.html: the global graph and its settings panel.
-  async function globalGraph(box) {
+  function globalGraph(box) {
     styles();
     const config = JSON.parse(box.getAttribute('data-lsg-graph'));
     const saved = read() || {};
@@ -443,13 +489,20 @@
       release: () => simulate({ type: 'release' }),
       onfirst: () => graph.say(''),
     });
-    graph.say('Loading the graph…');
-    // Each file keeps its build-time positions for Reset Forces.
-    const fetchData = journals => files[journals] ??= load(journals ? config.journals : config.data, 'arrayBuffer').then(decode).then(g => Object.assign(g, { homeX: g.x, homeY: g.y }));
+    // Each file keeps its build-time positions for Reset Forces. A download that failed or
+    // was cancelled is dropped, so the next load fetches the file again.
+    const fetchData = (journals, signal) => {
+      const kept = files[journals];
+      if (kept && !kept.signal.aborted) return kept.promise;
+      const promise = load(journals ? config.journals : config.data, 'arrayBuffer', signal).then(decode).then(g => Object.assign(g, { homeX: g.x, homeY: g.y }));
+      files[journals] = { promise, signal };
+      promise.catch(() => { if (files[journals]?.promise === promise) delete files[journals]; });
+      return promise;
+    };
     let shown = null;
-    async function data() {
-      const journals = !!state.settings.journals;
-      const g = await fetchData(journals);
+    async function data(signal) {
+      const g = await fetchData(!!state.settings.journals, signal);
+      signal.throwIfAborted();
       if (shown !== g) { graph.set(g, false); shown = g; simulated = false; }
       return g;
     }
@@ -525,7 +578,7 @@
       found = found.sort((a, b) => rank(a) - rank(b)).slice(0, 20);
       list.replaceChildren(...found.map(i => el('li', {}, el('button', { type: 'button', 'data-node': String(i) }, shown.title(i)))));
     }
-    panel.addEventListener('click', async event => {
+    panel.addEventListener('click', event => {
       const target = event.target.closest('button');
       if (!target) return;
       const section = target.closest('.graph-filters-head');
@@ -534,8 +587,9 @@
       if (name === 'paused') { state.paused = !state.paused; if (simulated) simulate({ type: state.paused ? 'pause' : 'resume' }); refresh(); return; }
       if (name) {
         state.settings[name] = !state.settings[name];
-        if (name === 'journals') { graph.say('Loading the graph…'); await data(); graph.say(''); state.hops = 0; }
+        if (name === 'journals') state.hops = 0;
         refresh();
+        if (name === 'journals') fetchGraph();
         return;
       }
       if (target.matches('[data-reset=graph]')) {
@@ -544,7 +598,7 @@
       }
       if (target.matches('[data-reset=forces]')) {
         state.forces = { ...config.forces };
-        const g = await fetchData(!!state.settings.journals);
+        const g = shown;
         if (simulated) { simulate({ type: 'pause' }); simulated = false; }
         g.x = g.homeX; g.y = g.homeY;
         graph.set(g, true); refresh(); return;
@@ -598,16 +652,19 @@
         setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       }, 'image/png');
     }
-    panel.hidden = false;
-    graph.resize();
-    try {
-      await data();
+    // The panel acts on a drawn graph, so it appears with the first one.
+    let ready = false;
+    const fetchGraph = progress(graph, 'graph', async signal => {
+      await data(signal);
       refresh();
+      if (ready) return;
+      ready = true;
+      panel.hidden = false;
       // Forces saved for this session draw the graph as the reader left it.
       if (Object.keys(config.forces).some(name => config.forces[name] !== state.forces[name])) { start(); simulate({ type: 'forces', forces: state.forces }); }
-    } catch {
-      graph.say('The graph could not be loaded. Reload the page to try again.');
-    }
+    });
+    graph.resize();
+    fetchGraph();
   }
 
   // The Page graph card: the current page's neighbourhood, laid out by the worker.
@@ -626,16 +683,14 @@
     const graph = Graph(box, { centre: true });
     const simulate = simulator();
     if (!route) { graph.say('This view has no page to draw.'); return; }
-    graph.say('Loading the page graph…');
-    let whole = null;
-    try {
-      whole = fromJSON(await load('_graph/p/' + route.slice(2, 18) + '.json', 'json'));
-    } catch {
+    // The neighbourhood: unknown until fetched, null for a hub drawn from the global file.
+    let whole;
+    // Only the server's answer that a file is missing leads to the fallback file.
+    const missing = error => { if (!error.status) throw error; };
+    async function render(signal) {
       // Hubs too large for a neighbourhood file are drawn from the global file at its positions.
-      whole = null;
-    }
-    async function render() {
-      let g;
+      if (whole === undefined) whole = await load('_graph/p/' + route.slice(2, 18) + '.json', 'json', signal).then(fromJSON, error => { missing(error); return null; });
+      let g = null;
       if (whole) {
         const keep = Uint8Array.from(whole.flags, f => journals || !(f & JOURNAL_ONLY) ? 1 : 0);
         const order = [];
@@ -647,28 +702,32 @@
         g = { n: order.length, links: a.length, flags: Uint8Array.from(order, i => whole.flags[i]), degree: new Uint32Array(order.length), x: new Float32Array(order.length), y: new Float32Array(order.length), a: Uint32Array.from(a), b: Uint32Array.from(b), title: i => whole.title(order[i]) };
         let first = true;
         const laid = await new Promise(done => simulate({ type: 'start', x: g.x, y: g.y, a: g.a, b: g.b, forces: { link_distance: 70, charge_strength: -600, charge_range: 600 }, phyllotaxis: true }, message => {
+          if (signal.aborted) return;
           if (first) { first = false; done(message); } else graph.move(message.x, message.y);
         }));
         g.x = laid.x; g.y = laid.y;
       } else {
-        const global = decode(await load(journals ? '_graph/journals.bin' : '_graph/default.bin', 'arrayBuffer').catch(() => load('_graph/default.bin', 'arrayBuffer')));
+        // A site built without journals has no journals file.
+        const global = decode(await load(journals ? '_graph/journals.bin' : '_graph/default.bin', 'arrayBuffer', signal).catch(error => { missing(error); return load('_graph/default.bin', 'arrayBuffer', signal); }));
         let centre = -1;
         for (let i = 0; i < global.n && centre < 0; i++) if (routeOf(global.title(i)) === route) centre = i;
-        if (centre < 0) { graph.say('This page has no page graph.'); return; }
-        g = around(global, centre);
+        if (centre >= 0) g = around(global, centre);
       }
+      signal.throwIfAborted();
+      if (!g) { graph.say('This page has no page graph.'); return; }
       graph.set(g, false);
       graph.resize();
       graph.show(new Uint8Array(g.n).fill(1));
       graph.say('');
     }
+    const fetchPage = progress(graph, 'page graph', render);
     toggle.addEventListener('click', () => {
       journals = !journals;
       toggle.setAttribute('aria-checked', String(journals));
       try { sessionStorage.setItem(KEY, String(journals)); } catch { /* This card keeps the setting. */ }
-      render();
+      fetchPage();
     });
-    await render();
+    await fetchPage();
   }
 
   window.logseqGardenerGraph = { page: pageGraph, decode, routeOf, cljsHash, parentColor, sizeOf, around };

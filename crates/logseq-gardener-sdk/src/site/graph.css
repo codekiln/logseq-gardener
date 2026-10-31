@@ -7,6 +7,17 @@ main:has(>#global-graph){max-width:none;padding:0}
 .lsg-graph-canvas:focus-visible{outline:2px solid var(--lsg-focus);outline-offset:-2px}
 .lsg-graph-status{position:absolute;left:16px;bottom:8px;margin:0;color:var(--lsg-muted);font-size:14px;pointer-events:none}
 .lsg-graph-noscript{padding:16px 32px}
+.lsg-graph-loading{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--lsg-muted);font-size:14px;pointer-events:none}
+.lsg-graph-loading p{display:flex;align-items:center;gap:8px;margin:0}
+.lsg-graph-spinner{display:none;position:relative;width:20px;height:20px;animation:lsg-graph-spin 1s linear infinite}
+.lsg-graph[data-lsg-load=loading] .lsg-graph-spinner{display:block}
+.lsg-graph-spinner::before,.lsg-graph-spinner::after{content:"";position:absolute;inset:0;box-sizing:border-box;border:3px solid currentColor;border-radius:50%;opacity:.25}
+.lsg-graph-spinner::after{border-color:currentColor transparent transparent;opacity:.75}
+@keyframes lsg-graph-spin{to{transform:rotate(360deg)}}
+.lsg-graph-action{height:28px;padding:0 12px;border:1px solid var(--lsg-border);border-radius:4px;background:var(--lsg-background);color:var(--lsg-text);font:inherit;font-weight:500;cursor:pointer;pointer-events:auto}
+.lsg-graph-action:hover{background:var(--lsg-surface)}
+.lsg-graph-action[hidden]{display:none}
+.lsg-graph[data-lsg-load] :is(.lsg-graph-canvas,.lsg-graph-labels){opacity:.25}
 .graph-filters{position:absolute;top:16px;right:16px;z-index:5;width:200px;max-height:calc(100% - 32px);overflow-y:auto;border-radius:4px;background:var(--lsg-sidebar);box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);font-size:14px}
 .graph-filters[hidden]{display:none}
 .graph-filters-head{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 12px;border:0;background:none;color:var(--lsg-text);font:inherit;font-weight:500;cursor:pointer}

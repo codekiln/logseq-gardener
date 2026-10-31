@@ -7,7 +7,7 @@ function compound(text) {
     else if (token[0] === '.') parts.classes.push(token.slice(1));
     else if (token[0] === '#') parts.ids.push(token.slice(1));
     else if (token[0] === '[') {
-      const [, name, op, value] = token.match(/^\[([\w-]+)(?:([*^]?=)"?([^"\]]*)"?)?\]$/);
+      const [, name, op, value] = token.match(/^\[([\w-]+)(?:([$*^]?=)"?([^"\]]*)"?)?\]$/);
       parts.attrs.push([name, op, value]);
     } else parts.tag = token.toUpperCase();
   }
@@ -22,7 +22,7 @@ function matchesCompound(el, parts, scope) {
   return parts.attrs.every(([name, op, value]) => {
     const actual = el.getAttribute(name);
     if (actual === null) return false;
-    return !op || (op === '=' ? actual === value : op === '*=' ? actual.includes(value) : actual.startsWith(value));
+    return !op || (op === '=' ? actual === value : op === '*=' ? actual.includes(value) : op === '$=' ? actual.endsWith(value) : actual.startsWith(value));
   });
 }
 function matches(el, selector, scope) {
@@ -68,7 +68,7 @@ class Element extends Node {
   set hidden(value) { if (value) this.attrs.set('hidden', ''); else this.attrs.delete('hidden'); }
   get children() { return this.childNodes.filter(n => n.nodeType === 1); }
   get textContent() { return this.childNodes.map(n => n.textContent).join(''); }
-  set textContent(text) { this.replaceChildren(text); }
+  set textContent(text) { this.replaceChildren(String(text)); }
   getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
   setAttribute(name, value) { this.attrs.set(name, String(value)); }
   removeAttribute(name) { this.attrs.delete(name); }

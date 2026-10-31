@@ -187,6 +187,8 @@ On a page or journal page, from 640px wide, More starts with View as slides. It 
 
 Drag to pan, scroll or pinch to zoom, click a node to open its page, and Shift-click or drag a node to select it. The panel at the top right has Logseq's sections: Nodes (the Journals, Orphan pages, Built-in pages and Excluded pages switches, and N hops from the selected nodes), Search (title filters and a list of matching nodes, which is also the keyboard path to a node), Forces (the layout sliders) and Export (as PNG). Its starting values come from `:graph/settings` and `:graph/forcesettings` in `logseq/config.edn`; a reader's changes last for the browser tab's session.
 
+A download that takes longer than half a second shows a spinner, `Loading the graph…` and a Cancel button over the graph area. Cancel stops the download and offers `Load the graph`; a failed download offers Retry. The panel appears with the first drawn graph. The Page graph card shows the same states for its own files.
+
 The publisher lays the graph out at build time with Logseq's forces and writes it to `_graph/default.bin`, and the journals graph to `_graph/journals.bin`, both stored gzip-compressed. Only `graph.html` loads them, through `lsg-graph.js`; `lsg-graph-worker.js` runs a force simulation only when a reader changes a force or drags a node. The Page graph card reads `_graph/p/<route hash>.json`, the page's neighbourhood; a page whose neighbourhood file would exceed 100 KB gzip has none, and its card draws the neighbourhood from the global file instead. Through the SDK, `SiteOptions::layout_cache` keeps layouts between builds in a directory of your choice.
 
 ## Appearance
