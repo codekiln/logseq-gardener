@@ -257,7 +257,7 @@ Decided by the agent without codekiln: the program `lsg` started. A program that
 
 ### 24 - How does the whole-garden CI job get the garden?
 
-Decided by the agent without codekiln: a shallow checkout of the public encode garden at commit `5095bdf6`. Without history, Created and Updated dates in All pages fall back as they do for any garden outside git; the job compares builds of the same binary, so that affects every variant alike. Each variant is built three times, interleaved, and the fastest build counts, to keep runner noise below the budgets.
+Decided by the agent without codekiln: a shallow checkout of the public encode garden at commit `5095bdf6`. Without history, Created and Updated dates in All pages fall back as they do for any garden outside git; the job compares builds of the same binary, so that affects every variant alike. Each variant is built five times, interleaved, and the fastest build counts, to keep runner noise below the budgets.
 
 ## Open Questions
 
