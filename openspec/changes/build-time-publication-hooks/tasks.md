@@ -45,4 +45,4 @@
 
 ## 8. Coordination
 
-- [ ] 8.1 Comment on [issue #195](https://github.com/codekiln/logseq-gardener/issues/195) with the shipped view, protocol and contribution kinds and their differences from Gitpa's `PublicationView`, for [Gitpa issue #93](https://github.com/codekiln/gitpa/issues/93) to adopt
+- [x] 8.1 Comment on [issue #195](https://github.com/codekiln/logseq-gardener/issues/195) with the shipped view, protocol and contribution kinds and their differences from Gitpa's `PublicationView`, for [Gitpa issue #93](https://github.com/codekiln/gitpa/issues/93) to adopt
