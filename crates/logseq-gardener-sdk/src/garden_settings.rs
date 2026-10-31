@@ -437,6 +437,10 @@ mod tests {
         );
         assert!(diagnostics.is_empty());
         assert_eq!(settings.journal_title_format, "yyyy-MM-dd EEE");
+        let (settings, diagnostics) =
+            GardenSettings::parse(r#"{:journal/page-title-format "E, MM/dd/yyyy"}"#);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert_eq!(settings.journal_title_format, "E, MM/dd/yyyy");
         let (settings, diagnostics) = GardenSettings::parse(
             r#"{:journal/page-title-format "yyyy QQQ" :journal/file-name-format :yyyy}"#,
         );

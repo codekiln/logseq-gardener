@@ -339,6 +339,27 @@ fn default_title_format_and_unparseable_names() {
 }
 
 #[test]
+fn weekday_title_format_names_and_links_journals() {
+    // Logseq offers `E, MM/dd/yyyy` among its journal title formats.
+    let f = Fixture::new(r#"{:journal/page-title-format "E, MM/dd/yyyy"}"#);
+    f.write(
+        "pages/tmux.md",
+        "- TMUX_BODY [[Fri, 10/23/2026]] [[friday, 10/23/2026]]\n",
+    );
+    let report = f.publish();
+    for diagnostic in &report.diagnostics {
+        assert!(
+            !diagnostic.message.contains("page-title-format")
+                && !diagnostic.message.contains("10/23/2026"),
+            "{diagnostic:?}"
+        );
+    }
+    let journal = f.page("OCT_23_FILED");
+    assert!(journal.contains("<h1>Fri, 10/23/2026</h1>"));
+    assert!(journal.contains("TMUX_BODY"), "linked reference from tmux");
+}
+
+#[test]
 fn page_and_journal_with_one_title_fail_before_output() {
     let f = Fixture::new(CONFIG);
     f.write("pages/2026-10-23 Fri.md", "- PAGE\n");
