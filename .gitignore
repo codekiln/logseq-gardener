@@ -53,3 +53,6 @@ rulesync.local.jsonc
 !.rulesync/.aiignore
 
 /.worktrees/
+
+# fnox cache of the release App credentials, encrypted to one maintainer key
+/fnox.local.toml
