@@ -251,14 +251,14 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
     let mut styles = Vec::new();
     let mut seen = BTreeSet::from([module.path.to_lowercase()]);
     for style in strings("styles")? {
-        let file = plugin_file(folder, &style, &[".css"]).map_err(fail)?;
-        // Compare without case: two names that differ only in case are one file on macOS.
-        if !seen.insert(file.path.to_lowercase()) {
+        // Compare names without case, before reading: two names that differ only in case are
+        // one file on macOS and Windows, and two files elsewhere.
+        if !seen.insert(style.to_lowercase()) {
             return Err(fail(format!(
                 "{style:?} collides with another file of this plugin in plugins/{id}/"
             )));
         }
-        styles.push(file);
+        styles.push(plugin_file(folder, &style, &[".css"]).map_err(fail)?);
     }
     Ok(PluginManifest {
         source: path.to_owned(),
