@@ -30,7 +30,7 @@ function element(selectors, extra = {}) {
   return node;
 }
 let state;
-function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null, graph = true, slides = false } = {}) {
+function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null, graph = true, slides = false, href = 'https://example.com/p-0000000000000000.html', script = null } = {}) {
   state = { focused: null, assigned: null };
   const values = new Map(Object.entries(stored));
   const root = element(['html']);
@@ -72,6 +72,8 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   const document = new Events();
   document.documentElement = root;
   document.readyState = 'loading';
+  // The shell's own address, absolute as the browser gives it, when a test sets one.
+  document.currentScript = script && { src: script };
   state.appended = [];
   document.createElement = tag => ({ tag });
   document.head = { append: node => state.appended.push(node) };
@@ -84,7 +86,7 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
     return { getItem: k => values.get(k) ?? null, setItem: (k, v) => values.set(k, v), removeItem: k => values.delete(k) };
   } });
   window.matchMedia = () => ({ matches: desktop });
-  window.location = { assign: href => { state.assigned = href; } };
+  window.location = { href, assign: url => { state.assigned = url; } };
   const theme = { current: choice, shown: appearance };
   window.logseqGardenerTheme = {
     choice: () => theme.current,
@@ -93,7 +95,7 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   };
   state.sidebar = [];
   window.logseqGardenerSidebar = request => state.sidebar.push(request);
-  vm.runInContext(source, vm.createContext({ window, document, Date, Promise }));
+  vm.runInContext(source, vm.createContext({ window, document, Date, Promise, URL }));
   const click = (target, extra = {}) => document.fire('click', { target, preventDefault() {}, stopPropagation() {}, ...extra });
   const key = (k, target = page, extra = {}) => document.fire('keydown', { key: k, target, preventDefault() {}, ...extra });
   return { slidesItem, right, pageLink, window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
@@ -169,10 +171,20 @@ test('shortcuts navigate, toggle wide mode and ignore fields and modifiers', () 
   const f = fixture();
   f.key('t'); f.key('w'); assert.equal(f.root.getAttribute('data-lsg-wide'), 'true'); assert.equal(f.values.get('logseq-gardener-wide'), 'true');
   f.key('g'); f.key('a'); assert.equal(state.assigned, 'pages.html');
-  f.key('g'); f.key('h'); assert.equal(state.assigned, 'index.html');
+  f.key('g'); f.key('h'); assert.equal(state.assigned, 'https://example.com/index.html');
   state.assigned = null;
   f.key('g', f.input); f.key('a', f.input); assert.equal(state.assigned, null);
   f.key('g'); f.key('a', f.page, { metaKey: true }); assert.equal(state.assigned, null);
+});
+test('g h and the Go to home command open the site root from a nested route', () => {
+  // Gitpa serves each page from a directory route and loads the shell from the site root.
+  const f = fixture({ href: 'https://codekiln.github.io/gitpa/GitP/A/Session/26/10/29-Thu/', script: 'https://codekiln.github.io/gitpa/lsg-shell.js' });
+  f.key('g'); f.key('h'); assert.equal(state.assigned, 'https://codekiln.github.io/gitpa/index.html');
+  state.assigned = null;
+  f.window.logseqGardenerShell.actions.gh(); assert.equal(state.assigned, 'https://codekiln.github.io/gitpa/index.html');
+  // A site opened from disk keeps its home page beside the shell too.
+  const local = fixture({ href: 'file:///Users/me/site/GitP/A/index.html', script: 'file:///Users/me/site/lsg-shell.js' });
+  local.key('g'); local.key('h'); assert.equal(state.assigned, 'file:///Users/me/site/index.html');
 });
 test('blocked storage keeps the state for the current page', () => {
   const f = fixture({ blocked: true });
