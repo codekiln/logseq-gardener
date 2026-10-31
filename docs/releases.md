@@ -21,7 +21,7 @@ The App does not need organization, administration, issue, deployment, package, 
 
 Delete the downloaded private-key file after confirming the secret is stored. GitHub Actions exchanges these values for a short-lived installation token; workflows do not use a personal access token.
 
-The maintainer's copy of both values is the 1Password Secure Note `github-app-logseq-gardener-release`: the App ID in its `app-id` field and the private key in the note body. [`fnox.toml`](../fnox.toml) refers to them under the `release` profile; it holds references only.
+The maintainer's copy of both values is the 1Password Secure Note `github-app-logseq-gardener-release`: the App ID in its `app-id` field and the private key in its concealed `private-key` field. [`fnox.toml`](../fnox.toml) refers to them under the `release` profile; it holds references only.
 
 ## Rotate the App private key
 

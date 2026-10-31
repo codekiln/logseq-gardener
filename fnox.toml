@@ -8,4 +8,4 @@ vault = "codekiln"
 
 [profiles.release.secrets]
 RELEASE_APP_ID = { provider = "release-vault", value = "op://codekiln/github-app-logseq-gardener-release/app-id", if_missing = "error" }
-RELEASE_APP_PRIVATE_KEY = { provider = "release-vault", value = "op://codekiln/github-app-logseq-gardener-release/notesPlain", if_missing = "error" }
+RELEASE_APP_PRIVATE_KEY = { provider = "release-vault", value = "op://codekiln/github-app-logseq-gardener-release/private-key", if_missing = "error" }

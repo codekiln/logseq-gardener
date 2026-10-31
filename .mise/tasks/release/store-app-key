@@ -24,7 +24,7 @@ if op item get "$item" --vault "$vault" >/dev/null 2>&1; then
   op item get "$item" --vault "$vault" --format json \
     | jq --rawfile key "$key_file" --arg id "$app_id" '
         .fields |= map(
-          if .id == "notesPlain" then .value = $key
+          if .label == "private-key" then .value = $key
           elif .label == "app-id" and $id != "" then .value = $id
           else . end)' \
     | op item edit "$item" --vault "$vault" >/dev/null
@@ -32,9 +32,12 @@ if op item get "$item" --vault "$vault" >/dev/null 2>&1; then
 else
   [[ -n $app_id ]] || { printf 'error: pass --app-id the first time\n' >&2; exit 1; }
   op item template get "Secure Note" \
-    | jq --rawfile key "$key_file" --arg id "$app_id" --arg url "$app_settings" '
-        .fields |= map(if .id == "notesPlain" then .value = $key else . end)
-        | .fields += [{"label": "app-id", "type": "STRING", "value": $id}]
+    | jq --rawfile key "$key_file" --arg id "$app_id" --arg url "$app_settings" \
+         --arg note "Release GitHub App for $repo. Rotate with: mise run release:store-app-key <pem> (see docs/releases.md)." '
+        .fields |= map(if .id == "notesPlain" then .value = $note else . end)
+        | .fields += [
+            {"label": "app-id", "type": "STRING", "value": $id},
+            {"label": "private-key", "type": "CONCEALED", "value": $key}]
         | .urls = [{"primary": true, "href": $url}]' \
     | op item create - --vault "$vault" --title "$item" >/dev/null
   printf 'Created 1Password item %s.\n' "$item"
