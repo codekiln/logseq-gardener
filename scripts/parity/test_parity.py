@@ -203,6 +203,9 @@ class MetricsTest(unittest.TestCase):
 
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
+        # Site plugins (published-plugin-host); the proposal's budgets.
+        self.assertEqual(loaded.pop('plugins'), {'host_gzip_kb': 4, 'added_bytes_per_page': 0,
+                                                 'navigation_ms_phone': 50, 'listener_growth': 0})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
                                        'slides', 'queries', 'flashcards', 'loading'})

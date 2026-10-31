@@ -79,3 +79,6 @@ pub mod namespaces;
 
 /// Flashcards: card blocks, `{{cards}}` decks and which cards are due.
 pub mod cards;
+
+/// Site plugin manifests: reading, checking and the page values a plugin may read.
+pub mod plugins;

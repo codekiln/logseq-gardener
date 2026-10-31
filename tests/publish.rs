@@ -255,8 +255,8 @@ fn explicit_inputs_legacy_format_and_empty_selection() {
     // The index page, the page list, the shell, outline, references and All pages scripts,
     // the right sidebar's script and styles, the View as slides script, and the graph view's
     // page, script, worker, styles and data file, and the flashcard review's script,
-    // styles, deck list and `All` deck.
-    assert_eq!(files(&f.0.join("empty")).len(), 18);
+    // styles, deck list and `All` deck, and the site manifest lsg-site.json.
+    assert_eq!(files(&f.0.join("empty")).len(), 19);
     let output = f.0.join("legacy");
     let result = Command::new(env!("CARGO_BIN_EXE_lsg"))
         .arg("publish")
@@ -500,4 +500,69 @@ fn search_flag_emits_only_opt_in_external_artifacts() {
     assert!(
         String::from_utf8_lossy(&emitted[Path::new("index.html")]).contains("rel=\"lsg-search\"")
     );
+}
+
+#[test]
+fn cli_plugin_adds_files_and_invalid_manifests_fail_without_output() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- Visible\n");
+    let manifest = |api: u8| {
+        let folder = f.0.join(format!("player-{api}"));
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("player.mjs"), "export default {};\n").unwrap();
+        let path = folder.join("lsg-plugin.json");
+        fs::write(
+            &path,
+            format!(r#"{{"id":"player","apiVersion":{api},"version":"1","module":"player.mjs","activation":"after-load"}}"#),
+        )
+        .unwrap();
+        path
+    };
+    let report = |output: &Path, extra: &[&str]| {
+        let mut args = vec!["--include", "Notes", "--format", "json"];
+        args.extend(extra);
+        let result = f.publish(output, &args);
+        assert!(result.status.success(), "{result:?}");
+        let mut report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+        report
+            .as_object_mut()
+            .unwrap()
+            .retain(|key, _| !key.contains("path") && !key.contains("directory"));
+        report
+    };
+    let valid = manifest(1);
+    let plain = report(&f.0.join("plain"), &[]);
+    let output = f.0.join("with-plugin");
+    assert_eq!(
+        report(&output, &["--plugin", valid.to_str().unwrap()]),
+        plain
+    );
+    assert!(output.join("plugins/player/player.mjs").is_file());
+    let site: serde_json::Value =
+        serde_json::from_slice(&fs::read(output.join("lsg-site.json")).unwrap()).unwrap();
+    assert_eq!(site["plugins"][0]["module"], "plugins/player/player.mjs");
+    assert!(f.0.join("plain/lsg-site.json").is_file());
+
+    let invalid = manifest(2);
+    let failed_output = f.0.join("failed");
+    let result = f.publish(
+        &failed_output,
+        &["--include", "Notes", "--plugin", invalid.to_str().unwrap()],
+    );
+    assert_eq!(result.status.code(), Some(1));
+    assert!(result.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(stderr.contains(invalid.to_str().unwrap()), "{stderr}");
+    assert!(stderr.contains("unsupported apiVersion 2"), "{stderr}");
+    assert!(!failed_output.exists());
+
+    let help = Command::new(env!("CARGO_BIN_EXE_lsg"))
+        .args(["publish", "help", "section", "plugins"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help = String::from_utf8_lossy(&help.stdout);
+    assert!(help.contains("--plugin PATH"), "{help}");
+    assert!(help.contains("plugins/<id>/"), "{help}");
+    assert!(help.contains("docs/publishing.md"), "{help}");
 }

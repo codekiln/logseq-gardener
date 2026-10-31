@@ -257,3 +257,14 @@ Each page loaded in a fresh window and left for 40 seconds, then its first bound
 | phone | 374 | 57,390 | 12,392 | 618 | 568 | 1.2 |
 
 Whole-garden build with `Parity/Queries`: 14.48 s against 14.25 s for the baseline binary (+1.6%, budget 10%).
+
+## Plugins
+
+The whole encode garden built with the recorder fixture plugin (`tests/fixtures/plugins/recorder`), same-document navigations: one to every fixture page, then 20 more. Navigation is the time from the fetched page's response end to the adopted page: `<main>` swapped, lsg's page initializers run, plugins notified and the fragment revealed. Listeners are the document's and window's event listeners after every page has been visited once, when scripts that only some pages load are in, and after the 20 more navigations. **Bold** marks a value over its `[plugins]` budget.
+
+| Profile | Navigations | Median (ms) | Slowest (ms) | Slowest page | Listeners after one visit each | Listeners 20 navigations later |
+| --- | --- | --- | --- | --- | --- | --- |
+| desktop | 47 | 2.6 | 16.3 | Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton | 30 | 30 |
+| phone | 47 | 11.4 | **80.8** | Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton | 30 | 30 |
+
+Host module `lsg-host-739a578f944fb016.mjs`: 7,759 bytes, 2,924 gzip (budget 4,000). Largest fixture page first paint with the plugin: 81,815 gzip (Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton, 545,147 bytes of HTML).

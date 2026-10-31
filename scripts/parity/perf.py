@@ -1734,6 +1734,129 @@ def record_search_sections(report, budgets):
                                encoding='utf-8')
 
 
+PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'recorder' / 'lsg-plugin.json'
+PLUGIN_NAVIGATIONS = 20
+# Follow a same-site link to `href` and wait until the plugin host has adopted the page.
+PLUGIN_NAVIGATE = '''(href) => new Promise((resolve) => {
+  const before = performance.getEntriesByName('lsg-host-adopted').length;
+  const link = Object.assign(document.createElement('a'), { href });
+  document.querySelector('main').append(link);
+  link.click();
+  const done = () => performance.getEntriesByName('lsg-host-adopted').length > before ? resolve() : setTimeout(done, 5);
+  done();
+})'''
+# Per navigation: from the fetched page's response end to the host's adopted mark.
+PLUGIN_TIMES = '''() => performance.getEntriesByName('lsg-host-adopted').map((mark) => {
+  const fetched = performance.getEntriesByType('resource')
+    .filter((r) => r.initiatorType === 'fetch' && new URL(r.name).pathname === mark.detail && r.responseEnd <= mark.startTime)
+    .at(-1);
+  return fetched ? [mark.detail.split('/').pop(), mark.startTime - fetched.responseEnd] : null;
+}).filter((t) => t !== null)'''
+
+
+def event_listeners(cdp):
+    """Event listeners on the document and the window."""
+    total = 0
+    for name in ('document', 'window'):
+        handle = cdp.send('Runtime.evaluate', {'expression': name})['result']['objectId']
+        total += len(cdp.send('DOMDebugger.getEventListeners', {'objectId': handle})['listeners'])
+    return total
+
+
+def measure_plugins(browser, base, routes, profile):
+    """Visit every route once, then navigate PLUGIN_NAVIGATIONS more times, in place, with the
+    fixture plugin."""
+    context, page, cdp = open_page(browser, profile, 'main h1')
+    try:
+        page.goto(base + routes[0], wait_until='load', timeout=PROFILES[profile]['timeout_ms'])
+        # Count listeners only once the page's own scripts, which load after the load event, are in.
+        wait_loaded(page, profile)
+        page.wait_for_function("document.querySelector('[data-lsg-plugin=\\'fixture-recorder\\']')",
+                               timeout=PROFILES[profile]['timeout_ms'])
+        # One visit to every page loads the scripts that only some pages need, such as media.js;
+        # each installs its document listeners once. Listeners must then stay flat.
+        for route in routes[1:] + routes[:1]:
+            page.evaluate(PLUGIN_NAVIGATE, route)
+        first = event_listeners(cdp)
+        for index in range(PLUGIN_NAVIGATIONS):
+            page.evaluate(PLUGIN_NAVIGATE, routes[(index + 1) % len(routes)])
+        timed = page.evaluate(PLUGIN_TIMES)
+        times = [ms for _, ms in timed]
+        slowest = max(timed, key=lambda item: item[1])[0]
+        return {'navigations': len(times), 'nav_median_ms': metrics.median(times), 'nav_max_ms': max(times),
+                'slowest_route': slowest, 'listeners_first': first, 'listeners_last': event_listeners(cdp)}
+    finally:
+        context.close()
+
+
+def plugins_markdown(rows, sizes, budgets, titles=None):
+    """The Plugins section of docs/parity/performance.md."""
+    limits = budgets.get('plugins', {})
+    titles = titles or {}
+    lines = ['', '## Plugins', '',
+             f'The whole encode garden built with the recorder fixture plugin (`tests/fixtures/plugins/recorder`), '
+             f'same-document navigations: one to every fixture page, then {PLUGIN_NAVIGATIONS} more. Navigation is the '
+             'time from the fetched page\'s response end to the adopted page: `<main>` swapped, lsg\'s page initializers '
+             'run, plugins notified and the fragment revealed. Listeners are the document\'s and window\'s event '
+             'listeners after every page has been visited once, when scripts that only some pages load are in, and after '
+             f'the {PLUGIN_NAVIGATIONS} more navigations. **Bold** marks a value over its `[plugins]` budget.', '',
+             '| Profile | Navigations | Median (ms) | Slowest (ms) | Slowest page | Listeners after one visit each | '
+             f'Listeners {PLUGIN_NAVIGATIONS} navigations later |',
+             '| --- | --- | --- | --- | --- | --- | --- |']
+    for row in rows:
+        limit = limits.get('navigation_ms_phone') if row['profile'] == 'phone' else None
+        growth = row['listeners_last'] - row['listeners_first']
+        median = _marked(f"{row['nav_median_ms']:.1f}", row['nav_median_ms'], limit)
+        slowest = _marked(f"{row['nav_max_ms']:.1f}", row['nav_max_ms'], limit)
+        last = _marked(str(row['listeners_last']), growth, limits.get('listener_growth'))
+        page = titles.get(row['slowest_route'], row['slowest_route'])
+        lines.append(f"| {row['profile']} | {row['navigations']} | {median} | {slowest} | {page} "
+                     f"| {row['listeners_first']} | {last} |")
+    lines += ['', f"Host module `{sizes['host']}`: {sizes['host_bytes']:,} bytes, {sizes['host_gzip']:,} gzip "
+                  f"(budget {limits.get('host_gzip_kb', 0) * 1000:,.0f}). Largest fixture page first paint with the plugin: "
+                  f"{sizes['first_paint_gzip']:,} gzip ({titles.get(sizes['first_paint_page'], sizes['first_paint_page'])}, "
+                  f"{sizes['first_paint_html']:,} bytes of HTML)."]
+    return lines
+
+
+def measure_plugins_run(args, sync_playwright):
+    """Build the run's garden with the fixture plugin and measure navigation; with --record,
+    replace the Plugins section of docs/parity/performance.md."""
+    budgets = metrics.load_budgets()
+    run = common.latest_run(args.run)
+    settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    rows = []
+    with tempfile.TemporaryDirectory(prefix='lsg-plugins-') as temp:
+        site = Path(temp) / 'site'
+        time_publish(common.lsg_binary(), settings['garden'], site,
+                     [*settings['lsg_options'], '--plugin', str(PLUGIN_FIXTURE)], runs=1)
+        titles = {common.lsg_route(title): title for title in serve.fixtures(args.fixtures)}
+        routes = [route for route in titles if (site / route).exists()]
+        host = next(site.glob('lsg-host-*.mjs'))
+        paints = {route: budgets_check.page_sizes(site, route)[1] for route in routes}
+        largest = max(paints, key=paints.get)
+        sizes = {'host': host.name, 'host_bytes': host.stat().st_size, 'host_gzip': metrics.gzip_size(host.read_bytes()),
+                 'first_paint_gzip': paints[largest], 'first_paint_page': largest,
+                 'first_paint_html': (site / largest).stat().st_size}
+        with serve.Server(site) as lsg, sync_playwright() as playwright:
+            browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
+            for profile in profiles:
+                row = {'profile': profile, **measure_plugins(browser, lsg.url, routes, profile)}
+                rows.append(row)
+                print(json.dumps(row), flush=True)
+            browser.close()
+    block = '\n'.join(plugins_markdown(rows, sizes, budgets, titles))
+    print(block)
+    if args.record:
+        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
+        start = text.find('\n## Plugins')
+        if start >= 0:
+            end = text.find('\n## ', start + 1)
+            text = text[:start] + (text[end:] if end >= 0 else '\n')
+        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', help='run directory from parity:build and parity:compare (default: the latest)')
@@ -1768,6 +1891,9 @@ def main():
     parser.add_argument('--flashcards', action='store_true',
                         help=f"measure only {FLASHCARDS_PAGE}, {FLASHCARDS_CARDS} cloze cards and a deck, on a copy of "
                              "the run's garden; with --record, replace its section of docs/parity/performance.md")
+    parser.add_argument('--plugins', action='store_true',
+                        help="build the run's garden with the recorder fixture plugin and measure same-document "
+                             'navigation; with --record, replace its section of docs/parity/performance.md')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -1793,6 +1919,9 @@ def main():
         return
     if args.flashcards:
         measure_flashcards_run(args, sync_playwright)
+        return
+    if args.plugins:
+        measure_plugins_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)

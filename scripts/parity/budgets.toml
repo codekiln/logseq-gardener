@@ -231,3 +231,16 @@ build_slowdown_pct = 10
 # whole-garden build more than build_slowdown_pct slower than the baseline binary's.
 [loading]
 build_slowdown_pct = 5
+
+# Site plugins (published-plugin-host). parity:budgets builds the fixture garden with the recorder
+# fixture plugin (tests/fixtures/plugins/recorder) and checks the host module's gzip size, every
+# page's first paint against [desktop] and [phone], and that a build without plugins adds no
+# plugin metadata or host reference to any page. parity:perf --plugins marks, on the whole encode
+# garden with the same plugin, a same-document navigation from the response's arrival to the
+# adopted page on the phone profile, and document and window listeners after 20 navigations
+# above the count after the first.
+[plugins]
+host_gzip_kb = 4
+added_bytes_per_page = 0
+navigation_ms_phone = 50
+listener_growth = 0

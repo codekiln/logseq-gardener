@@ -40,7 +40,7 @@ Pages of a site with plugins get one `<script type="module">` that imports `lsg-
 
 ### One navigation owner, one initializer list
 
-With plugins, the host intercepts plain left clicks on same-site page links and history traversal, fetches the page, and swaps `<main>`, the title and the metadata. `lsg`'s page scripts register initializers with a small `window.logseqGardenerPage(init)` function in `shell.js`; the host and the first load both call them with `<main>` and the page signal. Without plugins nothing intercepts clicks, and the initializers run once, as today.
+With plugins, the host intercepts plain left clicks on same-site page links and history traversal, fetches the page, and swaps `<main>`, the title and the metadata. `lsg`'s page scripts already install their document listeners once and expose a setup function for new content (`logseqGardenerInitOutline`, `logseqGardenerInitReferences` and others); the host keeps the initializer list that calls them with `<main>` and the page signal, and `window.logseqGardenerPage(init)` adds to it. Keeping the list in the host, rather than in `shell.js`, leaves every script of a site without plugins unchanged apart from a setup function added to `lsg-queries.js`, and keeps `lsg-shell.js` and `lsg-outline.js` within their budgets. Without plugins nothing intercepts clicks, and the scripts set up once, as today.
 
 ### Order of a navigation
 
