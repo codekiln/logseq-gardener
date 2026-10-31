@@ -8,7 +8,7 @@ Plan changes in OpenSpec and keep requirements and verification together. Agent-
 
 Create a cleanup sub-issue under each OpenSpec implementation issue before handing its PR over for review. After merge, follow [OpenSpec cleanup](docs/openspec-cleanup.md) to sync requirements, archive the completed change, and submit a separate follow-up PR.
 
-The [architecture guide](docs/architecture.md) explains the package responsibilities and the pending parser choice.
+The [architecture guide](docs/architecture.md) explains the package responsibilities. [Parser adoption](docs/parser-adoption.md) records the parser decision.
 
 ## CLI conformance
 

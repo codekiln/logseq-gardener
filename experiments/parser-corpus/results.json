@@ -1,0 +1,162 @@
+{
+  "note": "Aggregate counts only. Per-file output stays in the scratch directory and is not committed.",
+  "sources": {
+    "corpus": {
+      "repo": "github.com/pengx17/knowledge-garden",
+      "revision": "cdec71d89e30a3018c1e33b79a958b1e9f7fee59",
+      "license": "None declared; read locally, no text committed"
+    },
+    "lsdoc": {
+      "repo": "github.com/martinkoutecky/lsdoc",
+      "revision": "32e63ef095c711d6d9947257bf5fd07d540fa59d",
+      "license": "AGPL-3.0-only"
+    },
+    "logseq": {
+      "repo": "github.com/logseq/og",
+      "revision": "6e7afa8eb040686ff057156ee877193b581dd369",
+      "branch": "version/file",
+      "license": "AGPL-3.0 with additional permission"
+    }
+  },
+  "runtime": {
+    "node": "v24.14.0",
+    "mldocSyntax": "1.5.9 (lsdoc harness lock)",
+    "mldocGraph": "1.5.7",
+    "nbbLogseq": "1.2.173"
+  },
+  "corpus": {
+    "files": 322,
+    "emptyFiles": 9,
+    "byFolderAndFormat": {
+      "journals.md": 147,
+      "pages.md": 175
+    },
+    "sha256": "3c1242d1524248b97e51381ae2b635554e51f3a246fb27783f3293634f073d95",
+    "selection": "Tracked Markdown and Org files under pages/ and journals/ at the pinned revision"
+  },
+  "syntax": {
+    "runner": "lsdoc tools/graph-check.mjs, mode both, journals on; Pass each note format to mldoc reference extraction: extractRefs(ast, format).",
+    "matchedFiles": 322,
+    "skippedOver8MiB": 0,
+    "findings": 0,
+    "findingTypes": {},
+    "bestTotalParseMs": {
+      "lsdoc": 2.997,
+      "mldoc": 416.042
+    }
+  },
+  "constructs": {
+    "method": "Counts from canonical lsdoc and mldoc projections; mldoc runs in a fresh process per file",
+    "filesCompared": 322,
+    "filesWithEqualCounts": 322,
+    "totals": {
+      "lsdoc": {
+        "media.asset-link": 1,
+        "media.embed.block": 4,
+        "media.embed.page": 1,
+        "media.html": 6,
+        "media.image.local-asset": 40,
+        "media.image.other": 3,
+        "media.macro.renderer": 6,
+        "media.macro.tweet": 11,
+        "media.macro.youtube": 3,
+        "properties.block-blocks": 170,
+        "properties.block.other": 269,
+        "properties.page-blocks": 62,
+        "properties.page.alias": 6,
+        "properties.page.other": 22,
+        "properties.page.tags": 14,
+        "properties.page.title": 39
+      },
+      "mldoc": {
+        "media.asset-link": 1,
+        "media.embed.block": 4,
+        "media.embed.page": 1,
+        "media.html": 6,
+        "media.image.local-asset": 40,
+        "media.image.other": 3,
+        "media.macro.renderer": 6,
+        "media.macro.tweet": 11,
+        "media.macro.youtube": 3,
+        "properties.block-blocks": 170,
+        "properties.block.other": 269,
+        "properties.page-blocks": 62,
+        "properties.page.alias": 6,
+        "properties.page.other": 22,
+        "properties.page.tags": 14,
+        "properties.page.title": 39
+      }
+    },
+    "filesContaining": {
+      "media.asset-link": 1,
+      "media.embed.block": 4,
+      "media.embed.page": 1,
+      "media.html": 5,
+      "media.image.local-asset": 33,
+      "media.image.other": 2,
+      "media.macro.renderer": 6,
+      "media.macro.tweet": 6,
+      "media.macro.youtube": 3,
+      "properties.block-blocks": 71,
+      "properties.block.other": 71,
+      "properties.page-blocks": 62,
+      "properties.page.alias": 6,
+      "properties.page.other": 14,
+      "properties.page.tags": 14,
+      "properties.page.title": 39
+    },
+    "graphConfig": {
+      "allPagesPublicLegacyKey": "true",
+      "allPagesPublic": null,
+      "fileNameFormat": ":triple-lowbar"
+    }
+  },
+  "relationships": {
+    "method": "Per file: page names referenced by the file's blocks in the Logseq OG graph, compared with lsdoc syntax page references (lowercased, UUIDs dropped)",
+    "pages": 570,
+    "fileBackedPages": 313,
+    "blocks": 2536,
+    "pagesWithPublicProperty": 0,
+    "filesCompared": 313,
+    "filesWithoutGraphPage": 9,
+    "filesWithEqualPageRefs": 203,
+    "graphOnly": {
+      "block-uuid": 4,
+      "date": 2,
+      "namespace-parent": 44,
+      "other": 1,
+      "property-name": 15,
+      "property-value": 31,
+      "task-marker": 75
+    },
+    "syntaxOnly": {
+      "date": 2,
+      "media-or-file-target": 3,
+      "other": 1,
+      "property-value": 2
+    }
+  },
+  "sdk": {
+    "command": "lsg publish --journals with every root namespace included",
+    "exitStatus": 0,
+    "pages": 170,
+    "journals": 144,
+    "assets": 40,
+    "withheldPages": 0,
+    "skippedJournals": 3,
+    "diagnosticCount": 356,
+    "diagnosticLinesByKind": {
+      "advanced query": 2,
+      "asset or media": 8,
+      "drawer kept as text": 75,
+      "favorite names no published page": 1,
+      "journal file name is not a date": 3,
+      "link to a page without a file": 207,
+      "no git history in extracted copy": 1,
+      "raw HTML or Hiccup kept as text": 33,
+      "unavailable block reference": 4,
+      "unsupported journal title token": 1,
+      "unsupported macro or renderer": 21
+    }
+  }
+}
