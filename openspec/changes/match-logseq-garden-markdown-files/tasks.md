@@ -19,4 +19,4 @@
 
 ## Workflow follow-up
 
-- [x] File the "Sync and archive" cleanup sub-issue under Issue #252 per `docs/openspec-cleanup.md` before the Apply PR merges
+- [x] File the "Sync and archive" cleanup sub-issue under Issue #252 per `docs/openspec-cleanup.md` before the Apply PR merges ([Issue #263](https://github.com/codekiln/logseq-gardener/issues/263))
