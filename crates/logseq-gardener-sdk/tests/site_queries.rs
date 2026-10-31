@@ -297,7 +297,7 @@ fn datalog_default_journal_queries_are_skipped_with_a_diagnostic() {
     let fixture = garden();
     fixture.write(
         "logseq/config.edn",
-        "{:default-queries {:journals [{:title \"NOW\" :query [:find (pull ?b [*]) :where [?b :block/marker ?m]]} {:title \"Tasks\" :query (task TODO DOING)}]}}",
+        "{:publishing/all-pages-public? true :default-queries {:journals [{:title \"NOW\" :query [:find (pull ?b [*]) :where [?b :block/marker ?m]]} {:title \"Tasks\" :query (task TODO DOING)}]}}",
     );
     fixture.write("journals/2026_10_27.md", "- today\n");
     let report = fixture.publish();

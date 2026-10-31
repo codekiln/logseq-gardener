@@ -21,7 +21,7 @@ impl Fixture {
         fs::create_dir_all(root.join("garden/logseq")).unwrap();
         fs::write(
             root.join("garden/logseq/config.edn"),
-            "{:journal/page-title-format \"yyyy-MM-dd EEE\" :graph/forcesettings {:link-dist 90}}",
+            "{:publishing/all-pages-public? true :journal/page-title-format \"yyyy-MM-dd EEE\" :graph/forcesettings {:link-dist 90}}",
         )
         .unwrap();
         let fixture = Self(root);

@@ -28,7 +28,7 @@ Matching is exact and case-sensitive. Selectors use logical page titles derived 
 
 ## Publication boundaries
 
-The publisher resolves page titles, aliases, explicit outline references, and page/block embeds against selected visible content. A parsed `public:: false` withholds its entire source page. Namespace exclusions remove target pages and their contributions; they do not redact text already written on a retained page. Ambiguous or unavailable targets retain visible fallbacks and local diagnostics.
+The publisher resolves page titles, aliases, explicit outline references, and page/block embeds against selected visible content. A parsed `public:: false` withholds its entire source page. Unless `logseq/config.edn` sets `:publishing/all-pages-public? true` or `:all-pages-public? true`, a selected page must also be marked `public:: true`, as in Logseq; `publishing::PublicPages` applies this rule, and [Visibility and references](local-site.md#visibility-and-references) describes it. Namespace exclusions remove target pages and their contributions; they do not redact text already written on a retained page. Ambiguous or unavailable targets retain visible fallbacks and local diagnostics.
 
 Visibility also applies to embedded content, referenced assets, reference indexes and optional search data. Mixed-visibility fixtures in [publisher tests](../crates/logseq-gardener-sdk/tests/site.rs) and [embed tests](../crates/logseq-gardener-sdk/tests/site_embeds.rs) check generated files for excluded content. Local diagnostics stay outside the site. Review the report and retained source content before publishing a sensitive garden.
 

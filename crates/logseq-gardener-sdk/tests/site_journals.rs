@@ -21,6 +21,8 @@ impl Fixture {
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir_all(root.join("garden/logseq")).unwrap();
+        // These gardens publish every page, so the tests can focus on other settings.
+        let config = config.replacen('{', "{:publishing/all-pages-public? true ", 1);
         fs::write(root.join("garden/logseq/config.edn"), config).unwrap();
         let fixture = Self(root);
         fixture.write("pages/tmux.md", "- TMUX_BODY [[2026-10-23 Fri]]\n");

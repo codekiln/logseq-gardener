@@ -66,7 +66,6 @@ Parse time is the parser's own reported time, summed over the garden; it exclude
 - **Editing.** The SDK keeps source text and ranges, but no test covers formatting-preserving edits. Writing notes needs separate evidence.
 - **Org notes.** Only the Logseq docs garden contains Org notes, and the SDK reads Markdown only.
 - **Logseq's database version** is out of scope.
-- **Graph-wide publication settings.** The publisher selects pages by namespace and withholds pages marked `public:: false`. It does not read `:publishing/all-pages-public?` or the older `:all-pages-public?`, so a garden that relies on Logseq's default of publishing only `public:: true` pages will publish more than Logseq would.
 - **Journal title tokens.** The SDK does not support the weekday token `E` in `:journal/page-title-format`, which Pengx's garden uses.
 - **Relationships on whole gardens.** The relationship comparison above compares reference sets per file. It does not compare the SDK's own graph with Logseq's graph. Query results, graph-validator checks and publication filtering on real gardens remain untested.
 - **Current Logseq revision.** The fixture comparison used current Logseq OG at `6efedb75`. Pengx's garden ran against `6e7afa8e`, the `version/file` branch of the renamed [logseq/og](https://github.com/logseq/og) repository in the local checkout. Both declare mldoc 1.5.7.

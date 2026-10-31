@@ -203,7 +203,10 @@ fn sidebar_shows_flashcards_with_the_due_badge() {
 #[test]
 fn flashcards_turned_off_leave_no_item_or_files() {
     let fixture = garden();
-    fixture.write("logseq/config.edn", "{:feature/enable-flashcards? false}");
+    fixture.write(
+        "logseq/config.edn",
+        "{:publishing/all-pages-public? true :feature/enable-flashcards? false}",
+    );
     fixture.publish();
     assert!(!fixture.html("Notes/tmux").contains("flashcards-nav"));
     assert!(!fixture.0.join("site/flashcards").exists());
