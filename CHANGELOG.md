@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2](https://github.com/codekiln/logseq-gardener/compare/v0.0.1...v0.0.2) - 2026-10-31
+
+### Added
+
+- measure and protect publication speed (#289)
+
 ## [0.0.1](https://github.com/codekiln/logseq-gardener/releases/tag/v0.0.1) - 2026-10-31
 
 ### Added
