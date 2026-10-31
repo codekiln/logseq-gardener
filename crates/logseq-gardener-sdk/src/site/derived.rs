@@ -27,7 +27,11 @@ pub(super) struct PageRows {
 pub(super) fn page_rows(placed: &[PlacedRows]) -> PageRows {
     let mut rows = PageRows::default();
     for placement in placed {
-        let list = list(&placement.plugin, &placement.rows, placement.block.is_none());
+        let list = list(
+            &placement.plugin,
+            &placement.rows,
+            placement.block.is_none(),
+        );
         match placement.block {
             Some(start) => rows.blocks.entry(start).or_default().push_str(&list),
             None => rows.end.push_str(&list),

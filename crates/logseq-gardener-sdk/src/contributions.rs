@@ -216,9 +216,15 @@ pub struct ResolvedRow {
 pub enum ResolvedNode {
     Text(String),
     /// A link to a page of the site, relative to the output root, with an optional fragment.
-    Page { href: String, label: String },
+    Page {
+        href: String,
+        label: String,
+    },
     /// A link outside the site.
-    External { href: String, label: String },
+    External {
+        href: String,
+        label: String,
+    },
 }
 
 /// Every contribution of a build, checked and resolved.
@@ -378,18 +384,18 @@ fn resolve_row(
         content.push(match node {
             InlineNode::Text(Text { text }) => ResolvedNode::Text(text.clone()),
             InlineNode::Page(link) => {
-                let page = view
-                    .page(&link.page)
-                    .ok_or_else(|| format!("link to page {:?}, which is not in the view", link.page))?;
+                let page = view.page(&link.page).ok_or_else(|| {
+                    format!("link to page {:?}, which is not in the view", link.page)
+                })?;
                 ResolvedNode::Page {
                     href: page.url.clone(),
                     label: link.label.clone().unwrap_or_else(|| page.title.clone()),
                 }
             }
             InlineNode::Block(link) => {
-                let page = view
-                    .page(&link.page)
-                    .ok_or_else(|| format!("link to page {:?}, which is not in the view", link.page))?;
+                let page = view.page(&link.page).ok_or_else(|| {
+                    format!("link to page {:?}, which is not in the view", link.page)
+                })?;
                 let block = blocks
                     .then(|| view.block(&link.page, &link.block))
                     .flatten()
@@ -411,7 +417,9 @@ fn resolve_row(
                 }
             }
             InlineNode::Url(UrlLink { url, label }) => {
-                let scheme = url.split_once(':').map(|(scheme, _)| scheme.to_ascii_lowercase());
+                let scheme = url
+                    .split_once(':')
+                    .map(|(scheme, _)| scheme.to_ascii_lowercase());
                 if !matches!(scheme.as_deref(), Some("http" | "https" | "mailto"))
                     || url.chars().any(char::is_control)
                 {
@@ -498,6 +506,136 @@ mod tests {
         assert!(matches!(contributions[1], Contribution::Metadata { .. }));
     }
 
+    fn view() -> PublicationView {
+        let source = "recording:: https://example.com/a.mp3\n\n- Intro\n";
+        let document = crate::garden::GardenDocument {
+            relative_path: "pages/Episode.md".into(),
+            kind: crate::garden::DocumentKind::Page,
+            source: source.to_owned(),
+            parsed: lsdoc::parse_to_projection(source),
+        };
+        let visible = vec![(
+            "recording".to_owned(),
+            "https://example.com/a.mp3".to_owned(),
+        )];
+        PublicationView::from_parts(
+            &[("Episode".to_owned(), "p-e.html".to_owned(), &document)],
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            |_| visible.as_slice(),
+            true,
+        )
+    }
+
+    fn metadata_error(values: &[Value], has_module: bool) -> String {
+        let properties = ["recording".to_owned()];
+        let mut plugins = [PluginOutput {
+            id: "player",
+            has_module,
+            page_properties: &properties,
+            blocks: true,
+            contributions: values
+                .iter()
+                .map(|values| Contribution::Metadata {
+                    page_id: "episode".to_owned(),
+                    values: values.as_object().unwrap().clone(),
+                })
+                .collect(),
+        }];
+        resolve(&view(), &mut plugins).unwrap_err().to_string()
+    }
+
+    #[test]
+    fn metadata_rules() {
+        let properties = ["recording".to_owned()];
+        let mut plugins = [PluginOutput {
+            id: "player",
+            has_module: true,
+            page_properties: &properties,
+            blocks: true,
+            contributions: vec![
+                Contribution::Metadata {
+                    page_id: "episode".to_owned(),
+                    values: serde_json::json!({"chapters": [0]})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                },
+                Contribution::Metadata {
+                    page_id: "episode".to_owned(),
+                    values: serde_json::json!({"length": 3})
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                },
+            ],
+        }];
+        let resolved = resolve(&view(), &mut plugins).unwrap();
+        assert_eq!(
+            Value::Object(resolved.metadata["p-e.html"]["player"].clone()),
+            serde_json::json!({"chapters": [0], "length": 3})
+        );
+        let error = metadata_error(&[serde_json::json!({"a": 1})], false);
+        assert!(
+            error.contains("contributions[0]: metadata needs a browser module"),
+            "{error}"
+        );
+        let error = metadata_error(&[serde_json::json!({"recording": "x"})], true);
+        assert!(
+            error.contains("repeats one of the plugin's pageProperties"),
+            "{error}"
+        );
+        let error = metadata_error(
+            &[serde_json::json!({"a": 1}), serde_json::json!({"a": 2})],
+            true,
+        );
+        assert!(
+            error.contains("contributions[1]: metadata key \"a\" is set twice"),
+            "{error}"
+        );
+        let error = metadata_error(
+            &[serde_json::json!({"big": "x".repeat(METADATA_LIMIT)})],
+            true,
+        );
+        assert!(error.contains("over 64000"), "{error}");
+    }
+
+    #[test]
+    fn rows_resolve_block_links_to_anchors() {
+        let mut plugins = [PluginOutput {
+            id: "list",
+            has_module: false,
+            page_properties: &[],
+            blocks: true,
+            contributions: vec![Contribution::Rows {
+                page_id: "episode".to_owned(),
+                block_id: Some("1".to_owned()),
+                rows: vec![Row {
+                    content: vec![InlineNode::Block(BlockLink {
+                        page: "episode".to_owned(),
+                        block: "1".to_owned(),
+                        label: None,
+                    })],
+                    children: Vec::new(),
+                }],
+            }],
+        }];
+        let resolved = resolve(&view(), &mut plugins).unwrap();
+        let placed = &resolved.rows["p-e.html"][0];
+        let start = placed.block.unwrap();
+        assert_eq!(
+            placed.rows[0].content,
+            [ResolvedNode::Page {
+                href: format!("p-e.html#source-block-{start}"),
+                label: "Episode".to_owned()
+            }]
+        );
+        assert_eq!(resolved.anchors["p-e.html"], BTreeSet::from([start]));
+        plugins[0].blocks = false;
+        let error = resolve(&view(), &mut plugins).unwrap_err().to_string();
+        assert!(error.contains("outside the plugin's view"), "{error}");
+    }
+
     #[test]
     fn rejects_malformed_answers() {
         for (answer, expected) in [
@@ -506,7 +644,10 @@ mod tests {
             (r#"{"apiVersion":2,"contributions":[]}"#, "apiVersion 2"),
             (r#"{"contributions":[]}"#, "missing apiVersion"),
             (r#"{"apiVersion":1}"#, "contributions list"),
-            (r#"{"apiVersion":1,"contributions":[],"x":1}"#, "unknown field"),
+            (
+                r#"{"apiVersion":1,"contributions":[],"x":1}"#,
+                "unknown field",
+            ),
             (
                 r#"{"apiVersion":1,"contributions":[{"kind":"files","pageId":"a"}]}"#,
                 "contributions[0]: malformed",

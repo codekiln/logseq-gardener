@@ -1,0 +1,6 @@
+{
+  "id": "fixture-noop-blocks",
+  "apiVersion": 1,
+  "version": "1.0.0",
+  "build": {"command": ["node", "build.mjs"], "blocks": true}
+}

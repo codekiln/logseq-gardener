@@ -561,12 +561,18 @@ impl Renderer<'_> {
                         (false, false) => "",
                     }
                 );
-                while levels.last().is_some_and(|(previous, _, _)| previous > level) {
+                while levels
+                    .last()
+                    .is_some_and(|(previous, _, _)| previous > level)
+                {
                     let (_, collapsed, start) = levels.pop().unwrap();
                     self.close_item(collapsed, start, root);
                     self.html.push_str("</ul>");
                 }
-                if levels.last().is_some_and(|(previous, _, _)| previous == level) {
+                if levels
+                    .last()
+                    .is_some_and(|(previous, _, _)| previous == level)
+                {
                     let (_, collapsed, start) = *levels.last().unwrap();
                     self.close_item(collapsed, start, root);
                     self.html.push_str(&item_start);

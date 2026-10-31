@@ -12,6 +12,7 @@ use std::fs;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
@@ -365,7 +366,9 @@ fn build_command(folder: &Path, value: &Value) -> Result<BuildCommand, String> {
         None => return Err("missing field build.command".to_owned()),
     };
     if command[0].contains('/') {
-        plugin_file(folder, &command[0], &[""])?;
+        // `./build.mjs` and `build.mjs` name the same file in the manifest's folder.
+        let relative = command[0].strip_prefix("./").unwrap_or(&command[0]);
+        plugin_file(folder, relative, &[""])?;
     }
     let blocks = match fields.get("blocks") {
         None => false,
@@ -468,16 +471,13 @@ impl ProcessPlugin {
             },
             view,
         };
-        let oversize = AtomicBool::new(false);
+        let oversize = Arc::new(AtomicBool::new(false));
         let limit = self.output_limit;
-        std::thread::scope(|scope| {
-            scope.spawn(|| {
-                // A program that exits without reading its input closes the pipe; its exit
-                // status and output decide the result.
-                let mut writer = BufWriter::with_capacity(1 << 16, stdin);
-                let _ = serde_json::to_writer(&mut writer, &request).map(|()| writer.flush());
-            });
-            let reader = scope.spawn(|| {
+        // The reader owns its pipe, so a timeout need not wait for a process that the plugin
+        // started and that still holds the pipe open.
+        let reader = {
+            let oversize = Arc::clone(&oversize);
+            std::thread::spawn(move || {
                 let mut output = Vec::new();
                 let read = (&mut stdout)
                     .take(limit as u64 + 1)
@@ -485,8 +485,15 @@ impl ProcessPlugin {
                 if output.len() > limit {
                     oversize.store(true, Ordering::Relaxed);
                 }
-                drop(stdout);
                 read.map(|_| output)
+            })
+        };
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                // A program that exits without reading its input closes the pipe; its exit
+                // status and output decide the result.
+                let mut writer = BufWriter::with_capacity(1 << 16, stdin);
+                let _ = serde_json::to_writer(&mut writer, &request).map(|()| writer.flush());
             });
             let started = Instant::now();
             let mut pause = Duration::from_millis(1);
@@ -655,7 +662,10 @@ mod tests {
         assert_eq!(manifest.id, "player");
         assert_eq!(manifest.version, "1.2.0");
         assert_eq!(manifest.activation, Some(Activation::AfterLoad));
-        assert_eq!(manifest.module.as_ref().unwrap().contents, b"export default {};\n");
+        assert_eq!(
+            manifest.module.as_ref().unwrap().contents,
+            b"export default {};\n"
+        );
         assert_eq!(
             manifest.output_path(&manifest.styles[0]),
             "plugins/player/player.css"
@@ -798,6 +808,111 @@ mod tests {
             message.contains("copy.json") && message.contains("zeta.json"),
             "{message}"
         );
+    }
+
+    const BUILD_ONLY: &str = r#"{"id":"lister","apiVersion":1,"version":"1","build":{"command":["./build.sh","--flag"],"blocks":true,"timeoutSeconds":5}}"#;
+
+    #[test]
+    fn build_section_makes_module_and_activation_optional() {
+        let folder = Folder::new();
+        fs::write(folder.0.join("player/build.sh"), "#!/bin/sh\n").unwrap();
+        let manifest = read_manifest(&folder.manifest("lsg-plugin.json", BUILD_ONLY)).unwrap();
+        assert_eq!(manifest.module, None);
+        assert_eq!(manifest.activation, None);
+        let build = manifest.build.unwrap();
+        assert_eq!(build.command, ["./build.sh", "--flag"]);
+        assert!(build.blocks);
+        assert_eq!(build.timeout, Duration::from_secs(5));
+        let path_command = BUILD_ONLY.replace(
+            r#""build":{"command":["./build.sh","--flag"],"blocks":true,"timeoutSeconds":5}"#,
+            r#""build":{"command":["node","build.mjs"]}"#,
+        );
+        let build = read_manifest(&folder.manifest("lsg-plugin.json", &path_command))
+            .unwrap()
+            .build
+            .unwrap();
+        assert!(!build.blocks);
+        assert_eq!(build.timeout, Duration::from_secs(60));
+        let both = VALID.replace(
+            "\"pageProperties\"",
+            "\"build\":{\"command\":[\"node\"]},\"pageProperties\"",
+        );
+        let manifest = read_manifest(&folder.manifest("lsg-plugin.json", &both)).unwrap();
+        assert!(manifest.module.is_some() && manifest.build.is_some());
+    }
+
+    #[test]
+    fn rejects_malformed_build_sections() {
+        let folder = Folder::new();
+        fs::write(folder.0.join("player/build.sh"), "").unwrap();
+        fs::write(folder.0.join("outside.sh"), "").unwrap();
+        let build =
+            r#""build":{"command":["./build.sh","--flag"],"blocks":true,"timeoutSeconds":5}"#;
+        for (replacement, expected) in [
+            (r#""build":{"command":["../outside.sh"]}"#, "stay inside"),
+            (r#""build":{"command":["sub/missing.sh"]}"#, "missing.sh"),
+            (r#""build":{"command":[]}"#, "nonempty list"),
+            (
+                r#""build":{"command":["node",1]}"#,
+                "list of nonempty strings",
+            ),
+            (r#""build":{}"#, "missing field build.command"),
+            (
+                r#""build":{"command":["node"],"timeoutSeconds":0}"#,
+                "from 1 to 600",
+            ),
+            (
+                r#""build":{"command":["node"],"timeoutSeconds":601}"#,
+                "from 1 to 600",
+            ),
+            (
+                r#""build":{"command":["node"],"blocks":"yes"}"#,
+                "true or false",
+            ),
+            (
+                r#""build":{"command":["node"],"shell":true}"#,
+                "unknown build field",
+            ),
+            (r#""build":["node"]"#, "build must be an object"),
+            (
+                r#""build":{"command":["node"]},"activation":"after-load""#,
+                "activation needs a module",
+            ),
+            (
+                r#""build":{"command":["node"]},"styles":["player.css"]"#,
+                "styles need a module",
+            ),
+        ] {
+            let problem = error(&folder, &BUILD_ONLY.replace(build, replacement));
+            assert!(problem.contains(expected), "{replacement}: {problem}");
+        }
+        let problem = error(&folder, r#"{"id":"empty","apiVersion":1,"version":"1"}"#);
+        assert!(
+            problem.contains("a module, a build section or both"),
+            "{problem}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn process_output_over_the_limit_fails() {
+        use std::os::unix::fs::PermissionsExt;
+        let folder = Folder::new();
+        let script = folder.0.join("player/build.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\ncat > /dev/null\nwhile :; do echo 0123456789; done\n",
+        )
+        .unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        let manifest = read_manifest(&folder.manifest("lsg-plugin.json", BUILD_ONLY)).unwrap();
+        let mut plugin = ProcessPlugin::new(&manifest).unwrap();
+        plugin.output_limit = 100;
+        let view = crate::publication::PublicationView::default();
+        let error = plugin
+            .contribute(&PluginView::new(&view, &[], false))
+            .unwrap_err();
+        assert!(error.contains("more than 100 bytes"), "{error}");
     }
 
     #[test]

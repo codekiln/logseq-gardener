@@ -612,7 +612,11 @@ fn block_text(source: &str, blocks: &[Block]) -> String {
             position = span.1;
         }
     }
-    kept.push_str(source.get(position..end.min(source.len())).unwrap_or_default());
+    kept.push_str(
+        source
+            .get(position..end.min(source.len()))
+            .unwrap_or_default(),
+    );
     let mut lines = kept.lines();
     let Some(head) = lines.next() else {
         return String::new();

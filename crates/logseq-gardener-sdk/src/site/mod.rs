@@ -362,17 +362,12 @@ pub fn publish_site_with_options(
     };
     let (settings, settings_diagnostics) = GardenSettings::read(&root);
     let shadowed = crate::publication::remove_shadowed(&mut garden, format, &settings);
-    let publication = crate::publication::select(
-        &garden,
-        format,
-        selection,
-        &settings,
-        options.journals,
-    )
-    .map_err(|error| match error {
-        SelectError::Title(error) => SiteError::Title(error),
-        SelectError::Collision { title } => SiteError::Collision { title },
-    })?;
+    let publication =
+        crate::publication::select(&garden, format, selection, &settings, options.journals)
+            .map_err(|error| match error {
+                SelectError::Title(error) => SiteError::Title(error),
+                SelectError::Collision { title } => SiteError::Collision { title },
+            })?;
     report.skipped_journals = publication.skipped_journals;
     report.withheld_pages = publication.withheld_pages;
     report.diagnostics.extend(
@@ -666,7 +661,14 @@ pub fn publish_site_with_options(
             .get(&route)
             .map(|placed| derived::page_rows(placed))
             .unwrap_or_default();
-        source_anchors.extend(contributions.anchors.get(&route).into_iter().flatten().copied());
+        source_anchors.extend(
+            contributions
+                .anchors
+                .get(&route)
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
         let rendered = render::render_document_with_source_anchors(
             document,
             &names,
@@ -1029,7 +1031,9 @@ pub fn publish_site_with_options(
     // follow from the pages and settings that the other files already reflect.
     if !contributions.rows.is_empty() {
         for (route, html) in &mut documents {
-            if route.ends_with(".html") && !route.starts_with("_refs/") && html.contains(derived::MARKER)
+            if route.ends_with(".html")
+                && !route.starts_with("_refs/")
+                && html.contains(derived::MARKER)
             {
                 *html = html.replacen("</head>", &(derived::STYLES.to_owned() + "</head>"), 1);
             }
@@ -1056,7 +1060,10 @@ pub fn publish_site_with_options(
                     .map(|(route, contents)| (route.as_str(), *contents)),
             ),
     );
-    if plugin_manifests.iter().any(|plugin| plugin.module.is_some()) {
+    if plugin_manifests
+        .iter()
+        .any(|plugin| plugin.module.is_some())
+    {
         let (host_route, host) = plugins::host(&plugin_manifests);
         let none = Vec::new();
         for page in &site_pages {
