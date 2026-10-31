@@ -1,6 +1,6 @@
 {
-  "request_id": "sha256:9e591abb3a43516ebe34f6769059272585f3ab9745da0e8e4d0dd02fac9095f3",
-  "evidence_digest": "sha256:b532adccdf4e1aea045d0f818745f0ebb5609a244402c347a99e793c6aeee045",
+  "request_id": "sha256:c081dab38006d47f8de54516b4128fc891ecdd9c1efc335811a6c9bd7ef4d35a",
+  "evidence_digest": "sha256:e7a5920465dd3cb0c0ede55e2f034289e212fe85e066659e4e4a39faa9580644",
   "skill": {
     "name": "assess-cli-help",
     "version": "1.0.0"

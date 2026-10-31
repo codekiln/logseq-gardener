@@ -10,6 +10,7 @@ use std::process::{Command, Stdio};
 
 use crate::ast::{Block, Projection};
 use crate::garden_config;
+use crate::timing::Stopwatch;
 
 /// A read-only collection of Markdown documents, sorted by relative path.
 #[derive(Debug, Clone, PartialEq)]
@@ -133,6 +134,15 @@ fn require_directory(path: &Path, metadata: &fs::Metadata) -> Result<(), GardenL
 /// form a local snapshot; concurrent filesystem changes and symlink ancestors of the
 /// supplied root are outside this reader's guarantees.
 pub fn load_garden(root: impl AsRef<Path>) -> Result<Garden, GardenLoadError> {
+    load_garden_timed(root, &mut Stopwatch::start())
+}
+
+/// Load like [`load_garden`], adding the time spent finding and reading files to the `read`
+/// phase of `stopwatch` and the time spent parsing them to its `parse` phase.
+pub fn load_garden_timed(
+    root: impl AsRef<Path>,
+    stopwatch: &mut Stopwatch,
+) -> Result<Garden, GardenLoadError> {
     let root = root.as_ref();
     // Remove trailing separators so metadata cannot follow a final symlink as a directory.
     let metadata_path: PathBuf = root.components().collect();
@@ -164,7 +174,9 @@ pub fn load_garden(root: impl AsRef<Path>) -> Result<Garden, GardenLoadError> {
     for (relative_path, kind) in files {
         let path = root.join(&relative_path);
         let source = fs::read_to_string(&path).map_err(|error| io_error(&path, error))?;
+        stopwatch.lap("read");
         let parsed = parse_document(&source);
+        stopwatch.lap("parse");
         documents.push(GardenDocument {
             relative_path,
             kind,
@@ -172,6 +184,7 @@ pub fn load_garden(root: impl AsRef<Path>) -> Result<Garden, GardenLoadError> {
             parsed,
         });
     }
+    stopwatch.lap("read");
     Ok(Garden { documents })
 }
 

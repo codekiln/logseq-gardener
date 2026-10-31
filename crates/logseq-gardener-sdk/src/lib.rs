@@ -88,3 +88,6 @@ pub mod publication;
 
 /// Build plugins and their contributions: checking them and resolving their links.
 pub mod contributions;
+
+/// Wall-clock time per phase of an operation, shared by every SDK caller.
+pub mod timing;

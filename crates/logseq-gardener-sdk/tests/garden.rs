@@ -451,3 +451,20 @@ fn note_directory_pages_win_title_collisions() {
         ]
     );
 }
+
+#[test]
+fn timed_loading_matches_loading_and_records_read_then_parse() {
+    let fixture = Fixture::new();
+    fixture.write("pages/One.md", "- [[Two]]\n");
+    fixture.write("pages/Two.md", "- text\n");
+    let mut stopwatch = logseq_gardener_sdk::timing::Stopwatch::start();
+    let timed = logseq_gardener_sdk::garden::load_garden_timed(&fixture.0, &mut stopwatch).unwrap();
+    assert_eq!(timed, load_garden(&fixture.0).unwrap());
+    let timings = stopwatch.finish();
+    let phases: Vec<_> = timings.phases().iter().map(|time| time.phase).collect();
+    assert_eq!(phases, ["read", "parse"]);
+    assert_eq!(
+        timings.total(),
+        timings.get("read").unwrap() + timings.get("parse").unwrap()
+    );
+}
