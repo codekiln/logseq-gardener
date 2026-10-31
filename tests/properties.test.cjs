@@ -75,3 +75,36 @@ test('blocked storage preserves both configured defaults and working native disc
   const f=fixture({blocked:true}); f.load();
   for (const open of [false,true]) {const r=f.root(open); f.window.logseqGardenerInitProperties(r); assert.equal(r.details.open,open); f.click(r.details); f.flush(); assert.equal(r.details.open,!open);}
 });
+test('pending reader choices cross replacements before and after controller adoption', () => {
+  for (const open of [false, true]) {
+    const f = fixture({saved:{open:!open,seen:2000000000000}});
+    const first = f.root(); f.window.logseqGardenerInitProperties(first);
+    f.click(first.details);
+    const replacement = f.root(!open);
+    f.window.logseqGardenerInitProperties(replacement);
+    assert.equal(replacement.details.open, open);
+    f.document.nodes = [replacement.details];
+    f.load();
+    assert.equal(replacement.details.open, open);
+    const duringSave = f.root(!open);
+    f.window.logseqGardenerInitProperties(duringSave);
+    assert.equal(duringSave.details.open, open);
+    f.flush(); assert.equal(f.stored().open, open);
+    // A normal controller activation has the same pending-save boundary.
+    f.click(duringSave.details);
+    const next = f.root(open);
+    f.window.logseqGardenerInitProperties(next);
+    assert.equal(next.details.open, !open);
+    f.flush(); assert.equal(f.stored().open, !open);
+  }
+});
+test('early canceled activations and fragment openings do not become preferences', () => {
+  const f = fixture({saved:{open:false,seen:2000000000000}});
+  const first = f.root(); f.window.logseqGardenerInitProperties(first);
+  f.click(first.details,{prevented:true});
+  f.click(first.details,{link:true});
+  first.details.open = true;
+  const replacement = f.root(); f.window.logseqGardenerInitProperties(replacement);
+  assert.equal(replacement.details.open, false);
+  f.load(); f.flush(); assert.equal(f.stored().open, false);
+});

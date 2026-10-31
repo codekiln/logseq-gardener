@@ -2,6 +2,11 @@
 const early = window.logseqGardenerInitProperties;
 const selector = '.page-properties > details > summary';
 function visit() {
+  const pending = early.pending();
+  if (pending !== undefined) {
+    early.o = pending;
+    return;
+  }
   early.o = undefined;
   const now = Date.now();
   try {
@@ -21,7 +26,10 @@ function initialize(root = document) {
 }
 function save(event, open) {
   // Capture the resulting state at activation time; rapid clicks retain their order.
+  const pending = [event, open];
+  early.q.push(pending);
   setTimeout(() => {
+    early.q.splice(early.q.indexOf(pending), 1);
     if (event.defaultPrevented || event.target.closest('a')) return;
     early.o = open;
     try { window.localStorage.setItem(early.k, JSON.stringify({ open, seen: Date.now() })); }
@@ -34,7 +42,6 @@ document.addEventListener('click', event => {
   if (summary && !event.target.closest('a') && !event.defaultPrevented) save(event, !summary.parentElement.open);
 });
 initialize();
-for (const [event, open] of early.q) save(event, open);
-delete early.q;
+for (const [event, open] of early.q.splice(0)) save(event, open);
 delete early.c;
 window.logseqGardenerInitProperties = initialize;

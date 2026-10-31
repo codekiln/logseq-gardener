@@ -14,6 +14,8 @@ Use one localStorage entry containing a boolean open choice and last-seen time. 
 
 A small synchronous head reader validates the entry; the controller renews it after paint and on each host visit. An inline call inside each generated Properties disclosure applies the choice before its contents are parsed. Native activation while the module is loading is queued and saved when the controller arrives. The full controller loads after paint and provides idempotent `logseqGardenerInitProperties(root=document)` for replaced content. A host calls this after adopting its URL and before fragment reveal. Repeated initialization leaves already initialized disclosures alone. Native user activation writes the choice; programmatic fragment opening leaves the remembered preference unchanged.
 
+Both initializers apply the latest accepted pending reader choice before consulting older storage. The activation queue remains available until its deferred writes finish, including during controller adoption. Canceled events and programmatic openings do not supply preferences.
+
 ## Risks / Trade-offs
 
 Storage failures → keep the configured initial state and a working native disclosure. Reader choices can still apply within the current document.

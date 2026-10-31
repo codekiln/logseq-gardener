@@ -162,20 +162,25 @@ def main():
                 assert page.evaluate('(key)=>JSON.parse(localStorage.getItem(key)).open', key) is False
                 page.goto(base + two)
                 assert page.evaluate('parsedOpen') is False
-                # A held module still restores before parsing and retains early reader activation.
+                # Both early choices reach a host replacement while the module is held.
                 module = page.locator('link[rel=lsg-properties]').get_attribute('href')
-                held = []
-                page.route('**/' + module, lambda route: held.append(route))
-                page.goto(base + one, wait_until='domcontentloaded')
-                page.wait_for_function('window.parsedOpen === false')
-                summary.click()
-                expect(details).to_have_attribute('open', '')
-                while not held:
-                    page.wait_for_timeout(10)
-                held[0].continue_()
-                page.wait_for_function('!window.logseqGardenerInitProperties.k')
-                page.wait_for_function('(key)=>JSON.parse(localStorage.getItem(key)).open', arg=key)
-                page.unroute_all(behavior='ignoreErrors')
+                for choice in [False, True]:
+                    page.evaluate('([key,open])=>localStorage.setItem(key,JSON.stringify({open,seen:Date.now()}))', [key, not choice])
+                    held = []
+                    page.route('**/' + module, lambda route: held.append(route))
+                    page.goto(base + one, wait_until='domcontentloaded')
+                    page.wait_for_function('(open)=>window.parsedOpen===open', arg=not choice)
+                    summary.click()
+                    assert details.evaluate('(node)=>node.open') is choice
+                    while not held:
+                        page.wait_for_timeout(10)
+                    replace(two)
+                    assert details.evaluate('(node)=>node.open') is choice
+                    held[0].continue_()
+                    page.wait_for_function('!window.logseqGardenerInitProperties.k')
+                    page.wait_for_function('([key,open])=>JSON.parse(localStorage.getItem(key)).open===open', arg=[key, choice])
+                    assert details.evaluate('(node)=>node.open') is choice
+                    page.unroute_all(behavior='ignoreErrors')
                 # Search and theme remain available alongside the preference controller.
                 page.locator('[data-lsg-search]').click()
                 expect(page.locator('#lsg-search-input')).to_be_focused()

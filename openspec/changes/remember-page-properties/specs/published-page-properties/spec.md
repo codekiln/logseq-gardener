@@ -27,3 +27,7 @@ The site SHALL restore a remembered state before the disclosure's content can fl
 #### Scenario: A fragment targets remembered closed properties
 - **WHEN** navigation reveals the Properties fragment while the reader preference is closed
 - **THEN** the target disclosure opens for that navigation and the next ordinary page still uses the closed preference
+
+#### Scenario: A reader acts before the controller arrives
+- **WHEN** a reader opens or closes Properties while the controller is loading and the host replaces the page before that controller arrives
+- **THEN** replacement content uses the accepted choice before and after controller adoption, and canceled activations and fragment reveals do not become saved choices
