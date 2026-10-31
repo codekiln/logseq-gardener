@@ -37,6 +37,12 @@ ALL_PAGES_SCRIPT = 'lsg-all-pages.js'
 ALL_PAGES_LIST = '_pages/list.json'
 GROWN_ROOT = 'Grown'
 PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'recorder' / 'lsg-plugin.json'
+BUILD_PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'episode-list' / 'lsg-plugin.json'
+# Derived rows from build plugins: one list per placement, holding nested lists of rows.
+DERIVED_LIST = re.compile(r'<ul class="(?:outline )?lsg-derived" data-lsg-plugin="[^"]*">')
+DERIVED_STYLES = re.compile(r'<style data-lsg-derived>.*?</style>', re.S)
+# The anchor a page gains when a derived row links to one of its blocks by position.
+SOURCE_ANCHOR = re.compile(r'<span id="source-block-\d+"></span>')
 # The tags a build with plugins adds before </head>: the page metadata and the host loader.
 PLUGIN_TAGS = re.compile(r'<script type="application/json" data-lsg-page>.*?</script>'
                          r'|<script type="module" data-lsg-host>.*?</script>', re.S)
@@ -665,6 +671,48 @@ def check_plugins(plain, site, budgets):
     return failures
 
 
+def derived_rows(text):
+    """The markup of every derived row list in a page, each closed at its matching </ul>."""
+    lists = []
+    for match in DERIVED_LIST.finditer(text):
+        depth, position = 0, match.start()
+        for tag in re.finditer(r'<(/?)ul\b', text[position:]):
+            depth += -1 if tag.group(1) else 1
+            if depth == 0:
+                lists.append(text[position:position + tag.end() + 1])
+                break
+    return ''.join(lists)
+
+
+def check_build_plugins(plain, site, budgets):
+    """Return failure messages for [build_plugins] on the fixture garden: derived rows per page,
+    first paint with derived rows, and pages without derived rows unchanged."""
+    limits = budgets['build_plugins']
+    failures = []
+    pages = site_pages(site)
+    with_rows = {}
+    for page in pages:
+        text = (site / page).read_text(encoding='utf-8')
+        rows = derived_rows(text)
+        if rows:
+            with_rows[page] = metrics.gzip_size(rows.encode('utf-8'))
+        elif (plain / page).exists():
+            stripped = SOURCE_ANCHOR.sub('', DERIVED_STYLES.sub('', PLUGIN_TAGS.sub('', text)))
+            before = SOURCE_ANCHOR.sub('', PLUGIN_TAGS.sub('', (plain / page).read_text(encoding='utf-8')))
+            if stripped != before:
+                failures.append(f'{page}: changed by the build plugin without derived rows')
+    if not with_rows:
+        return failures + ['no fixture page has derived rows from the build plugin']
+    largest = max(with_rows.items(), key=lambda item: item[1])
+    print(f'build plugins: {len(with_rows)} pages with derived rows, largest {largest[1]:,} gzip ({largest[0]})')
+    for page, size in sorted(with_rows.items()):
+        if size > limits['derived_rows_gzip_kb'] * 1000:
+            failures.append(f'{page}: derived rows {size:,} gzip exceed {limits["derived_rows_gzip_kb"] * 1000:,.0f}')
+    sizes = {page: page_sizes(site, page) for page in with_rows}
+    failures += [f'with derived rows, {message}' for message in check(sizes, sizes, budgets)]
+    return failures
+
+
 def check_search(site, limits, profiles):
     """Conservative initial script accounting includes deferred/module scripts too."""
     failures = []
@@ -761,6 +809,9 @@ def main():
         publish(lsg, FIXTURE_GARDEN, temp / 'search', FIXTURE_ROOTS, search=True)
         publish(lsg, FIXTURE_GARDEN, temp / 'plugins', FIXTURE_ROOTS, extra=('--plugin', str(PLUGIN_FIXTURE)))
         plugin_failures = check_plugins(temp / 'small', temp / 'plugins', budgets)
+        publish(lsg, FIXTURE_GARDEN, temp / 'build-plugins', FIXTURE_ROOTS,
+                extra=('--plugin', str(BUILD_PLUGIN_FIXTURE)))
+        plugin_failures += check_build_plugins(temp / 'small', temp / 'build-plugins', budgets)
         search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets))
         index = search_index_sizes(temp / 'search')
         search_failures += check_search_index(index, budgets['search'])

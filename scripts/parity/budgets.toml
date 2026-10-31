@@ -244,3 +244,18 @@ host_gzip_kb = 4
 added_bytes_per_page = 0
 navigation_ms_phone = 50
 listener_growth = 0
+
+# Build plugins (build-time-contributions). parity:budgets builds the fixture garden with the
+# episode-list fixture build plugin (tests/fixtures/plugins/episode-list) and checks the derived
+# rows on each page (gzip of their markup), every page's first paint against [desktop] and [phone],
+# and that every page without derived rows matches the build without plugins once the plugin
+# metadata tags and the source anchors that block links need are left out. parity:build-bench builds a pinned commit of the encode garden
+# without plugins and with each no-op fixture (in-process with blocks, process without and with
+# blocks), and fails when the added build time per published page, the lsg process's peak memory
+# growth with the process fixture and blocks, or any difference in output exceeds these.
+[build_plugins]
+derived_rows_gzip_kb = 30
+in_process_blocks_ms_per_page = 0.05
+process_pages_ms_per_page = 0.1
+process_blocks_ms_per_page = 0.3
+peak_memory_growth_pct = 15

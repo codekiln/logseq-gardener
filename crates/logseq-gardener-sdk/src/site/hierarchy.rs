@@ -5,7 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::namespaces::{NamespaceEntry, NamespaceIndex, Row, RowFilter};
 use crate::page_names::lookup_key;
 
-use super::{SiteError, digest, references::REFS, render::escape};
+#[cfg(test)]
+use super::digest;
+use super::{references::REFS, render::escape};
 
 /// Rows in the page; Logseq renders all of them, but a namespace root's first paint
 /// must not grow with its namespace.
@@ -31,6 +33,7 @@ pub(super) struct Hierarchy {
     index: NamespaceIndex,
 }
 
+#[cfg(test)]
 fn ancestors(title: &str) -> Vec<String> {
     title
         .match_indices('/')
@@ -42,9 +45,9 @@ impl Hierarchy {
     pub fn new(
         sources: &BTreeMap<String, String>,
         withheld: &BTreeSet<String>,
-        aliases: &BTreeSet<String>,
+        generated: &BTreeMap<String, (String, String)>,
         alias_spellings: &BTreeMap<String, Vec<String>>,
-    ) -> Result<Self, SiteError> {
+    ) -> Self {
         // Rows and destinations come from the same titles in one pass.
         let index = NamespaceIndex::build(
             sources.iter().map(|(route, title)| {
@@ -72,39 +75,17 @@ impl Hierarchy {
                 )
             })
             .collect::<BTreeMap<_, _>>();
-        let mut prefixes: BTreeMap<String, String> = BTreeMap::new();
-        for title in sources.values() {
-            for prefix in ancestors(title) {
-                let key = lookup_key(&prefix);
-                if nodes.contains_key(&key) || withheld.contains(&key) || aliases.contains(&key) {
-                    continue;
-                }
-                prefixes
-                    .entry(key)
-                    .and_modify(|previous| {
-                        if prefix < *previous {
-                            previous.clone_from(&prefix);
-                        }
-                    })
-                    .or_insert(prefix);
-            }
-        }
-        let mut routes = sources.clone();
-        for (key, title) in prefixes {
-            let route = format!("p-{}.html", digest(&title));
-            if routes.insert(route.clone(), title.clone()).is_some() {
-                return Err(SiteError::Collision { title });
-            }
+        for (key, (title, route)) in generated {
             nodes.insert(
-                key,
+                key.clone(),
                 Node {
-                    title,
-                    route,
+                    title: title.clone(),
+                    route: route.clone(),
                     generated: true,
                 },
             );
         }
-        Ok(Self { nodes, index })
+        Self { nodes, index }
     }
 
     pub fn entries(&self) -> impl Iterator<Item = &Node> {
@@ -201,14 +182,20 @@ mod tests {
         let sources = titles
             .iter()
             .map(|title| (format!("p-{}.html", digest(title)), title.clone()))
-            .collect();
-        Hierarchy::new(
-            &sources,
-            &BTreeSet::new(),
-            &BTreeSet::new(),
-            &BTreeMap::new(),
-        )
-        .unwrap()
+            .collect::<BTreeMap<String, String>>();
+        let keys: BTreeSet<String> = titles.iter().map(|title| lookup_key(title)).collect();
+        let mut generated = BTreeMap::new();
+        for title in titles {
+            for prefix in ancestors(title) {
+                if !keys.contains(&lookup_key(&prefix)) {
+                    generated.insert(
+                        lookup_key(&prefix),
+                        (prefix.clone(), format!("p-{}.html", digest(&prefix))),
+                    );
+                }
+            }
+        }
+        Hierarchy::new(&sources, &BTreeSet::new(), &generated, &BTreeMap::new())
     }
 
     #[test]

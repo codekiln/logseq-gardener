@@ -65,26 +65,27 @@ pub(super) fn site_manifest(
         })).collect::<Vec<_>>(),
         "assets": assets,
     });
-    if !plugins.is_empty() {
+    if plugins.iter().any(|plugin| plugin.module.is_some()) {
         manifest["plugins"] = plugin_list(plugins);
     }
     // Escaped like the page metadata, so no title reads as markup if the file is shown as HTML.
     script_json(&serde_json::to_string(&manifest).expect("JSON values serialize")) + "\n"
 }
 
-/// Plugin entries with output-relative URLs, shared by `lsg-site.json` and the host.
+/// Entries for the plugins with a browser module, with output-relative URLs, shared by
+/// `lsg-site.json` and the host.
 fn plugin_list(plugins: &[PluginManifest]) -> Value {
     Value::Array(
         plugins
             .iter()
-            .map(|plugin| {
-                json!({
+            .filter_map(|plugin| {
+                Some(json!({
                     "id": plugin.id,
                     "version": plugin.version,
-                    "module": plugin.output_path(&plugin.module),
+                    "module": plugin.output_path(plugin.module.as_ref()?),
                     "styles": plugin.styles.iter().map(|style| plugin.output_path(style)).collect::<Vec<_>>(),
-                    "activation": plugin.activation.as_str(),
-                })
+                    "activation": plugin.activation?.as_str(),
+                }))
             })
             .collect(),
     )
@@ -99,32 +100,33 @@ pub(super) fn host(plugins: &[PluginManifest]) -> (String, String) {
     (route, script)
 }
 
-/// The tags added before `</head>` of a page when plugins are configured: the page metadata and
-/// a module that imports the host after first paint, as the search loader does.
+/// The tags added before `</head>` of a page when plugins with a browser module are configured:
+/// the page metadata and a module that imports the host after first paint, as the search loader
+/// does. `contributed` holds the values build plugins added for this page, by plugin id.
 pub(super) fn page_head(
     page: &SitePage,
     revision: &str,
     plugins: &[PluginManifest],
     visible: &[(String, String)],
+    contributed: Option<&BTreeMap<String, Map<String, Value>>>,
     host_route: &str,
 ) -> String {
     let mut entries = Map::new();
-    for plugin in plugins {
-        let values = plugin.page_values(
-            visible
-                .iter()
-                .map(|(name, text)| (name.as_str(), text.as_str())),
-        );
+    for plugin in plugins.iter().filter(|plugin| plugin.module.is_some()) {
+        let mut values: Map<String, Value> = plugin
+            .page_values(
+                visible
+                    .iter()
+                    .map(|(name, text)| (name.as_str(), text.as_str())),
+            )
+            .into_iter()
+            .map(|(name, text)| (name, Value::String(text)))
+            .collect();
+        if let Some(added) = contributed.and_then(|contributed| contributed.get(&plugin.id)) {
+            values.extend(added.clone());
+        }
         if !values.is_empty() {
-            entries.insert(
-                plugin.id.clone(),
-                Value::Object(
-                    values
-                        .into_iter()
-                        .map(|(name, text)| (name, Value::String(text)))
-                        .collect(),
-                ),
-            );
+            entries.insert(plugin.id.clone(), Value::Object(values));
         }
     }
     let metadata = json!({
@@ -149,7 +151,7 @@ fn script_json(json: &str) -> String {
 pub(super) fn files(plugins: &[PluginManifest]) -> BTreeMap<String, &[u8]> {
     let mut files = BTreeMap::new();
     for plugin in plugins {
-        for file in std::iter::once(&plugin.module).chain(&plugin.styles) {
+        for file in plugin.module.iter().chain(&plugin.styles) {
             files.insert(plugin.output_path(file), file.contents.as_slice());
         }
     }

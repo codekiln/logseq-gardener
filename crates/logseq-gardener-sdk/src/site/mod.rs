@@ -3,6 +3,7 @@
 mod all_pages;
 mod assets;
 mod code;
+mod derived;
 mod dialogue;
 mod flashcards;
 mod graph;
@@ -28,18 +29,18 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use crate::garden::{DocumentKind, GardenLoadError, load_garden};
+use crate::garden::{GardenLoadError, load_garden};
 use crate::garden_config as config;
 use crate::garden_settings::{GardenSettings, SidebarCard, resolve_favorites, resolve_sidebar};
 use crate::git_dates::GitDates;
-use crate::journals::{JournalDate, JournalFormats, journal_identity, parse_journal_reference};
+use crate::journals::{JournalDate, parse_journal_reference};
 use crate::page_list::{PageKind, PageSource, page_list};
-use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
-use crate::page_titles::{
-    FilenameFormat, PageTitleError, document_title as document_name, page_title,
-};
-use crate::publishing::{NamespaceSelection, PublicPages};
+use crate::page_names::lookup_key;
+use crate::page_titles::{FilenameFormat, PageTitleError};
+use crate::publication::{Publication, SelectError};
+use crate::publishing::NamespaceSelection;
 
 /// Logseq's page references, tags, outside links, emphasis, inline code, images and
 /// macro warnings, added to every page.
@@ -68,8 +69,12 @@ pub struct SiteOptions {
     pub layout_cache: Option<PathBuf>,
     /// Plugin manifest files, checked by [`crate::plugins::read_manifests`] before output is
     /// created. With at least one plugin, every page carries plugin metadata and loads the
-    /// browser host after first paint; with none, pages are unchanged.
+    /// browser host after first paint; with none, pages are unchanged. A manifest with a
+    /// `build` section also runs its command once per build as a build plugin.
     pub plugins: Vec<PathBuf>,
+    /// In-process build plugins. Their ids share one namespace with the manifests' ids. With
+    /// none here and no manifest `build` section, the build does no plugin work.
+    pub build_plugins: crate::contributions::BuildPlugins,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -116,6 +121,8 @@ pub enum SiteError {
     Collision { title: String },
     /// A plugin manifest is invalid, names unusable files or repeats another plugin's id.
     InvalidPlugin(crate::plugins::PluginError),
+    /// A build plugin failed, repeated another plugin's id or returned a rejected contribution.
+    BuildPlugin(crate::contributions::ContributionError),
     /// A filesystem operation failed; a write failure can leave partial new output.
     Io { path: PathBuf, source: io::Error },
 }
@@ -131,6 +138,7 @@ impl fmt::Display for SiteError {
             Self::InvalidHomepage => write!(f, "homepage must identify one selected visible page"),
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
             Self::InvalidPlugin(error) => error.fmt(f),
+            Self::BuildPlugin(error) => error.fmt(f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
     }
@@ -142,6 +150,7 @@ impl Error for SiteError {
             Self::Garden(error) => Some(error),
             Self::Title(error) => Some(error),
             Self::InvalidPlugin(error) => Some(error),
+            Self::BuildPlugin(error) => Some(error),
             Self::Io { source, .. } => Some(source),
             _ => None,
         }
@@ -335,6 +344,7 @@ pub fn publish_site_with_options(
     let stylesheet_route = stylesheet.as_ref().map(|_| "custom.css");
     let plugin_manifests =
         crate::plugins::read_manifests(&options.plugins).map_err(SiteError::InvalidPlugin)?;
+    let build_plugins = build_plugins(&plugin_manifests, &options.build_plugins)?;
     let source_root = root.as_ref();
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
@@ -350,111 +360,42 @@ pub fn publish_site_with_options(
         withheld_pages: 0,
         diagnostics: Vec::new(),
     };
-    let mut pages = BTreeMap::new();
-    let mut routes = BTreeMap::new();
-    let mut selected = Vec::new();
-    let mut withheld_titles = BTreeSet::new();
-    // Every page title in the garden, so the graph can leave out the pages it does not publish.
-    let mut garden_titles = BTreeSet::new();
     let (settings, settings_diagnostics) = GardenSettings::read(&root);
-    let journal_formats = JournalFormats::from_settings(&settings);
-    let shadowed = garden.remove_shadowed_documents(|document| {
-        document_name(document, format, &journal_formats).map(|title| lookup_key(&title))
-    });
-    report
-        .diagnostics
-        .extend(shadowed.into_iter().map(|source| SiteDiagnostic {
-            source,
-            message: "Page skipped: a page in pages/ or journals/ has the same title".to_owned(),
-        }));
-    let public = if settings.all_pages_public {
-        PublicPages::all()
-    } else {
-        PublicPages::marked(garden.documents.iter().filter_map(|document| {
-            document_name(document, format, &journal_formats).map(|title| (title, document))
-        }))
-    };
-    let mut journal_dates = BTreeMap::new();
-    for document in &garden.documents {
-        let journal = if document.kind == DocumentKind::Journal {
-            if !options.journals {
-                report.skipped_journals += 1;
-                continue;
-            }
-            match journal_identity(document, &journal_formats) {
-                Ok(identity) => Some(identity),
-                Err(_) => {
-                    report.skipped_journals += 1;
-                    report.diagnostics.push(SiteDiagnostic {
-                        source: document.relative_path.clone(),
-                        message: "Journal skipped: its file name is not a date in the journal file-name format".to_owned(),
-                    });
-                    continue;
-                }
-            }
-        } else {
-            None
-        };
-        let title = match &journal {
-            Some(identity) => identity.title.clone(),
-            None => page_title(document, format).map_err(SiteError::Title)?,
-        };
-        garden_titles.insert(lookup_key(&title));
-        let private = render::has_private_properties(&document.parsed.blocks);
-        let unmarked = !public.includes(&title);
-        if private || unmarked {
-            withheld_titles.insert(lookup_key(&title));
-        }
-        if journal.is_none() && !selection.includes(&title) {
-            continue;
-        }
-        if private || unmarked {
-            report.withheld_pages += 1;
-            report.diagnostics.push(SiteDiagnostic {
-                source: document.relative_path.clone(),
-                message: if private {
-                    "Page withheld by private-property or nesting visibility check"
-                } else {
-                    "Page withheld: it is not marked public:: true and the garden does not set :publishing/all-pages-public? true"
-                }
-                .to_owned(),
-            });
-            continue;
-        }
-        let route = format!("p-{}.html", digest(&title));
-        if pages.insert(lookup_key(&title), route.clone()).is_some()
-            || routes.insert(route.clone(), title.clone()).is_some()
-        {
-            return Err(SiteError::Collision { title });
-        }
-        if let Some(identity) = journal {
-            journal_dates.insert(route.clone(), identity.date);
-        }
-        selected.push((title, route, document));
-    }
-    let mut names = PageNameIndex::with_journal_formats(journal_formats.clone());
-    let mut aliases = BTreeSet::new();
-    let mut spellings = BTreeMap::new();
-    let mut alias_spellings = BTreeMap::new();
-    for (title, route, document) in &selected {
-        names.insert(route.clone(), title, document);
-        if let Some(date) = journal_dates.get(route) {
-            names.insert_journal(route.clone(), *date);
-        }
-        aliases.extend(page_aliases(document, title));
-        spellings
-            .entry(lookup_key(title))
-            .or_insert_with(|| title.clone());
-        let authored = page_alias_spellings(document, title);
-        for alias in &authored {
-            spellings
-                .entry(lookup_key(alias))
-                .or_insert_with(|| alias.clone());
-        }
-        alias_spellings.insert(lookup_key(title), authored);
-    }
+    let shadowed = crate::publication::remove_shadowed(&mut garden, format, &settings);
+    let publication =
+        crate::publication::select(&garden, format, selection, &settings, options.journals)
+            .map_err(|error| match error {
+                SelectError::Title(error) => SiteError::Title(error),
+                SelectError::Collision { title } => SiteError::Collision { title },
+            })?;
+    report.skipped_journals = publication.skipped_journals;
+    report.withheld_pages = publication.withheld_pages;
+    report.diagnostics.extend(
+        shadowed
+            .into_iter()
+            .chain(publication.notices.iter().cloned())
+            .map(|notice| SiteDiagnostic {
+                source: notice.source,
+                message: notice.message,
+            }),
+    );
+    let Publication {
+        pages: mut selected,
+        routes,
+        keys: pages,
+        namespaces: generated,
+        withheld: withheld_titles,
+        garden_titles,
+        journal_dates,
+        journal_formats,
+        names,
+        aliases: _,
+        spellings,
+        alias_spellings,
+        ..
+    } = publication;
     let hierarchy =
-        hierarchy::Hierarchy::new(&routes, &withheld_titles, &aliases, &alias_spellings)?;
+        hierarchy::Hierarchy::new(&routes, &withheld_titles, &generated, &alias_spellings);
     let homepage_route = options
         .homepage
         .as_deref()
@@ -527,6 +468,39 @@ pub fn publish_site_with_options(
             )
         })
         .collect();
+    // Build plugins run on their own threads while the indexes below are built, and are
+    // joined before the first page renders. Without build plugins nothing here runs.
+    let pending_plugins = (!build_plugins.is_empty()).then(|| {
+        let view = Arc::new(crate::publication::PublicationView::from_parts(
+            &selected,
+            &journal_dates,
+            &generated,
+            |route| {
+                property_views
+                    .get(route)
+                    .map_or(&[][..], |view| view.visible.as_slice())
+            },
+            build_plugins
+                .iter()
+                .any(|entry| entry.plugin.wants_blocks()),
+        ));
+        let threads: Vec<_> = build_plugins
+            .iter()
+            .map(|entry| {
+                let plugin = Arc::clone(&entry.plugin);
+                let view = Arc::clone(&view);
+                std::thread::spawn(move || {
+                    let plugin_view = crate::publication::PluginView::new(
+                        &view,
+                        plugin.page_properties(),
+                        plugin.wants_blocks(),
+                    );
+                    plugin.contribute(&plugin_view)
+                })
+            })
+            .collect();
+        (view, threads)
+    });
     let reference_index = references::References::new(
         &selected,
         &names,
@@ -646,6 +620,10 @@ pub fn publish_site_with_options(
     let mut documents = BTreeMap::new();
     let mut feed_bodies = BTreeMap::new();
     let mut site_pages = Vec::new();
+    let contributions = match pending_plugins {
+        None => crate::contributions::Resolved::default(),
+        Some((view, threads)) => collect_contributions(&build_plugins, &view, threads)?,
+    };
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     code::prepare(selected.iter().map(|(_, _, document)| *document));
     let mut asset = |source: &Path, url: &str| {
@@ -678,6 +656,19 @@ pub fn publish_site_with_options(
         if let Some(search) = &search {
             source_anchors.extend(search.anchors.get(&route).into_iter().flatten().copied());
         }
+        let page_rows = contributions
+            .rows
+            .get(&route)
+            .map(|placed| derived::page_rows(placed))
+            .unwrap_or_default();
+        source_anchors.extend(
+            contributions
+                .anchors
+                .get(&route)
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
         let rendered = render::render_document_with_source_anchors(
             document,
             &names,
@@ -688,6 +679,7 @@ pub fn publish_site_with_options(
                 source_anchors,
                 show_brackets: settings.show_brackets,
                 queries: Some(&boxes),
+                derived: page_rows.blocks,
             },
             &mut asset,
         );
@@ -705,6 +697,7 @@ pub fn publish_site_with_options(
                     .push_str(&format!("<div class=\"lsg-default-queries\">{boxes}</div>"));
             }
         }
+        rendered.html.push_str(&page_rows.end);
         documents.extend(queries.take_files());
         if let Some(search) = &mut search {
             search.admit(&route, &rendered.source_anchors);
@@ -815,6 +808,11 @@ pub fn publish_site_with_options(
                 html_document(
                     &node.title,
                     &(page_status::notice().to_owned()
+                        + &contributions
+                            .rows
+                            .get(&node.route)
+                            .map(|placed| derived::page_rows(placed).end)
+                            .unwrap_or_default()
                         + &sections.tagged
                         + &sections.linked
                         + &hierarchy_section.html
@@ -1031,6 +1029,16 @@ pub fn publish_site_with_options(
     documents.extend(graph_files.neighbourhoods());
     // The graph's layout data files are left out: they are still being computed, and they
     // follow from the pages and settings that the other files already reflect.
+    if !contributions.rows.is_empty() {
+        for (route, html) in &mut documents {
+            if route.ends_with(".html")
+                && !route.starts_with("_refs/")
+                && html.contains(derived::MARKER)
+            {
+                *html = html.replacen("</head>", &(derived::STYLES.to_owned() + "</head>"), 1);
+            }
+        }
+    }
     let plugin_files = plugins::files(&plugin_manifests);
     let revision = plugins::revision(
         documents
@@ -1052,7 +1060,10 @@ pub fn publish_site_with_options(
                     .map(|(route, contents)| (route.as_str(), *contents)),
             ),
     );
-    if !plugin_manifests.is_empty() {
+    if plugin_manifests
+        .iter()
+        .any(|plugin| plugin.module.is_some())
+    {
         let (host_route, host) = plugins::host(&plugin_manifests);
         let none = Vec::new();
         for page in &site_pages {
@@ -1060,7 +1071,17 @@ pub fn publish_site_with_options(
                 .properties
                 .as_ref()
                 .map_or(&none, |route| &property_views[route].visible);
-            let head = plugins::page_head(page, &revision, &plugin_manifests, visible, &host_route);
+            let contributed = contributions
+                .metadata
+                .get(page.properties.as_ref().unwrap_or(&page.url));
+            let head = plugins::page_head(
+                page,
+                &revision,
+                &plugin_manifests,
+                visible,
+                contributed,
+                &host_route,
+            );
             if let Some(html) = documents.get_mut(&page.url) {
                 *html = html.replacen("</head>", &(head + "</head>"), 1);
             }
@@ -1122,6 +1143,96 @@ pub fn publish_site_with_options(
         fs::write(&path, contents).map_err(|error| io_error(&path, error))?;
     }
     Ok(report)
+}
+
+/// A build plugin with whether its manifest names a browser module.
+struct BuildEntry {
+    plugin: Arc<dyn crate::contributions::BuildPlugin>,
+    has_module: bool,
+}
+
+/// Every build plugin, from manifests with a `build` section and from the caller, in id order.
+fn build_plugins(
+    manifests: &[crate::plugins::PluginManifest],
+    in_process: &crate::contributions::BuildPlugins,
+) -> Result<Vec<BuildEntry>, SiteError> {
+    let mut entries: Vec<BuildEntry> = manifests
+        .iter()
+        .filter_map(|manifest| {
+            crate::plugins::ProcessPlugin::new(manifest).map(|plugin| BuildEntry {
+                plugin: Arc::new(plugin),
+                has_module: manifest.module.is_some(),
+            })
+        })
+        .collect();
+    for plugin in &in_process.0 {
+        let id = plugin.id();
+        let fail = |problem: String| {
+            SiteError::BuildPlugin(crate::contributions::ContributionError {
+                plugin: id.to_owned(),
+                position: None,
+                problem,
+            })
+        };
+        if !crate::plugins::valid_id(id) {
+            return Err(fail(
+                "id must be 1 to 64 lower-case letters, digits and single hyphens".to_owned(),
+            ));
+        }
+        if let Some(manifest) = manifests.iter().find(|manifest| manifest.id == id) {
+            return Err(fail(format!(
+                "id {id:?} is also declared by plugin manifest {}",
+                manifest.source.display()
+            )));
+        }
+        if entries.iter().any(|entry| entry.plugin.id() == id) {
+            return Err(fail(format!("id {id:?} is declared by two build plugins")));
+        }
+        entries.push(BuildEntry {
+            plugin: Arc::clone(plugin),
+            has_module: false,
+        });
+    }
+    entries.sort_by(|left, right| left.plugin.id().cmp(right.plugin.id()));
+    Ok(entries)
+}
+
+type PluginThread =
+    std::thread::JoinHandle<Result<Vec<crate::contributions::Contribution>, String>>;
+
+/// Wait for every build plugin, then check and resolve their contributions together.
+fn collect_contributions(
+    entries: &[BuildEntry],
+    view: &crate::publication::PublicationView,
+    threads: Vec<PluginThread>,
+) -> Result<crate::contributions::Resolved, SiteError> {
+    // Join every thread before reporting a failure, so no plugin outlives the build.
+    let results: Vec<_> = threads
+        .into_iter()
+        .map(|thread| {
+            thread
+                .join()
+                .unwrap_or_else(|_| Err("the plugin panicked".to_owned()))
+        })
+        .collect();
+    let mut outputs = Vec::with_capacity(entries.len());
+    for (entry, result) in entries.iter().zip(results) {
+        let contributions = result.map_err(|problem| {
+            SiteError::BuildPlugin(crate::contributions::ContributionError {
+                plugin: entry.plugin.id().to_owned(),
+                position: None,
+                problem,
+            })
+        })?;
+        outputs.push(crate::contributions::PluginOutput {
+            id: entry.plugin.id(),
+            has_module: entry.has_module,
+            page_properties: entry.plugin.page_properties(),
+            blocks: entry.plugin.wants_blocks() && view.has_blocks(),
+            contributions,
+        });
+    }
+    crate::contributions::resolve(view, &mut outputs).map_err(SiteError::BuildPlugin)
 }
 
 /// Write the generated files on several threads: creating files, not rendering them,

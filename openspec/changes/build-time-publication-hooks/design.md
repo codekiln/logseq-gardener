@@ -1,6 +1,6 @@
 ## Context
 
-`lsg publish` selects pages in `site/mod.rs`: it applies namespace selection, withholds `public:: false` pages, assigns routes, collects aliases, then builds the reference index, query results and search records from the selected source documents before it renders each page. The [runtime plugin host](../archive/2026-10-31-site-plugin-host/design.md) added plugin manifests, `lsg-site.json` and per-page metadata, and listed build-time contributions as the next change.
+`lsg publish` selects pages in `site/mod.rs`: it applies namespace selection, withholds `public:: false` pages and, since [PR #273](https://github.com/codekiln/logseq-gardener/pull/273), pages not marked `public:: true` in a garden that leaves `:publishing/all-pages-public?` off, assigns routes, collects aliases, then builds the reference index, query results and search records from the selected source documents before it renders each page. The [runtime plugin host](../archive/2026-10-31-site-plugin-host/design.md) added plugin manifests, `lsg-site.json` and per-page metadata, and listed build-time contributions as the next change.
 
 Gitpa still changes `lsg`'s output in two places that a build step can replace ([`scripts/build_site.py`](https://github.com/codekiln/gitpa/blob/main/scripts/build_site.py)):
 
@@ -82,13 +82,13 @@ Plugins see the same view and none of each other's contributions. Contributions 
 
 ### Derived rows render as outline bullets and stay out of indexes
 
-The publisher renders rows with the outline's bullet markup, inside an element with class `lsg-derived` and `data-lsg-plugin="<id>"`. Rows carry no block anchor or `id`. Page and block links resolve through the publisher's route table to the target page's URL; a block link adds the block's anchor (`#block-<uuid>`, or the source anchor the publisher adds for a path id, as it does for referenced blocks).
+The publisher renders rows as outline bullets in a `<ul class="lsg-derived" data-lsg-plugin="<id>">`. A row's bullet is a `span.lsg-dot` styled like the outline's bullet by a small stylesheet that only pages with rows carry, so other pages keep their bytes and the outline's zoom ignores derived rows. Page and URL links are plain links. Rows carry no block anchor or `id`. On a namespace page, which has no outline, page-end rows follow the page's notice. Page and block links resolve through the publisher's route table to the target page's URL; a block link adds the block's anchor (`#block-<uuid>`, or the source anchor the publisher adds for a path id, as it does for referenced blocks).
 
 The reference index, search records, the graph, unlinked references, All pages counts and embeds are built from source documents before rows exist, so derived rows never reach them. Tests compare those outputs with and without a plugin that contributes rows.
 
 ### The SDK holds the view, validation and links; the publisher renders
 
-- `publication` (SDK): selects pages, withholds private pages, assigns routes and collects aliases, moved from `site/mod.rs`; builds the view; filters page properties per plugin.
+- `publication` (SDK): selects pages, withholds private pages and applies the all-pages-public rule from `publishing::PublicPages`, assigns routes (including the generated namespace pages) and collects aliases, moved from `site/mod.rs`; builds the view; filters page properties per plugin. The publisher passes each page's visible properties, the rows its property renderer shows readers, into the view.
 - `contributions` (SDK): contribution types, the `BuildPlugin` trait, validation against the view, and resolution of row links to routes and anchors.
 - `plugins` (SDK): reads a manifest's `build` section and runs a process plugin as a `BuildPlugin`.
 - `site/` (publisher): renders resolved rows and writes merged metadata.
@@ -109,11 +109,11 @@ The manifest gains an optional `build` object:
 }
 ```
 
-`module` and `activation` become optional when `build` is present; a manifest with neither `module` nor `build` is an error. Metadata contributions require a `module`, since only a browser module reads them. A build in which no plugin has a `module` adds no host to its pages, and `lsg-site.json` lists only plugins with a `module`.
+`module` becomes optional when `build` is present, and `activation` is present exactly when `module` is; a manifest with neither `module` nor `build` is an error. Metadata contributions require a `module`, since only a browser module reads them. A build in which no plugin has a `module` adds no host to its pages, and `lsg-site.json` lists only plugins with a `module`.
 
 ### A process plugin runs once per build
 
-`lsg` starts `command` once per build, in the manifest's folder, with no shell. A first element containing `/` resolves against the manifest's folder; otherwise it is looked up on `PATH`. `lsg` streams `{"apiVersion": 1, "plugin": {"id", "version"}, "view": …}` to standard input, closes it, and reads one JSON document from standard output. Standard error passes through to `lsg`'s standard error. The build fails when the process exits non-zero, writes malformed JSON, answers with another `apiVersion`, writes more than 64 MB, or runs longer than `timeoutSeconds` (default 60, at most 600), and the process is killed on timeout.
+`lsg` starts `command` once per build, in the manifest's folder, with no shell. A first element containing `/` resolves against the manifest's folder (a leading `./` is allowed); otherwise it is looked up on `PATH`. `lsg` streams `{"apiVersion": 1, "plugin": {"id", "version"}, "view": …}` to standard input, closes it, and reads one JSON document from standard output. Standard error passes through to `lsg`'s standard error. The build fails when the process exits non-zero, writes malformed JSON, answers with another `apiVersion`, writes more than 64 MB, or runs longer than `timeoutSeconds` (default 60, at most 600), and the process is killed on timeout.
 
 ### The Rust hook is a trait
 
@@ -226,6 +226,38 @@ Decided by the agent without codekiln: at most 64 KB of JSON per page per plugin
 ### 16 - How are the budgets measured on the whole encode garden in CI?
 
 Decided by the agent without codekiln: a new CI job checks out a pinned commit of the public encode garden, builds it without plugins and with each no-op fixture plugin, and checks the `[build_plugins]` rows. Today's whole-garden numbers come from local `parity:perf` runs; issue #106 asks for committed rows in CI.
+
+### 17 - How does the moved selection keep PR #273's all-pages-public rule?
+
+Decided by the agent without codekiln: `publication::select` contains the selection loop from `site/mod.rs` as PR #273 left it, including `PublicPages` and its withheld-page diagnostic, so the view and the site follow the same rule. The generated namespace pages moved with it, because their routes are part of route assignment and the view lists them. The proposal predates PR #273; a scenario in the `publication-view` spec now covers a garden that publishes only marked pages.
+
+### 18 - Where does the rule for which page properties readers see live?
+
+Decided by the agent without codekiln: in the publisher's property renderer, as before; `PublicationView::build` takes each page's visible properties as an input. Whether a value is shown depends on how it renders (a local asset path is not shown, a URL is), and moving that into the SDK would move property rendering with it. The view and the runtime metadata still read the same list.
+
+### 19 - Can a manifest with `build` and `module` leave out `activation`?
+
+Decided by the agent without codekiln: no; `activation` is present exactly when `module` is. A default activation only for plugins with a build section would make the same manifest field mean different things.
+
+### 20 - How do derived rows look and behave next to authored bullets?
+
+Decided by the agent without codekiln: they use a separate bullet element (`span.lsg-dot`) styled like the outline's bullet, with the stylesheet added only to pages that show rows. The outline's bullet click zooms into a block by its position; derived rows are not blocks, and changing the outline script or shared styles would change every page of every build. Page links in rows are plain links without the page-reference brackets, since a derived row is not a reference; a block link without a label shows the target page's title, because the block's text is Markdown that rows never parse.
+
+### 21 - What may an in-process Rust plugin contribute?
+
+Decided by the agent without codekiln: rows only. Metadata needs a browser module, and only a manifest names one; a Rust plugin's id may not repeat a manifest's id.
+
+### 22 - How large are "64 KB" and "64 MB"?
+
+Decided by the agent without codekiln: 64,000 and 64,000,000 bytes, following `budgets.toml`, where KB is 1,000 and MB is 1,000,000.
+
+### 23 - What does a timeout stop?
+
+Decided by the agent without codekiln: the program `lsg` started. A program that starts its own processes must stop them itself; `lsg` does not track process groups, which differ between platforms.
+
+### 24 - How does the whole-garden CI job get the garden?
+
+Decided by the agent without codekiln: a shallow checkout of the public encode garden at commit `5095bdf6`. Without history, Created and Updated dates in All pages fall back as they do for any garden outside git; the job compares builds of the same binary, so that affects every variant alike. Each variant is built five times, interleaved, and the fastest build counts, to keep runner noise below the budgets.
 
 ## Open Questions
 

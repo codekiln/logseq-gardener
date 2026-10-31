@@ -297,6 +297,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
             build_date: None,
             layout_cache: None,
             plugins: args.plugin,
+            build_plugins: Default::default(),
         },
     )
     .map_err(|error| Failure {

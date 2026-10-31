@@ -26,7 +26,7 @@ Gitpa still edits `lsg`'s output after the build to add its homepage episode lis
 
 ## Impact
 
-- SDK: a new `publication` module builds the view from the garden, the selection and the visibility rules the publisher uses today; the selection and withholding code moves there from `site/mod.rs`, so the publisher and other callers share it. A new `contributions` module holds the contribution types, validation and the resolution of row links to routes and anchors. `plugins.rs` reads the `build` section and runs process plugins.
+- SDK: a new `publication` module builds the view from the garden, the selection and the visibility rules the publisher uses today; the selection and withholding code, including the all-pages-public rule that [PR #273](https://github.com/codekiln/logseq-gardener/pull/273) added after this proposal, moves there from `site/mod.rs`, so the publisher and other callers share it. A new `contributions` module holds the contribution types, validation and the resolution of row links to routes and anchors. `plugins.rs` reads the `build` section and runs process plugins.
 - Publisher (`site/`): renders derived rows with the existing outline markup and merges contributed metadata into `data-lsg-page`. It renders only.
 - CLI: no new option; `--plugin` accepts manifests with a `build` section. Help text and `docs/publishing.md` describe the section, the protocol and the contribution kinds.
 - Parity harness and CI: a `[build_plugins]` table in `scripts/parity/budgets.toml`, a fixture build plugin, and a CI job that builds a pinned commit of the encode garden with and without build plugins.

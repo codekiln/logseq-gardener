@@ -160,6 +160,17 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(groups['reference_only'], [])
 
 
+class BuildPluginBudgetTest(unittest.TestCase):
+    def test_derived_rows_take_each_list_to_its_closing_tag(self):
+        page = ('<ul class="outline"><li>a<ul><li>b</li></ul>'
+                '<ul class="lsg-derived" data-lsg-plugin="p"><li>x<ul><li>y</li></ul></li></ul></li></ul>'
+                '<ul class="outline lsg-derived" data-lsg-plugin="q"><li>z</li></ul><section></section>')
+        self.assertEqual(budgets.derived_rows(page),
+                         '<ul class="lsg-derived" data-lsg-plugin="p"><li>x<ul><li>y</li></ul></li></ul>'
+                         '<ul class="outline lsg-derived" data-lsg-plugin="q"><li>z</li></ul>')
+        self.assertEqual(budgets.derived_rows('<ul class="outline"><li>a</li></ul>'), '')
+
+
 class MetricsTest(unittest.TestCase):
     def test_gzip_size(self):
         data = b'tmux ' * 1000
@@ -206,6 +217,12 @@ class MetricsTest(unittest.TestCase):
         # Site plugins (published-plugin-host); the proposal's budgets.
         self.assertEqual(loaded.pop('plugins'), {'host_gzip_kb': 4, 'added_bytes_per_page': 0,
                                                  'navigation_ms_phone': 50, 'listener_growth': 0})
+        # Build plugins (build-time-contributions); the proposal's budgets.
+        self.assertEqual(loaded.pop('build_plugins'), {'derived_rows_gzip_kb': 30,
+                                                       'in_process_blocks_ms_per_page': 0.05,
+                                                       'process_pages_ms_per_page': 0.1,
+                                                       'process_blocks_ms_per_page': 0.3,
+                                                       'peak_memory_growth_pct': 15})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
                                        'slides', 'queries', 'flashcards', 'loading'})

@@ -565,4 +565,35 @@ fn cli_plugin_adds_files_and_invalid_manifests_fail_without_output() {
     assert!(help.contains("--plugin PATH"), "{help}");
     assert!(help.contains("plugins/<id>/"), "{help}");
     assert!(help.contains("docs/publishing.md"), "{help}");
+    assert!(help.contains("optional build"), "{help}");
+}
+
+#[cfg(unix)]
+#[test]
+fn cli_failing_build_plugin_exits_one_without_output() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- Visible\n");
+    let folder = f.0.join("lister");
+    fs::create_dir_all(&folder).unwrap();
+    let script = folder.join("build.sh");
+    fs::write(&script, "#!/bin/sh\ncat > /dev/null\nexit 1\n").unwrap();
+    fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+    let manifest = folder.join("lsg-plugin.json");
+    fs::write(
+        &manifest,
+        r#"{"id":"lister","apiVersion":1,"version":"1","build":{"command":["./build.sh"]}}"#,
+    )
+    .unwrap();
+    let output = f.0.join("failed");
+    let result = f.publish(
+        &output,
+        &["--include", "Notes", "--plugin", manifest.to_str().unwrap()],
+    );
+    assert_eq!(result.status.code(), Some(1));
+    assert!(result.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(stderr.contains("build plugin lister"), "{stderr}");
+    assert!(stderr.contains("exit status: 1"), "{stderr}");
+    assert!(!output.exists());
 }

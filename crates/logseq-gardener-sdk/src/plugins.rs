@@ -1,16 +1,26 @@
 //! Site plugin manifests: reading, checking and the page values a plugin may read.
 //!
 //! A plugin manifest is a JSON file that names an ES module, optional stylesheets, when the
-//! browser host loads the module and which page properties the plugin reads. Every caller
-//! (the CLI, the publisher, an editor integration) checks manifests through
-//! [`read_manifests`], so each one accepts and rejects the same files.
+//! browser host loads the module, which page properties the plugin reads and, optionally, a
+//! command that runs once per build (see [`ProcessPlugin`]). Every caller (the CLI, the
+//! publisher, an editor integration) checks manifests through [`read_manifests`], so each one
+//! accepts and rejects the same files.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
+use std::io::{BufWriter, Read, Write};
 use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
+use serde::Serialize;
 use serde_json::Value;
+
+use crate::contributions::{BuildPlugin, Contribution, parse_response};
+use crate::publication::PluginView;
 
 /// The host API major version this build supports.
 pub const API_VERSION: u64 = 1;
@@ -53,15 +63,32 @@ pub struct PluginManifest {
     pub id: String,
     /// The plugin's own version string.
     pub version: String,
-    /// The ES module the host imports.
-    pub module: PluginFile,
+    /// The ES module the host imports; `None` for a plugin that runs only at build time.
+    pub module: Option<PluginFile>,
     /// Stylesheets the host adds once, in manifest order.
     pub styles: Vec<PluginFile>,
-    /// When the host imports the module.
-    pub activation: Activation,
+    /// When the host imports the module; present exactly when `module` is.
+    pub activation: Option<Activation>,
     /// Page property names the plugin reads, lower-cased, in manifest order without repeats.
     pub page_properties: Vec<String>,
+    /// The command that runs once per build, when the plugin has one.
+    pub build: Option<BuildCommand>,
 }
+
+/// A manifest's `build` section.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuildCommand {
+    /// The program and its arguments, run without a shell in the manifest's folder.
+    pub command: Vec<String>,
+    /// Whether the view the program receives carries blocks.
+    pub blocks: bool,
+    /// How long the program may run.
+    pub timeout: Duration,
+}
+
+/// The default and largest `timeoutSeconds`.
+const DEFAULT_TIMEOUT: u64 = 60;
+const MAX_TIMEOUT: u64 = 600;
 
 impl PluginManifest {
     /// The output folder for this plugin's files, relative to the site root.
@@ -84,17 +111,27 @@ impl PluginManifest {
         &self,
         visible: impl IntoIterator<Item = (&'a str, &'a str)>,
     ) -> BTreeMap<String, String> {
-        let wanted: BTreeSet<&str> = self.page_properties.iter().map(String::as_str).collect();
-        let mut values = BTreeMap::new();
-        for (name, text) in visible {
-            if wanted.contains(name) {
-                values
-                    .entry(name.to_owned())
-                    .or_insert_with(|| text.trim().to_owned());
-            }
-        }
-        values
+        page_values(&self.page_properties, visible)
     }
+}
+
+/// The values of the property `names` among `visible`, the properties a page shows readers as
+/// `(lower-cased name, authored text)`; the first value of a name wins and is trimmed.
+#[must_use]
+pub fn page_values<'a>(
+    names: &[String],
+    visible: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> BTreeMap<String, String> {
+    let wanted: BTreeSet<&str> = names.iter().map(String::as_str).collect();
+    let mut values = BTreeMap::new();
+    for (name, text) in visible {
+        if wanted.contains(name) {
+            values
+                .entry(name.to_owned())
+                .or_insert_with(|| text.trim().to_owned());
+        }
+    }
+    values
 }
 
 /// A manifest that cannot be used, naming the manifest and the problem.
@@ -146,7 +183,7 @@ pub fn read_manifests(paths: &[PathBuf]) -> Result<Vec<PluginManifest>, PluginEr
     Ok(manifests)
 }
 
-const FIELDS: [&str; 7] = [
+const FIELDS: [&str; 8] = [
     "id",
     "apiVersion",
     "version",
@@ -154,14 +191,19 @@ const FIELDS: [&str; 7] = [
     "styles",
     "activation",
     "pageProperties",
+    "build",
 ];
 
 /// Read one manifest and the files it names.
 ///
-/// The manifest must be a JSON object with exactly the fields `id`, `apiVersion`, `version`,
-/// `module`, `activation` and the optional `styles` and `pageProperties`. Module and stylesheet
-/// paths are relative to the manifest's folder, use `/`, contain no `..`, pass through no
-/// symlink and name regular files; the module ends in `.js` or `.mjs` and stylesheets in `.css`.
+/// The manifest must be a JSON object with the fields `id`, `apiVersion` and `version`, the
+/// optional `styles`, `pageProperties` and `build`, and `module` with `activation`, which may
+/// be left out together when `build` is present. Module and stylesheet paths are relative to
+/// the manifest's folder, use `/`, contain no `..`, pass through no symlink and name regular
+/// files; the module ends in `.js` or `.mjs` and stylesheets in `.css`. `build` is an object
+/// with `command` (a nonempty list of strings, whose first element, when it contains `/`, names
+/// a regular file inside the manifest's folder), optional `blocks` (a boolean) and optional
+/// `timeoutSeconds` (1 to 600, default 60).
 ///
 /// # Errors
 ///
@@ -220,14 +262,26 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
             "version must be a nonempty string without control characters".to_owned(),
         ));
     }
-    let activation = match string("activation")?.as_str() {
-        "after-load" => Activation::AfterLoad,
-        "on-demand" => Activation::OnDemand,
-        other => {
-            return Err(fail(format!(
-                "unknown activation {other:?}; expected \"after-load\" or \"on-demand\""
-            )));
+    let has_build = fields.contains_key("build");
+    if !has_build && !fields.contains_key("module") {
+        return Err(fail(
+            "a manifest needs a module, a build section or both".to_owned(),
+        ));
+    }
+    let activation = match (fields.get("activation"), fields.contains_key("module")) {
+        (None, false) if has_build => None,
+        (Some(_), false) if has_build => {
+            return Err(fail("activation needs a module".to_owned()));
         }
+        _ => Some(match string("activation")?.as_str() {
+            "after-load" => Activation::AfterLoad,
+            "on-demand" => Activation::OnDemand,
+            other => {
+                return Err(fail(format!(
+                    "unknown activation {other:?}; expected \"after-load\" or \"on-demand\""
+                )));
+            }
+        }),
     };
     let mut page_properties = Vec::new();
     for name in strings("pageProperties")? {
@@ -246,11 +300,22 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
         }
     }
     let folder = path.parent().unwrap_or(Path::new(""));
-    let module = string("module")?;
-    let module = plugin_file(folder, &module, &[".js", ".mjs"]).map_err(fail)?;
+    let module = if activation.is_some() {
+        let module = string("module")?;
+        Some(plugin_file(folder, &module, &[".js", ".mjs"]).map_err(fail)?)
+    } else {
+        None
+    };
     let mut styles = Vec::new();
-    let mut seen = BTreeSet::from([module.path.to_lowercase()]);
-    for style in strings("styles")? {
+    let mut seen: BTreeSet<String> = module
+        .iter()
+        .map(|module| module.path.to_lowercase())
+        .collect();
+    let style_names = strings("styles")?;
+    if module.is_none() && !style_names.is_empty() {
+        return Err(fail("styles need a module".to_owned()));
+    }
+    for style in style_names {
         // Compare names without case, before reading: two names that differ only in case are
         // one file on macOS and Windows, and two files elsewhere.
         if !seen.insert(style.to_lowercase()) {
@@ -260,6 +325,11 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
         }
         styles.push(plugin_file(folder, &style, &[".css"]).map_err(fail)?);
     }
+    let build = fields
+        .get("build")
+        .map(|value| build_command(folder, value))
+        .transpose()
+        .map_err(fail)?;
     Ok(PluginManifest {
         source: path.to_owned(),
         id,
@@ -268,10 +338,216 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
         styles,
         activation,
         page_properties,
+        build,
     })
 }
 
-fn valid_id(id: &str) -> bool {
+fn build_command(folder: &Path, value: &Value) -> Result<BuildCommand, String> {
+    let Value::Object(fields) = value else {
+        return Err("build must be an object".to_owned());
+    };
+    if let Some(unknown) = fields
+        .keys()
+        .find(|key| !matches!(key.as_str(), "command" | "blocks" | "timeoutSeconds"))
+    {
+        return Err(format!(
+            "unknown build field {unknown:?}; expected command, blocks, timeoutSeconds"
+        ));
+    }
+    let command = match fields.get("command") {
+        Some(Value::Array(items)) if !items.is_empty() => items
+            .iter()
+            .map(|item| match item {
+                Value::String(text) if !text.is_empty() && !text.contains('\0') => Ok(text.clone()),
+                _ => Err("build.command must be a list of nonempty strings".to_owned()),
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        Some(_) => return Err("build.command must be a nonempty list of strings".to_owned()),
+        None => return Err("missing field build.command".to_owned()),
+    };
+    if command[0].contains('/') {
+        // `./build.mjs` and `build.mjs` name the same file in the manifest's folder.
+        let relative = command[0].strip_prefix("./").unwrap_or(&command[0]);
+        plugin_file(folder, relative, &[""])?;
+    }
+    let blocks = match fields.get("blocks") {
+        None => false,
+        Some(Value::Bool(blocks)) => *blocks,
+        Some(_) => return Err("build.blocks must be true or false".to_owned()),
+    };
+    let timeout = match fields.get("timeoutSeconds") {
+        None => DEFAULT_TIMEOUT,
+        Some(Value::Number(number)) => number
+            .as_u64()
+            .filter(|seconds| (1..=MAX_TIMEOUT).contains(seconds))
+            .ok_or_else(|| {
+                format!("build.timeoutSeconds must be a whole number from 1 to {MAX_TIMEOUT}")
+            })?,
+        Some(_) => {
+            return Err(format!(
+                "build.timeoutSeconds must be a whole number from 1 to {MAX_TIMEOUT}"
+            ));
+        }
+    };
+    Ok(BuildCommand {
+        command,
+        blocks,
+        timeout: Duration::from_secs(timeout),
+    })
+}
+
+/// The most a process plugin may write to its standard output.
+pub const OUTPUT_LIMIT: usize = 64 * 1_000_000;
+
+/// A manifest's `build` command, run as a [`BuildPlugin`]: once per build, without a shell, in
+/// the manifest's folder. The view goes to the program's standard input as one JSON document,
+/// `{"apiVersion": 1, "plugin": {"id", "version"}, "view": …}`, and the program answers on
+/// standard output with `{"apiVersion": 1, "contributions": […]}`. Standard error passes
+/// through.
+#[derive(Debug, Clone)]
+pub struct ProcessPlugin {
+    id: String,
+    version: String,
+    page_properties: Vec<String>,
+    build: BuildCommand,
+    folder: PathBuf,
+    output_limit: usize,
+}
+
+impl ProcessPlugin {
+    /// The build plugin of a manifest with a `build` section.
+    #[must_use]
+    pub fn new(manifest: &PluginManifest) -> Option<Self> {
+        let build = manifest.build.clone()?;
+        let folder = manifest
+            .source
+            .parent()
+            .filter(|folder| !folder.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        Some(Self {
+            id: manifest.id.clone(),
+            version: manifest.version.clone(),
+            page_properties: manifest.page_properties.clone(),
+            build,
+            folder: std::path::absolute(folder).unwrap_or_else(|_| folder.to_owned()),
+            output_limit: OUTPUT_LIMIT,
+        })
+    }
+
+    fn run(&self, view: &PluginView<'_>) -> Result<Vec<u8>, String> {
+        #[derive(Serialize)]
+        struct Request<'r> {
+            #[serde(rename = "apiVersion")]
+            api_version: u64,
+            plugin: PluginName<'r>,
+            view: &'r PluginView<'r>,
+        }
+        #[derive(Serialize)]
+        struct PluginName<'r> {
+            id: &'r str,
+            version: &'r str,
+        }
+        let program = &self.build.command[0];
+        let program = if program.contains('/') {
+            self.folder.join(program)
+        } else {
+            PathBuf::from(program)
+        };
+        let mut child = Command::new(&program)
+            .args(&self.build.command[1..])
+            .current_dir(&self.folder)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .map_err(|error| format!("could not start {}: {error}", program.display()))?;
+        let stdin = child.stdin.take().expect("stdin is piped");
+        let mut stdout = child.stdout.take().expect("stdout is piped");
+        let request = Request {
+            api_version: crate::contributions::CONTRIBUTIONS_API_VERSION,
+            plugin: PluginName {
+                id: &self.id,
+                version: &self.version,
+            },
+            view,
+        };
+        let oversize = Arc::new(AtomicBool::new(false));
+        let limit = self.output_limit;
+        // The reader owns its pipe, so a timeout need not wait for a process that the plugin
+        // started and that still holds the pipe open.
+        let reader = {
+            let oversize = Arc::clone(&oversize);
+            std::thread::spawn(move || {
+                let mut output = Vec::new();
+                let read = (&mut stdout)
+                    .take(limit as u64 + 1)
+                    .read_to_end(&mut output);
+                if output.len() > limit {
+                    oversize.store(true, Ordering::Relaxed);
+                }
+                read.map(|_| output)
+            })
+        };
+        std::thread::scope(|scope| {
+            scope.spawn(|| {
+                // A program that exits without reading its input closes the pipe; its exit
+                // status and output decide the result.
+                let mut writer = BufWriter::with_capacity(1 << 16, stdin);
+                let _ = serde_json::to_writer(&mut writer, &request).map(|()| writer.flush());
+            });
+            let started = Instant::now();
+            let mut pause = Duration::from_millis(1);
+            let status = loop {
+                if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
+                    break status;
+                }
+                if oversize.load(Ordering::Relaxed) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!("wrote more than {limit} bytes to standard output"));
+                }
+                if started.elapsed() >= self.build.timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!(
+                        "did not finish within its timeout of {} seconds and was stopped",
+                        self.build.timeout.as_secs()
+                    ));
+                }
+                std::thread::sleep(pause);
+                pause = (pause * 2).min(Duration::from_millis(20));
+            };
+            let output = reader
+                .join()
+                .expect("output reader panicked")
+                .map_err(|error| format!("could not read standard output: {error}"))?;
+            if output.len() > limit {
+                return Err(format!("wrote more than {limit} bytes to standard output"));
+            }
+            if !status.success() {
+                return Err(format!("{} exited with {status}", program.display()));
+            }
+            Ok(output)
+        })
+    }
+}
+
+impl BuildPlugin for ProcessPlugin {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn page_properties(&self) -> &[String] {
+        &self.page_properties
+    }
+    fn wants_blocks(&self) -> bool {
+        self.build.blocks
+    }
+    fn contribute(&self, view: &PluginView<'_>) -> Result<Vec<Contribution>, String> {
+        parse_response(&self.run(view)?)
+    }
+}
+
+pub(crate) fn valid_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 64
         && id
@@ -385,8 +661,11 @@ mod tests {
         let manifest = read_manifest(&folder.manifest("lsg-plugin.json", VALID)).unwrap();
         assert_eq!(manifest.id, "player");
         assert_eq!(manifest.version, "1.2.0");
-        assert_eq!(manifest.activation, Activation::AfterLoad);
-        assert_eq!(manifest.module.contents, b"export default {};\n");
+        assert_eq!(manifest.activation, Some(Activation::AfterLoad));
+        assert_eq!(
+            manifest.module.as_ref().unwrap().contents,
+            b"export default {};\n"
+        );
         assert_eq!(
             manifest.output_path(&manifest.styles[0]),
             "plugins/player/player.css"
@@ -529,6 +808,111 @@ mod tests {
             message.contains("copy.json") && message.contains("zeta.json"),
             "{message}"
         );
+    }
+
+    const BUILD_ONLY: &str = r#"{"id":"lister","apiVersion":1,"version":"1","build":{"command":["./build.sh","--flag"],"blocks":true,"timeoutSeconds":5}}"#;
+
+    #[test]
+    fn build_section_makes_module_and_activation_optional() {
+        let folder = Folder::new();
+        fs::write(folder.0.join("player/build.sh"), "#!/bin/sh\n").unwrap();
+        let manifest = read_manifest(&folder.manifest("lsg-plugin.json", BUILD_ONLY)).unwrap();
+        assert_eq!(manifest.module, None);
+        assert_eq!(manifest.activation, None);
+        let build = manifest.build.unwrap();
+        assert_eq!(build.command, ["./build.sh", "--flag"]);
+        assert!(build.blocks);
+        assert_eq!(build.timeout, Duration::from_secs(5));
+        let path_command = BUILD_ONLY.replace(
+            r#""build":{"command":["./build.sh","--flag"],"blocks":true,"timeoutSeconds":5}"#,
+            r#""build":{"command":["node","build.mjs"]}"#,
+        );
+        let build = read_manifest(&folder.manifest("lsg-plugin.json", &path_command))
+            .unwrap()
+            .build
+            .unwrap();
+        assert!(!build.blocks);
+        assert_eq!(build.timeout, Duration::from_secs(60));
+        let both = VALID.replace(
+            "\"pageProperties\"",
+            "\"build\":{\"command\":[\"node\"]},\"pageProperties\"",
+        );
+        let manifest = read_manifest(&folder.manifest("lsg-plugin.json", &both)).unwrap();
+        assert!(manifest.module.is_some() && manifest.build.is_some());
+    }
+
+    #[test]
+    fn rejects_malformed_build_sections() {
+        let folder = Folder::new();
+        fs::write(folder.0.join("player/build.sh"), "").unwrap();
+        fs::write(folder.0.join("outside.sh"), "").unwrap();
+        let build =
+            r#""build":{"command":["./build.sh","--flag"],"blocks":true,"timeoutSeconds":5}"#;
+        for (replacement, expected) in [
+            (r#""build":{"command":["../outside.sh"]}"#, "stay inside"),
+            (r#""build":{"command":["sub/missing.sh"]}"#, "missing.sh"),
+            (r#""build":{"command":[]}"#, "nonempty list"),
+            (
+                r#""build":{"command":["node",1]}"#,
+                "list of nonempty strings",
+            ),
+            (r#""build":{}"#, "missing field build.command"),
+            (
+                r#""build":{"command":["node"],"timeoutSeconds":0}"#,
+                "from 1 to 600",
+            ),
+            (
+                r#""build":{"command":["node"],"timeoutSeconds":601}"#,
+                "from 1 to 600",
+            ),
+            (
+                r#""build":{"command":["node"],"blocks":"yes"}"#,
+                "true or false",
+            ),
+            (
+                r#""build":{"command":["node"],"shell":true}"#,
+                "unknown build field",
+            ),
+            (r#""build":["node"]"#, "build must be an object"),
+            (
+                r#""build":{"command":["node"]},"activation":"after-load""#,
+                "activation needs a module",
+            ),
+            (
+                r#""build":{"command":["node"]},"styles":["player.css"]"#,
+                "styles need a module",
+            ),
+        ] {
+            let problem = error(&folder, &BUILD_ONLY.replace(build, replacement));
+            assert!(problem.contains(expected), "{replacement}: {problem}");
+        }
+        let problem = error(&folder, r#"{"id":"empty","apiVersion":1,"version":"1"}"#);
+        assert!(
+            problem.contains("a module, a build section or both"),
+            "{problem}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn process_output_over_the_limit_fails() {
+        use std::os::unix::fs::PermissionsExt;
+        let folder = Folder::new();
+        let script = folder.0.join("player/build.sh");
+        fs::write(
+            &script,
+            "#!/bin/sh\ncat > /dev/null\nwhile :; do echo 0123456789; done\n",
+        )
+        .unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        let manifest = read_manifest(&folder.manifest("lsg-plugin.json", BUILD_ONLY)).unwrap();
+        let mut plugin = ProcessPlugin::new(&manifest).unwrap();
+        plugin.output_limit = 100;
+        let view = crate::publication::PublicationView::default();
+        let error = plugin
+            .contribute(&PluginView::new(&view, &[], false))
+            .unwrap_err();
+        assert!(error.contains("more than 100 bytes"), "{error}");
     }
 
     #[test]
