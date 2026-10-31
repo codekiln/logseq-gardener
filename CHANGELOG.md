@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4](https://github.com/codekiln/logseq-gardener/compare/v0.0.3...v0.0.4) - 2026-10-31
+
+### Added
+
+- show graph loading with cancel and retry (#299)
+
+### Fixed
+
+- open the site root's home page from nested routes (#295)
+
 ## [0.0.3](https://github.com/codekiln/logseq-gardener/compare/v0.0.2...v0.0.3) - 2026-10-31
 
 ### Fixed
