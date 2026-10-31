@@ -165,8 +165,8 @@ impl fmt::Display for UnsupportedToken {
 impl Error for UnsupportedToken {}
 
 impl DateFormat {
-    /// Parse a pattern of `yyyy`, `MM`, `M`, `MMM`, `MMMM`, `dd`, `d`, `do`, `EEE`,
-    /// `EEEE`, `'quoted'` literals and other non-letter characters.
+    /// Parse a pattern of `yyyy`, `MM`, `M`, `MMM`, `MMMM`, `dd`, `d`, `do`, `E`,
+    /// `EEE`, `EEEE`, `'quoted'` literals and other non-letter characters.
     pub fn parse(pattern: &str) -> Result<Self, UnsupportedToken> {
         let chars: Vec<char> = pattern.chars().collect();
         let mut tokens = Vec::new();
@@ -215,7 +215,8 @@ impl DateFormat {
                 ('M', 1 | 2) => Token::Month { width: width as u8 },
                 ('M', 3 | 4) => Token::MonthName { long: width == 4 },
                 ('d', 1 | 2) => Token::Day { width: width as u8 },
-                ('E', 3 | 4) => Token::Weekday { long: width == 4 },
+                // cljs-time writes `E` and `EEE` as the short name and has no `EE`.
+                ('E', 1 | 3 | 4) => Token::Weekday { long: width == 4 },
                 _ => {
                     return Err(UnsupportedToken(chars[index..end].iter().collect()));
                 }
@@ -268,7 +269,9 @@ impl DateFormat {
     }
 
     /// Read a whole string in this format. Month and weekday names match without
-    /// regard to case; impossible dates and contradicting weekdays give `None`.
+    /// regard to case, and a weekday may be its full or short name whatever the
+    /// pattern's width, as in Logseq. Impossible dates and contradicting weekdays
+    /// give `None`.
     pub fn read(&self, text: &str) -> Option<JournalDate> {
         let mut rest = text;
         let (mut year, mut month, mut day, mut weekday) = (None, None, None, None);
@@ -302,8 +305,9 @@ impl DateFormat {
                     month = Some(index as u8 + 1);
                     rest = tail;
                 }
-                Token::Weekday { long } => {
-                    let (index, tail) = name(rest, &WEEKDAYS, *long)?;
+                Token::Weekday { .. } => {
+                    let (index, tail) =
+                        name(rest, &WEEKDAYS, true).or_else(|| name(rest, &WEEKDAYS, false))?;
                     weekday = Some(index as u8);
                     rest = tail;
                 }
@@ -550,12 +554,51 @@ mod tests {
     }
 
     #[test]
+    fn writes_and_reads_weekday_tokens_as_logseq_does() {
+        // cljs-time writes `E` and `EEE` as the short name and `EEEE` as the full name.
+        let friday = date(2026, 10, 23);
+        for (pattern, text) in [
+            ("E, MM/dd/yyyy", "Fri, 10/23/2026"),
+            ("EEE, dd.MM.yyyy", "Fri, 23.10.2026"),
+            ("EEEE, yyyy/MM/dd", "Friday, 2026/10/23"),
+            ("yyyy-MM-dd E", "2026-10-23 Fri"),
+        ] {
+            let format = format(pattern);
+            assert_eq!(format.format(friday), text, "{pattern}");
+            assert_eq!(format.read(text), Some(friday), "{pattern}");
+        }
+        // Reading accepts either name length, without regard to case.
+        assert_eq!(
+            format("E, MM/dd/yyyy").read("friday, 10/23/2026"),
+            Some(friday)
+        );
+        assert_eq!(
+            format("EEEE, MM/dd/yyyy").read("FRI, 10/23/2026"),
+            Some(friday)
+        );
+        assert_eq!(format("E, MM/dd/yyyy").read("Mon, 10/23/2026"), None);
+        for days in 20_000..20_007 {
+            let day = JournalDate::from_unix_days(days);
+            for pattern in ["E, MM/dd/yyyy", "EEE, MM/dd/yyyy", "EEEE, MM/dd/yyyy"] {
+                let format = format(pattern);
+                assert_eq!(format.read(&format.format(day)), Some(day), "{pattern}");
+            }
+        }
+    }
+
+    #[test]
     fn rejects_unsupported_tokens() {
         assert_eq!(
             DateFormat::parse("yyyy QQQ"),
             Err(UnsupportedToken("QQQ".into()))
         );
         assert!(DateFormat::parse("yy-MM").is_err());
+        // cljs-time has no `EE` or `EEEEE` pattern, so Logseq cannot use them.
+        assert_eq!(
+            DateFormat::parse("EE yyyy"),
+            Err(UnsupportedToken("EE".into()))
+        );
+        assert!(DateFormat::parse("EEEEE yyyy").is_err());
     }
 
     #[test]
