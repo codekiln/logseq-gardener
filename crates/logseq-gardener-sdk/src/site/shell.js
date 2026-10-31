@@ -67,7 +67,8 @@
     tr: () => sidebar('toggle'),
     tt: toggleTheme,
     tw: toggleWide,
-    gh: () => window.location.assign('index.html'),
+    // Home is the index.html beside this script, as a host may serve pages from nested routes.
+    gh: () => window.location.assign(new URL('index.html', new URL(base, window.location.href)).href),
     ga: () => go('[data-lsg-all-pages]'),
     gj: () => go('[data-lsg-journals-link]'),
     gg: () => go('[data-lsg-graph-shortcut]'),
