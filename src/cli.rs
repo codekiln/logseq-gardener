@@ -98,6 +98,8 @@ struct PublishArgs {
     include: Vec<String>,
     #[arg(long)]
     exclude: Vec<String>,
+    #[arg(long)]
+    plugin: Vec<PathBuf>,
     #[command(subcommand)]
     command: Option<PublishCommand>,
 }
@@ -294,6 +296,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
             journals: args.journals,
             build_date: None,
             layout_cache: None,
+            plugins: args.plugin,
         },
     )
     .map_err(|error| Failure {

@@ -15,6 +15,9 @@ pub(super) struct PropertyView {
     pub html: String,
     pub targets: BTreeSet<String>,
     pub sequence_keys: BTreeSet<String>,
+    /// Properties shown to readers, as (lower-cased name, authored text), in source order.
+    /// Plugins read their named page properties from this list only.
+    pub visible: Vec<(String, String)>,
 }
 
 /// Properties a query table leaves out: Logseq's built-in keys, except `alias`, which
@@ -200,6 +203,9 @@ pub(super) fn view(
             escape(key)
         );
         rows.push_str(&row);
+        result
+            .visible
+            .push((normalized.clone(), property.1.clone()));
         result.rows.push(PropertyRow {
             html: row,
             targets: targets.clone(),
