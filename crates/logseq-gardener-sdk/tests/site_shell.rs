@@ -18,6 +18,8 @@ impl Fixture {
         ));
         fs::create_dir_all(root.join("garden/pages")).unwrap();
         fs::create_dir_all(root.join("garden/logseq")).unwrap();
+        // These gardens publish every page, so the tests can focus on other settings.
+        let config = config.replacen('{', "{:publishing/all-pages-public? true ", 1);
         fs::write(root.join("garden/logseq/config.edn"), config).unwrap();
         for (file, text) in [
             ("tmux.md", "- TMUX_BODY\n"),

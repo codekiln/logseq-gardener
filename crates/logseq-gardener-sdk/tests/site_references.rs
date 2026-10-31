@@ -205,7 +205,7 @@ fn threshold_zero_and_depth_control_copies_without_changing_authored_source() {
     let f = Fixture::new();
     f.write(
         "logseq/config.edn",
-        "{:ref/linked-references-collapsed-threshold 0 :ref/default-open-blocks-level 2}",
+        "{:publishing/all-pages-public? true :ref/linked-references-collapsed-threshold 0 :ref/default-open-blocks-level 2}",
     );
     f.write("pages/Notes___Target.md", "- Target\n");
     let source = "- [[Notes/Target]]\n  - Depth two\n    - Depth three\n- Authored [[Notes/Target]]\n  collapsed:: true\n  - Child\n";
@@ -327,7 +327,7 @@ fn threshold_counts_referring_blocks() {
     let f = Fixture::new();
     f.write(
         "logseq/config.edn",
-        "{:ref/linked-references-collapsed-threshold 2}",
+        "{:publishing/all-pages-public? true :ref/linked-references-collapsed-threshold 2}",
     );
     f.write("pages/Notes___Target.md", "- Target\n");
     f.write("pages/Notes___Single.md", "- Single\n");
@@ -394,7 +394,7 @@ fn property_cards_reuse_only_safe_relevant_displayed_rows() {
     let f = Fixture::new();
     f.write(
         "logseq/config.edn",
-        "{:publishing/page-properties? true :block-hidden-properties #{:secret}}",
+        "{:publishing/all-pages-public? true :publishing/page-properties? true :block-hidden-properties #{:secret}}",
     );
     f.write(
         "pages/Notes___Target.md",

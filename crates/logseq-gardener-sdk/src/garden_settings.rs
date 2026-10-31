@@ -1,4 +1,4 @@
-//! Garden-wide settings from `logseq/config.edn` that shape navigation.
+//! Garden-wide settings from `logseq/config.edn` that shape navigation and publication.
 //!
 //! ```
 //! use logseq_gardener_sdk::garden_settings::GardenSettings;
@@ -61,6 +61,10 @@ pub struct GardenSettings {
     pub forces: ForceSettings,
     /// `g g` opens the graph view unless `:shortcuts {:go/graph-view false}`.
     pub graph_shortcut: bool,
+    /// `:publishing/all-pages-public?`, or the older `:all-pages-public?`: every page may be
+    /// published. When `false`, as Logseq defaults, only pages marked `public:: true` may be.
+    /// Either key set to `true` turns it on, as in Logseq's publishing export.
+    pub all_pages_public: bool,
 }
 
 impl Default for GardenSettings {
@@ -75,6 +79,7 @@ impl Default for GardenSettings {
             graph: GraphSettings::default(),
             forces: ForceSettings::default(),
             graph_shortcut: true,
+            all_pages_public: false,
         }
     }
 }
@@ -98,12 +103,20 @@ pub struct Favorite<T> {
 }
 
 impl GardenSettings {
-    /// Read settings from a garden root. A missing config gives the defaults.
+    /// Read settings from a garden root.
     ///
+    /// A garden without `logseq/config.edn` gets the defaults, except that every page may
+    /// be published: Logseq has not opened the folder, so no publishing choice exists.
     /// Unreadable or malformed settings fall back to defaults with diagnostics.
     pub fn read(root: impl AsRef<Path>) -> (Self, Vec<String>) {
         match garden_config::read_text(root.as_ref()) {
-            Ok(None) => (Self::default(), Vec::new()),
+            Ok(None) => (
+                Self {
+                    all_pages_public: true,
+                    ..Self::default()
+                },
+                Vec::new(),
+            ),
             Ok(Some(text)) => Self::parse(&text),
             Err(reason) => (
                 Self::default(),
@@ -130,6 +143,16 @@ impl GardenSettings {
                 continue;
             };
             let flag = match key.as_str() {
+                ":publishing/all-pages-public?" | ":all-pages-public?" => {
+                    match value {
+                        Form::Atom(ref v) if v == "true" => settings.all_pages_public = true,
+                        Form::Atom(ref v) if v == "false" || v == "nil" => {}
+                        _ => diagnostics.push(format!(
+                            "Publishing setting {key} is not a boolean; using false"
+                        )),
+                    }
+                    continue;
+                }
                 ":feature/enable-journals?" => &mut settings.features.journals,
                 ":feature/enable-flashcards?" => &mut settings.features.flashcards,
                 ":feature/enable-whiteboards?" => &mut settings.features.whiteboards,
@@ -521,11 +544,43 @@ mod tests {
     }
 
     #[test]
-    fn missing_config_gives_defaults() {
+    fn reads_both_all_pages_public_keys() {
+        let all = |text: &str| GardenSettings::parse(text).0.all_pages_public;
+        assert!(!all("{}"));
+        assert!(!all("{;; :publishing/all-pages-public? true\n}"));
+        assert!(!all("{:publishing/all-pages-public? false}"));
+        assert!(!all("{:all-pages-public? nil}"));
+        assert!(all("{:publishing/all-pages-public? true}"));
+        assert!(all("{:all-pages-public? true}"));
+        // Logseq's export falls back to the older key whenever the newer one is not true.
+        assert!(all(
+            "{:publishing/all-pages-public? false :all-pages-public? true}"
+        ));
+        assert!(all(
+            "{:all-pages-public? false :publishing/all-pages-public? true}"
+        ));
+        assert!(!all("{:nested {:publishing/all-pages-public? true}}"));
+        let (settings, diagnostics) =
+            GardenSettings::parse(r#"{:publishing/all-pages-public? "yes"}"#);
+        assert!(!settings.all_pages_public);
+        assert_eq!(
+            diagnostics,
+            ["Publishing setting :publishing/all-pages-public? is not a boolean; using false"]
+        );
+    }
+
+    #[test]
+    fn missing_config_gives_defaults_with_every_page_public() {
         let root = std::env::temp_dir().join(format!("lsg-settings-{}", std::process::id()));
         assert_eq!(
             GardenSettings::read(&root),
-            (GardenSettings::default(), Vec::new())
+            (
+                GardenSettings {
+                    all_pages_public: true,
+                    ..GardenSettings::default()
+                },
+                Vec::new()
+            )
         );
     }
 }

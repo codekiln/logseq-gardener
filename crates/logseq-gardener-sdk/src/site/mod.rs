@@ -39,7 +39,7 @@ use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_al
 use crate::page_titles::{
     FilenameFormat, PageTitleError, document_title as document_name, page_title,
 };
-use crate::publishing::NamespaceSelection;
+use crate::publishing::{NamespaceSelection, PublicPages};
 
 /// Logseq's page references, tags, outside links, emphasis, inline code, images and
 /// macro warnings, added to every page.
@@ -92,7 +92,8 @@ pub struct SiteReport {
     pub assets: usize,
     /// Journals skipped because journals were not requested or their names are not dates.
     pub skipped_journals: usize,
-    /// Included pages withheld by the private-property or nesting visibility check.
+    /// Included pages withheld by the private-property or nesting visibility check, or
+    /// because they are not marked `public:: true` in a garden that publishes only those.
     pub withheld_pages: usize,
     /// Unsupported or unresolved constructs in selected source.
     pub diagnostics: Vec<SiteDiagnostic>,
@@ -294,7 +295,9 @@ fn html_page(
 ///
 /// Each selected title has a deterministic route. Unique selected titles and aliases
 /// resolve to local page links.
-/// Files containing parsed `public:: false` are withheld in full. Journals are
+/// Files containing parsed `public:: false` are withheld in full. Unless the garden sets
+/// `:publishing/all-pages-public? true`, pages and journals that are not marked
+/// `public:: true` are withheld too; see [`PublicPages`]. Journals are
 /// counted and skipped unless [`SiteOptions::journals`] requests them. Unique explicit outline UUID references link to selected
 /// targets. Selected page and block embeds expand within fixed limits. Ambiguous or unavailable references, embeds, and queries receive fallbacks
 /// and diagnostics. Supported local assets are copied
@@ -364,6 +367,13 @@ pub fn publish_site_with_options(
             source,
             message: "Page skipped: a page in pages/ or journals/ has the same title".to_owned(),
         }));
+    let public = if settings.all_pages_public {
+        PublicPages::all()
+    } else {
+        PublicPages::marked(garden.documents.iter().filter_map(|document| {
+            document_name(document, format, &journal_formats).map(|title| (title, document))
+        }))
+    };
     let mut journal_dates = BTreeMap::new();
     for document in &garden.documents {
         let journal = if document.kind == DocumentKind::Journal {
@@ -390,18 +400,24 @@ pub fn publish_site_with_options(
             None => page_title(document, format).map_err(SiteError::Title)?,
         };
         garden_titles.insert(lookup_key(&title));
-        let withheld = render::has_private_properties(&document.parsed.blocks);
-        if withheld {
+        let private = render::has_private_properties(&document.parsed.blocks);
+        let unmarked = !public.includes(&title);
+        if private || unmarked {
             withheld_titles.insert(lookup_key(&title));
         }
         if journal.is_none() && !selection.includes(&title) {
             continue;
         }
-        if withheld {
+        if private || unmarked {
             report.withheld_pages += 1;
             report.diagnostics.push(SiteDiagnostic {
                 source: document.relative_path.clone(),
-                message: "Page withheld by private-property or nesting visibility check".to_owned(),
+                message: if private {
+                    "Page withheld by private-property or nesting visibility check"
+                } else {
+                    "Page withheld: it is not marked public:: true and the garden does not set :publishing/all-pages-public? true"
+                }
+                .to_owned(),
             });
             continue;
         }

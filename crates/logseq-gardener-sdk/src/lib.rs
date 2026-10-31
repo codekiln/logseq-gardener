@@ -11,7 +11,7 @@
 /// The version of the SDK linked into the calling application.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Select logical page namespaces for publication.
+/// Select logical page namespaces and public pages for publication.
 pub mod publishing;
 
 /// Read-only Markdown garden loading.
@@ -38,7 +38,7 @@ pub mod outline;
 /// Journal dates, titles and date references.
 pub mod journals;
 
-/// Favorites and feature flags from the garden's `logseq/config.edn`.
+/// Favorites, feature flags and publishing settings from the garden's `logseq/config.edn`.
 pub mod garden_settings;
 
 /// Bounded EDN reading for `logseq/config.edn`.

@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
-const CONFIG: &str = r#"{:journal/page-title-format "yyyy-MM-dd EEE" :publishing/page-properties? true :block-hidden-properties #{:secret}}"#;
+const CONFIG: &str = r#"{:publishing/all-pages-public? true :journal/page-title-format "yyyy-MM-dd EEE" :publishing/page-properties? true :block-hidden-properties #{:secret}}"#;
 
 const PLAYER: &str = r#"{"id":"player","apiVersion":1,"version":"2.0.0","module":"player.mjs","styles":["player.css"],"activation":"after-load","pageProperties":["recording","secret"]}"#;
 

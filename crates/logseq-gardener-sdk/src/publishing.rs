@@ -1,11 +1,17 @@
-//! Namespace selection for publishing logical garden pages.
+//! Which logical garden pages a publication may contain.
 //!
-//! Selection uses exact, case-sensitive logical names. Resolve filenames,
-//! aliases, and graph naming rules before applying this policy. A selected page
-//! still needs publication-property checks, and every referenced page or asset
-//! needs its own visibility check before its content enters the site.
+//! [`NamespaceSelection`] chooses pages by exact, case-sensitive logical names.
+//! Resolve filenames, aliases, and graph naming rules before applying it.
+//! [`PublicPages`] applies Logseq's `public::` page property and its graph-wide
+//! all-pages-public setting. A page must pass both, and every referenced page or
+//! asset needs its own visibility check before its content enters the site.
 
+use std::collections::BTreeSet;
 use std::fmt;
+
+use crate::ast::Block;
+use crate::garden::GardenDocument;
+use crate::page_names::{lookup_key, page_aliases};
 
 /// Namespace roots to include and exclude from a publication.
 ///
@@ -95,6 +101,75 @@ impl NamespaceSelection {
                 .iter()
                 .any(|root| in_namespace(page_name, root))
     }
+}
+
+/// The pages Logseq treats as public when it publishes a garden.
+///
+/// When the garden sets `:publishing/all-pages-public?` (see
+/// [`GardenSettings::all_pages_public`](crate::garden_settings::GardenSettings::all_pages_public)),
+/// every page is public. Otherwise a page is public when its leading properties set
+/// `public:: true`, or when it and such a page name each other with `alias::`.
+/// A page containing `public:: false` is withheld separately, whatever this says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicPages {
+    all: bool,
+    marked: BTreeSet<String>,
+}
+
+impl PublicPages {
+    /// Every page is public.
+    #[must_use]
+    pub fn all() -> Self {
+        Self {
+            all: true,
+            marked: BTreeSet::new(),
+        }
+    }
+
+    /// Only the given pages marked `public:: true`, and the pages aliased to them, are
+    /// public. Each page is its title and document.
+    pub fn marked<'a>(pages: impl IntoIterator<Item = (String, &'a GardenDocument)>) -> Self {
+        let pages: Vec<_> = pages
+            .into_iter()
+            .map(|(title, document)| {
+                let aliases = page_aliases(document, &title);
+                (lookup_key(&title), aliases, marked_public(document))
+            })
+            .collect();
+        let explicit: BTreeSet<_> = pages
+            .iter()
+            .filter(|page| page.2)
+            .map(|page| page.0.clone())
+            .collect();
+        let mut marked = explicit.clone();
+        for (title, aliases, public) in pages {
+            if public {
+                marked.extend(aliases);
+            } else if aliases.iter().any(|alias| explicit.contains(alias)) {
+                marked.insert(title);
+            }
+        }
+        Self { all: false, marked }
+    }
+
+    /// Whether the page with this title is public.
+    #[must_use]
+    pub fn includes(&self, title: &str) -> bool {
+        self.all || self.marked.contains(&lookup_key(title))
+    }
+}
+
+/// Whether the page's leading properties set `public:: true`; the last `public` wins.
+#[must_use]
+pub fn marked_public(document: &GardenDocument) -> bool {
+    let Some(Block::Properties { props, .. }) = document.parsed.blocks.first() else {
+        return false;
+    };
+    props
+        .iter()
+        .rev()
+        .find(|property| property.0.trim().eq_ignore_ascii_case("public"))
+        .is_some_and(|property| property.1.trim() == "true")
 }
 
 fn valid_name(name: &str) -> bool {
