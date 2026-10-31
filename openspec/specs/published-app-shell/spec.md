@@ -118,11 +118,15 @@ The main column SHALL be at most 810px wide, or 1280px in wide mode, with 16px s
 
 ### Requirement: Handle Logseq's shell shortcuts
 
-Generated pages SHALL handle `t l` (toggle left sidebar), `t r` (toggle right sidebar, at 640px and wider), `t t` (toggle theme), `t w` (toggle wide mode), `g h` (open Home), `g a` (open All pages), `g g` (open the graph view) unless `config.edn` sets `:shortcuts {:go/graph-view false}`, `alt+shift+c` (toggle the Contents card, at 640px and wider), `g f` and `t c` (open or close the flashcard review) unless flashcards are turned off, and, when a journals feed is written, `g j` (open the feed's first batch), with two-key shortcuts recognized when the second key follows the first within one second. Shortcuts SHALL be ignored while focus is in an input, textarea, select or editable element, or while Control or Meta is held, and the two-key shortcuts also while Alt is held.
+Generated pages SHALL handle `t l` (toggle left sidebar), `t r` (toggle right sidebar, at 640px and wider), `t t` (toggle theme), `t w` (toggle wide mode), `g h` (open `index.html` in the site root, the directory `lsg-shell.js` loads from, from any page address), `g a` (open All pages), `g g` (open the graph view) unless `config.edn` sets `:shortcuts {:go/graph-view false}`, `alt+shift+c` (toggle the Contents card, at 640px and wider), `g f` and `t c` (open or close the flashcard review) unless flashcards are turned off, and, when a journals feed is written, `g j` (open the feed's first batch), with two-key shortcuts recognized when the second key follows the first within one second. Shortcuts SHALL be ignored while focus is in an input, textarea, select or editable element, or while Control or Meta is held, and the two-key shortcuts also while Alt is held.
 
 #### Scenario: Shortcut outside a field
 - **WHEN** a reader on `tmux` presses `g` then `a`
 - **THEN** the browser opens the complete page index
+
+#### Scenario: Home from a nested route
+- **WHEN** a host serves a page from the directory route `/gitpa/GitP/A/Session/26/10/29-Thu/`, the page loads `/gitpa/lsg-shell.js`, and a reader presses `g` then `h`
+- **THEN** the browser opens `/gitpa/index.html`
 
 #### Scenario: Shortcut inside a field
 - **WHEN** focus is in a backlink filter input and the reader types `t t`
