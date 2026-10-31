@@ -124,7 +124,7 @@ When no manifest has a `build` section and `SiteOptions::build_plugins` is empty
 
 ### Requirement: Build plugin budgets
 
-The `[build_plugins]` table in `scripts/parity/budgets.toml` SHALL hold the budgets for build plugins, and a CI job SHALL check them on a pinned commit of the encode garden against a build of the same binary without plugins: added build time per published page at most 0.05 ms for the in-process no-op fixture with blocks, 0.1 ms for the process no-op fixture without blocks and 0.3 ms with blocks; peak memory of the `lsg` process with the process fixture and blocks at most 15% above the build without plugins; and identical output for a plugin that contributes nothing. `parity:budgets` in `mise run ci` SHALL check on the fixture garden that derived rows on one page stay at or under 30 KB gzip, that the page stays within `[desktop]` and `[phone]`, and that pages without contributions are unchanged.
+The `[build_plugins]` table in `scripts/parity/budgets.toml` SHALL hold the budgets for build plugins, and a CI job SHALL check them on a pinned commit of the encode garden against a build of the same binary without plugins: added build time per published page at most 0.05 ms for the in-process no-op fixture with blocks, 0.1 ms for the process no-op fixture without blocks and 0.3 ms with blocks; peak memory of the `lsg` process with the process fixture and blocks at most 15% above the build without plugins; and identical output for a plugin that contributes nothing. `parity:budgets` in `mise run ci` SHALL check on the fixture garden that derived rows on one page stay at or under 30 KB gzip, that the page stays within `[desktop]` and `[phone]`, and that pages without contributions are unchanged apart from the plugin metadata tags and the source anchors that block links need.
 
 #### Scenario: Whole-garden job
 
@@ -134,4 +134,4 @@ The `[build_plugins]` table in `scripts/parity/budgets.toml` SHALL hold the budg
 #### Scenario: Fixture rows
 
 - **WHEN** `mise run ci` runs `parity:budgets`
-- **THEN** the fixture build plugin's rows pass the derived-row size and first-paint checks, and every page without a contribution matches the build without plugins
+- **THEN** the fixture build plugin's rows pass the derived-row size and first-paint checks, and every page without a contribution matches the build without plugins apart from the plugin metadata tags and the source anchors that block links need

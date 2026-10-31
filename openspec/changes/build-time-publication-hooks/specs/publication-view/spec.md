@@ -63,12 +63,17 @@ When the receiving plugin asks for blocks, `blocks` SHALL list every block of ev
 
 ### Requirement: Withheld content stays out of the view
 
-The view SHALL omit pages excluded by namespace selection or withheld by `public:: false`, their blocks and their properties, and SHALL contain no source file path, no garden root and no property value a reader cannot see.
+The view SHALL omit pages excluded by namespace selection, withheld by `public:: false`, or withheld because the garden publishes only pages marked `public:: true`, their blocks and their properties, and SHALL contain no source file path, no garden root and no property value a reader cannot see.
 
 #### Scenario: Excluded and withheld pages
 
 - **WHEN** a garden has a page outside the selection and a selected page with `public:: false`
 - **THEN** neither page's id, title, text or property values appear in the view
+
+#### Scenario: Garden that publishes only marked pages
+
+- **WHEN** a garden leaves `:publishing/all-pages-public?` off and marks one selected page `public:: true`
+- **THEN** the view holds that page only, and its blocks are the only blocks in the view
 
 #### Scenario: No source paths
 

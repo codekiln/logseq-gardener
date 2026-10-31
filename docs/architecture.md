@@ -24,4 +24,4 @@ The [current Logseq OG relationship comparison](../openspec/changes/current-og-r
 
 ## Publishing
 
-The SDK owns namespace selection, visibility, reference resolution and HTML generation. The CLI validates options and writes results and diagnostics to their output streams. [Publishing](publishing.md) provides a real-garden command and links to current rendering behavior and proposed extensions.
+The SDK owns namespace selection, visibility, reference resolution and HTML generation. `publication` chooses the published pages, assigns their routes and builds the read-only view that build plugins receive; `contributions` checks what build plugins return and resolves their links to routes and anchors. The publisher in `site` renders what those modules decide. The CLI validates options and writes results and diagnostics to their output streams. [Publishing](publishing.md) provides a real-garden command and links to current rendering behavior and proposed extensions.

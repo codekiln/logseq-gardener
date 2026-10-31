@@ -30,3 +30,23 @@ jobs:
         with:
           version: 2026.9.5
       - run: mise run ci
+
+  # Build plugins on the whole encode garden (build-time-contributions): added build time per
+  # page, lsg's peak memory and unchanged output, against the [build_plugins] budgets.
+  build-plugins:
+    runs-on: ubuntu-latest
+    env:
+      # A fixed commit, so the measurements change only when lsg changes.
+      ENCODE_GARDEN_COMMIT: 5095bdf6e569607d806ef89b8be8e5c5e69853fd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: codekiln/logseq-encode-garden
+          ref: ${{ env.ENCODE_GARDEN_COMMIT }}
+          path: target/encode-garden
+          fetch-depth: 1
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
+        with:
+          version: 2026.9.5
+      - run: mise run parity:build-bench --garden target/encode-garden
