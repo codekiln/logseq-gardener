@@ -1,0 +1,1 @@
+- The filename encodes a namespace. The text refers to [[Names/Nested]] and [[Target Page]].

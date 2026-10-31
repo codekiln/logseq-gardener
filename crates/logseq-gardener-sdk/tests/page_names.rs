@@ -32,10 +32,10 @@ fn syntax_is_leading_last_property_and_literal_safe() {
 #[test]
 fn candidates_reproduce_shared_og_alias_ambiguity() {
     let alias_source = document(include_str!(
-        "../../../openspec/changes/parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Alias Source.md"
+        "fixtures/og-relationships/garden/pages/Alias Source.md"
     ));
     let chosen = document(include_str!(
-        "../../../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/fixtures/pages/Title Override.md"
+        "fixtures/og-relationships/garden/pages/Title Override.md"
     ));
     let mut index = PageNameIndex::default();
     index.insert("source", "Alias Source", &alias_source);

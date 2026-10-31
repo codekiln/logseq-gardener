@@ -747,6 +747,14 @@ impl<K: Ord + Clone> GraphIndex<K> {
     pub fn contains(&self, title: &str) -> bool {
         self.by_key.contains_key(&lookup_key(title))
     }
+
+    /// The title of a node's namespace parent, ignoring case: `A/B` for `A/B/C`, whether or
+    /// not either page has a file. `None` for a title without `/` or a title the graph lacks.
+    pub fn namespace_parent(&self, title: &str) -> Option<&str> {
+        let at = *self.by_key.get(&lookup_key(title))?;
+        let up = self.parent[at as usize]?;
+        Some(&self.nodes[up as usize].title)
+    }
 }
 
 #[cfg(test)]
@@ -1067,6 +1075,20 @@ mod tests {
                 .graph(GraphSettings::default())
                 .has_edge("Foam", "Obsidian")
         );
+    }
+
+    #[test]
+    fn namespace_parent_names_the_parent_with_or_without_a_file() {
+        let garden = Garden::new(&[
+            ("Notes", "- [[Names/Nested]] and [[tmux/Config]]\n"),
+            ("tmux/Config", "- Settings\n"),
+        ]);
+        let index = garden.index();
+        let graph = garden.graph_index(&index);
+        assert_eq!(graph.namespace_parent("names/nested"), Some("Names"));
+        assert_eq!(graph.namespace_parent("TMUX/config"), Some("tmux"));
+        assert_eq!(graph.namespace_parent("Names"), None);
+        assert_eq!(graph.namespace_parent("Missing/Page"), None);
     }
 
     #[test]
