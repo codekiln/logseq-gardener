@@ -1,6 +1,6 @@
 ## Purpose
 
-Let a person publishing a garden add content while `lsg` builds the site. A build plugin, run as a process named in a plugin manifest or registered in Rust, reads the publication view and returns rows shown on pages and values added to its per-page metadata. The publisher checks every contribution before it writes a file, and derived rows stay out of backlinks, search and the graph.
+The person publishing a garden can add a program that supplies content for its pages while `lsg publish` builds the site. A podcast garden, for example, can use one to list its episodes on the homepage. This program, a build plugin, reads the publication view: the list of pages and blocks that `lsg publish` will put on the site. It returns rows to show on those pages, and values that its own script reads in the reader's browser. The person publishing names a build plugin in a plugin manifest, and a Rust program that uses the SDK can register one directly. `lsg publish` checks everything a build plugin returns before it writes any file. Readers see the added rows on the page, while backlinks, search and the graph view list only what the garden's own files contain.
 
 ## Requirements
 
