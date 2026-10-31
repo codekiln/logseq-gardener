@@ -99,14 +99,13 @@ test('the worker lays out a neighbourhood with Logseq forces until it settles', 
 // answers or the signal aborts, a worker that returns the positions it gets, and canvases
 // that count the nodes they draw.
 const { Element, h } = require('./mini-dom.cjs');
-// Data files are stored gzip-compressed. The journals file is the sample, whose fourth page is
-// a journal; the default file excludes that page, so it draws three nodes with either setting.
-const SAMPLE = readFileSync(path.join(__dirname, 'fixtures/graph-sample.bin'));
-const DEFAULT = (() => {
-  const raw = zlib.gunzipSync(SAMPLE);
-  raw[raw.indexOf(Buffer.from([2, 64, 0, 1])) + 3] = 16;
-  return zlib.gzipSync(raw);
-})();
+// The journals file is the sample, whose fourth page is a journal; the default file excludes
+// that page, so it draws three nodes with either setting. The harness serves them uncompressed
+// and its DecompressionStream passes data through: zlib would finish on another thread, at a
+// time no number of event-loop turns can promise.
+const SAMPLE = zlib.gunzipSync(readFileSync(path.join(__dirname, 'fixtures/graph-sample.bin')));
+const DEFAULT = Buffer.from(SAMPLE);
+DEFAULT[DEFAULT.indexOf(Buffer.from([2, 64, 0, 1])) + 3] = 16;
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
 
 function browser({ pathname, body }) {
@@ -139,7 +138,8 @@ function browser({ pathname, body }) {
   const ResizeObserver = class { observe() {} };
   const window = { ResizeObserver };
   const context = {
-    console, window, document, URL, TextEncoder, TextDecoder, Response, DecompressionStream, AbortController, Worker, ResizeObserver,
+    console, window, document, URL, TextEncoder, TextDecoder, Response, AbortController, Worker, ResizeObserver,
+    DecompressionStream: class extends TransformStream { constructor() { super(); } },
     location: { pathname, href: 'https://garden.test' + pathname, assign() {} },
     sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
     performance: {},

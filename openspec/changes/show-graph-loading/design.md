@@ -54,7 +54,7 @@ The overlay follows Logseq's graph states: a column centred over the canvas with
 
 ### Tests
 
-`tests/graph.test.cjs` runs `graph.js` in a VM with `tests/mini-dom.cjs`, a fake clock for the 500 ms timer, a fetch stub that holds each request until the test answers or the signal aborts, and a fake worker that returns positions. It covers the fast load, the delayed indicator, Cancel and reload, failure and Retry, and the Journals switch on `graph.html`, and the same cases in the Page graph card, plus Cancel during its layout and the hub fallback rule. `tests/sidebar.test.cjs` covers the script failure and Retry. `mini-dom.cjs` learns the `$=` attribute selector that `graph.js` uses to find its stylesheet.
+`tests/graph.test.cjs` runs `graph.js` in a VM with `tests/mini-dom.cjs`, a fake clock for the 500 ms timer, a fetch stub that holds each request until the test answers or the signal aborts, and a fake worker that returns positions. The stub serves data files uncompressed through a pass-through `DecompressionStream`, because zlib finishes on another thread at an unpredictable time and made the tests depend on the machine's speed. It covers the fast load, the delayed indicator, Cancel and reload, failure and Retry, and the Journals switch on `graph.html`, and the same cases in the Page graph card, plus Cancel during its layout and the hub fallback rule. `tests/sidebar.test.cjs` covers the script failure and Retry. `mini-dom.cjs` learns the `$=` attribute selector that `graph.js` uses to find its stylesheet.
 
 ## Risks / Trade-offs
 

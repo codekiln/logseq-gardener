@@ -2,7 +2,7 @@
 
 ## Tests
 
-`node --test tests/graph.test.cjs tests/sidebar.test.cjs` with the new tests and main's `graph.js` and `sidebar.js`: 11 of the 11 new tests failed, because main has no overlay, Cancel or Retry. With this change all 30 tests in the two files pass.
+`node --test tests/graph.test.cjs tests/sidebar.test.cjs` with the new tests and main's `graph.js` and `sidebar.js`: 11 of the 11 new tests failed, because main has no overlay, Cancel or Retry. With this change all 31 tests in the two files pass, and they passed in 16 parallel runs of every browser-script test file.
 
 The new `graph.js` tests drive the script in a VM with a fake clock, a fetch stub and a fake worker:
 
@@ -22,4 +22,4 @@ The parity fixture garden published from this branch (`lsg publish --graph tests
 
 ## Checks
 
-`mise run ci` passed locally: format, Clippy, the workspace tests and the 132 browser-script tests, release build, `parity:budgets` (the fixture site's graph script, styles and sidebar script within their budgets), OpenSpec validation, parser checks, RuleSync, notices, docs, clilint and release checks.
+`mise run ci` passed locally: format, Clippy, the workspace tests and the 134 browser-script tests, release build, `parity:budgets` (the fixture site's graph script, styles and sidebar script within their budgets), OpenSpec validation, parser checks, RuleSync, notices, docs, clilint and release checks.
