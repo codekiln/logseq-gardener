@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Rewrite the SDK relationship fixtures from the recorded Logseq OG evidence"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+python3 scripts/og_relationship_fixtures.py --update

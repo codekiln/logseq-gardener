@@ -58,7 +58,7 @@ Parse time is the parser's own reported time, summed over the garden; it exclude
 - Logseq file gardens, the format of Logseq OG's `version/file` branch, read without changing any file.
 - Markdown notes; see [Garden loading](garden-loading.md) for which files the SDK reads.
 - Syntax and references equal to mldoc 1.5.9 on the gardens above, apart from the math difference below.
-- Relationship rules checked against Logseq 0.9.8 and current Logseq OG on the shared fixtures.
+- Relationship rules checked against Logseq 0.9.8 and current Logseq OG on the shared fixtures. `mise run ci` compares the SDK's page names, titles, aliases, namespace parents, journal dates and pages without a file with the current Logseq OG results for those fixtures; [the fixture guide](../crates/logseq-gardener-sdk/tests/fixtures/og-relationships/README.md) explains how to review and regenerate them.
 
 ## Limitations
 
@@ -66,7 +66,7 @@ Parse time is the parser's own reported time, summed over the garden; it exclude
 - **Editing.** The SDK keeps source text and ranges, but no test covers formatting-preserving edits. Writing notes needs separate evidence.
 - **Org notes.** Only the Logseq docs garden contains Org notes, and the SDK reads Markdown only.
 - **Logseq's database version** is out of scope.
-- **Relationships on whole gardens.** The relationship comparison above compares reference sets per file. It does not compare the SDK's own graph with Logseq's graph. Query results, graph-validator checks and publication filtering on real gardens remain untested.
+- **Relationships on whole gardens.** The relationship comparison above compares reference sets per file. The SDK's own page relationships are compared with Logseq's only on the shared fixtures. Query results, graph-validator checks and publication filtering on real gardens remain untested.
 - **Current Logseq revision.** The fixture comparison used current Logseq OG at `6efedb75`. Pengx's garden ran against `6e7afa8e`, the `version/file` branch of the renamed [logseq/og](https://github.com/logseq/og) repository in the local checkout. Both declare mldoc 1.5.7.
 
 mldoc and the Logseq graph implementations remain research references with their own licenses, documented in the experiments. Copying any of their code into Gardener needs its own source and license review.
