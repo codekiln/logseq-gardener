@@ -7,7 +7,7 @@ function compound(text) {
     else if (token[0] === '.') parts.classes.push(token.slice(1));
     else if (token[0] === '#') parts.ids.push(token.slice(1));
     else if (token[0] === '[') {
-      const [, name, op, value] = token.match(/^\[([\w-]+)(?:(\^?=)"?([^"\]]*)"?)?\]$/);
+      const [, name, op, value] = token.match(/^\[([\w-]+)(?:([*^]?=)"?([^"\]]*)"?)?\]$/);
       parts.attrs.push([name, op, value]);
     } else parts.tag = token.toUpperCase();
   }
@@ -22,7 +22,7 @@ function matchesCompound(el, parts, scope) {
   return parts.attrs.every(([name, op, value]) => {
     const actual = el.getAttribute(name);
     if (actual === null) return false;
-    return !op || (op === '=' ? actual === value : actual.startsWith(value));
+    return !op || (op === '=' ? actual === value : op === '*=' ? actual.includes(value) : actual.startsWith(value));
   });
 }
 function matches(el, selector, scope) {
