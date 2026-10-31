@@ -28,7 +28,7 @@ Delete the downloaded private-key file after confirming the secret is stored. Gi
 3. `prepare-release.yml` runs on `main` with a short-lived GitHub App token.
 4. release-plz creates or updates one release pull request and the workflow enables squash auto-merge.
 5. After that pull request passes the same required checks and merges, release-plz creates the `v<version>` tag.
-6. The dist-generated `release.yml` workflow runs the repository checks, builds all configured targets, creates archives and SHA-256 checksums, and completes the GitHub Release only after every required job succeeds.
+6. The dist-generated `release.yml` workflow runs the repository checks, builds all configured targets, archives the dependency sources, creates SHA-256 checksums, and completes the GitHub Release only after every required job succeeds.
 
 release-plz runs in Git-only mode and does not publish to crates.io or create a GitHub Release. Dist does not choose versions or create tags.
 
@@ -65,4 +65,11 @@ Before 1.0, features and fixes increment the patch version; breaking changes inc
 
 ## Distribution materials
 
-Cargo-dist builds Apple silicon and Intel macOS, x86-64 Linux, and x86-64 Windows archives and SHA-256 checksums. Archives include the project license, third-party notices, the combined dependency license file, and the dependency inventory. Follow [licensing](licensing.md) to prepare exact dependency sources and retain the generated build configuration with each release.
+Each GitHub Release contains:
+
+- binary archives for Apple silicon and Intel macOS, x86-64 Linux, and x86-64 Windows, each with the project license, third-party notices, the combined dependency license file, and the dependency inventory;
+- `source.tar.gz`, the repository at the release tag;
+- `logseq-gardener-<version>-vendor.tar.gz`, the locked dependency sources from `cargo vendor --locked`; and
+- a `.sha256` checksum file for each archive, plus `sha256.sum` for the binary and source archives.
+
+`.github/workflows/vendor-sources.yml` builds the dependency archive with `mise run release:vendor`. `dist-workspace.toml` adds it to the generated `release.yml` through `global-artifacts-jobs`, so pull requests build it as well. [Licensing](licensing.md#distribute-builds) explains how the source archives combine into an offline build.

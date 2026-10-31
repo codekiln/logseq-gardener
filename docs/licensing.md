@@ -12,6 +12,13 @@ For each new dependency or copied source, record its version or revision, upstre
 
 ## Distribute builds
 
-Include LICENSE, THIRD_PARTY_NOTICES.md, THIRD_PARTY_LICENSES.txt, and the dependency inventory with binaries. Publish the corresponding project source at the release tag and provide the exact dependency sources and build scripts needed to reproduce it. Cargo-dist's source archive covers the repository; before distribution, also run `cargo vendor --locked` and retain the resulting dependency sources with the release materials. Verify that any upstream NOTICE text remains included.
+Each GitHub Release carries the corresponding source for its binaries, and the release workflow creates it automatically:
+
+- `source.tar.gz` holds the repository at the release tag, including the build scripts and Cargo.lock.
+- `logseq-gardener-<version>-vendor.tar.gz` holds every locked dependency source from `cargo vendor --locked`, plus a `.cargo/config.toml` that points Cargo at them.
+
+Each archive has a `.sha256` checksum file. Both archives extract into the same `logseq-gardener-<version>/` directory; after extracting both, `cargo build --locked --offline` builds without network access. If the dependency archive cannot be built, the workflow does not create the release. To build the dependency archive locally, run `mise run release:vendor`; it requires GNU tar.
+
+Binary archives include LICENSE, THIRD_PARTY_NOTICES.md, THIRD_PARTY_LICENSES.txt, and the dependency inventory. When you add a dependency, verify that its upstream NOTICE text remains included.
 
 Modified AGPL components require the applicable modification notices and corresponding source. If future software offers network interaction, implement the required corresponding-source offer for remote users. The current CLI provides offline documentation and version reporting.
