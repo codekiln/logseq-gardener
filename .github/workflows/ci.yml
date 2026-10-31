@@ -51,3 +51,30 @@ jobs:
           version: 2026.9.5
       # Five builds per variant; the fastest counts, which keeps runner noise below the budgets.
       - run: mise run parity:build-bench --garden target/encode-garden --runs 5
+
+  # Publication speed (publication-speed): cold and warm builds of the generated Gitpa-sized
+  # garden and of a pinned encode garden commit, with phase times, against the rows recorded in
+  # docs/parity/publication-speed.json. The rows are uploaded so new ones can be recorded.
+  publication-speed:
+    runs-on: ubuntu-latest
+    env:
+      # The commit the recorded encode garden rows used; change both together.
+      ENCODE_GARDEN_COMMIT: 5095bdf6e569607d806ef89b8be8e5c5e69853fd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: codekiln/logseq-encode-garden
+          ref: ${{ env.ENCODE_GARDEN_COMMIT }}
+          path: target/encode-garden
+          fetch-depth: 1
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
+        with:
+          version: 2026.9.5
+      - run: mise run parity:publish-bench --corpus all --garden target/encode-garden --check --output target/publication-speed.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: publication-speed
+          path: target/publication-speed.json
+          if-no-files-found: ignore
