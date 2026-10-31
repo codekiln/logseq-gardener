@@ -4,7 +4,7 @@ Readers currently repeat their Properties disclosure choice on every page. Remem
 
 ## What Changes
 
-- Remember the reader's Properties choice for the site's base path with a sliding absence expiry.
+- Remember the reader's Properties choice across the site. Renew it on each visit and expire it after 30 days without a visit.
 - Restore that choice as the disclosure is parsed and provide a reusable initializer for host navigation.
 - Keep configured defaults and fragment reveal working when storage is absent, invalid or blocked.
 

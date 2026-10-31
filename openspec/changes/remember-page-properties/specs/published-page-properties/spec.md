@@ -31,3 +31,11 @@ The site SHALL restore a remembered state before the disclosure's content can fl
 #### Scenario: A reader acts before the controller arrives
 - **WHEN** a reader opens or closes Properties while the controller is loading and the host replaces the page before that controller arrives
 - **THEN** replacement content uses the accepted choice before and after controller adoption, and canceled activations and fragment reveals do not become saved choices
+
+#### Scenario: A reader leaves the page before the controller arrives
+- **WHEN** a reader opens or closes Properties while the controller is loading and then follows an ordinary link or reloads
+- **THEN** the next page uses that choice
+
+#### Scenario: Back or Forward restores a cached page
+- **WHEN** the browser restores a page from its Back/Forward cache after the reader changed Properties on another page
+- **THEN** the restored page uses the current remembered choice, or the configured default when none is valid, and a fragment inside Properties keeps it open
