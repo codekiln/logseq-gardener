@@ -1,0 +1,11 @@
+# Release GitHub App credentials, used only by the maintainer to store a new
+# private key in GitHub Actions. The values stay in 1Password; this file holds
+# references only. Workflows read the Actions secrets, never this file.
+# Rotation steps: docs/releases.md#rotate-the-app-private-key
+[providers.release-vault]
+type = "1password"
+vault = "codekiln"
+
+[profiles.release.secrets]
+RELEASE_APP_ID = { provider = "release-vault", value = "op://codekiln/github-app-logseq-gardener-release/app-id", if_missing = "error" }
+RELEASE_APP_PRIVATE_KEY = { provider = "release-vault", value = "op://codekiln/github-app-logseq-gardener-release/private-key", if_missing = "error" }
