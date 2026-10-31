@@ -16,6 +16,7 @@
 #USAGE flag "--sidebar" help="Measure only the right sidebar on tmux in the run's site (with --record, its section)"
 #USAGE flag "--queries" help="Measure only Parity/Queries, the queries analysis's test queries, on a copy of the run's garden (with --record, its section)"
 #USAGE flag "--flashcards" help="Measure only Parity/Flashcards, 60 cloze cards and a deck, on a copy of the run's garden (with --record, its section)"
+#USAGE flag "--plugins" help="Build the run's garden with the recorder fixture plugin and measure only same-document navigation (with --record, its section)"
 #USAGE flag "--baseline-lsg <path>" help="Also time a whole-garden build with this lsg binary, such as one built before a feature"
 set -euo pipefail
 args=()
@@ -35,6 +36,7 @@ if [ "${usage_flashcards:-false}" = "true" ]; then args+=(--flashcards); fi
 if [ "${usage_slides:-false}" = "true" ]; then args+=(--slides); fi
 if [ "${usage_media:-false}" = "true" ]; then args+=(--media); fi
 if [ "${usage_sidebar:-false}" = "true" ]; then args+=(--sidebar); fi
+if [ "${usage_plugins:-false}" = "true" ]; then args+=(--plugins); fi
 if [ -n "${usage_baseline_lsg:-}" ]; then args+=(--baseline-lsg "$usage_baseline_lsg"); fi
 echo "Checking Playwright's Chromium (downloaded on first use)"
 uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell

@@ -36,6 +36,10 @@ REFERENCES_DIR = '_refs'
 ALL_PAGES_SCRIPT = 'lsg-all-pages.js'
 ALL_PAGES_LIST = '_pages/list.json'
 GROWN_ROOT = 'Grown'
+PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'recorder' / 'lsg-plugin.json'
+# The tags a build with plugins adds before </head>: the page metadata and the host loader.
+PLUGIN_TAGS = re.compile(r'<script type="application/json" data-lsg-page>.*?</script>'
+                         r'|<script type="module" data-lsg-host>.*?</script>', re.S)
 GROWN_BASE = 200
 
 
@@ -597,9 +601,9 @@ def check_all_pages(small, large, budgets):
     return failures
 
 
-def publish(lsg, garden, output, roots, search=False):
+def publish(lsg, garden, output, roots, search=False, extra=()):
     command = [str(lsg), 'publish', '--graph', str(garden), '--output', str(output),
-               '--filename-format', 'triple-lowbar', '--journals']
+               '--filename-format', 'triple-lowbar', '--journals', *extra]
     if search:
         command.append('--search')
     for root in roots:
@@ -628,6 +632,36 @@ def check(small, large, budgets):
         elif large[page][0] != raw:
             failures.append(f'{page}: first paint grew from {raw:,} to {large[page][0]:,} '
                             f'when {FILLER_PAGES:,} unrelated pages were added')
+    return failures
+
+
+def plugin_bytes(text):
+    """Bytes of plugin metadata and host loader in a page, and whether it names the host module."""
+    return sum(len(tag.encode('utf-8')) for tag in PLUGIN_TAGS.findall(text)) + text.count('lsg-host-')
+
+
+def check_plugins(plain, site, budgets):
+    """Return failure messages for [plugins]: no added bytes without plugins, the host's gzip size,
+    and every page's first paint with the fixture plugin against the [desktop] and [phone] budgets."""
+    limits = budgets['plugins']
+    failures = []
+    added = max(plugin_bytes((plain / page).read_text(encoding='utf-8')) for page in site_pages(plain))
+    print(f'plugins: {added} added bytes per page without plugins')
+    if added > limits['added_bytes_per_page']:
+        failures.append(f'a build without plugins adds {added:,} plugin bytes to a page, over {limits["added_bytes_per_page"]}')
+    if any('lsg-site.json' in (plain / page).read_text(encoding='utf-8') for page in site_pages(plain)):
+        failures.append('lsg-site.json: requested by a generated page')
+    hosts = sorted(site.glob('lsg-host-*.mjs'))
+    if len(hosts) != 1:
+        return failures + [f'expected one host module in the plugin build, found {len(hosts)}']
+    host = metrics.gzip_size(hosts[0].read_bytes())
+    print(f'{hosts[0].name}: {hosts[0].stat().st_size:,} ({host:,} gzip)')
+    if host > limits['host_gzip_kb'] * 1000:
+        failures.append(f'{hosts[0].name}: {host:,} gzip exceeds {limits["host_gzip_kb"] * 1000:,.0f}')
+    sizes = {page: page_sizes(site, page) for page in site_pages(site) if page != 'graph.html'}
+    largest = max(sizes.items(), key=lambda item: item[1][1])
+    print(f'plugins: largest first paint {largest[1][1]:,} gzip ({largest[0]}), script {max(s[2] for s in sizes.values()):,}')
+    failures += [f'with a plugin, {message}' for message in check(sizes, sizes, budgets)]
     return failures
 
 
@@ -725,6 +759,8 @@ def main():
         add_older_journals(older, OLDER_JOURNALS)
         publish(lsg, older, temp / 'older', FIXTURE_ROOTS)
         publish(lsg, FIXTURE_GARDEN, temp / 'search', FIXTURE_ROOTS, search=True)
+        publish(lsg, FIXTURE_GARDEN, temp / 'plugins', FIXTURE_ROOTS, extra=('--plugin', str(PLUGIN_FIXTURE)))
+        plugin_failures = check_plugins(temp / 'small', temp / 'plugins', budgets)
         search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets))
         index = search_index_sizes(temp / 'search')
         search_failures += check_search_index(index, budgets['search'])
@@ -773,7 +809,8 @@ def main():
     failures = (check(small, large, budgets) + shell_failures + journal_failures + outline_failures
                 + inline_failures + code_failures + transclusion_failures + references_failures
                 + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
-                + search_failures + all_pages_failures + media_failures + queries_failures + flashcards_failures)
+                + search_failures + all_pages_failures + media_failures + queries_failures + flashcards_failures
+                + plugin_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)
