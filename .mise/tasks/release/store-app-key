@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#MISE description="Store a release GitHub App private key in 1Password and GitHub Actions, then delete the file"
+#USAGE arg "<key_file>" help="Private key file downloaded from the App settings page"
+#USAGE flag "--app-id <app_id>" help="App ID; required when the 1Password item does not exist yet"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+repo=codekiln/logseq-gardener
+vault=codekiln
+item=github-app-logseq-gardener-release
+app_settings=https://github.com/settings/apps/logseq-gardener-release
+key_file=${usage_key_file:?}
+app_id=${usage_app_id:-}
+
+for tool in op fnox gh jq; do
+  command -v "$tool" >/dev/null || { printf 'error: %s is not installed\n' "$tool" >&2; exit 1; }
+done
+[[ -f $key_file ]] || { printf 'error: %s does not exist\n' "$key_file" >&2; exit 1; }
+grep -q -- '-----BEGIN RSA PRIVATE KEY-----' "$key_file" \
+  || { printf 'error: %s is not a GitHub App private key\n' "$key_file" >&2; exit 1; }
+
+# Pass the key to op on stdin as a JSON template, so it never appears in a process list.
+if op item get "$item" --vault "$vault" >/dev/null 2>&1; then
+  op item get "$item" --vault "$vault" --format json \
+    | jq --rawfile key "$key_file" --arg id "$app_id" '
+        .fields |= map(
+          if .id == "notesPlain" then .value = $key
+          elif .label == "app-id" and $id != "" then .value = $id
+          else . end)' \
+    | op item edit "$item" --vault "$vault" >/dev/null
+  printf 'Updated the private key in 1Password item %s.\n' "$item"
+else
+  [[ -n $app_id ]] || { printf 'error: pass --app-id the first time\n' >&2; exit 1; }
+  op item template get "Secure Note" \
+    | jq --rawfile key "$key_file" --arg id "$app_id" --arg url "$app_settings" '
+        .fields |= map(if .id == "notesPlain" then .value = $key else . end)
+        | .fields += [{"label": "app-id", "type": "STRING", "value": $id}]
+        | .urls = [{"primary": true, "href": $url}]' \
+    | op item create - --vault "$vault" --title "$item" >/dev/null
+  printf 'Created 1Password item %s.\n' "$item"
+fi
+
+# Refresh this machine's encrypted cache and any in-memory copy, then copy the
+# new values into the repository's Actions secrets.
+fnox -P release sync --provider sync-age --local-file --force
+fnox daemon clear >/dev/null 2>&1 || true
+fnox -P release exec -- bash -c '
+  gh secret set RELEASE_APP_ID --repo "$1" --body "$RELEASE_APP_ID"
+  printf "%s" "$RELEASE_APP_PRIVATE_KEY" | gh secret set RELEASE_APP_PRIVATE_KEY --repo "$1"
+' _ "$repo"
+
+rm -- "$key_file"
+printf 'Deleted %s.\n' "$key_file"
+printf 'If an older key is still listed at %s, delete it there now.\n' "$app_settings"

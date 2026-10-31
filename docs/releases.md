@@ -21,6 +21,24 @@ The App does not need organization, administration, issue, deployment, package, 
 
 Delete the downloaded private-key file after confirming the secret is stored. GitHub Actions exchanges these values for a short-lived installation token; workflows do not use a personal access token.
 
+The maintainer's copy of both values is the 1Password Secure Note `github-app-logseq-gardener-release`: the App ID in its `app-id` field and the private key in the note body. [`fnox.toml`](../fnox.toml) refers to them under the `release` profile; it holds references only.
+
+## Rotate the App private key
+
+Rotate the key once a year, or right away if it may have been exposed:
+
+1. On the App's [private keys page](https://github.com/settings/apps/logseq-gardener-release/key_pairs), select **Generate a private key**. GitHub downloads a new `.pem` file and keeps the old key valid.
+2. Store it:
+
+   ```sh
+   mise run release:store-app-key ~/Downloads/logseq-gardener-release.<date>.private-key.pem
+   ```
+
+   The task writes the key to the 1Password item, refreshes your encrypted fnox cache in the gitignored `fnox.local.toml`, clears the fnox daemon, copies both values into the Actions secrets, and deletes the `.pem` file. The first time, also pass `--app-id <id>` so the task can create the 1Password item.
+3. Delete the old key on the private keys page.
+
+The task needs the 1Password CLI (`op`), fnox with the machine-wide `sync-age` provider described in the [fnox golden path](https://fnox.jdx.dev/guide/golden-path.html), `gh`, and `jq`.
+
 ## Release flow
 
 1. Pull request CI validates the Conventional Emoji Commit title and runs `mise run ci`.
