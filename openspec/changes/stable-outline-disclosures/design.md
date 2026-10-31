@@ -25,7 +25,7 @@ Expose idempotent window.logseqGardenerInitOutline(root=document). Initialize ex
 ## Risks / Trade-offs
 
 - One control per expandable block adds DOM nodes; retain the existing 8KB controller and page-performance budgets and avoid repeated whole-document scans for inserted content.
-- Heading offsets can drift; share the owning block's bullet offset and check actual geometry at desktop and phone widths.
+- Heading bullets and disclosure buttons can become misaligned. Use their shared vertical offset and check their positions at desktop and phone widths.
 - Native summary activation and fragment reveal change state independently; synchronize accessible state through toggle events.
 
 ## Resolved Questions
