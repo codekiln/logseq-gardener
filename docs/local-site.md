@@ -94,6 +94,8 @@ Add `--homepage "Ghost in the Patch"` to render a uniquely selected visible page
 
 ## Collapsed outlines
 
+Each expandable source block has its own 24px disclosure button beside the bullet. Closed controls stay visible; keyboard focus and touch pointers expose controls before hover. The button keeps its owner when moving across nested gutters. Hosts replacing page content call `window.logseqGardenerInitOutline(importedMain)` before route and focus hooks. Repeated initialization preserves controls and collapse state; appended journal outlines initialize automatically.
+
 An outline parent with an attached `collapsed:: true` property starts closed.
 Readers can open its summary with a click or the keyboard to reveal the complete
 outline. Nested closed parents open independently. False or absent flags keep the
