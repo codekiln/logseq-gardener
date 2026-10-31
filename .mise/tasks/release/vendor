@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#MISE description="Archive the locked dependency sources from cargo vendor for a release"
+#USAGE flag "-h --help" help="Show task help"
+#USAGE arg "[out_dir]" default="target/distrib" help="Directory that receives the archive and its SHA-256 checksum"
+set -euo pipefail
+
+# Writes <package>-<version>-vendor.tar.gz and its .sha256 file. The archive
+# root matches the root of dist's source.tar.gz, so extracting both archives in
+# one directory gives a tree that builds with `cargo build --locked --offline`.
+#
+# The archive is reproducible for a given commit: entries are sorted, owners
+# and timestamps are fixed to the commit, and gzip omits its own timestamp.
+# GNU tar is required for those options.
+
+out_dir="${usage_out_dir:-${1:-target/distrib}}"
+package="logseq-gardener"
+
+if tar --version 2>/dev/null | grep -q 'GNU tar'; then
+  gnu_tar=tar
+elif command -v gtar >/dev/null 2>&1; then
+  gnu_tar=gtar
+else
+  echo "error: GNU tar is required; install it as tar or gtar" >&2
+  exit 1
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+mkdir -p "$out_dir"
+out_dir="$(cd "$out_dir" && pwd)"
+cd "$repo_root"
+
+version="$(cargo metadata --locked --no-deps --format-version 1 |
+  jq -r --arg name "$package" '.packages[] | select(.name == $name) | .version')"
+if [[ -z "$version" ]]; then
+  echo "error: could not read the $package version from cargo metadata" >&2
+  exit 1
+fi
+
+root="$package-$version"
+archive="$root-vendor.tar.gz"
+commit_time="$(git log -1 --format=%ct)"
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+mkdir -p "$work/$root/.cargo"
+
+# cargo vendor prints the source replacement settings for the vendored tree.
+cargo vendor --locked "$work/$root/vendor" >"$work/config.toml"
+sed 's|^directory = ".*"$|directory = "vendor"|' "$work/config.toml" \
+  >"$work/$root/.cargo/config.toml"
+
+"$gnu_tar" --create --directory "$work" \
+  --sort=name --format=pax \
+  --owner=0 --group=0 --numeric-owner \
+  --mtime="@$commit_time" \
+  --pax-option=exthdr.name=%d/PaxHeaders/%f,delete=atime,delete=ctime \
+  "$root" | gzip -n -9 >"$out_dir/$archive"
+
+cd "$out_dir"
+sha256sum --binary "$archive" >"$archive.sha256"
+
+echo "$out_dir/$archive"
+echo "$out_dir/$archive.sha256"

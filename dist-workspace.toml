@@ -17,6 +17,8 @@ hosting = "github"
 pr-run-mode = "upload"
 # Run the repository's Rust and project checks before any release build can publish.
 plan-jobs = ["./release-checks"]
+# Attach the locked dependency sources from `cargo vendor` to every release.
+global-artifacts-jobs = ["./vendor-sources"]
 
 include = ["THIRD_PARTY_NOTICES.md", "THIRD_PARTY_LICENSES.txt", "licenses", "docs", "CONTRIBUTING.md", "help-assessment.md"]
 
