@@ -909,3 +909,35 @@ fn block_references_render_tasks_quotes_and_nesting_like_logseq() {
     );
     assert!(!report.diagnostics.iter().any(|d| d.message.contains(quote)));
 }
+
+#[test]
+fn publishes_markdown_outside_pages_and_names_files_a_note_page_shadows() {
+    let fixture = Fixture::new();
+    fixture.write("garden/pages/PARAMETERS.md", "- MAINTAINED_PAGE\n");
+    fixture.write("garden/mise-tasks/PARAMETERS.md", "- TOOL_COPY\n");
+    fixture.write("garden/mise-tasks/microfreak/Knobs.md", "- KNOBS_PAGE\n");
+    let selection = NamespaceSelection::new(&["PARAMETERS", "Knobs"], &[]).unwrap();
+    let report = publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &selection,
+    )
+    .unwrap();
+    assert_eq!(report.pages, 2);
+    assert!(html(&fixture.output(), "PARAMETERS").contains("MAINTAINED_PAGE"));
+    assert!(html(&fixture.output(), "Knobs").contains("KNOBS_PAGE"));
+    let output = files(&fixture.output());
+    assert!(
+        output
+            .values()
+            .all(|content| !String::from_utf8_lossy(content).contains("TOOL_COPY"))
+    );
+    assert!(
+        report.diagnostics.iter().any(|diagnostic| diagnostic.source
+            == Path::new("mise-tasks/PARAMETERS.md")
+            && diagnostic.message.contains("same title")),
+        "{:?}",
+        report.diagnostics
+    );
+}

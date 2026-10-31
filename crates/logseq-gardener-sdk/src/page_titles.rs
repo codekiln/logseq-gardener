@@ -21,7 +21,7 @@ pub enum FilenameFormat {
 pub enum PageTitleError {
     /// Journal identity requires date-format configuration.
     UnsupportedJournal { path: PathBuf },
-    /// The relative path is not a normal Markdown page path.
+    /// The relative path is not a normal Markdown path outside `journals/`.
     InvalidPath { path: PathBuf },
     /// The final filename stem cannot be interpreted as UTF-8.
     NonUtf8Stem { path: PathBuf },
@@ -45,7 +45,9 @@ impl fmt::Display for PageTitleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let reason = match self {
             Self::UnsupportedJournal { .. } => "journal titles require date-format configuration",
-            Self::InvalidPath { .. } => "expected a normal relative pages/ path ending in .md",
+            Self::InvalidPath { .. } => {
+                "expected a normal relative path outside journals/ ending in .md"
+            }
             Self::NonUtf8Stem { .. } => "page filename stem is not UTF-8",
             Self::EmptyTitle { .. } => "page title is empty or whitespace-only",
         };
@@ -90,8 +92,9 @@ pub fn page_title(
     let normal_spelling = bytes
         .split(|byte| is_separator(*byte))
         .all(|segment| !segment.is_empty() && segment != b"." && segment != b"..");
+    // Logseq reads pages from every folder but `journals/`; a file name alone is a page too.
     if !normal_spelling
-        || components.next() != Some(Component::Normal("pages".as_ref()))
+        || components.clone().next() == Some(Component::Normal("journals".as_ref()))
         || components.clone().next().is_none()
         || !components.all(|component| matches!(component, Component::Normal(_)))
         || path.extension().is_none_or(|extension| extension != "md")
@@ -103,6 +106,7 @@ pub fn page_title(
         .and_then(|stem| stem.to_str())
         .ok_or_else(|| PageTitleError::NonUtf8Stem { path: path.clone() })?;
     let is_contents = path.components().count() == 2
+        && path.components().next() == Some(Component::Normal("pages".as_ref()))
         && path
             .file_name()
             .is_some_and(|name| name.as_encoded_bytes().starts_with(b"contents."));
@@ -123,6 +127,22 @@ pub fn page_title(
         Err(PageTitleError::EmptyTitle { path: path.clone() })
     } else {
         Ok(title)
+    }
+}
+
+/// The title of a page or journal, or `None` when it has none: a page whose title cannot
+/// be derived, or a journal whose file name is not a date.
+pub(crate) fn document_title(
+    document: &GardenDocument,
+    format: FilenameFormat,
+    journal_formats: &crate::journals::JournalFormats,
+) -> Option<String> {
+    if document.kind == DocumentKind::Journal {
+        crate::journals::journal_identity(document, journal_formats)
+            .ok()
+            .map(|identity| identity.title)
+    } else {
+        page_title(document, format).ok()
     }
 }
 

@@ -226,6 +226,12 @@ open_ms_phone = 1500
 review_heap_mb = 20
 build_slowdown_pct = 10
 
+# Loading Markdown from every garden folder (match-logseq-garden-markdown-files). No page's markup
+# changes, so the [desktop] and [phone] rows cover first paint. parity:perf --baseline-lsg marks a
+# whole-garden build more than build_slowdown_pct slower than the baseline binary's.
+[loading]
+build_slowdown_pct = 5
+
 # Site plugins (published-plugin-host). parity:budgets builds the fixture garden with the recorder
 # fixture plugin (tests/fixtures/plugins/recorder) and checks the host module's gzip size, every
 # page's first paint against [desktop] and [phone], and that a build without plugins adds no

@@ -30,7 +30,7 @@ use crate::garden::{DocumentKind, Garden, GardenLoadError, load_garden};
 use crate::garden_settings::GardenSettings;
 use crate::journals::{JournalFormats, journal_identity};
 use crate::page_names::{PageNameIndex, lookup_key, page_aliases};
-use crate::page_titles::{FilenameFormat, page_title};
+use crate::page_titles::{FilenameFormat, document_title, page_title};
 
 /// How a query reached a page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,10 +98,21 @@ impl PageCatalog {
         format: FilenameFormat,
     ) -> Result<(Self, Vec<CatalogDiagnostic>), GardenLoadError> {
         let root = root.as_ref();
-        let garden = load_garden(root)?;
+        let mut garden = load_garden(root)?;
         let (settings, settings_diagnostics) = GardenSettings::read(root);
-        let (catalog, mut diagnostics) =
-            Self::build(&garden, format, &JournalFormats::from_settings(&settings));
+        let journal_formats = JournalFormats::from_settings(&settings);
+        let shadowed = garden.remove_shadowed_documents(|document| {
+            document_title(document, format, &journal_formats).map(|title| lookup_key(&title))
+        });
+        let (catalog, mut diagnostics) = Self::build(&garden, format, &journal_formats);
+        diagnostics.splice(
+            0..0,
+            shadowed.into_iter().map(|source| CatalogDiagnostic {
+                source,
+                message: "page left out: a page in pages/ or journals/ has the same title"
+                    .to_owned(),
+            }),
+        );
         diagnostics.splice(
             0..0,
             settings_diagnostics
@@ -307,5 +318,31 @@ mod tests {
         assert_eq!(catalog.len(), 1);
         assert_eq!(diagnostics[0].source, Path::new("pages/   .md"));
         assert!(diagnostics[0].message.starts_with("page left out"));
+    }
+    #[test]
+    fn load_finds_pages_outside_pages_and_names_shadowed_files() {
+        let root = std::env::temp_dir().join(format!(
+            "lsg-lookup-folders-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("pages")).unwrap();
+        std::fs::create_dir_all(root.join("mise-tasks/microfreak")).unwrap();
+        std::fs::write(root.join("pages/PARAMETERS.md"), "- page\n").unwrap();
+        std::fs::write(root.join("mise-tasks/PARAMETERS.md"), "- copy\n").unwrap();
+        std::fs::write(root.join("mise-tasks/microfreak/Knobs.md"), "- knobs\n").unwrap();
+        let (catalog, diagnostics) =
+            PageCatalog::load(&root, FilenameFormat::TripleLowbar).unwrap();
+        assert_eq!(
+            paths(&catalog.find("parameters")),
+            [Path::new("pages/PARAMETERS.md")]
+        );
+        assert_eq!(
+            paths(&catalog.find("Knobs")),
+            [Path::new("mise-tasks/microfreak/Knobs.md")]
+        );
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(diagnostics[0].source, Path::new("mise-tasks/PARAMETERS.md"));
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

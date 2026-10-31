@@ -554,6 +554,16 @@ def build_over_budget(variant, builds, budgets):
                for other, limit in checks)
 
 
+def baseline_slowdown_budget(budgets):
+    """The latest feature's whole-garden build budget against a --baseline-lsg binary.
+
+    Loading from every folder, then All pages, then Hierarchy, then reference sections, then code.
+    """
+    return next((budgets[table]['build_slowdown_pct']
+                 for table in ('loading', 'all_pages', 'hierarchy', 'references', 'code')
+                 if 'build_slowdown_pct' in budgets.get(table, {})), None)
+
+
 def build_label(variant):
     journals, search = variant
     return f"{'with' if journals else 'without'} journals, {'with' if search else 'without'} search"
@@ -654,9 +664,7 @@ def markdown(results, budgets):
         variant = (row['journals'], row.get('search', False))
         if 'baseline' not in row or variant not in builds:
             continue
-        # The latest feature's budget: All pages, then Hierarchy, then reference sections, then code.
-        slowdown = next((budgets[table]['build_slowdown_pct'] for table in ('all_pages', 'hierarchy', 'references', 'code')
-                         if 'build_slowdown_pct' in budgets.get(table, {})), None)
+        slowdown = baseline_slowdown_budget(budgets)
         current = builds[variant]
         text = f'{current:,.1f}'
         if slowdown is not None and current > row['seconds'] * (1 + slowdown / 100):

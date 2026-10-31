@@ -45,6 +45,26 @@ def roots(pages_dir):
     return sorted(selected), skipped
 
 
+LOGSEQ_INTERNAL = ('logseq/bak/', 'logseq/.recycle/', 'logseq/version-files/')
+
+
+def outside_files(garden):
+    """Markdown files lsg loads as pages outside pages/ and journals/, as relative paths.
+
+    The files a fresh checkout holds, less the paths Logseq skips and the :hidden entries.
+    """
+    import compare  # compare imports this module; import it only when needed.
+    listing = subprocess.run(['git', '-C', str(garden), 'ls-files', '-z', '--cached', '--others',
+                              '--exclude-standard', '--', '*.md', ':(exclude)pages/', ':(exclude)journals/'],
+                             capture_output=True, check=True).stdout.decode('utf-8')
+    config = Path(garden) / 'logseq' / 'config.edn'
+    patterns = compare.hidden_patterns(config.read_text(encoding='utf-8')) if config.is_file() else []
+    return sorted(path for path in listing.split('\0') if path
+                  and not any(part.startswith('.') or part == 'node_modules' for part in path.split('/'))
+                  and not path.startswith(LOGSEQ_INTERNAL)
+                  and not compare.is_hidden(path, patterns))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--garden', help='garden path (default: the encode garden from ghq)')
@@ -53,6 +73,12 @@ def main():
     subprocess.run(['cargo', 'build', '--locked', '--release', '--bin', 'lsg'], cwd=common.REPO, check=True)
     lsg = common.lsg_binary()
     selected, skipped = roots(garden / 'pages')
+    for path in outside_files(garden):
+        root = page_title(Path(path).name).split('/')[0]
+        if valid_root(root):
+            selected = sorted(set(selected) | {root})
+        else:
+            skipped.append(path)
     run = common.new_run_dir()
     options = ['--filename-format', FILENAME_FORMAT, '--journals', '--search']
     for root in selected:

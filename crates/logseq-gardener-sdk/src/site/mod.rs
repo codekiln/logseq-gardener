@@ -36,7 +36,9 @@ use crate::git_dates::GitDates;
 use crate::journals::{JournalDate, JournalFormats, journal_identity, parse_journal_reference};
 use crate::page_list::{PageKind, PageSource, page_list};
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
-use crate::page_titles::{FilenameFormat, PageTitleError, page_title};
+use crate::page_titles::{
+    FilenameFormat, PageTitleError, document_title as document_name, page_title,
+};
 use crate::publishing::NamespaceSelection;
 
 /// Logseq's page references, tags, outside links, emphasis, inline code, images and
@@ -333,7 +335,7 @@ pub fn publish_site_with_options(
     let source_root = root.as_ref();
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
-    let garden = load_garden(source_root).map_err(SiteError::Garden)?;
+    let mut garden = load_garden(source_root).map_err(SiteError::Garden)?;
     // Reading the git history takes seconds on a large garden; it runs while pages render.
     let git_root = root.clone();
     let git_dates = queries::LazyDates::new(std::thread::spawn(move || GitDates::read(git_root)));
@@ -353,6 +355,15 @@ pub fn publish_site_with_options(
     let mut garden_titles = BTreeSet::new();
     let (settings, settings_diagnostics) = GardenSettings::read(&root);
     let journal_formats = JournalFormats::from_settings(&settings);
+    let shadowed = garden.remove_shadowed_documents(|document| {
+        document_name(document, format, &journal_formats).map(|title| lookup_key(&title))
+    });
+    report
+        .diagnostics
+        .extend(shadowed.into_iter().map(|source| SiteDiagnostic {
+            source,
+            message: "Page skipped: a page in pages/ or journals/ has the same title".to_owned(),
+        }));
     let mut journal_dates = BTreeMap::new();
     for document in &garden.documents {
         let journal = if document.kind == DocumentKind::Journal {

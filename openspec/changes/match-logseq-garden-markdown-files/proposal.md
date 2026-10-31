@@ -19,12 +19,13 @@ None.
 ### Modified Capabilities
 
 - `markdown-garden-loading`: the loader reads Markdown from every visible folder, applies Logseq's skip rules and `:hidden`, and skips git-ignored files outside the note folders.
+- `markdown-page-titles`: a page file in any folder but `journals/` takes its title from the file name, as a file in `pages/` does.
 
 ## Impact
 
 - SDK: `load_garden` in `crates/logseq-gardener-sdk/src/garden.rs` walks the garden root and reads `:hidden` through `garden_config.rs`. Every view (outline, references, queries, search, All pages, graph) gets the new pages because they all read the loaded documents.
 - Publisher: no rendering change.
-- Encode garden: two pages join the build, `PARAMETERS` and `AI__Coding__Tool__Plugin__Report__26__Agentic_Coding_Plugin_Systems_and_Cross_Provider_Portability`. No page in `pages/` or `journals/` matches the garden's `:hidden` list today, so no page leaves.
+- Encode garden: three pages join the build, `PARAMETERS`, `AI__Coding__Tool__Plugin__Report__26__Agentic_Coding_Plugin_Systems_and_Cross_Provider_Portability`, and `README` from `mise-tasks/gitpa/ableton/README.md`, which the garden gained after this proposal was written. Logseq's `gh-pages` build has all three. No page in `pages/` or `journals/` matches the garden's `:hidden` list today, so no page leaves.
 - Performance: the walk visits about 5,200 more directory entries, most of them under the skipped `logseq/bak/`, plus one `git ls-files` call. Page sizes, scripts and search data per page are unchanged.
 
 ## Citations

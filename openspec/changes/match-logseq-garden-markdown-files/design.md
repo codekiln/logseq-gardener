@@ -22,6 +22,8 @@ Logseq's `gh-pages` build runs `publish-spa` on a fresh checkout, so it never se
 - **Git-ignored files outside the note folders.** When the root is in a git work tree, one `git ls-files --cached --others --exclude-standard` call lists the files a checkout would hold, and the walk keeps only those outside `pages/` and `journals/`. The note folders keep today's behaviour, so an untracked draft page still publishes as before. Outside a git work tree no filter applies. `git_dates.rs` already runs `git` this way, so this adds no dependency.
 - **Symlinks and special files outside the note folders are skipped, not errors.** Inside `pages/` and `journals/` they still stop the build, as the spec requires. A tool folder elsewhere with a symlink should not break publishing.
 - **Duplicate titles.** When a file outside the note folders derives the same title as a page in `pages/` or `journals/`, the note-folder page wins and the build prints the skipped file's path. Logseq would report a file conflict; `lsg` keeps the page the author maintains and says what it dropped.
+- **Title collisions are resolved after loading.** `load_garden` does not derive titles, because titles depend on the filename format the caller passes. `Garden::remove_shadowed_documents` takes each document's name from the caller and drops the files a note-folder document shadows; `publish_site` and `PageCatalog::load` call it and report each dropped path as a diagnostic.
+- **Page titles outside `pages/`.** `page_title` accepts any normal Markdown path outside `journals/`. The `Contents` special case stays limited to `pages/contents.*`.
 - **SDK owns it.** File discovery, `:hidden` and the git filter live in the SDK loader, where the CLI, the LSP and the publisher share them. The publisher renders the new pages like any other.
 
 ## Budgets
@@ -56,6 +58,14 @@ Decided by the agent without codekiln: the file in `pages/` or `journals/` wins 
 ### 5 - Should symlinks outside the note folders stop the build?
 
 Decided by the agent without codekiln: no, the loader skips them. They stop the build inside the note folders because a garden page should never be silently missing; elsewhere they belong to tooling the garden does not publish.
+
+### 6 - Where does the title-collision check run?
+
+Decided by the agent during Apply without codekiln: after loading, in an SDK method that the publisher and the lookup catalog both call. The loader cannot derive titles without the filename format, and keeping `load_garden` free of title rules keeps its contract unchanged for other callers.
+
+### 7 - Does the page-title spec change?
+
+Decided by the agent during Apply without codekiln: yes. `markdown-page-titles` rejected paths outside `pages/`, which would have stopped every build of the encode garden. The change now carries a delta that accepts any path outside `journals/`.
 
 ## Open Questions
 

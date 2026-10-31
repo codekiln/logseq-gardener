@@ -1,6 +1,7 @@
 """Unit tests for the parity harness; they need no garden, network or browser."""
 import gzip
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -109,6 +110,20 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(selected, ['Contents', 'Notes', 'Tools'])
         self.assertEqual(skipped, ['%20Space.md'])
 
+    def test_outside_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp)
+            subprocess.run(['git', '-C', temp, 'init', '--quiet'], check=True)
+            files = ['pages/a.md', 'journals/2026_10_28.md', 'mise-tasks/PARAMETERS.md', 'README.md',
+                     'tools/README.md', '.agents/skill.md', 'notes/node_modules/x.md', 'logseq/bak/a.md',
+                     'worktrees/one/pages/b.md', 'notes/image.png']
+            for name in files:
+                (garden / name).parent.mkdir(parents=True, exist_ok=True)
+                (garden / name).write_text('- x\n', encoding='utf-8')
+            (garden / '.gitignore').write_text('tools\n', encoding='utf-8')
+            (garden / 'logseq/config.edn').write_text('{\n :hidden ["README.md" "worktrees"]}\n', encoding='utf-8')
+            self.assertEqual(build.outside_files(garden), ['mise-tasks/PARAMETERS.md'])
+
 
 class CompareTest(unittest.TestCase):
     def test_hidden_patterns(self):
@@ -193,7 +208,8 @@ class MetricsTest(unittest.TestCase):
                                                  'navigation_ms_phone': 50, 'listener_growth': 0})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
-                                       'slides', 'queries', 'flashcards'})
+                                       'slides', 'queries', 'flashcards', 'loading'})
+        self.assertEqual(loaded['loading'], {'build_slowdown_pct': 5})
         self.assertEqual(set(loaded['flashcards']), {'script_kb', 'styles_gzip_kb', 'deck_gzip_kb',
                                                      'card_batch_gzip_kb', 'deck_page', 'deck_page_growth_gzip_kb',
                                                      'open_ms_desktop', 'open_ms_phone', 'review_heap_mb',
@@ -343,6 +359,11 @@ class PerfMergeTest(unittest.TestCase):
         builds[(True, False)] = 11.0
         self.assertFalse(perf.build_over_budget((True, True), builds, limits))
         self.assertFalse(perf.build_over_budget((True, False), builds, limits))
+
+    def test_baseline_slowdown_uses_the_latest_feature_budget(self):
+        self.assertEqual(perf.baseline_slowdown_budget(metrics.load_budgets()), 5)
+        self.assertEqual(perf.baseline_slowdown_budget({'code': {'build_slowdown_pct': 20}}), 20)
+        self.assertIsNone(perf.baseline_slowdown_budget({}))
 
     def test_keeps_rows_of_builds_not_measured(self):
         kept = [{'page': 'tmux', 'profile': 'desktop', 'build': 'logseq', 'title_ms': 15000},

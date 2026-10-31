@@ -154,6 +154,22 @@ fn contents_special_case_precedes_the_title_override() {
 }
 
 #[test]
+fn files_outside_pages_take_their_title_from_the_file_name() {
+    for (path, title) in [
+        ("mise-tasks/microfreak/PARAMETERS.md", "PARAMETERS"),
+        ("assets/A___B.md", "A/B"),
+        ("README.md", "README"),
+        ("notes/contents.md", "contents"),
+    ] {
+        assert_eq!(
+            page_title(&document(path, "- body\n"), FilenameFormat::TripleLowbar).unwrap(),
+            title,
+            "{path}"
+        );
+    }
+}
+
+#[test]
 fn invalid_paths_and_journals_carry_the_source_path() {
     for path in [
         "",
@@ -161,7 +177,6 @@ fn invalid_paths_and_journals_carry_the_source_path() {
         "pages",
         "pages/A.MD",
         "pages/A.txt",
-        "other/A.md",
         "./pages/A.md",
         "pages/../A.md",
         "pages/./A.md",
