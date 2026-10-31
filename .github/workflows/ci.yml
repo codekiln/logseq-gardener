@@ -49,4 +49,5 @@ jobs:
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
         with:
           version: 2026.9.5
-      - run: mise run parity:build-bench --garden target/encode-garden
+      # Five builds per variant; the fastest counts, which keeps runner noise below the budgets.
+      - run: mise run parity:build-bench --garden target/encode-garden --runs 5
