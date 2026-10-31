@@ -40,14 +40,29 @@ const PAGES = {
     h('h1', {}, '01 Terminal'),
     h('ul', { class: 'outline' }, li('abc-1', 'Referenced block', h('ul', {}, li(null, 'its child'))))),
   'p-contents.html': () => h('main', {}, h('h1', {}, 'Contents'), h('ul', { class: 'outline' }, li(null))),
+  // A host that serves the site root at /gitpa/ and each page at a readable route, as Gitpa does.
+  'gitpa/GitP/A/Session/26/10/29-Thu/': () => h('main', {},
+    h('h1', {}, 'GitP/A/Session/26/10/29-Thu'),
+    h('ul', { class: 'outline' },
+      li(null, 'After ', h('span', { class: 'page-reference' }, h('a', { href: '/gitpa/GitP/A/Session/26/10/28-Wed/' }, 'GitP/A/Session/26/10/28-Wed'))),
+      li(null, h('a', { class: 'page-ref', href: '/gitpa/GitP/A/' }, 'GitP/A'), h('a', { class: 'tag', href: '/gitpa/Microfreak/' }, '#Microfreak'), h('a', { href: '/gitpa/Other/' }, 'plain')),
+      li(null, 'See ', h('a', { class: 'block-ref-link', href: '/gitpa/Terminal/#block-abc-1' }, 'ref')),
+      h('li', { class: 'lsg-card' }, h('a', { class: 'bullet', href: '#' }), 'Front ', h('span', { class: 'page-reference' }, h('a', { href: '/gitpa/GitP/A/' }, 'GitP/A'))))),
+  'gitpa/GitP/A/Session/26/10/28-Wed/': () => h('main', {},
+    h('h1', {}, 'GitP/A/Session/26/10/28-Wed'),
+    h('ul', { class: 'outline' }, li(null, 'Patch', h('ul', {}, li(null, 'Filter'))))),
+  'gitpa/GitP/A/': () => h('main', {}, h('h1', {}, 'GitP/A'), h('ul', { class: 'outline' }, li(null, 'Sessions'))),
+  'gitpa/Microfreak/': () => h('main', {}, h('h1', {}, 'Microfreak'), h('ul', { class: 'outline' }, li(null, 'Synth'))),
 };
+PAGES['gitpa/Terminal/'] = PAGES['p-terminal.html'];
 
 let state;
-function load({ desktop = true, stored = {}, contents = null, defaults = null } = {}) {
+// at is the page's address and root the folder that serves lsg-sidebar.js.
+function load({ desktop = true, stored = {}, contents = null, defaults = null, at = 'https://garden.test/p-tmux.html', root = 'https://garden.test/' } = {}) {
   state = { focused: null, fetched: [], assigned: null };
   const storage = new Map(Object.entries(stored));
   const toggle = h('button', { 'data-lsg-right-toggle': '', ...(contents ? { 'data-lsg-contents': contents } : {}), ...(defaults ? { 'data-lsg-sidebar-default': defaults } : {}) });
-  const main = PAGES['p-tmux.html']();
+  const main = PAGES[new URL(at).pathname.slice(1)]();
   const body = h('body', {}, h('header', {}, toggle), main);
   const document = makeDocument(body);
   const listeners = {};
@@ -55,7 +70,8 @@ function load({ desktop = true, stored = {}, contents = null, defaults = null } 
   document.createElement = tag => new Element(tag);
   document.createElementNS = (_, tag) => new Element(tag);
   Object.defineProperty(document, 'activeElement', { get: () => state.focused });
-  document.currentScript = { src: 'https://garden.test/lsg-sidebar.js' };
+  document.currentScript = { src: root + 'lsg-sidebar.js' };
+  document.baseURI = at;
   const window = {
     innerWidth: 1280,
     matchMedia: () => ({ matches: desktop }),
@@ -63,7 +79,7 @@ function load({ desktop = true, stored = {}, contents = null, defaults = null } 
   };
   const context = {
     console, window, document, URL, JSON, Map, Set, Promise, Number, String, Math, Object, Array,
-    location: { pathname: '/p-tmux.html', hash: '', href: 'https://garden.test/p-tmux.html', assign: url => { state.assigned = String(url); } },
+    location: { pathname: new URL(at).pathname, hash: '', href: at, assign: url => { state.assigned = String(url); } },
     fetch: url => {
       const route = new URL(url).pathname.slice(1);
       state.fetched.push(route);
@@ -269,7 +285,7 @@ test('View as slides adds a Slides card for the current page and focuses its dec
   assert.equal(decks[0][1], s.main.querySelector('ul.outline'));
   const card = s.cards()[0];
   const link = card.querySelector('.lsg-card-title a');
-  assert.equal(link.getAttribute('href'), 'p-tmux.html');
+  assert.equal(link.getAttribute('href'), 'https://garden.test/p-tmux.html');
   assert.equal(link.textContent, 'tmux');
   const deck = card.querySelector('.reveal');
   assert.equal(deck, decks[0][0]);
@@ -304,6 +320,52 @@ test('a restored Slides card for another page reads that page file', async () =>
   assert.equal(s.titles()[0], 'tmux/Idea/Pomodoro');
   // A restored card does not take focus from the page.
   assert.equal(state.focused, null);
+});
+
+test('a host that rewrites page addresses keeps Shift-click, card links and saved cards', async () => {
+  const root = 'https://garden.test/gitpa/';
+  const s = load({ at: root + 'GitP/A/Session/26/10/29-Thu/', root });
+  const [first, second, third, flashcard] = s.main.querySelectorAll('.outline>li');
+  // A page reference, a query result and a tag add cards; a plain link adds none.
+  s.shift(first.querySelector('.page-reference a'));
+  s.shift(second.querySelector('a.page-ref'));
+  s.shift(second.querySelector('a.tag'));
+  s.shift(second.querySelectorAll('a').at(-1));
+  await settle();
+  assert.deepEqual(s.titles(), ['Microfreak', 'GitP/A', 'GitP/A/Session/26/10/28-Wed']);
+  assert.deepEqual(s.saved().cards.map(card => card.route), ['Microfreak/', 'GitP/A/', 'GitP/A/Session/26/10/28-Wed/']);
+  assert.deepEqual(state.fetched, ['gitpa/GitP/A/Session/26/10/28-Wed/', 'gitpa/GitP/A/', 'gitpa/Microfreak/']);
+  // Open as page leaves for the page's own address.
+  const wednesday = s.cards()[2];
+  s.fire(wednesday.querySelector('.lsg-card-menu'), 'click');
+  s.fire(s.aside.querySelectorAll('[role=menuitem]').at(-1), 'click');
+  assert.equal(state.assigned, root + 'GitP/A/Session/26/10/28-Wed/');
+  // A block card from inside that card links its crumbs to the same address.
+  s.shift(wednesday.querySelectorAll('.outline li')[1].querySelector('.bullet'));
+  await settle();
+  assert.deepEqual(s.saved().cards[0], { type: 'block', route: 'GitP/A/Session/26/10/28-Wed/', block: '1.1', collapsed: false });
+  const crumbs = s.cards()[0].querySelectorAll('.lsg-breadcrumb a');
+  assert.deepEqual(crumbs.map(crumb => crumb.getAttribute('href')), [root + 'GitP/A/Session/26/10/28-Wed/', root + 'GitP/A/Session/26/10/28-Wed/#zoom/1']);
+  s.shift(crumbs[1]);
+  s.shift(crumbs[0]);
+  assert.deepEqual(s.saved().cards.slice(0, 2).map(card => [card.type, card.route, card.block]), [['page', 'GitP/A/Session/26/10/28-Wed/', undefined], ['block', 'GitP/A/Session/26/10/28-Wed/', '1']]);
+  // A bullet on the current page and a block reference keep their pages' routes.
+  s.shift(first.querySelector('.bullet'));
+  s.shift(third.querySelector('.block-ref-link'));
+  await settle();
+  assert.deepEqual(s.saved().cards.slice(0, 2).map(card => [card.type, card.route, card.block]), [['refs', 'Terminal/', 'abc-1'], ['block', 'GitP/A/Session/26/10/29-Thu/', '1']]);
+  assert.match(s.cards()[1].querySelector('.lsg-card-body').textContent, /^After GitP\/A\/Session\/26\/10\/28-Wed/);
+  // A link inside a flashcard block (li.lsg-card) moves its page's card to the top.
+  s.shift(flashcard.querySelector('.page-reference a'));
+  assert.equal(s.saved().cards[0].route, 'GitP/A/');
+  // Another page restores the same cards from the site root.
+  const titles = s.titles(), saved = s.saved();
+  const again = load({ stored: Object.fromEntries(s.storage), at: root + 'Microfreak/', root });
+  again.request('restore');
+  await settle();
+  assert.deepEqual(again.saved(), saved);
+  assert.deepEqual(again.titles(), titles);
+  assert.deepEqual([...new Set(state.fetched)].sort(), ['gitpa/GitP/A/', 'gitpa/GitP/A/Session/26/10/28-Wed/', 'gitpa/GitP/A/Session/26/10/29-Thu/', 'gitpa/Microfreak/', 'gitpa/Terminal/']);
 });
 
 test('phones keep the page: requests are ignored', () => {

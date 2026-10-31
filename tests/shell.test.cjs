@@ -4,6 +4,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const source = readFileSync(path.join(__dirname, '../crates/logseq-gardener-sdk/src/site/shell.js'), 'utf8');
+const { h } = require('./mini-dom.cjs');
 class Events {
   constructor() { this.listeners = new Map(); }
   addEventListener(type, callback) {
@@ -49,8 +50,9 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   const input = element(['input']);
   const page = element(['p']);
   const right = element(['[data-lsg-right-toggle]']);
-  // The page-link selector holds commas inside :is(), which element() splits on.
-  const pageLink = element([], { matches: selector => selector.includes(':is(main,.lsg-right-sidebar)') });
+  // A page reference at a readable address, as a host such as Gitpa rewrites it.
+  const pageLink = h('a', { href: '/gitpa/GitP/A/Session/26/10/29-Thu/' });
+  h('main', {}, h('span', { class: 'page-reference' }, pageLink));
   const all = [toggle, more, menu, themeItem, systemItem, shade, allPages, right];
   if (slides) all.push(slidesItem);
   if (defaults) { right.setAttribute('data-lsg-sidebar-default', 'contents'); all.push(element(['[data-lsg-sidebar-default]'])); }
@@ -231,4 +233,30 @@ test('a saved open sidebar or configured start cards load the sidebar after the 
     fixture(options).window.fire('load');
     assert.equal(loaded(), undefined);
   }
+});
+test('Shift-click reaches the right sidebar for page links by their markup, whatever their address', async () => {
+  const f = fixture();
+  const at = '/gitpa/GitP/A/Session/26/10/29-Thu/';
+  const wanted = [
+    h('a', { href: 'p-tmux.html' }),
+    h('a', { href: at + '#zoom/1.2' }),
+    h('a', { class: 'block-ref-link', href: '/gitpa/Terminal/#block-abc-1' }),
+    h('span', { class: 'page-reference' }, h('a', { href: at })),
+    h('a', { class: 'page-ref', href: '/gitpa/GitP/A/' }),
+    h('a', { class: 'tag', href: '/gitpa/Microfreak/' }),
+    h('a', { class: 'bullet', href: '#' }),
+  ];
+  const others = [h('a', { href: '/gitpa/GitP/A/' }), h('a', { class: 'external-link', href: 'https://example.com/' })];
+  h('main', {}, ...wanted, ...others);
+  const left = h('aside', { class: 'lsg-left-sidebar' }, h('span', { class: 'page-reference' }, h('a', { href: at })));
+  const card = h('aside', { class: 'lsg-right-sidebar' }, h('a', { class: 'page-ref', href: 'https://garden.test/gitpa/GitP/A/' }));
+  const targets = [...wanted.map(node => node.tagName === 'SPAN' ? node.children[0] : node), card.children[0]];
+  const stopped = [];
+  const shift = target => f.click(target, { shiftKey: true, preventDefault() { stopped.push(target); } });
+  for (const target of [...targets, ...others, left.querySelector('a')]) shift(target);
+  for (const target of targets) f.click(target);
+  assert.ok(loaded());
+  await settle();
+  assert.deepEqual(state.sidebar.map(event => event.target), targets);
+  assert.deepEqual(stopped, targets);
 });

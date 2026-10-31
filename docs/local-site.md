@@ -173,6 +173,8 @@ Each card has a header that collapses it, a Card menu (close, collapse and expan
 
 The behaviour is in `lsg-sidebar.js` and `lsg-sidebar.css`, which load the first time a reader uses the sidebar, or after the page loads when the sidebar was left open. Cards fetch the published page files. Below 640px there is no sidebar, and Shift-click follows the link.
 
+A host that rewrites page addresses after the build, such as serving `p-….html` at a readable route, keeps Shift-click working on links inside `.page-reference`, `a.page-ref`, `a.tag` and `a.block-ref-link`, because the sidebar recognizes those by their markup. Other page links need a `p-*.html` address. Each card stores its page's address relative to the folder that serves `lsg-sidebar.js`, so a saved card opens the same page from every route.
+
 ## View as slides
 
 On a page or journal page, from 640px wide, More starts with View as slides. It adds a Slides card for the page to the top of the right sidebar: each top-level block is a column, and the block and then each of its descendants is a slide below it. Blocks that show nothing make no slide. The deck takes keyboard focus, so the arrow keys (or `h j k l`) move between slides, `n` and Space step through the whole deck, `g` jumps to a slide number or `column/slide`, `o` or Escape shows every slide, `b` blacks the deck out and `f` toggles fullscreen. A block's `background-image::`, `background-color::`, `transition::` and `data-*` properties apply to its slide, as in Logseq.
