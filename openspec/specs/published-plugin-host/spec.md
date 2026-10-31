@@ -1,6 +1,6 @@
 ## Purpose
 
-Let a published site add its own browser behavior through checked plugin manifests and a small host module that owns same-document navigation, so a plugin such as a recording player keeps working while the reader moves between pages. Sites without plugins pay nothing.
+The person publishing a garden can add plugins that run in the reader's browser, such as a player that keeps a recording playing while the reader clicks from page to page. `lsg publish --plugin` checks each plugin's manifest before it writes any file. On the published site, a script fetches the page the reader clicks and swaps in its main content, so the plugin keeps running. Without `--plugin`, `lsg publish` adds nothing to the pages.
 
 ## Requirements
 

@@ -1,6 +1,6 @@
 ## Purpose
 
-Write a versioned `lsg-site.json` with every published page and copied asset, so build tools and plugin hosts read routes from one file instead of from generated HTML.
+`lsg publish` writes `lsg-site.json` at the root of every site it builds, listing each published page with its URL and each copied asset, so a plugin or another build tool can find any page by reading that one file. The file's `apiVersion` field tells those programs which format to expect.
 
 ## Requirements
 
