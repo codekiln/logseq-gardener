@@ -82,3 +82,9 @@ pub mod cards;
 
 /// Site plugin manifests: reading, checking and the page values a plugin may read.
 pub mod plugins;
+
+/// The pages a publication contains, and the read-only view build plugins receive.
+pub mod publication;
+
+/// Build plugins and their contributions: checking them and resolving their links.
+pub mod contributions;

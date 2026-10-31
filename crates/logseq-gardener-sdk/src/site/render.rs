@@ -90,29 +90,8 @@ pub(super) fn escape(text: &str) -> String {
 }
 
 /// A depth-limit violation withholds the document rather than assuming visibility.
-pub(super) fn has_private_properties(blocks: &[Block]) -> bool {
-    fn items_private(items: &[ListItem], depth: usize) -> bool {
-        depth > MAX_DEPTH
-            || items.iter().any(|item| {
-                private(&item.content, depth + 1) || items_private(&item.items, depth + 1)
-            })
-    }
-    fn private(blocks: &[Block], depth: usize) -> bool {
-        depth > MAX_DEPTH
-            || blocks.iter().any(|block| match block {
-                Block::Properties { props, .. } => props.iter().any(|p| {
-                    p.0.trim().eq_ignore_ascii_case("public")
-                        && p.1.trim().eq_ignore_ascii_case("false")
-                }),
-                Block::Quote { children, .. } | Block::Custom { children, .. } => {
-                    private(children, depth + 1)
-                }
-                Block::List { items, .. } => items_private(items, depth + 1),
-                _ => false,
-            })
-    }
-    private(blocks, 0)
-}
+#[cfg(test)]
+use crate::publication::has_private_properties;
 
 pub(super) fn uuid(value: &str) -> Option<String> {
     let value = value.trim();
@@ -253,14 +232,16 @@ struct RenderMode<'q> {
     source_anchors: BTreeSet<usize>,
     reference_paths: BTreeMap<usize, String>,
     reference_entries: BTreeMap<usize, String>,
+    derived: BTreeMap<usize, String>,
 }
 
-/// How a page's own outline renders: which blocks keep source anchors, brackets, and
-/// what renders its queries.
+/// How a page's own outline renders: which blocks keep source anchors, brackets, what
+/// renders its queries, and the derived rows after blocks' children, by bullet offset.
 pub(super) struct PageRender<'q> {
     pub source_anchors: BTreeSet<usize>,
     pub show_brackets: bool,
     pub queries: Option<&'q dyn QueryBoxes>,
+    pub derived: BTreeMap<usize, String>,
 }
 
 pub(super) fn render_document_with_source_anchors(
@@ -282,6 +263,7 @@ pub(super) fn render_document_with_source_anchors(
             queries: page.queries,
             source_anchors: page.source_anchors,
             hide_brackets: !page.show_brackets,
+            derived: page.derived,
             ..RenderMode::default()
         },
         document,
@@ -393,6 +375,7 @@ fn new_renderer<'a>(
         media: BTreeMap::new(),
         queries: mode.queries,
         bullet: None,
+        derived: mode.derived,
     }
 }
 
@@ -439,6 +422,8 @@ struct Renderer<'a> {
     queries: Option<&'a dyn QueryBoxes>,
     /// Byte offset of the bullet being rendered, which a query names as its block.
     bullet: Option<usize>,
+    /// Derived rows of the page's own blocks, by bullet offset, taken as each block closes.
+    derived: BTreeMap<usize, String>,
     dialogue: Vec<super::dialogue::Pending>,
     /// The document whose videos and timestamps are rendering, for their bindings.
     media_source: Option<&'a GardenDocument>,
@@ -511,7 +496,8 @@ impl Renderer<'_> {
         }
         // The AST's outline bullets are flat. Track observed levels, without creating
         // empty list items for skipped indentation levels. Continuations remain in li.
-        let mut levels: Vec<(u32, bool)> = Vec::new();
+        // Each open item: its level, whether it is collapsed and its bullet's source offset.
+        let mut levels: Vec<(u32, bool, Option<usize>)> = Vec::new();
         let outline = Outline::from_blocks(blocks);
         let mut outline_blocks: Vec<Option<&OutlineBlock>> = vec![None; blocks.len()];
         for block in &outline.blocks {
@@ -575,12 +561,14 @@ impl Renderer<'_> {
                         (false, false) => "",
                     }
                 );
-                while levels.last().is_some_and(|(previous, _)| previous > level) {
-                    self.close_outline_item(levels.pop().unwrap().1);
+                while levels.last().is_some_and(|(previous, _, _)| previous > level) {
+                    let (_, collapsed, start) = levels.pop().unwrap();
+                    self.close_item(collapsed, start, root);
                     self.html.push_str("</ul>");
                 }
-                if levels.last().is_some_and(|(previous, _)| previous == level) {
-                    self.close_outline_item(levels.last().unwrap().1);
+                if levels.last().is_some_and(|(previous, _, _)| previous == level) {
+                    let (_, collapsed, start) = *levels.last().unwrap();
+                    self.close_item(collapsed, start, root);
                     self.html.push_str(&item_start);
                 } else if levels.len() < MAX_DEPTH {
                     self.html.push_str(if root && levels.is_empty() {
@@ -591,13 +579,16 @@ impl Renderer<'_> {
                         "<ul>"
                     });
                     self.html.push_str(&item_start);
-                    levels.push((*level, false));
+                    levels.push((*level, false, None));
                 } else {
                     self.diagnostic("Outline nesting limit reached; rendered as sibling");
-                    self.close_outline_item(levels.last().unwrap().1);
+                    let (_, collapsed, start) = *levels.last().unwrap();
+                    self.close_item(collapsed, start, root);
                     self.html.push_str(&item_start);
                 }
-                levels.last_mut().unwrap().1 = collapsed;
+                let open = levels.last_mut().unwrap();
+                open.1 = collapsed;
+                open.2 = span.as_ref().map(|span| span.0);
                 if !self.embedded
                     && let Some(span) = span
                     && self.source_anchors.contains(&span.0)
@@ -758,10 +749,21 @@ impl Renderer<'_> {
                 Block::Bullet { .. } => unreachable!("handled above"),
             }
         }
-        for (_, collapsed) in levels.into_iter().rev() {
-            self.close_outline_item(collapsed);
+        for (_, collapsed, start) in levels.into_iter().rev() {
+            self.close_item(collapsed, start, root);
             self.html.push_str("</ul>");
         }
+    }
+    /// Close an outline item, first adding the derived rows of a page's own block after its
+    /// children.
+    fn close_item(&mut self, collapsed: bool, start: Option<usize>, root: bool) {
+        if root
+            && let Some(start) = start
+            && let Some(rows) = self.derived.remove(&start)
+        {
+            self.html.push_str(&rows);
+        }
+        self.close_outline_item(collapsed);
     }
     fn close_outline_item(&mut self, collapsed: bool) {
         if collapsed {
@@ -2317,6 +2319,7 @@ mod tests {
             &BTreeMap::new(),
             super::PageRender {
                 source_anchors: BTreeSet::new(),
+                derived: BTreeMap::new(),
                 show_brackets,
                 queries: None,
             },
