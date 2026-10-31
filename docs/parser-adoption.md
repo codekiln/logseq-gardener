@@ -51,7 +51,7 @@ Parse time is the parser's own reported time, summed over the garden; it exclude
 - **Embedded media:** both parsers found the same media in every note: 43 images, 40 of them local assets; 5 page or block embeds; 3 YouTube, 11 tweet and 6 renderer macros; and 6 HTML media elements.
 - **Properties:** both parsers found the same 62 page property blocks, including 39 `title::`, 14 `tags::` and 6 `alias::`, and the same 170 block property blocks. The garden has no `public::` property. It publishes every page through the older graph-wide `:all-pages-public? true` setting.
 - **Logseq relationships:** Logseq OG built 570 pages, 313 of them from files; it skips the 9 empty files. In 203 of the 313 files, Logseq linked exactly the pages that lsdoc reported as references. In the other files, Logseq added 172 links: 75 task markers such as `DONE` and `LATER`, 44 namespace parents, 31 property values, 15 property names, 4 block identifiers, 2 journal date names and 1 other. lsdoc reported 8 references that Logseq does not keep as written: 3 asset paths, 2 dates that Logseq renames to the garden's journal title format, 2 property values and 1 other.
-- **Gardener end to end:** `lsg publish --journals` completed and published 170 pages, 144 journals and 40 assets, with 356 diagnostics. Most diagnostics are expected fallbacks: 207 links to pages without a file, 75 drawers and 33 HTML or Hiccup blocks kept as text, and 21 unsupported macros. The others include 1 unsupported journal title token, 3 journal files whose names are not dates, 4 missing block references and 2 advanced queries.
+- **Gardener end to end:** `lsg publish --journals` completed and published 170 pages, 144 journals and 40 assets, with 356 diagnostics. Most diagnostics are expected fallbacks: 207 links to pages without a file, 75 drawers and 33 HTML or Hiccup blocks kept as text, and 21 unsupported macros. The others include 3 journal files whose names are not dates, 4 missing block references, 2 advanced queries and 1 unsupported journal title token. The SDK now reads that token, the weekday `E`, after [Issue #269](https://github.com/codekiln/logseq-gardener/issues/269).
 
 ## Supported scope
 
@@ -66,7 +66,6 @@ Parse time is the parser's own reported time, summed over the garden; it exclude
 - **Editing.** The SDK keeps source text and ranges, but no test covers formatting-preserving edits. Writing notes needs separate evidence.
 - **Org notes.** Only the Logseq docs garden contains Org notes, and the SDK reads Markdown only.
 - **Logseq's database version** is out of scope.
-- **Journal title tokens.** The SDK does not support the weekday token `E` in `:journal/page-title-format`, which Pengx's garden uses.
 - **Relationships on whole gardens.** The relationship comparison above compares reference sets per file. It does not compare the SDK's own graph with Logseq's graph. Query results, graph-validator checks and publication filtering on real gardens remain untested.
 - **Current Logseq revision.** The fixture comparison used current Logseq OG at `6efedb75`. Pengx's garden ran against `6e7afa8e`, the `version/file` branch of the renamed [logseq/og](https://github.com/logseq/og) repository in the local checkout. Both declare mldoc 1.5.7.
 
