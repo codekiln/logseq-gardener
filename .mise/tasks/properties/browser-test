@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Verify generated Properties preference, expiry, early restore, host navigation and Back/Forward cache (needs Google Chrome)"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+cargo build --locked
+uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell
+uv run --quiet --script scripts/properties/browser.py --binary target/debug/lsg

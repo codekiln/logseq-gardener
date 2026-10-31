@@ -4,6 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::{config::ReferenceConfig, render::escape, sequence};
 use crate::{ast::Block, garden::GardenDocument, page_names::PageNameIndex};
 
+pub(super) const SCRIPT: &str = include_str!("properties.js");
+pub(super) const STARTUP: &str = include_str!("properties-start.js");
+
 pub(super) struct PropertyRow {
     pub html: String,
     pub targets: BTreeSet<String>,
@@ -222,7 +225,7 @@ pub(super) fn view(
             " open"
         };
         result.html = format!(
-            "<section class=\"page-properties\" aria-label=\"Page properties\"><details{open}><summary id=\"page-properties\" tabindex=\"0\">Properties</summary><dl>{rows}</dl></details></section>"
+            "<section class=\"page-properties\" aria-label=\"Page properties\"><details{open}><script>window.logseqGardenerInitProperties?.()</script><summary id=\"page-properties\" tabindex=\"0\">Properties</summary><dl>{rows}</dl></details></section>"
         );
     }
     result

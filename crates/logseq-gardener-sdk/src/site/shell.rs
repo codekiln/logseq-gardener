@@ -88,6 +88,8 @@ pub(super) struct Shell {
     pub sidebar: Vec<String>,
     /// Cards due at the build time; `None` when flashcards are turned off.
     pub flashcards: Option<usize>,
+    /// Whether page Properties are enabled for this publication.
+    pub properties: bool,
 }
 
 fn icon(path: &str) -> String {

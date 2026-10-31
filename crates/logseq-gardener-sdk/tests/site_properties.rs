@@ -104,11 +104,7 @@ fn book_and_preset_properties_keep_order_scalars_aliases_and_avoid_duplicate_seq
     f.publish();
     let html = f.html("Visible/Book/Two");
     let props = properties(&html);
-    assert!(
-        props.contains(
-            "<details><summary id=\"page-properties\" tabindex=\"0\">Properties</summary>"
-        )
-    );
+    assert!(props.contains("<summary id=\"page-properties\" tabindex=\"0\">Properties</summary>"));
     assert!(props.contains("<dt>rating</dt><dd>4</dd>"));
     assert!(props.contains("<dt>finished</dt><dd>false</dd>"));
     assert!(props.contains("A &amp; B &lt; C"));
@@ -189,7 +185,10 @@ fn defaults_keep_sequence_and_label_property_source_links_honestly() {
     f.page("Visible/One", "next:: [[Visible/Two]]\n- One\n");
     f.page("Visible/Two", "- Two\n");
     f.publish();
-    assert!(properties(&f.html("Visible/One")).is_empty());
+    let one = f.html("Visible/One");
+    assert!(properties(&one).is_empty());
+    assert!(!one.contains("rel=\"lsg-properties\""));
+    assert!(!one.contains("data-lsg-properties-start"));
     assert!(f.html("Visible/One").contains("class=\"page-sequence\""));
     assert!(backlinks(&f, "Visible/Two").contains("Page reference"));
     assert!(!backlinks(&f, "Visible/Two").contains("#page-properties"));
@@ -210,4 +209,38 @@ fn disclosure_sequence_overrides_last_values_and_missing_targets_work_genericall
     assert!(!props.contains("<dt>prev"));
     assert!(!props.contains("<dt>next"));
     assert!(!html.contains("class=\"page-sequence\""));
+}
+
+#[test]
+fn properties_controller_is_available_on_empty_pages_and_restores_before_content() {
+    let f = Fixture::new(
+        "{:publishing/page-properties? true :publishing/page-properties-collapsed? false}",
+    );
+    f.page("Visible/Empty", "- Only content\n");
+    f.page("Visible/Properties", "rating:: 4\n- Content\n");
+    f.publish();
+    for name in ["Visible/Empty", "Visible/Properties", "Visible"] {
+        let html = f.html(name);
+        let start = html.find("data-lsg-properties-start").unwrap();
+        assert!(start < html.find("<body>").unwrap());
+        let route = html
+            .split("rel=\"lsg-properties\" href=\"")
+            .nth(1)
+            .unwrap()
+            .split('"')
+            .next()
+            .unwrap();
+        assert!(route.starts_with("lsg-properties-"));
+        assert!(route.ends_with(".mjs"));
+        assert!(f.0.join("site").join(route).is_file());
+    }
+    let html = f.html("Visible/Properties");
+    let props = properties(&html);
+    assert!(
+        props
+            .find("window.logseqGardenerInitProperties?.()")
+            .unwrap()
+            < props.find("<summary").unwrap()
+    );
+    assert!(props.contains("<details open>"));
 }
