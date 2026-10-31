@@ -50,7 +50,7 @@ The cold build is the first build after the garden is written or checked out. Th
 
 ### Recorded rows and a limit per processor model
 
-Rows live in `docs/parity/publication-speed.json`. The check compares the fastest warm build with rows for the same corpus identity and runner. With rows for the same processor model, the limit is the slowest of them plus 20%, more than three times the spread observed within one group of runs. Without them, the limit is the slowest row for the corpus plus 100%, wide enough for the gap between the fastest and slowest runner groups. A new processor model therefore catches only a doubling until a contributor records a row for it.
+Rows live in `docs/parity/publication-speed.json`. The check compares the fastest warm build with rows for the same corpus identity and runner. With rows for the same processor model, the limit is the slowest of them plus 20%, more than three times the spread observed within one group of runs. Without them, the limit is the slowest row for the corpus plus 100%, wide enough for the gap between the fastest and slowest runner groups. A new processor model therefore catches only a doubling until a contributor records a row for it. Five runs of the new job on this change met three processor models: three runs on an AMD EPYC 7763 differed by 6%, and an Intel Xeon 6975P-C took about 25% less time than the other two models, which matches the groups in the older logs.
 
 ### A separate CI job
 

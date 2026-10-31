@@ -96,6 +96,481 @@
         "files": 46767,
         "mb": 1212.0
       }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "644123b7b068d1ff023eebe953eb432a7914f18a",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "c86afa4f3849e6feeb5b0bcb9a4bf0a0c3020fec168804507a011077b691194f",
+        "source_files": 2410,
+        "source_mb": 3.0,
+        "generator_version": 1
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "AMD EPYC 7763 64-Core Processor",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 5.496,
+      "warm_s": 5.257,
+      "warm_median_s": 5.325,
+      "runs": 5,
+      "phases_ms": {
+        "read": 28.6,
+        "parse": 76.1,
+        "index": 595.1,
+        "plugins": 0.0,
+        "render": 3739.7,
+        "history": 0.0,
+        "search": 551.7,
+        "graph": 0.1,
+        "write": 151.9
+      },
+      "peak_mb": 435,
+      "published": {
+        "pages": 2375,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9900,
+        "mb": 235.7
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "644123b7b068d1ff023eebe953eb432a7914f18a",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "5095bdf6e569607d806ef89b8be8e5c5e69853fd",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "AMD EPYC 7763 64-Core Processor",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 31.012,
+      "warm_s": 29.785,
+      "warm_median_s": 29.916,
+      "runs": 5,
+      "phases_ms": {
+        "read": 117.8,
+        "parse": 463.8,
+        "index": 3447.9,
+        "plugins": 0.0,
+        "render": 20360.2,
+        "history": 0.0,
+        "search": 4152.3,
+        "graph": 0.1,
+        "write": 753.7
+      },
+      "peak_mb": 2532,
+      "published": {
+        "pages": 8732,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46767,
+        "mb": 1212.0
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "0066d3c523830d81946011fc0672a922def0c9a4",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "c86afa4f3849e6feeb5b0bcb9a4bf0a0c3020fec168804507a011077b691194f",
+        "source_files": 2410,
+        "source_mb": 3.0,
+        "generator_version": 1
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "AMD EPYC 7763 64-Core Processor",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 5.341,
+      "warm_s": 5.116,
+      "warm_median_s": 5.139,
+      "runs": 5,
+      "phases_ms": {
+        "read": 27.8,
+        "parse": 77.1,
+        "index": 572.7,
+        "plugins": 0.0,
+        "render": 3625.3,
+        "history": 0.0,
+        "search": 559.6,
+        "graph": 0.1,
+        "write": 148.2
+      },
+      "peak_mb": 435,
+      "published": {
+        "pages": 2375,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9900,
+        "mb": 235.7
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "0066d3c523830d81946011fc0672a922def0c9a4",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "5095bdf6e569607d806ef89b8be8e5c5e69853fd",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "AMD EPYC 7763 64-Core Processor",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 29.548,
+      "warm_s": 28.976,
+      "warm_median_s": 29.292,
+      "runs": 5,
+      "phases_ms": {
+        "read": 118.1,
+        "parse": 460.8,
+        "index": 3285.1,
+        "plugins": 0.0,
+        "render": 19923.0,
+        "history": 0.0,
+        "search": 3964.2,
+        "graph": 0.0,
+        "write": 740.8
+      },
+      "peak_mb": 2528,
+      "published": {
+        "pages": 8732,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46767,
+        "mb": 1212.0
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "0216b5855913e1235bc0fe7c42f5267f893f5ee8",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "c86afa4f3849e6feeb5b0bcb9a4bf0a0c3020fec168804507a011077b691194f",
+        "source_files": 2410,
+        "source_mb": 3.0,
+        "generator_version": 1
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1014-aws",
+        "machine": "x86_64",
+        "cpu": "Intel(R) Xeon(R) 6975P-C",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 3.871,
+      "warm_s": 3.844,
+      "warm_median_s": 3.863,
+      "runs": 5,
+      "phases_ms": {
+        "read": 13.7,
+        "parse": 52.1,
+        "index": 417.9,
+        "plugins": 0.0,
+        "render": 2830.9,
+        "history": 0.0,
+        "search": 397.9,
+        "graph": 0.1,
+        "write": 54.9
+      },
+      "peak_mb": 435,
+      "published": {
+        "pages": 2375,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9900,
+        "mb": 235.7
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "0216b5855913e1235bc0fe7c42f5267f893f5ee8",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "5095bdf6e569607d806ef89b8be8e5c5e69853fd",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1014-aws",
+        "machine": "x86_64",
+        "cpu": "Intel(R) Xeon(R) 6975P-C",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 21.41,
+      "warm_s": 21.125,
+      "warm_median_s": 21.294,
+      "runs": 5,
+      "phases_ms": {
+        "read": 58.6,
+        "parse": 319.8,
+        "index": 2451.9,
+        "plugins": 0.0,
+        "render": 14602.7,
+        "history": 0.0,
+        "search": 2947.0,
+        "graph": 156.3,
+        "write": 296.3
+      },
+      "peak_mb": 2530,
+      "published": {
+        "pages": 8732,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46767,
+        "mb": 1212.0
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "644123b7b068d1ff023eebe953eb432a7914f18a",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "c86afa4f3849e6feeb5b0bcb9a4bf0a0c3020fec168804507a011077b691194f",
+        "source_files": 2410,
+        "source_mb": 3.0,
+        "generator_version": 1
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "AMD EPYC 7763 64-Core Processor",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 5.697,
+      "warm_s": 5.05,
+      "warm_median_s": 5.083,
+      "runs": 5,
+      "phases_ms": {
+        "read": 27.2,
+        "parse": 76.8,
+        "index": 566.2,
+        "plugins": 0.0,
+        "render": 3552.1,
+        "history": 0.0,
+        "search": 572.5,
+        "graph": 0.1,
+        "write": 148.3
+      },
+      "peak_mb": 435,
+      "published": {
+        "pages": 2375,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9900,
+        "mb": 235.7
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "644123b7b068d1ff023eebe953eb432a7914f18a",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "5095bdf6e569607d806ef89b8be8e5c5e69853fd",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "AMD EPYC 7763 64-Core Processor",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 28.62,
+      "warm_s": 28.101,
+      "warm_median_s": 28.243,
+      "runs": 5,
+      "phases_ms": {
+        "read": 116.4,
+        "parse": 465.0,
+        "index": 3405.4,
+        "plugins": 0.0,
+        "render": 19067.0,
+        "history": 0.0,
+        "search": 3857.7,
+        "graph": 18.3,
+        "write": 736.5
+      },
+      "peak_mb": 2530,
+      "published": {
+        "pages": 8732,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46767,
+        "mb": 1212.0
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "644123b7b068d1ff023eebe953eb432a7914f18a",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "c86afa4f3849e6feeb5b0bcb9a4bf0a0c3020fec168804507a011077b691194f",
+        "source_files": 2410,
+        "source_mb": 3.0,
+        "generator_version": 1
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 5.488,
+      "warm_s": 5.078,
+      "warm_median_s": 5.156,
+      "runs": 5,
+      "phases_ms": {
+        "read": 17.6,
+        "parse": 69.3,
+        "index": 537.4,
+        "plugins": 0.0,
+        "render": 3762.5,
+        "history": 0.0,
+        "search": 493.7,
+        "graph": 0.1,
+        "write": 107.5
+      },
+      "peak_mb": 435,
+      "published": {
+        "pages": 2375,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9900,
+        "mb": 235.7
+      }
+    },
+    {
+      "recorded": "2026-10-31",
+      "lsg": "644123b7b068d1ff023eebe953eb432a7914f18a",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "5095bdf6e569607d806ef89b8be8e5c5e69853fd",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1017-azure",
+        "machine": "x86_64",
+        "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 30.403,
+      "warm_s": 28.204,
+      "warm_median_s": 28.593,
+      "runs": 5,
+      "phases_ms": {
+        "read": 74.6,
+        "parse": 419.7,
+        "index": 3108.1,
+        "plugins": 0.0,
+        "render": 19754.8,
+        "history": 0.0,
+        "search": 3957.9,
+        "graph": 0.1,
+        "write": 541.5
+      },
+      "peak_mb": 2529,
+      "published": {
+        "pages": 8732,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46767,
+        "mb": 1212.0
+      }
     }
   ]
 }
