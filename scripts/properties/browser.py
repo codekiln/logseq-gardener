@@ -162,8 +162,34 @@ def main():
                 assert page.evaluate('(key)=>JSON.parse(localStorage.getItem(key)).open', key) is False
                 page.goto(base + two)
                 assert page.evaluate('parsedOpen') is False
-                # Both early choices reach a host replacement while the module is held.
                 module = page.locator('link[rel=lsg-properties]').get_attribute('href')
+                # Both early choices survive ordinary navigation and reload while the module is held.
+                for choice in [False, True]:
+                    for leave in ['navigate', 'reload']:
+                        page.evaluate('([key,open])=>localStorage.setItem(key,JSON.stringify({open,seen:Date.now()}))', [key, not choice])
+                        held = []
+                        # Hold only the first page's module; the next page loads normally.
+                        page.route('**/' + module, lambda route: route.continue_() if held else held.append(route))
+                        page.goto(base + one, wait_until='domcontentloaded')
+                        page.wait_for_function('(open)=>window.parsedOpen===open', arg=not choice)
+                        while not held:
+                            page.wait_for_timeout(10)
+                        summary.click()
+                        assert details.evaluate('(node)=>node.open') is choice
+                        if leave == 'navigate':
+                            page.goto(base + two, wait_until='domcontentloaded')
+                        else:
+                            page.reload(wait_until='domcontentloaded')
+                        assert page.evaluate('parsedOpen') is choice, (choice, leave)
+                        try:
+                            held[0].abort()
+                        except Exception:
+                            pass  # The browser already canceled the left page's request.
+                        page.wait_for_function('!window.logseqGardenerInitProperties.k')
+                        page.unroute_all()
+                page.goto(base + two)
+                page.wait_for_function('!window.logseqGardenerInitProperties.k')
+                # Both early choices reach a host replacement while the module is held.
                 for choice in [False, True]:
                     page.evaluate('([key,open])=>localStorage.setItem(key,JSON.stringify({open,seen:Date.now()}))', [key, not choice])
                     held = []

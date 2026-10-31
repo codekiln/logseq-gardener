@@ -24,24 +24,12 @@ function initialize(root = document) {
   visit();
   early(root);
 }
-function save(event, open) {
-  // Capture the resulting state at activation time; rapid clicks retain their order.
-  const pending = [event, open];
-  early.q.push(pending);
-  setTimeout(() => {
-    early.q.splice(early.q.indexOf(pending), 1);
-    if (event.defaultPrevented || event.target.closest('a')) return;
-    early.o = open;
-    try { window.localStorage.setItem(early.k, JSON.stringify({ open, seen: Date.now() })); }
-    catch { /* Native disclosure remains usable. */ }
-  }, 0);
-}
 document.removeEventListener('click', early.c);
 document.addEventListener('click', event => {
   const summary = event.target.closest?.(selector);
-  if (summary && !event.target.closest('a') && !event.defaultPrevented) save(event, !summary.parentElement.open);
+  // The early script owns pending choices: it saves after propagation or when the page is left.
+  if (summary && !event.target.closest('a') && !event.defaultPrevented) early.s(event, !summary.parentElement.open);
 });
 initialize();
-for (const [event, open] of early.q.splice(0)) save(event, open);
 delete early.c;
 window.logseqGardenerInitProperties = initialize;

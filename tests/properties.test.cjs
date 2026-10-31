@@ -11,26 +11,29 @@ const key = 'lsg:/garden/';
 function fixture({saved, blocked = false, now = 2000000000000} = {}) {
   const values = new Map(saved === undefined ? [] : [[key, typeof saved === 'string' ? saved : JSON.stringify(saved)]]);
   const listeners = new Map();
+  const windowListeners = new Map();
   const timers = [];
   const document = {
     querySelector: () => ({href: 'https://example.test/garden/lsg-properties-revision.mjs'}),
     nodes: [],
-    querySelectorAll() { return this.nodes.filter(node => !node.dataset.lsgP); },
+    querySelectorAll(selector) { return selector.includes(':not') ? this.nodes.filter(node => !node.dataset.lsgP) : this.nodes.filter(node => node.dataset.lsgP); },
+    getElementById() { return null; },
     addEventListener(type, callback) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(callback); },
     removeEventListener(type, callback) { listeners.set(type, listeners.get(type).filter(value => value !== callback)); },
   };
   const storage = {getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k)};
   const window = {};
-  const context = {window, document, URL, Date: {now: () => now}, addEventListener() {}, requestAnimationFrame() {}, setTimeout: callback => timers.push(callback)};
+  const context = {window, document, URL, Date: {now: () => now}, location: {hash: ''}, addEventListener(type, callback) { if (!windowListeners.has(type)) windowListeners.set(type, []); windowListeners.get(type).push(callback); }, requestAnimationFrame() {}, setTimeout: callback => timers.push(callback)};
   Object.defineProperty(window, 'localStorage', {get() { if (blocked) throw Error('blocked'); return storage; }});
   Object.defineProperty(context, 'localStorage', {get() { return window.localStorage; }});
   vm.createContext(context);
   vm.runInContext(startup, context);
   function root(open = true) {
-    const details = {open, dataset: {}};
+    const details = {open, dataset: {}, contains: () => false};
     return {details, querySelectorAll: () => details.dataset.lsgP ? [] : [details]};
   }
-  return {window, values, document, root,
+  return {window, values, document, root, context,
+    fire(type, event = {}) {for (const callback of windowListeners.get(type) ?? []) callback(event);},
     load() {vm.runInContext(controller, context);},
     advance(ms) {now += ms;},
     stored() {return values.has(key) ? JSON.parse(values.get(key)) : undefined;},
@@ -107,4 +110,21 @@ test('early canceled activations and fragment openings do not become preferences
   const replacement = f.root(); f.window.logseqGardenerInitProperties(replacement);
   assert.equal(replacement.details.open, false);
   f.load(); f.flush(); assert.equal(f.stored().open, false);
+});
+test('early activations persist before the controller arrives', () => {
+  for (const open of [false, true]) {
+    const f = fixture({saved:{open:!open,seen:2000000000000}});
+    const first = f.root(); f.window.logseqGardenerInitProperties(first);
+    f.click(first.details);
+    f.flush();
+    assert.equal(f.stored().open, open);
+    // A page left before the deferred write runs still keeps the choice.
+    f.click(first.details);
+    f.fire('pagehide');
+    assert.equal(f.stored().open, !open);
+    f.flush(); assert.equal(f.stored().open, !open);
+    // Canceled and link activations never become preferences.
+    f.click(first.details,{prevented:true}); f.click(first.details,{link:true});
+    f.fire('pagehide'); f.flush(); assert.equal(f.stored().open, !open);
+  }
 });
