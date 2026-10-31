@@ -680,16 +680,23 @@ fn stylesheet_preserves_selection_sources_and_default_output() {
     )
     .unwrap();
     let defaults = f.0.join("defaults");
+    // Timings differ between any two builds; every other field must match.
+    let without_timings = |mut report: logseq_gardener_sdk::site::SiteReport| {
+        report.timings = Default::default();
+        report
+    };
     assert_eq!(
-        ordinary,
-        publish_site_with_options(
-            f.garden(),
-            &defaults,
-            FilenameFormat::TripleLowbar,
-            &selection,
-            &SiteOptions::default()
+        without_timings(ordinary.clone()),
+        without_timings(
+            publish_site_with_options(
+                f.garden(),
+                &defaults,
+                FilenameFormat::TripleLowbar,
+                &selection,
+                &SiteOptions::default()
+            )
+            .unwrap()
         )
-        .unwrap()
     );
     assert_eq!(files(&f.output()), files(&defaults));
     let styled = f.0.join("styled");
@@ -704,7 +711,7 @@ fn stylesheet_preserves_selection_sources_and_default_output() {
         },
     )
     .unwrap();
-    assert_eq!(report, ordinary);
+    assert_eq!(without_timings(report), without_timings(ordinary));
     assert_eq!(
         fs::read(styled.join("custom.css")).unwrap(),
         fs::read(&css).unwrap()
