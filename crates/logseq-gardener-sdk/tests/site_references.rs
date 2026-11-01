@@ -732,3 +732,19 @@ fn a_listed_block_reports_its_diagnostics_once_under_its_own_file() {
         report.diagnostics
     );
 }
+
+#[test]
+fn a_space_before_a_slash_keeps_the_reference_off_the_trimmed_parent() {
+    let f = Fixture::new();
+    f.write("pages/Notes___MacOS.md", "- A system\n");
+    f.write("pages/Notes___Child.md", "- [[Notes/MacOS/Child]] stays\n");
+    // Logseq names the parent `Notes/MacOS `, a page without a file, not `Notes/MacOS`.
+    f.write(
+        "pages/Notes___Setup.md",
+        "- Apps live in [[Notes/MacOS /Applications Folder]]\n",
+    );
+    f.publish();
+    let linked = f.linked("Notes/MacOS");
+    assert!(linked.contains("<h2>1 Linked Reference</h2>"), "{linked}");
+    assert!(!linked.contains("Applications Folder"), "{linked}");
+}

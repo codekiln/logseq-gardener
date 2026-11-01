@@ -2,6 +2,6 @@
 #MISE description="Load the docs graph with Logseq's own file parser and with the SDK, and fail where they disagree"
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
-# The check must still fail on its fixture, where Logseq and the SDK read a namespace parent differently.
+# The check must still fail on its fixture, where Logseq and the SDK read the spaces inside a page reference differently.
 python3 -m unittest discover -s scripts/logseq-parser -p 'test_*.py'
 python3 scripts/logseq-parser/check.py docs
