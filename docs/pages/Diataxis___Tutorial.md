@@ -1,0 +1,4 @@
+- # Tutorial
+	- A tutorial takes a reader who is new to `lsg` through a lesson that ends with a working result. In [Diátaxis](https://diataxis.fr/tutorials/), tutorials serve the acquisition of a skill.
+	- A tutorial here is titled `lsg/Tutorial/<goal>` and carries `tags:: [[Diataxis/Tutorial]]`. It follows the page shape of [Logseq/Entity/Diataxis/Tutorial](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/Logseq___Entity___Diataxis___Tutorial.md): what the reader will create, the prerequisites, the learning goals, steps that each show a result, and a recap.
+	- The Pages tagged with section below lists every tutorial. [[Diataxis]] lists the other kinds.

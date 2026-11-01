@@ -6,12 +6,17 @@
 
 ### Requirement: Site manifest file
 
-Every publication SHALL write `lsg-site.json` at the output root. The file SHALL be a JSON object with `apiVersion` set to `1`, a `revision` string that changes whenever any generated file changes, a `pages` array and an `assets` array. Each page entry SHALL have `id` (the page's lower-cased name, as Logseq identifies pages), `title` (the displayed title), `url` (the generated file's path relative to the output root) and `kind` (`page`, `journal`, `namespace`, `home` or `list`). Each asset entry SHALL be the copied asset's path relative to the output root. Both arrays SHALL be sorted by `url` or path so identical input produces identical bytes.
+Every publication SHALL write `lsg-site.json` at the output root. The file SHALL be a JSON object with `apiVersion` set to `1`, a `revision` string that changes whenever any generated file changes, a `pages` array and an `assets` array. Each page entry SHALL have `id` (the page's lower-cased name, as Logseq identifies pages), `title` (the displayed title), `url` (the page's URL relative to the output root: the generated file's path, or with readable URLs the page's folder ending in `/`, whose file is that folder's `index.html`) and `kind` (`page`, `journal`, `namespace`, `home` or `list`). Each asset entry SHALL be the copied asset's path relative to the output root. Both arrays SHALL be sorted by `url` or path so identical input produces identical bytes.
 
 #### Scenario: Pages and journals listed
 
 - **WHEN** a garden is published with `--journals`
 - **THEN** `lsg-site.json` lists every generated page and journal file once with its id, title, URL and kind, and every URL names a file that exists in the output
+
+#### Scenario: Readable URLs listed
+
+- **WHEN** a garden is published with `--readable-urls`
+- **THEN** each page, journal and namespace entry's `url` is its encoded folder path ending in `/`, that folder's `index.html` exists in the output, and the home and list entries keep their file names
 
 #### Scenario: Withheld content absent
 

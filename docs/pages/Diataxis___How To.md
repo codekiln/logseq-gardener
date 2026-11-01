@@ -1,0 +1,4 @@
+- # How To
+	- A how-to page walks a reader through the steps of one task they already know they want to do. In [Diátaxis](https://diataxis.fr/how-to-guides/), how-to guides serve the application of a skill.
+	- A how-to page here is titled `lsg/How To/<task>` and carries `tags:: [[Diataxis/How To]]`. It follows the page shape of [Logseq/Entity/Diataxis/How To](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/Logseq___Entity___Diataxis___How%20To.md): an overview, the prerequisites, numbered steps and troubleshooting.
+	- The Pages tagged with section below lists every how-to page. [[Diataxis]] lists the other kinds.

@@ -1,0 +1,61 @@
+{:file/name-format :triple-lowbar
+ :publishing/all-pages-public? true
+ :publishing/page-properties? true
+ :publishing/page-properties-collapsed? false
+ :feature/enable-journals? false
+ :default-home {:page "lsg"}
+ :favorites ["lsg"
+             "lsg/How To/Install with mise"
+             "lsg/Tutorial/Publish Part of a Public Garden"
+             "lsg/How To/Publish a Garden to GitHub Pages"
+             "lsg/Ref/Command Line"
+             "lsg/Ref/Logseq Compatibility"]
+ :hidden [;; Issue #327 Move install, CLI and tutorial docs into the docs graph
+          "/cli.md"
+          "/garden-loading.md"
+          "/installation.md"
+          "/page-titles.md"
+          "/weekend-trial.md"
+          ;; Issue #328 Move publishing guides into the docs graph
+          "/local-site.md"
+          "/publishing.md"
+          "/static-search.md"
+          ;; Issue #330 Move Logseq parity reports into the docs graph
+          "/parity/README.md"
+          "/parity/all-pages.md"
+          "/parity/app-shell.md"
+          "/parity/code-and-tables.md"
+          "/parity/comparison-harness.md"
+          "/parity/flashcards.md"
+          "/parity/graph-view.md"
+          "/parity/hierarchy.md"
+          "/parity/inline-markup.md"
+          "/parity/journals.md"
+          "/parity/media-embeds.md"
+          "/parity/page-outline.md"
+          "/parity/performance.md"
+          "/parity/publication-speed.md"
+          "/parity/queries.md"
+          "/parity/references.md"
+          "/parity/right-sidebar.md"
+          "/parity/search-performance.md"
+          "/parity/search.md"
+          "/parity/slides.md"
+          "/parity/transclusion.md"
+          ;; Issue #331 Move the Logseq reference boards into the docs graph
+          "/logseq-reference/AllPages.md"
+          "/logseq-reference/Backlinks.md"
+          "/logseq-reference/Flashcards.md"
+          "/logseq-reference/Frontmatter.md"
+          "/logseq-reference/Graph.md"
+          "/logseq-reference/Hierarchy.md"
+          "/logseq-reference/Inline.md"
+          "/logseq-reference/Journals.md"
+          "/logseq-reference/Main.md"
+          "/logseq-reference/Outline.md"
+          "/logseq-reference/Overlays.md"
+          "/logseq-reference/Prototype.md"
+          "/logseq-reference/README.md"
+          "/logseq-reference/Reference.md"
+          "/logseq-reference/Transclusion.md"
+          ]}

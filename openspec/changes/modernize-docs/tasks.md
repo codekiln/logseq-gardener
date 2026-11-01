@@ -1,13 +1,13 @@
 ## 1. #325 Turn docs/ into a Logseq graph and build it with lsg
 
-- [ ] 1.1 Add `docs/logseq/config.edn` with the settings in the design and one `:hidden` line for each Markdown file under `docs/` that the page map lists as a source
-- [ ] 1.2 Commit an empty `docs/logseq/custom.css` and `docs/pages/contents.md`, and add `docs/logseq/bak/` and `docs/logseq/.recycle/` to `.gitignore`
-- [ ] 1.3 Write the `lsg` homepage, the `Diataxis` kind index pages and `lsg/How To/Edit the Documentation`
-- [ ] 1.4 Create a stub for every other page in the page map, holding its `tags::` and a one-line summary block
-- [ ] 1.5 Add `mise run docs:site`, which builds `lsg` from the checkout, publishes the graph with the design's options into a fresh directory, and fails on any diagnostic
-- [ ] 1.6 Make `mise run docs:check` run `docs:site`, and extend `scripts/docs.py` to check relative links in the remaining old files, missing `:hidden` entries and kind tags that do not match titles
-- [ ] 1.7 Check out full history in the `ci` job of `.github/workflows/ci.yml`
-- [ ] 1.8 Add a short section to `CONTRIBUTING.md` on opening `docs/` in Logseq and building the site
+- [x] 1.1 Add `docs/logseq/config.edn` with the settings in the design and one `:hidden` line for each Markdown file under `docs/` that the page map lists as a source
+- [x] 1.2 Commit an empty `docs/logseq/custom.css` and `docs/pages/contents.md`, and add `docs/logseq/bak/` and `docs/logseq/.recycle/` to `.gitignore`
+- [x] 1.3 Write the `lsg` homepage, the `Diataxis` kind index pages and `lsg/How To/Edit the Documentation`
+- [x] 1.4 Create a stub for every other page in the page map, holding its `tags::` and a one-line summary block
+- [x] 1.5 Add `mise run docs:site`, which builds `lsg` from the checkout, publishes the graph with the design's options into a fresh directory, and fails on any diagnostic
+- [x] 1.6 Make `mise run docs:check` run `docs:site`, and extend `scripts/docs.py` to check relative links in the remaining old files, missing `:hidden` entries and kind tags that do not match titles
+- [x] 1.7 Check out full history in the `ci` job of `.github/workflows/ci.yml`
+- [x] 1.8 Add a short section to `CONTRIBUTING.md` on opening `docs/` in Logseq and building the site
 - [ ] 1.9 Open `docs/` in Logseq 0.10 desktop, re-index, and record in the pull request that the home page is `lsg`, every page loads and `git status` stays clean, or name who will make that check
 
 ## 2. #326 Deploy the docs site to GitHub Pages
@@ -37,14 +37,14 @@
 
 ## 5. #329 Move contributor and release docs into the docs graph
 
-- [ ] 5.1 Convert `docs/architecture.md` and `docs/parser-adoption.md` into `lsg/Architecture`, `lsg/Parser Adoption` and `lsg/How To/Change the Parser Revision`
-- [ ] 5.2 Convert `docs/releases.md` into the release pages the page map names, describing the automated releases as they run now, and point `fnox.toml` and `.mise/tasks/release/store-app-key` at `lsg/How To/Rotate the Release App Key`
-- [ ] 5.3 Convert `docs/licensing.md` and `docs/dependencies.md` into `lsg/Licensing`, `lsg/How To/Update Dependencies`, `lsg/Ref/Dependencies` and their part of `lsg/Ref/Release Archives`, and keep `mise run notices:check` passing
-- [ ] 5.4 Convert `docs/openspec-cleanup.md` into `lsg/How To/Finish an OpenSpec Change After Merge`, point `.rulesync/rules/overview.md` at it, and run `mise exec -- rulesync generate` and `mise run rulesync:check`
-- [ ] 5.5 Convert `docs/publishing-cleanup-verification.md` into `lsg/Ref/Publishing Cleanup Verification`
-- [ ] 5.6 Convert `help-assessment.md` into `lsg/How To/Review Help Examples`, update every reference to it, and remove it from `include` in `dist-workspace.toml`
-- [ ] 5.7 Write `lsg/How To/Contribute a Change` and `lsg/Ref/Project Checks`, and shorten `CONTRIBUTING.md` to an entry point that keeps the section from #325
-- [ ] 5.8 Delete the converted documents, remove their `:hidden` lines and repoint every link to them
+- [x] 5.1 Convert `docs/architecture.md` and `docs/parser-adoption.md` into `lsg/Architecture`, `lsg/Parser Adoption` and `lsg/How To/Change the Parser Revision`
+- [x] 5.2 Convert `docs/releases.md` into the release pages the page map names, describing the automated releases as they run now, and point `fnox.toml` and `.mise/tasks/release/store-app-key` at `lsg/How To/Rotate the Release App Key`
+- [x] 5.3 Convert `docs/licensing.md` and `docs/dependencies.md` into `lsg/Licensing`, `lsg/How To/Update Dependencies`, `lsg/Ref/Dependencies` and their part of `lsg/Ref/Release Archives`, and keep `mise run notices:check` passing
+- [x] 5.4 Convert `docs/openspec-cleanup.md` into `lsg/How To/Finish an OpenSpec Change After Merge`, point `.rulesync/rules/overview.md` at it, and run `mise exec -- rulesync generate` and `mise run rulesync:check`
+- [x] 5.5 Convert `docs/publishing-cleanup-verification.md` into `lsg/Ref/Publishing Cleanup Verification`
+- [x] 5.6 Convert `help-assessment.md` into `lsg/How To/Review Help Examples`, update every reference to it, and remove it from `include` in `dist-workspace.toml`
+- [x] 5.7 Write `lsg/How To/Contribute a Change` and `lsg/Ref/Project Checks`, and shorten `CONTRIBUTING.md` to an entry point that keeps the section from #325
+- [x] 5.8 Delete the converted documents, remove their `:hidden` lines and repoint every link to them
 
 ## 6. #330 Move Logseq parity reports into the docs graph
 
