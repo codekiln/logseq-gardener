@@ -1,0 +1,1 @@
+- Apps live in [[MacOS /Applications Folder]].

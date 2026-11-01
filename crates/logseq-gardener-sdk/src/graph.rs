@@ -40,7 +40,7 @@
 //! ```
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::page_names::lookup_key;
+use crate::page_names::{built_in_page_title, lookup_key};
 use crate::references::ReferenceIndex;
 
 /// Which pages the global graph draws: Logseq's `:graph/settings`. Every switch is off by
@@ -383,8 +383,10 @@ impl<K: Ord + Clone> Builder<'_, '_, K> {
             return None;
         }
         let index = self.nodes.len() as u32;
+        // A built-in page keeps Logseq's spelling; another page takes its first reference's.
+        let title = built_in_page_title(name).unwrap_or(name);
         self.nodes.push(NodeInfo {
-            title: name.to_owned(),
+            title: title.to_owned(),
             page: None,
             journal: (self.source.is_journal_name)(name),
             excluded: false,
@@ -978,6 +980,21 @@ mod tests {
         // A reference-only namespace child brings in its parents.
         assert!(graph.has_edge("x/y/z", "x/y") && graph.has_edge("x/y", "x"));
         assert!(!graph.has_edge("Video", "x/y"));
+    }
+
+    #[test]
+    fn built_in_pages_without_a_file_keep_logseqs_spelling() {
+        let garden = Garden::new(&[
+            ("Alpha", "- #c #todo #favorites #Card #started\n"),
+            ("Beta", "- TODO [#C] write\n- STARTED go\n"),
+        ]);
+        let graph = garden.graph(GraphSettings::everything(true));
+        let titles: Vec<&str> = ["c", "todo", "favorites", "card", "started"]
+            .iter()
+            .map(|name| graph.node(name).unwrap().title.as_str())
+            .collect();
+        // `STARTED` is no built-in page in Logseq, so the first reference spells it.
+        assert_eq!(titles, ["C", "TODO", "Favorites", "card", "started"]);
     }
 
     #[test]
