@@ -185,4 +185,4 @@ The graph view SHALL meet the `[graph]` budgets in `scripts/parity/budgets.toml`
 #### Scenario: Measured against Logseq
 
 - **WHEN** `parity:perf --record` runs on the whole encode garden
-- **THEN** `docs/parity/performance.md` gains graph rows for `lsg` and Logseq with the first frame, bytes, heap and frame time
+- **THEN** the `lsg/Ref/Logseq Compatibility/Performance` page gains graph rows for `lsg` and Logseq with the first frame, bytes, heap and frame time
