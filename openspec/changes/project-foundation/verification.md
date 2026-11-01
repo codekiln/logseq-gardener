@@ -9,7 +9,7 @@ The `project-foundation` change has separate SDK and CLI packages, with the main
 | Repository workflow | Root mise configuration and lockfile, Rust toolchain, executable tasks, RuleSync source | Local and GitHub aggregate CI pass |
 | Public CLI and SDK | CLI modules and `crates/logseq-gardener-sdk/` | CLI integration tests, SDK documentation test, an external SDK consumer, and all pinned Clilint checks at score 4 |
 | Licensing | AGPLv3, third-party notices, locked dependency inventory and license text | Notice consistency check and native archive inspection |
-| Parser boundary | `docs/architecture.md` | Comparison prerequisites reviewed; no parser or graph dependency introduced |
+| Parser boundary | `lsg/Architecture` in `docs/pages/lsg___Architecture.md` | Comparison prerequisites reviewed; no parser or graph dependency introduced |
 | Releases | Title validation, release-plz configurations, generated cargo-dist workflow | Title, workspace version-impact, and distribution configuration tests pass |
 | Documentation | README and focused guides | Every README shell example executed; local and README web links checked; assessments below |
 

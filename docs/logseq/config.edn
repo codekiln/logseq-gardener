@@ -20,14 +20,6 @@
           "/local-site.md"
           "/publishing.md"
           "/static-search.md"
-          ;; Issue #329 Move contributor and release docs into the docs graph
-          "/architecture.md"
-          "/dependencies.md"
-          "/licensing.md"
-          "/openspec-cleanup.md"
-          "/parser-adoption.md"
-          "/publishing-cleanup-verification.md"
-          "/releases.md"
           ;; Issue #330 Move Logseq parity reports into the docs graph
           "/parity/README.md"
           "/parity/all-pages.md"
