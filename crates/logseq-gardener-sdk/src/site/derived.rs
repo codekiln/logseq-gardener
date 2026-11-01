@@ -58,8 +58,14 @@ fn items(rows: &[ResolvedRow], html: &mut String) {
             match node {
                 ResolvedNode::Text(text) => html.push_str(&escape(text)),
                 ResolvedNode::Page { href, label } => {
+                    // A link to a whole page is a page link, as in Logseq; one to a block is not.
+                    let class = if href.contains('#') {
+                        ""
+                    } else {
+                        " class=\"page-ref\""
+                    };
                     html.push_str(&format!(
-                        "<a href=\"{}\">{}</a>",
+                        "<a{class} href=\"{}\">{}</a>",
                         escape(href),
                         escape(label)
                     ));

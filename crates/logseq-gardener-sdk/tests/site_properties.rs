@@ -113,7 +113,7 @@ fn book_and_preset_properties_keep_order_scalars_aliases_and_avoid_duplicate_seq
     assert!(props.contains("href=\"https://media.example/preset.mbp?x=1&amp;y=2\""));
     assert!(props.contains("<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://media.example/preset.mbp"));
     assert!(props.contains(&format!(
-        "href=\"{}\">Visible/Book/One",
+        "<a class=\"page-ref\" href=\"{}\">Visible/Book/One",
         route("Visible/Book/One")
     )));
     assert!(props.find("<dt>rating").unwrap() < props.find("<dt>prev").unwrap());
@@ -177,7 +177,7 @@ fn property_backlinks_target_the_real_revealable_summary_and_resolve_bare_tags()
     )));
     let source = f.html("Visible/Source");
     assert_eq!(source.matches("id=\"page-properties\"").count(), 1);
-    assert!(properties(&source).contains("<dt>tags</dt><dd><a href="));
+    assert!(properties(&source).contains("<dt>tags</dt><dd><a class=\"page-ref\" href="));
     assert!(target.contains("<h2>1 Linked Reference</h2>"));
 }
 

@@ -151,6 +151,8 @@ fn aliases_repeats_and_tags_count_referring_blocks() {
     assert!(!titles.contains(&"Notes/Target".to_owned()));
     // A referring block below the top level shows its parent as a crumb.
     assert!(refs.contains("<div class=\"breadcrumb block-parents\"><a href="));
+    // Group titles are page links, as in Logseq, so Shift-click opens them in the sidebar.
+    assert!(refs.contains("<span class=\"ref-chevron\"></span><a class=\"page-ref\" href="));
     assert!(!refs.contains("id=\"block-12345678-1234-1234-1234-123456789abc\""));
     let source = f.page("Notes/A");
     for part in refs.split("#source-block-").skip(1) {
@@ -556,6 +558,7 @@ fn tagged_pages_list_lower_cased_heading_and_sorted_pages() {
         .unwrap()
         .1;
     assert!(tagged.contains("<h2>Pages tagged with \"notes/term\"</h2>"));
+    assert!(tagged.contains("<li><a class=\"page-ref\" href="));
     let apple = tagged.find(">Notes/Apple</a>").unwrap();
     assert!(apple < tagged.find(">Notes/zebra</a>").unwrap());
     assert!(

@@ -75,6 +75,15 @@ fn page_alias_and_repeated_block_embeds_render_subtrees_and_original_links() {
         1
     );
     assert!(html.contains("<section class=\"embed-header\">"));
+    let header = html
+        .split_once("<section class=\"embed-header\">")
+        .unwrap()
+        .1;
+    let header = &header[..header.find("</section>").unwrap()];
+    assert!(
+        header.contains("<a class=\"page-ref\" href=\"p-"),
+        "{header}"
+    );
     assert!(html.contains("<span class=\"block-ref\">Parent <strong>strong</strong></span>"));
     assert_eq!(html.matches("Child content").count(), 3);
     assert_eq!(html.matches("Sibling content").count(), 1);
@@ -164,7 +173,7 @@ fn cycles_and_expansion_budgets_terminate_with_diagnostics() {
     let start = f.html("Notes/Start");
     assert!(start.contains("Retained content"));
     // The page embedding itself shows only its header, linked to the page.
-    assert!(start.contains("</svg><a href=\"p-"));
+    assert!(start.contains("</svg><a class=\"page-ref\" href=\"p-"));
     assert_eq!(f.html("Notes/Repeated").matches("Leaf body").count(), 128);
     assert!(
         report

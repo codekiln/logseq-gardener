@@ -141,7 +141,7 @@ fn value(
         };
         let title = routes.get(route)?;
         html.push_str(&format!(
-            "<a href=\"{}\">{}</a>",
+            "<a class=\"page-ref\" href=\"{}\">{}</a>",
             escape(route),
             escape(title)
         ));
