@@ -239,3 +239,176 @@ fn insert_sorted<T: Ord>(candidates: &mut Vec<T>, id: T) {
         candidates.insert(position, id);
     }
 }
+
+/// One name in a page's alias row: the name as shown, the page it opens, and whether the
+/// page's own `alias::` value wrote it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AliasEntry<T> {
+    /// The name as the author wrote it, or the title of the page it names.
+    pub name: String,
+    /// The page the name opens.
+    pub page: T,
+    /// True when the page's own `alias::` value holds the name; false when the name comes
+    /// from another page's `alias::` value.
+    pub authored: bool,
+}
+
+/// Logseq's alias relation among caller-supplied pages, for the `alias` row of a page's
+/// properties.
+///
+/// Logseq links a page to each of its aliases, and each alias to the page and to the
+/// page's other aliases. A page's alias group holds every name one or two links away in
+/// either direction (`page-alias-set` and the `alias` rule in Logseq's `frontend.db.model`
+/// and `logseq.db.rules`), so it also holds the pages that name this page as their alias.
+/// Only the pages the caller inserts take part, so a withheld page adds no name.
+#[derive(Debug, Clone)]
+pub struct AliasGroups<T> {
+    /// Lookup key of a title to the page's identifier and title.
+    pages: BTreeMap<String, (T, String)>,
+    /// Identifier to the lookup key of the page's title.
+    keys: BTreeMap<T, String>,
+    /// Identifier to the names of the page's own `alias::` value, in property order.
+    own: BTreeMap<T, Vec<String>>,
+    /// Lookup key of an alias to its first spelling.
+    spellings: BTreeMap<String, String>,
+    /// Lookup key of an alias to the sorted identifiers of the pages that claim it.
+    claims: BTreeMap<String, Vec<T>>,
+    /// Alias links, by lookup key, in both directions.
+    out: BTreeMap<String, BTreeSet<String>>,
+    into: BTreeMap<String, BTreeSet<String>>,
+}
+
+impl<T> Default for AliasGroups<T> {
+    fn default() -> Self {
+        Self {
+            pages: BTreeMap::new(),
+            keys: BTreeMap::new(),
+            own: BTreeMap::new(),
+            spellings: BTreeMap::new(),
+            claims: BTreeMap::new(),
+            out: BTreeMap::new(),
+            into: BTreeMap::new(),
+        }
+    }
+}
+
+impl<T: Ord + Clone> AliasGroups<T> {
+    /// Add one page with its title and leading `alias::` value.
+    pub fn insert(&mut self, id: T, title: &str, document: &GardenDocument) {
+        let page = lookup_key(title);
+        if page.is_empty() {
+            return;
+        }
+        self.pages
+            .entry(page.clone())
+            .or_insert_with(|| (id.clone(), title.to_owned()));
+        self.keys.insert(id.clone(), page.clone());
+        let spellings = page_alias_spellings(document, title);
+        let aliases: Vec<String> = spellings.iter().map(|name| lookup_key(name)).collect();
+        // Logseq lists every name the value holds once, in any case, including the page's
+        // own title; it links only the other names to the page.
+        let mut seen = BTreeSet::new();
+        let shown = alias_names(document)
+            .into_iter()
+            .map(|name| name.trim().to_owned())
+            .filter(|name| !lookup_key(name).is_empty() && seen.insert(lookup_key(name)))
+            .collect();
+        for (alias, spelling) in aliases.iter().zip(&spellings) {
+            self.spellings
+                .entry(alias.clone())
+                .or_insert_with(|| spelling.clone());
+            insert_sorted(self.claims.entry(alias.clone()).or_default(), id.clone());
+            self.link(&page, alias);
+            self.link(alias, &page);
+            for other in aliases.iter().filter(|other| *other != alias) {
+                self.link(alias, other);
+            }
+        }
+        self.own.insert(id, shown);
+    }
+
+    fn link(&mut self, from: &str, to: &str) {
+        self.out
+            .entry(from.to_owned())
+            .or_default()
+            .insert(to.to_owned());
+        self.into
+            .entry(to.to_owned())
+            .or_default()
+            .insert(from.to_owned());
+    }
+
+    /// The names Logseq lists in the `alias` row of page `id`: the names of the page's own
+    /// `alias::` value as written, in property order and once in any case, then the other
+    /// names in its alias group, by lookup key. A name that spells the page's own title opens
+    /// the page.
+    ///
+    /// A name opens the page with that title when one was inserted. Otherwise it opens the
+    /// page that claims it as an alias: page `id` itself when it does, or else the first
+    /// claiming page in the alias group. Two pages that claim the same alias are both in
+    /// each other's group, so neither page drops the name.
+    pub fn entries(&self, id: &T) -> Vec<AliasEntry<T>> {
+        let Some(page) = self.keys.get(id) else {
+            return Vec::new();
+        };
+        let none = BTreeSet::new();
+        let out = |key: &str| self.out.get(key).unwrap_or(&none);
+        let into = |key: &str| self.into.get(key).unwrap_or(&none);
+        let mut group: BTreeSet<&String> = out(page).iter().chain(into(page)).collect();
+        group.extend(out(page).iter().flat_map(|key| out(key)));
+        group.extend(into(page).iter().flat_map(|key| into(key)));
+        group.remove(page);
+        let target = |key: &str| -> Option<T> {
+            if let Some((target, _)) = self.pages.get(key) {
+                return Some(target.clone());
+            }
+            let claims = self.claims.get(key)?;
+            if claims.contains(id) {
+                return Some(id.clone());
+            }
+            claims
+                .iter()
+                .find(|claim| self.keys.get(*claim).is_some_and(|key| group.contains(key)))
+                .or(claims.first())
+                .cloned()
+        };
+        let mut seen = BTreeSet::new();
+        let mut entries = Vec::new();
+        for name in self.own.get(id).into_iter().flatten() {
+            let key = lookup_key(name);
+            let target = if &key == page {
+                Some(id.clone())
+            } else {
+                target(&key)
+            };
+            if seen.insert(key)
+                && let Some(target) = target
+            {
+                entries.push(AliasEntry {
+                    name: name.clone(),
+                    page: target,
+                    authored: true,
+                });
+            }
+        }
+        seen.insert(page.clone());
+        for key in &group {
+            if !seen.insert((*key).clone()) {
+                continue;
+            }
+            let name = self
+                .pages
+                .get(*key)
+                .map(|(_, title)| title)
+                .or_else(|| self.spellings.get(*key));
+            if let (Some(name), Some(target)) = (name, target(key)) {
+                entries.push(AliasEntry {
+                    name: name.clone(),
+                    page: target,
+                    authored: false,
+                });
+            }
+        }
+        entries
+    }
+}

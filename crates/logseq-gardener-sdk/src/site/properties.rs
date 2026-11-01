@@ -5,7 +5,7 @@ use super::{config::ReferenceConfig, render::escape, sequence};
 use crate::{
     ast::Block,
     garden::GardenDocument,
-    page_names::{PageNameIndex, lookup_key},
+    page_names::{AliasGroups, PageNameIndex, lookup_key},
 };
 
 pub(super) const SCRIPT: &str = include_str!("properties.js");
@@ -173,10 +173,38 @@ fn value(
     Some((html, targets))
 }
 
-/// An `alias::` value as Logseq shows it: each alias name links to the page it names,
-/// labelled with the name as written. A name that is unsafe, missing or ambiguous drops
-/// the whole value, as for other properties.
+/// The `alias` row as Logseq shows it: the page's own aliases as written, then the other
+/// names in its alias group, such as the pages that name this page as their alias. Each name
+/// links to the page [`AliasGroups::entries`] resolves it to, so a name that is also the
+/// title of another page links to that page. Only the page's own aliases count as references
+/// from the row. A name that is unsafe drops the whole value, as for other properties.
 fn alias_value(
+    current_route: &str,
+    aliases: &AliasGroups<String>,
+    names: &PageNameIndex<String>,
+    garden_names: &BTreeSet<String>,
+    routes: &BTreeMap<String, String>,
+) -> Option<(String, BTreeSet<String>)> {
+    let mut links = Vec::new();
+    let mut targets = BTreeSet::new();
+    for entry in aliases.entries(&current_route.to_owned()) {
+        value(&entry.name, names, garden_names, routes)?;
+        links.push(format!(
+            "<a class=\"page-ref\" href=\"{}\">{}</a>",
+            escape(&entry.page),
+            escape(&entry.name)
+        ));
+        if entry.authored {
+            targets.insert(entry.page);
+        }
+    }
+    (!links.is_empty()).then(|| (links.join(", "), targets))
+}
+
+/// An `aliases::` value: each name links to the page it names, labelled with the name as
+/// written. A name that is unsafe, missing or ambiguous drops the whole value, as for other
+/// properties.
+fn aliases_value(
     text: &str,
     names: &PageNameIndex<String>,
     garden_names: &BTreeSet<String>,
@@ -202,6 +230,7 @@ pub(super) fn view(
     document: &GardenDocument,
     current_route: &str,
     names: &PageNameIndex<String>,
+    aliases: &AliasGroups<String>,
     garden_names: &BTreeSet<String>,
     routes: &BTreeMap<String, String>,
     config: &ReferenceConfig,
@@ -242,8 +271,10 @@ pub(super) fn view(
         } else {
             text
         };
-        let shown = if matches!(normalized.as_str(), "alias" | "aliases") {
-            alias_value(text, names, garden_names, routes)
+        let shown = if normalized == "alias" {
+            alias_value(current_route, aliases, names, garden_names, routes)
+        } else if normalized == "aliases" {
+            aliases_value(text, names, garden_names, routes)
         } else {
             value(text, names, garden_names, routes)
         };

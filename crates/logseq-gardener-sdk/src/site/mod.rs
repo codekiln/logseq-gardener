@@ -540,6 +540,10 @@ pub fn publish_site_with_options(
             message,
         });
     }
+    let mut alias_groups = crate::page_names::AliasGroups::default();
+    for (title, route, document) in &selected {
+        alias_groups.insert(route.clone(), title, document);
+    }
     let property_views: BTreeMap<_, _> = selected
         .iter()
         .map(|(_, route, document)| {
@@ -549,6 +553,7 @@ pub fn publish_site_with_options(
                     document,
                     route,
                     &names,
+                    &alias_groups,
                     &garden_names,
                     &routes,
                     &reference_config,

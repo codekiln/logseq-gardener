@@ -71,6 +71,7 @@ tags:: [[Diataxis/Reference]]
 			- Visiting an `alias` opens the original page; the alias also collects its own backlinks into that page's Linked References.
 		- DOM and rules:
 			- Page properties leave out `title`, `filters` and `icon` as well as the keys hidden on every block (`hidden-editable-page-properties` in `frontend/util/property.cljs`). `alias`, `public` and other keys show.
+			- The `alias` row lists the page's own aliases, then every other name one or two alias links away, such as the pages that name this page as their alias (`add-aliases-to-properties` in `frontend/util/property.cljs`). An alias that is also another page's title links to that page.
 			- Page name precedence: `title::`, then the filename with `___` read as `/` (URL-decoded).
 			- Names compare case-insensitively.
 			- Routes use the lower-cased name: `#/page/spotify%2Ftool%2Ftui`.
