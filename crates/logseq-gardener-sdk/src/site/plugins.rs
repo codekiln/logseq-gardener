@@ -91,11 +91,16 @@ fn plugin_list(plugins: &[PluginManifest]) -> Value {
     )
 }
 
-/// The browser host with the plugin list built in, and its content-addressed route.
-pub(super) fn host(plugins: &[PluginManifest]) -> (String, String) {
+/// The browser host with the plugin list built in, and its content-addressed route. `readable`
+/// selects the variant for readable page folders.
+pub(super) fn host(plugins: &[PluginManifest], readable: bool) -> (String, String) {
     let list = serde_json::to_string(&plugin_list(plugins)).expect("JSON values serialize");
-    let script = super::references::minify(include_str!("host.mjs"))
-        .replace("__LSG_PLUGINS__", &script_json(&list));
+    let source = if readable {
+        super::readable::host(include_str!("host.mjs"))
+    } else {
+        include_str!("host.mjs").to_owned()
+    };
+    let script = super::references::minify(&source).replace("__LSG_PLUGINS__", &script_json(&list));
     let route = format!("lsg-host-{}.mjs", crate::search::digest(&script));
     (route, script)
 }

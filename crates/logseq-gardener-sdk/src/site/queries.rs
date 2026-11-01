@@ -240,7 +240,7 @@ impl<'r, 'a> Queries<'r, 'a> {
         diagnostics: &mut Vec<String>,
     ) -> String {
         let id = self.next_id(page);
-        let stem = format!("{REFS}/{}-{id}", page.trim_end_matches(".html"));
+        let stem = format!("{REFS}/{}-{id}", crate::page_urls::stem(page));
         let count = results.map_or(0, QueryResults::len);
         let count_text = match count {
             0 => String::new(),

@@ -92,6 +92,8 @@ pub(super) struct Shell {
     pub flashcards: Option<usize>,
     /// Whether page Properties are enabled for this publication.
     pub properties: bool,
+    /// Whether pages live in readable folders, where they carry `<base>`.
+    pub readable: bool,
 }
 
 fn icon(path: &str) -> String {
@@ -173,12 +175,12 @@ impl Shell {
             )
         });
         // View as slides opens a right-sidebar card, so it is on page routes only.
-        let slides = if !home && route.starts_with("p-") {
+        let slides = if !home && (route.starts_with("p-") || crate::page_urls::is_readable(route)) {
             "<button type=\"button\" role=\"menuitem\" data-lsg-slides>View as slides</button>"
         } else {
             ""
         };
-        format!(
+        let frame = format!(
             "<header class=\"lsg-header cp__header\"><button type=\"button\" class=\"lsg-button\" data-lsg-left-toggle aria-label=\"Toggle left sidebar\" aria-controls=\"lsg-left-sidebar\" aria-expanded=\"false\" hidden>{menu}</button><span class=\"lsg-header-space\"></span>{home_link}<a class=\"lsg-button button\" href=\"graph.html#/graph\" aria-label=\"Graph\"><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path id=\"lsg-i-graph\" d=\"{hierarchy}\"/></svg></a><button type=\"button\" class=\"lsg-button\" data-lsg-search aria-label=\"Search garden\" aria-haspopup=\"dialog\" aria-controls=\"lsg-search-dialog\" hidden>{search}</button><div class=\"lsg-more\"><button type=\"button\" class=\"lsg-button\" data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\" aria-controls=\"lsg-more-menu\" aria-expanded=\"false\" hidden>{dots}</button><div id=\"lsg-more-menu\" role=\"menu\" aria-label=\"More\" hidden>{slides}<button type=\"button\" role=\"menuitem\" data-lsg-theme-toggle>Toggle theme</button><button type=\"button\" role=\"menuitem\" data-lsg-theme-system hidden>Use system theme</button></div></div><button type=\"button\" class=\"lsg-button lsg-right-toggle\" data-lsg-right-toggle aria-label=\"Toggle right sidebar\" aria-expanded=\"false\"{right} hidden>{sidebar_right}</button></header><aside id=\"lsg-left-sidebar\" class=\"lsg-left-sidebar\" aria-label=\"Left sidebar\"><nav aria-label=\"Navigation\"><ul>{journals}{flashcards}<li class=\"graph-view-nav\"><a href=\"graph.html\" data-lsg-graph-view{graph_attribute}{graph_current}><svg class=\"lsg-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><use href=\"#lsg-i-graph\"/></svg><span>Graph view</span>{graph_hint}</a></li><li><a href=\"{all}\" data-lsg-all-pages{all_current}>{files}<span>All pages</span></a></li></ul>{favorites}</nav></aside><div class=\"lsg-sidebar-shade\" data-lsg-sidebar-shade hidden></div>",
             menu = icon(MENU),
             hierarchy = HIERARCHY,
@@ -189,6 +191,16 @@ impl Shell {
             sidebar_right = icon(SIDEBAR_RIGHT),
             all = self.all_pages,
             all_current = current(route, self.all_pages),
-        )
+        );
+        if self.readable {
+            // Under <base>, `#lsg-i-graph` would name the site root's document.
+            frame.replacen(
+                "<use href=\"#lsg-i-graph\"/>",
+                &format!("<path d=\"{HIERARCHY}\"/>"),
+                1,
+            )
+        } else {
+            frame
+        }
     }
 }

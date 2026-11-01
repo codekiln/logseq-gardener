@@ -32,6 +32,34 @@ The publisher resolves page titles, aliases, explicit outline references, and pa
 
 Visibility also applies to embedded content, referenced assets, reference indexes and optional search data. Mixed-visibility fixtures in [publisher tests](../crates/logseq-gardener-sdk/tests/site.rs) and [embed tests](../crates/logseq-gardener-sdk/tests/site_embeds.rs) check generated files for excluded content. Local diagnostics stay outside the site. Review the report and retained source content before publishing a sensitive garden.
 
+## Readable URLs
+
+By default each page is written to `p-<digest of its title>.html` beside `index.html`. Add `--readable-urls` to write each page, journal and namespace page to a folder named by its title, and to link to that folder:
+
+```sh
+lsg publish --graph /path/to/garden --output /tmp/new-site --filename-format triple-lowbar --include GitP --readable-urls
+```
+
+| Page title | File | Link and `lsg-site.json` `url` |
+| --- | --- | --- |
+| `GitP/A/Session/26/10/20-Tue` | `GitP/A/Session/26/10/20-Tue/index.html` | `GitP/A/Session/26/10/20-Tue/` |
+| `Notes/Q&A: 2026` | `Notes/Q&A: 2026/index.html` | `Notes/Q%26A%3A%202026/` |
+| `2026-10-23 Fri`, a journal | `2026-10-23 Fri/index.html` | `2026-10-23%20Fri/` |
+
+Each segment of a link keeps letters, digits, `-`, `.`, `_` and `~` and percent-encodes every other character as UTF-8. The home page, All pages, the journals feed and the graph view stay at the output root under the names they have without the option, and a `--homepage` page is written both to `index.html` and to its own folder. Rust callers set `SiteOptions::page_urls` to `PageUrls::Readable`; `page_urls::readable_url` gives the link of any title.
+
+Every page in a folder carries a `<base>` element that points at the site root, so its links, assets, scripts and search results resolve as they do from `index.html`. The site works from a static server under any path, such as `https://example.org/logseq-gardener/`, and from disk. A browser shows a folder listing for a `file://` link that ends in `/`, so pages add `index.html` to such a link as the reader follows it; with JavaScript turned off, open `index.html` from the listing.
+
+The build stops before it creates the output directory, naming the pages, when a selected title cannot be a path or two pages would share one:
+
+- A segment is empty, `.` or `..`, starts or ends with whitespace, or is longer than 255 bytes in UTF-8.
+- The title contains a backslash or a control character.
+- Two titles, or two of their folders, differ only in letter case or Unicode normalization, as `Tools/Vim` and `tools/vim` do. macOS and Windows file systems treat those as one path.
+- A title's last segment is `index.html` and its parent is also a page.
+- A title's first segment is a file or folder the build writes at the output root, such as `assets`, `graph.html` or `lsg-site.json`.
+
+Rename the page or give it a `title::` property, then publish again. Windows also refuses `<`, `>`, `:`, `"`, `|`, `?` and `*` in file names; a readable build on Windows stops at the first title with one of them, names the path it could not write, and can leave partial output.
+
 ## Site manifest
 
 Every build writes `lsg-site.json` at the output root, so build tools can read routes without parsing HTML. Generated pages never request it.
@@ -48,6 +76,7 @@ Every build writes `lsg-site.json` at the output root, so build tools can read r
 }
 ```
 
+- `url` is the page's address relative to the output root: its file, or with `--readable-urls` its folder, such as `GitP/A/Session/`, whose file is that folder's `index.html`.
 - `id` is the page's lower-cased name, as Logseq identifies pages. Generated lists (All pages, the journals feed) have `null`. A homepage at `index.html` has its page's id.
 - `kind` is `page`, `journal`, `namespace` (a namespace page with no file), `home` (`index.html`) or `list`. The graph view is not listed.
 - `revision` changes when any generated file changes, except the graph view's layout data.
