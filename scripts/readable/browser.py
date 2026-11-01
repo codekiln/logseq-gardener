@@ -5,8 +5,9 @@
 # ///
 """Check a --readable-urls publication in Chromium, served under a path prefix and from disk.
 
-Builds a small garden with nested pages, a title that needs percent-encoding, a block
-reference, an asset, a journal and search, once without plugins and once with the fixture
+Builds a small garden with nested pages, a title that needs percent-encoding, a title that
+cannot name folders and keeps its digest file, a block reference, an asset, a journal and
+search, once without plugins and once with the fixture
 recorder plugin. Under the prefix it follows page links, zooms into a block and back, opens a
 search result, a Shift-click sidebar card, the page graph, All pages and the journals feed, and
 moves between pages with the plugin host. From disk it follows page links into folders. Every
@@ -29,6 +30,8 @@ BLOCK = '6730a1b2-0000-4000-8000-0000000000aa'
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==')
 START = 'Docs/Guide/Start/'
 ENCODED = 'Docs/Guide/Q%26A%3A%202026/'
+# A literal slash leaves the segment 'Rename with ' ending in a space, so the page keeps its digest file.
+SPACED = 'Docs/Q/Rename with /rename, then resume'
 FILES = {
     'logseq/config.edn': '{:file/name-format :triple-lowbar\n :publishing/all-pages-public? true\n :journal/page-title-format "yyyy-MM-dd EEE"}\n',
     'pages/Docs___Guide___Start.md': ('- Start here. See [[Docs/Guide/Q&A: 2026]] and [[Other]].\n'
@@ -36,7 +39,8 @@ FILES = {
                                       f'- A block with an id\n  id:: {BLOCK}\n'
                                       '- The unicornword lives on this page\n'),
     'pages/Docs___Guide___QA.md': 'title:: Docs/Guide/Q&A: 2026\n\n- Questions and answers. Back to [[Docs/Guide/Start]].\n',
-    'pages/Other.md': f'- Other page quotes (({BLOCK})) and links [[Docs/Guide/Start]].\n',
+    'pages/Other.md': f'- Other page quotes (({BLOCK})) and links [[Docs/Guide/Start]] and [[{SPACED}]].\n',
+    'pages/Docs___Q___Rename with %2Frename, then resume.md': '- The spacedword lives on this page. See [[Docs/Guide/Start]].\n',
     'journals/2026_10_23.md': '- A journal entry about [[Docs/Guide/Start]].\n',
 }
 
@@ -151,6 +155,26 @@ def main():
                 expect(card).to_contain_text('unicornword')
                 results['sidebar'] = True
 
+                # A title that cannot name folders keeps its digest file at the root.
+                pages = json.loads((site / 'lsg-site.json').read_text(encoding='utf-8'))['pages']
+                spaced = next(p['url'] for p in pages if p['title'] == SPACED)
+                assert spaced.startswith('p-') and spaced.endswith('.html'), spaced
+                page.goto(prefix + 'Other/', wait_until='load')
+                page.locator(f'main a[href="{spaced}"]').first.click()
+                page.wait_for_url(prefix + spaced)
+                assert h1(page) == SPACED and styled(page)
+                page.locator('[data-lsg-search]').click()
+                page.locator('#lsg-search-input').fill('spacedword')
+                result = page.locator('#lsg-search-results a.lsg-search-row').first
+                expect(result).to_be_visible()
+                href = result.get_attribute('href')
+                assert href.startswith(prefix + spaced + '#'), href
+                page.keyboard.press('Enter')
+                page.wait_for_url(href)
+                page.locator(f'main a[href="{START}"]').first.click()
+                page.wait_for_url(prefix + START)
+                results['digest_fallback'] = spaced
+
                 # The page graph draws the current page from its neighbourhood file.
                 assert problems == [], problems
                 context.close()
@@ -165,12 +189,28 @@ def main():
                 page.wait_for_function("() => [...performance.getEntriesByType('resource')].some(e => e.name.includes('/_graph/p/'))")
                 page.wait_for_timeout(500)
                 assert status.inner_text() == '', status.inner_text()
+                # The same on the page that kept its digest file, in a fresh context so the
+                # right sidebar starts closed.
+                assert problems == [], problems
+                context.close()
+                context = browser.new_context(viewport={'width': 1280, 'height': 800})
+                page = context.new_page()
+                problems = watch(page)
+                page.goto(prefix + spaced, wait_until='load')
+                page.keyboard.press('t')
+                page.keyboard.press('r')
+                page.locator('[data-add="graph"]').click()
+                status = page.locator('.lsg-page-graph-canvas .lsg-graph-status')
+                page.wait_for_function(f"() => [...performance.getEntriesByType('resource')].some(e => e.name.endsWith('/_graph/p/{spaced[2:18]}.json'))")
+                page.wait_for_timeout(500)
+                assert status.inner_text() == '', status.inner_text()
                 results['page_graph'] = True
 
                 # A graph node's route is the page's folder.
                 page.goto(prefix + 'graph.html', wait_until='load')
                 page.wait_for_function('!!window.logseqGardenerGraph')
                 assert page.evaluate("window.logseqGardenerGraph.routeOf('Docs/Guide/Q&A: 2026')") == ENCODED
+                assert page.evaluate('title => window.logseqGardenerGraph.routeOf(title)', SPACED) == spaced
                 results['graph_route'] = True
 
                 # All pages and the journals feed link into folders.
@@ -204,6 +244,13 @@ def main():
                 page.wait_for_url(root + 'Other/')
                 expect(page.locator('main h1')).to_have_text('Other')
                 assert page.evaluate("document.querySelector('main a.page-ref').href").startswith(root + 'Docs/')
+                # A page that kept its digest file is a same-site page too.
+                before = page.evaluate("performance.getEntriesByName('lsg-host-adopted').length")
+                page.locator(f'main a[href="{spaced}"]').first.click()
+                page.wait_for_function("(n) => performance.getEntriesByName('lsg-host-adopted').length > n", arg=before)
+                assert page.url == root + spaced, page.url
+                assert page.evaluate('window.__kept === true && document.baseURI') == root
+                expect(page.locator('main h1')).to_have_text(SPACED)
                 results['host'] = True
                 assert problems == [], problems
                 context.close()

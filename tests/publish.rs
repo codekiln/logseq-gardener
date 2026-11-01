@@ -595,6 +595,36 @@ fn cli_readable_urls_write_page_folders_and_collisions_fail_without_output() {
 }
 
 #[test]
+fn cli_readable_urls_publish_an_unsafe_title_at_its_digest_file() {
+    let f = Fixture::new();
+    f.write(
+        "pages/Notes___Q___Rename with %2Frename.md",
+        "- SPACED_PAGE\n",
+    );
+    f.write("pages/Notes___Other page.md", "- OTHER_PAGE\n");
+    let output = f.0.join("site");
+    let result = f.publish(&output, &["--include", "Notes", "--readable-urls"]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        stderr.contains("page \"Notes/Q/Rename with /rename\" cannot have a readable URL: a segment starts or ends with whitespace; it is published at p-"),
+        "{stderr}"
+    );
+    let emitted = files(&output);
+    assert!(emitted.contains_key(Path::new("Notes/Other page/index.html")));
+    assert!(emitted.iter().any(|(path, contents)| {
+        let name = path.to_string_lossy();
+        name.starts_with("p-")
+            && name.ends_with(".html")
+            && String::from_utf8_lossy(contents).contains("SPACED_PAGE")
+    }));
+}
+
+#[test]
 fn search_flag_emits_only_opt_in_external_artifacts() {
     let f = Fixture::new();
     f.write("pages/Notes.md", "- Searchable original text\n");
