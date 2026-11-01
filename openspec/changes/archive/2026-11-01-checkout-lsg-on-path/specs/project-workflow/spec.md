@@ -12,7 +12,7 @@ The repository's `mise.toml` SHALL put the checkout's `target/release` directory
 #### Scenario: Unbuilt checkout
 
 - **WHEN** a checkout has no `target/release/lsg` and a contributor runs `mise exec -- lsg version` there
-- **THEN** the installed `lsg` runs, and `mise install`, `mise run` and `mise exec` succeed
+- **THEN** the compiled `lsg` of an enclosing checkout runs if that checkout has one, otherwise the installed `lsg` runs, and `mise install`, `mise run` and `mise exec` succeed
 
 #### Scenario: Shell that uses mise shims
 

@@ -14,3 +14,5 @@ Checked on 2026-11-01 on Apple silicon macOS with mise 2026.10.25, in a worktree
 Without `target/release/lsg`, `mise install` and `mise exec -- true` exited 0.
 
 The alternatives in the design's resolved questions were checked in a scratch project with the same global config. With `"github:codekiln/logseq-gardener" = "path:./target/release"`, the shim ran the checkout build, but with no build `mise install`, `mise run` and `mise exec` failed while mise looked for a GitHub release named after the path. With `disable_tools = ["github:codekiln/logseq-gardener"]`, the shim stopped with "lsg is not a valid shim" whether or not the build existed.
+
+After the merge, the cleanup worktree `.worktrees/345-sync-archive-checkout-lsg-on-path`, which sits inside the main checkout, had no build while the main checkout had one at 0.0.8. There `mise exec -- lsg version` ran the main checkout's `target/release/lsg` and printed `lsg 0.0.8`, because mise also reads the main checkout's `mise.toml`. With a stand-in `target/release/lsg` in the worktree, the worktree's own binary ran first. The scenario "Unbuilt checkout" now names the enclosing checkout's build.
