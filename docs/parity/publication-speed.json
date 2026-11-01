@@ -571,6 +571,101 @@
         "files": 46767,
         "mb": 1212.0
       }
+    },
+    {
+      "recorded": "2026-11-01",
+      "lsg": "c5f430bd3a501d3a288aa34103929630abacd1a4",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "c86afa4f3849e6feeb5b0bcb9a4bf0a0c3020fec168804507a011077b691194f",
+        "source_files": 2410,
+        "source_mb": 3.0,
+        "generator_version": 1
+      },
+      "environment": {
+        "runner": "local",
+        "os": "Darwin 25.6.0",
+        "machine": "arm64",
+        "cpu": "Apple M2 Pro",
+        "cpus": 12
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 3.389,
+      "warm_s": 2.977,
+      "warm_median_s": 3.033,
+      "runs": 5,
+      "phases_ms": {
+        "read": 243.7,
+        "parse": 46.8,
+        "index": 328.0,
+        "plugins": 0.0,
+        "render": 1211.5,
+        "history": 0.0,
+        "search": 274.0,
+        "graph": 0.0,
+        "write": 769.3
+      },
+      "peak_mb": 575,
+      "published": {
+        "pages": 2375,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9900,
+        "mb": 235.7
+      }
+    },
+    {
+      "recorded": "2026-11-01",
+      "lsg": "c5f430bd3a501d3a288aa34103929630abacd1a4",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "4d37b9ffa590227b5da122d5c30b9e2fbaebf158",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "local",
+        "os": "Darwin 25.6.0",
+        "machine": "arm64",
+        "cpu": "Apple M2 Pro",
+        "cpus": 12
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 16.88,
+      "warm_s": 16.289,
+      "warm_median_s": 16.325,
+      "runs": 5,
+      "phases_ms": {
+        "read": 1250.9,
+        "parse": 251.6,
+        "index": 1868.1,
+        "plugins": 0.0,
+        "render": 5891.3,
+        "history": 0.0,
+        "search": 1656.9,
+        "graph": 1292.2,
+        "write": 3750.7
+      },
+      "peak_mb": 3600,
+      "published": {
+        "pages": 8732,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46767,
+        "mb": 1212.0
+      }
     }
   ]
 }
