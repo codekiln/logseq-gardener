@@ -12,10 +12,10 @@ Measured on 2026-10-27 against the `gh-pages` build of garden commit `083106d` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from the reference boards. The boards in `docs/logseq-reference/` disagree with the live build in several places:
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from the reference boards. The boards in [lsg/Ref/Logseq Published Site](../pages/lsg___Ref___Logseq%20Published%20Site.md) disagree with the live build in several places:
 
-- `Flashcards.md` draws a 760px white modal with both `1/430` and `[overdue]/430` counters, a `Hide answers` button beside the scoring buttons, and a visible `#card` tag on the card front. The live modal is 836px wide and grey, shows one counter, has no `Hide answers` button while scoring, and hides the tag.
-- `Prototype.md` draws the `{{cards}}` widget as a full inline reviewer, lists cards in page-source order, gives the modal no Close button, and says scoring writes nothing. The live widget shows only the first card's front and a `Review cards` button. Cards are ordered by next review date, the modal has a Close button, and scoring changes the counts until the page reloads.
+- [lsg/Ref/Logseq Published Site/Flashcards Review](../pages/lsg___Ref___Logseq%20Published%20Site___Flashcards%20Review.md) draws a 760px white modal with both `1/430` and `[overdue]/430` counters, a `Hide answers` button beside the scoring buttons, and a visible `#card` tag on the card front. The live modal is 836px wide and grey, shows one counter, has no `Hide answers` button while scoring, and hides the tag.
+- [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md) draws the `{{cards}}` widget as a full inline reviewer, lists cards in page-source order, gives the modal no Close button, and says scoring writes nothing. The live widget shows only the first card's front and a `Review cards` button. Cards are ordered by next review date, the modal has a Close button, and scoring changes the counts until the page reloads.
 - Both boards use red, blue and green scoring buttons (`#ce2c31`, `#3e63dd`, `#18794e`). The live colours are listed under [Review modal](#review-modal).
 
 ### What counts as a card

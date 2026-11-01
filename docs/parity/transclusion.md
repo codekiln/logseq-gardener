@@ -80,7 +80,7 @@ References and embeds share one depth counter with a limit of 5 ([`block.cljs`](
 
 ### Where the reference boards differ
 
-`docs/logseq-reference/Transclusion.md` gives the reference text the link colour, mixes block and page embed styles into one `.embed` rule with a 4px radius, and draws only a header for any embed already in the chain. The live build shows body-coloured reference text, 8px radius on both embed kinds, and the narrower cycle check above. This analysis follows the live build.
+[lsg/Ref/Logseq Published Site/Transclusion](../pages/lsg___Ref___Logseq%20Published%20Site___Transclusion.md) gives the reference text the link colour, mixes block and page embed styles into one `.embed` rule with a 4px radius, and draws only a header for any embed already in the chain. The live build shows body-coloured reference text, 8px radius on both embed kinds, and the narrower cycle check above. This analysis follows the live build.
 
 ## What lsg does today
 

@@ -10,7 +10,7 @@ Measured on 2026-10-26 against the `gh-pages` build of garden commit `083106d` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). The live build ships reveal.js 4.6.0. Measured live values come first and win where they differ from the checkout or from [Prototype](../logseq-reference/Prototype.md). The Prototype board's slide model, card and fullscreen overlay differ from the live build; the differences are listed under [Differences from the Prototype board](#differences-from-the-prototype-board).
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). The live build ships reveal.js 4.6.0. Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md). The Prototype board's slide model, card and fullscreen overlay differ from the live build; the differences are listed under [Differences from the Prototype board](#differences-from-the-prototype-board).
 
 ### The menu item
 
