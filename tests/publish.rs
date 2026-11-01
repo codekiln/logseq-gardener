@@ -754,3 +754,18 @@ fn cli_failing_build_plugin_exits_one_without_output() {
     assert!(stderr.contains("exit status: 1"), "{stderr}");
     assert!(!output.exists());
 }
+
+#[test]
+fn publish_help_limitations_describe_journal_skipping_accurately() {
+    let help = Command::new(env!("CARGO_BIN_EXE_lsg"))
+        .args(["publish", "help", "section", "limitations"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help = String::from_utf8_lossy(&help.stdout);
+    assert!(
+        !help.contains("Journals are skipped pending configured date identities"),
+        "{help}"
+    );
+    assert!(help.contains("Without --journals"), "{help}");
+}
