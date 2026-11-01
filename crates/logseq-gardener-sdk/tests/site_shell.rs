@@ -183,6 +183,19 @@ fn view_as_slides_is_the_first_more_item_on_page_routes_only() {
 }
 
 #[test]
+fn fragment_targets_scroll_below_the_sticky_header() {
+    let f = Fixture::new(CONFIG);
+    f.publish(None);
+    let tmux = f.page("TMUX_BODY");
+    let styles = before(&tmux, "</style>");
+    // Both the browser's fragment scroll and fragments.js's scrollIntoView() stop
+    // scroll-padding-top below the viewport's top. 56px is the 48px header plus room for
+    // the block's bullet row, which starts a few pixels above the source-block anchor.
+    assert!(styles.contains("position:sticky;top:0;") && styles.contains("height:48px;"));
+    assert!(styles.contains("html{scroll-padding-top:56px}"), "{styles}");
+}
+
+#[test]
 fn shell_cost_is_fixed_per_page() {
     let f = Fixture::new(CONFIG);
     f.publish(None);
