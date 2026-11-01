@@ -17,7 +17,7 @@ see-also:: [[lsg/Ref/Page Titles]], [[lsg/How To/Use the Rust SDK]], [[lsg/Parse
 			- Loading skips every path with a folder or file name that starts with `.`, every path with a `node_modules` folder, and everything beneath `logseq/bak/`, `logseq/.recycle/` and `logseq/version-files/`, where Logseq keeps its backups and history.
 		- ### Hidden paths
 			- Loading skips every Markdown file that an entry of `:hidden` in `logseq/config.edn` hides, in every folder, `pages/` and `journals/` included.
-			- It uses Logseq's rule: after a leading `/` is added to the file's relative path and to the entry, where either lacks one, an entry hides each path that starts with it.
+			- It uses Logseq's rule. A leading `/` is added to the entry and to the file's relative path where either lacks one, and the entry then hides every path that starts with it.
 			- With `:hidden ["README.md"]`, loading skips `README.md` at the root and loads `pages/README.md`. With `:hidden ["worktrees"]`, it loads nothing beneath `worktrees/`.
 		- ### Git-ignored files
 			- When the root is inside a git work tree, loading skips Markdown files outside `pages/` and `journals/` that git ignores, so a local build loads what a fresh checkout holds.
