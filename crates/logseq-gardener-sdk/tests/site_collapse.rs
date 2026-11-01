@@ -188,7 +188,9 @@ fn outline_blocks_break_long_words_to_fit_a_phone_screen() {
     );
     f.publish();
     let page = f.html("Notes/Start");
-    let style = &page[page.find(".outline li{").unwrap()..];
+    assert!(page.contains("<link rel=\"stylesheet\" href=\"lsg-site.css\">"));
+    let styles = fs::read_to_string(f.0.join("site/lsg-site.css")).unwrap();
+    let style = &styles[styles.find(".outline li{").unwrap()..];
     let rule = &style[..style.find('}').unwrap()];
     assert!(rule.contains("overflow-wrap:anywhere"), "{rule}");
 }

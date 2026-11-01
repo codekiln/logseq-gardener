@@ -75,6 +75,18 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | All pages | desktop | lsg | 23.1 | 36.0 | 13.2 | 14.4 | 1.8 |
 		  | All pages | phone | logseq | 197,866 | 197,876 | 22,067 | 8,087 | 1,982 |
 		  | All pages | phone | lsg | 235 | 248 | 13.2 | 14.4 | 1.9 |
+	- ## Site size
+		- Files and sizes as written, before any server compresses them. GitHub Pages serves at most 1 GB. **Bold** marks a size over its `[site]` budget. Measured 2026-11-01, `lsg` 0.0.11 (7042383) with the shared stylesheets and compressed reference fragments of [issue 348](https://github.com/codekiln/logseq-gardener/issues/348), on garden commit e317ae9. Logseq's build is `gh-pages` commit 8132c95, from garden commit 083106d, the last site Logseq published before the garden moved to `lsg`. Before the change, `lsg`'s site for garden commit 4d37b9f was 1,216.8 MB: 552.4 MB of page HTML and 447.9 MB of `_refs/`.
+		- | Build | Part | Files | Size (MB) |
+		  | --- | --- | ---: | ---: |
+		  | logseq | Whole site | 506 | 227.0 |
+		  | lsg | Whole site | 47,766 | 476.9 |
+		  | lsg | Page HTML at the site root | 14,319 | 175.8 |
+		  | lsg | `_refs/` | 17,696 | 83.9 |
+		  | lsg | `assets/` | 111 | 164.5 |
+		  | lsg | Search files | 1,652 | 29.3 |
+		  | lsg | `_graph/` | 13,909 | 19.4 |
+		  | lsg | Everything else | 79 | 4.0 |
 	- ## Journals feed after 10 later batches
 		- The home page scrolled until it shows 73 journals or runs out. The phone heap budget applies to `lsg`.
 		- | Profile | Build | Journals shown | Peak JS heap (MB) | Time to load the batches (ms) |

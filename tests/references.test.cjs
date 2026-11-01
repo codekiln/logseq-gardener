@@ -3,6 +3,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const zlib = require('node:zlib');
 const raw = readFileSync(path.join(__dirname, '../crates/logseq-gardener-sdk/src/site/references.js'), 'utf8');
 // The same trimming the publisher applies before writing lsg-references.js.
 let source = '';
@@ -44,7 +45,10 @@ class Node {
     }
   }
   after(node) { const p = this.parentElement; p.append(node); p.childNodes.splice(p.childNodes.indexOf(this) + 1, 0, p.childNodes.pop()); }
-  prepend(node) { this.append(node); this.childNodes.unshift(this.childNodes.pop()); }
+  prepend(node) {
+    if (typeof node === 'string') { const t = new Node('#text'); t.text = node; node = t; }
+    this.append(node); this.childNodes.unshift(this.childNodes.pop());
+  }
   replaceChildren(...nodes) { for (const c of this.childNodes) c.parentElement = null; this.childNodes = []; this.append(...nodes.filter(Boolean)); }
   insertAdjacentHTML(_, html) { this.append(...parse(html).childNodes); }
   matches(selector) {
@@ -86,9 +90,10 @@ function parse(html) {
   return root;
 }
 
+// A Linked or Unlinked References file as the publisher writes it before compressing it.
 function fragment(body, data) {
   const json = data ? `<script type="application/json" class="references-data">${JSON.stringify(data)}</script>` : '';
-  return `<!doctype html><html><head><base href="../">${json}</head><body><main><div class="references-fragment">${body}</div></main></body></html>`;
+  return `${json}<div class="references-fragment">${body}</div>\n`;
 }
 const group = (title, blocks) => `<div class="references-blocks-item"><details class="references-group" open><summary class="foldable-title"><a href="${title}.html">${title}</a></summary>${blocks}</details></div>`;
 const block = (n, child = '') => `<div class="references-block"><div class="blocks-container"><ul class="refs-outline"><li data-ref-block="${n}">B${n}${child}</li></ul></div></div>`;
@@ -97,21 +102,23 @@ const block = (n, child = '') => `<div class="references-block"><div class="bloc
 // its own; block 0's descendants name Beta and Alpha.
 const DATA = {
   count: 3,
-  files: ['t-linked-1.html', 't-linked-2.html'],
+  files: ['t-linked-1.html.gz', 't-linked-2.html.gz'],
   pages: [['Alpha', 'a.html'], ['Beta', 'b.html'], ['Gamma', 'g.html']],
   blocks: [[0, [0], [1, 0]], [0, [0, 1]], [1, [2], []]],
   filter: [[], []],
 };
 const FILES = {
-  '_refs/t-linked-1.html': (data) => fragment(group('One', block(0, `<ul><li data-ref-block="1">B1</li></ul>`)), data),
-  '_refs/t-linked-2.html': () => fragment(group('Two', block(2))),
+  '_refs/t-linked-1.html.gz': (data) => fragment(group('One', block(0, `<ul><li data-ref-block="1">B1</li></ul>`)), data),
+  '_refs/t-linked-2.html.gz': () => fragment(group('Two', block(2))),
   '_refs/t-hierarchy-1.html': () => `<!doctype html><html><head><base href="../"></head><body><main><div class="references-fragment"><ul class="namespaces"><li>R/2</li><li>R/3</li></ul></div><p><a href="_refs/t-hierarchy-2.html" rel="next">More of the hierarchy</a></p></main></body></html>`,
   '_refs/t-hierarchy-2.html': () => `<!doctype html><html><head><base href="../"></head><body><main><div class="references-fragment"><ul class="namespaces"><li>R/4</li></ul></div></main></body></html>`,
-  '_refs/t-unlinked-1.html': () => fragment(group('Three', '<div class="references-block">U</div>'), { count: 1, files: ['t-unlinked-1.html'] }),
+  '_refs/t-unlinked-1.html.gz': () => fragment(group('Three', '<div class="references-block">U</div>'), { count: 1, files: ['t-unlinked-1.html.gz'] }),
 };
 
-function setup({ data = DATA, open = false, storage = new Map(), throwing = false, unlinkedSrc = true, hierarchy = '' } = {}) {
-  const page = parse(`<section class="references" data-refs="linked" data-src="_refs/t-linked-1.html"><details class="references-section"><summary><h2>3 Linked References</h2><button type="button" class="filter" data-state="none" hidden></button></summary><div class="references-body"><p role="status"></p></div></details></section><section class="references" data-refs="unlinked"${unlinkedSrc ? ' data-src="_refs/t-unlinked-1.html"' : ''}><details class="references-section"><summary><h2>Unlinked References</h2></summary><div class="references-body"></div></details></section>${hierarchy}`);
+// `decoded` serves .gz files already decompressed, as a host that decodes them would; `missing`
+// lists files that answer 404.
+function setup({ data = DATA, open = false, storage = new Map(), throwing = false, unlinkedSrc = true, hierarchy = '', decoded = false, missing = [] } = {}) {
+  const page = parse(`<section class="references" data-refs="linked" data-src="_refs/t-linked-1.html.gz"><details class="references-section"><summary><h2>3 Linked References</h2><button type="button" class="filter" data-state="none" hidden></button></summary><div class="references-body"><p role="status"></p></div></details></section><section class="references" data-refs="unlinked"${unlinkedSrc ? ' data-src="_refs/t-unlinked-1.html.gz"' : ''}><details class="references-section"><summary><h2>Unlinked References</h2></summary><div class="references-body"></div></details></section>${hierarchy}`);
   const [linked, unlinked, rows] = page.querySelectorAll('section');
   linked.querySelector('details').open = open;
   const fetched = [];
@@ -123,14 +130,16 @@ function setup({ data = DATA, open = false, storage = new Map(), throwing = fals
   };
   const window = {};
   const context = {
-    window, document, URL, JSON, Promise, Set, Map, Error,
+    window, document, URL, JSON, Promise, Set, Map, Error, Response, Blob, Uint8Array, DecompressionStream,
     location: { pathname: '/garden/t.html', hash: '' },
     sessionStorage: store,
     fetch: async (url) => {
       const key = String(url).replace('https://site.test/', '');
       fetched.push(key);
-      const body = key === '_refs/t-linked-1.html' ? FILES[key](data) : FILES[key]();
-      return { ok: true, text: async () => body };
+      if (missing.includes(key)) return { ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0) };
+      const body = Buffer.from(key === '_refs/t-linked-1.html.gz' ? FILES[key](data) : FILES[key]());
+      const stored = key.endsWith('.gz') && !decoded ? zlib.gzipSync(body) : body;
+      return { ok: true, arrayBuffer: async () => stored.buffer.slice(stored.byteOffset, stored.byteOffset + stored.length) };
     },
     DOMParser: class { parseFromString(text) { return parse(text); } },
     IntersectionObserver: class {
@@ -143,7 +152,8 @@ function setup({ data = DATA, open = false, storage = new Map(), throwing = fals
   window.IntersectionObserver = context.IntersectionObserver;
   vm.runInNewContext(source, context);
   const tick = () => new Promise((resolve) => setImmediate(resolve));
-  const settle = async () => { for (let i = 0; i < 10; i++) await tick(); };
+  // Decompression runs on streams, which can take many event-loop turns on a busy machine.
+  const settle = async () => { for (let i = 0; i < 10; i++) { await tick(); await new Promise((resolve) => setTimeout(resolve, 5)); } };
   const toggle = async (section) => {
     const details = section.querySelector('details');
     details.open = !details.open;
@@ -165,13 +175,13 @@ test('opening a section fetches only its first file and shows the filter control
   assert.equal(t.linked.querySelector('.filter').hidden, false);
   assert.deepEqual(t.fetched, []);
   await t.toggle(t.linked);
-  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html']);
+  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html.gz']);
   assert.equal(t.h2(t.linked), '3 Linked References');
   assert.deepEqual(shown(t.linked), ['0', '1']);
   // The next file loads when the reader nears the end.
   t.observers[0].callback([{ isIntersecting: true }]);
   await t.settle();
-  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html', '_refs/t-linked-2.html']);
+  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html.gz', '_refs/t-linked-2.html.gz']);
   assert.deepEqual(shown(t.linked), ['0', '1', '2']);
 });
 
@@ -182,7 +192,7 @@ test('a starting filter sets the count, the funnel and keeps ancestors of matchi
   assert.equal(t.linked.querySelector('.filter').dataset.state, 'include');
   // Block 1 matches; block 0 stays as its ancestor; file 2 holds nothing that matches.
   assert.deepEqual(shown(t.linked), ['0', '1']);
-  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html']);
+  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html.gz']);
 });
 
 test('chips include, exclude and remove, with counts from the kept blocks', async () => {
@@ -262,11 +272,44 @@ test('unlinked references show their count once opened, and zero without a file'
   assert.equal(t.h2(t.unlinked), 'Unlinked References');
   await t.toggle(t.unlinked);
   assert.equal(t.h2(t.unlinked), '1 Unlinked Reference');
-  assert.deepEqual(t.fetched, ['_refs/t-unlinked-1.html']);
+  assert.deepEqual(t.fetched, ['_refs/t-unlinked-1.html.gz']);
   const none = setup({ unlinkedSrc: false });
   await none.toggle(none.unlinked);
   assert.equal(none.h2(none.unlinked), '0 Unlinked References');
   assert.deepEqual(none.fetched, []);
+});
+
+test('compressed files and files a host already decoded show the same groups', async () => {
+  const compressed = setup({ open: true });
+  const decoded = setup({ open: true, decoded: true });
+  for (const t of [compressed, decoded]) {
+    await t.settle();
+    t.observers[0].callback([{ isIntersecting: true }]);
+    await t.toggle(t.unlinked);
+    assert.deepEqual(t.fetched, ['_refs/t-linked-1.html.gz', '_refs/t-linked-2.html.gz', '_refs/t-unlinked-1.html.gz']);
+    assert.deepEqual(shown(t.linked), ['0', '1', '2']);
+    assert.equal(t.h2(t.linked), '3 Linked References');
+    assert.equal(t.h2(t.unlinked), '1 Unlinked Reference');
+    assert.match(t.unlinked.textContent, /U/);
+  }
+});
+
+test('a fragment that cannot be loaded leaves the opened section saying so', async () => {
+  const first = setup({ missing: ['_refs/t-linked-1.html.gz'] });
+  await first.toggle(first.linked);
+  assert.match(first.linked.querySelector('.references-body').textContent, /References could not be loaded\./);
+  // The filter does not open without the section's data.
+  await openDialog(first);
+  assert.equal(first.linked.querySelector('dialog'), null);
+  const unlinked = setup({ missing: ['_refs/t-unlinked-1.html.gz'] });
+  await unlinked.toggle(unlinked.unlinked);
+  assert.match(unlinked.unlinked.textContent, /References could not be loaded\./);
+  const later = setup({ open: true, missing: ['_refs/t-linked-2.html.gz'] });
+  await later.settle();
+  later.observers[0].callback([{ isIntersecting: true }]);
+  await later.settle();
+  assert.deepEqual(shown(later.linked), ['0', '1']);
+  assert.match(later.linked.querySelector('.references-body').textContent, /References could not be loaded\./);
 });
 
 test('initializing again after a content swap registers nothing twice', async () => {
@@ -274,7 +317,7 @@ test('initializing again after a content swap registers nothing twice', async ()
   t.window.logseqGardenerInitReferences();
   t.window.logseqGardenerInitBacklinks(t.linked);
   await t.toggle(t.linked);
-  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html']);
+  assert.deepEqual(t.fetched, ['_refs/t-linked-1.html.gz']);
   assert.equal(t.linked.querySelectorAll('[data-ref-block="0"]').length, 1);
 });
 

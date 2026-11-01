@@ -245,7 +245,12 @@ fn rows_follow_the_target_blocks_children_and_links_resolve() {
     assert!(!home.contains("<b>x</b>"));
     assert!(home.contains("<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://example.com/a\">site</a>"));
     assert!(home.contains("<a href=\"mailto:a@example.com\">mail</a>"));
-    assert!(home.contains("<style data-lsg-derived>"));
+    assert!(home.contains("<link rel=\"stylesheet\" href=\"lsg-derived.css\">"));
+    assert!(
+        fs::read_to_string(site.join("lsg-derived.css"))
+            .unwrap()
+            .contains(".lsg-derived .lsg-dot{")
+    );
     // The block link carries the source anchor that the target page now emits.
     let start = home
         .find(&format!("<a href=\"{episode}#source-block-"))
@@ -267,7 +272,7 @@ fn rows_follow_the_target_blocks_children_and_links_resolve() {
     let list = &home[derived..];
     let list = &list[..list.find("</ul></li>").unwrap_or(list.len())];
     assert!(!list.contains(" id=\""), "{list}");
-    assert!(!page(&site, "show/episode 2").contains("<style data-lsg-derived>"));
+    assert!(!page(&site, "show/episode 2").contains("lsg-derived.css"));
 }
 
 #[test]
@@ -414,7 +419,12 @@ fn derived_rows_reach_no_index_and_no_other_page() {
         .filter(|name| before.get(*name) != after.get(*name))
         .collect();
     assert_eq!(changed, [&"lsg-site.json".to_owned(), &home], "{changed:?}");
-    assert_eq!(before.len(), after.len());
+    // The derived-row styles are the only added file.
+    let added: Vec<&String> = after
+        .keys()
+        .filter(|name| !before.contains_key(*name))
+        .collect();
+    assert_eq!(added, [&"lsg-derived.css".to_owned()]);
     for (name, contents) in &after {
         if name != &home {
             assert!(

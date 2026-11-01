@@ -9,12 +9,15 @@ use crate::journals::JournalDate;
 /// Feed loader written once at the site root.
 pub(super) const SCRIPT_ROUTE: &str = "lsg-journals.js";
 pub(super) const SCRIPT: &str = include_str!("journals.js");
-/// Styles added to the `<head>` of feed pages only. `lsg-shell.js` loads the feed
-/// loader after the page's `load` event, so it stays out of first paint.
-pub(super) const HEAD: &str = concat!(
-    "<style>.lsg-journal{margin:0 0 4rem}.lsg-journal-title{margin:.5rem 0}.lsg-journal-title a{color:inherit;text-decoration:none}.lsg-journal-title a:hover{text-decoration:underline}",
-    ".lsg-journal-references{margin-top:2rem}.lsg-journal-references>summary{cursor:pointer;font-size:1.1rem;font-weight:600}.lsg-journals-earlier{display:block;margin:2rem 0;color:var(--lsg-muted)}</style>",
+/// Styles for feed pages, written once at the site root as [`STYLES_ROUTE`].
+pub(super) const STYLES: &str = concat!(
+    ".lsg-journal{margin:0 0 4rem}.lsg-journal-title{margin:.5rem 0}.lsg-journal-title a{color:inherit;text-decoration:none}.lsg-journal-title a:hover{text-decoration:underline}",
+    ".lsg-journal-references{margin-top:2rem}.lsg-journal-references>summary{cursor:pointer;font-size:1.1rem;font-weight:600}.lsg-journals-earlier{display:block;margin:2rem 0;color:var(--lsg-muted)}",
 );
+pub(super) const STYLES_ROUTE: &str = "lsg-journals.css";
+/// Added to the `<head>` of feed pages only. `lsg-shell.js` loads the feed loader after the
+/// page's `load` event, so it stays out of first paint.
+pub(super) const HEAD: &str = "<link rel=\"stylesheet\" href=\"lsg-journals.css\">";
 
 const FIRST_BATCH: usize = 3;
 const LATER_BATCH: usize = 7;

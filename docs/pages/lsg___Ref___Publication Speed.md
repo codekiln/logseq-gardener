@@ -25,6 +25,19 @@ see-also:: [[lsg/How To/Measure Performance]], [[lsg/Ref/Logseq Compatibility/Pe
 		  | `search` | 4.2 | 1.7 | Search files |
 		  | `write` | 0.8 | 3.6 | Writing the site |
 		- The `plugins`, `history` and `graph` phases measure only how long the main thread waited for work running on other threads: build plugins, the git history read and the graph layouts. All three were under 0.1 seconds, so that work finishes while pages render.
+	- ## Site size
+		- Each recorded row also holds the file count and size of each part of the site. `parity:publish-bench --check` fails when the encode garden's site exceeds 550 MB, its page HTML at the site root 200 MB, or `_refs/` 100 MB, the `[site]` budgets in [`scripts/parity/budgets.toml`](https://github.com/codekiln/logseq-gardener/blob/main/scripts/parity/budgets.toml). GitHub Pages serves at most 1 GB.
+		- Sharing the page styles in `lsg-site.css`, moving the theme controller and search start-up into deferred files, and storing Linked and Unlinked References fragments gzip-compressed ([issue 348](https://github.com/codekiln/logseq-gardener/issues/348)) shrank the encode garden's site at commit `5095bdf`, on the Apple M2 Pro:
+		- | Part | Files | Before (MB) | After (MB) |
+		  | --- | ---: | ---: | ---: |
+		  | Page HTML at the site root | 13,929 | 552.4 | 171.1 |
+		  | `_refs/` | 17,486 | 447.9 | 82.5 |
+		  | `assets/` | 111 | 164.5 | 164.5 |
+		  | Search files | 1,640 before, 1,641 after | 29.0 | 29.0 |
+		  | `_graph/` | 13,528 | 19.1 | 19.1 |
+		  | Everything else | 73 before, 79 after | 3.9 | 3.9 |
+		  | Whole site | 46,767 before, 46,774 after | 1,216.8 | 470.2 |
+		- The fastest of five interleaved warm builds took 15.7 seconds before and 16.6 seconds after, 6% slower, within the `[site]` budget of 10%. Compression adds about 5 seconds of processor time, spread across the writing threads.
 	- ## Rendering each reference copy once
 		- The publisher renders each copy of a referring block and its breadcrumb once per build, and fills in the parts that depend on the listing page: the bullet's row number in that page's reference data and the bullet's link. Before [issue 290](https://github.com/codekiln/logseq-gardener/issues/290), it copied each referring block and rendered the copy again for every page that listed it. The published files did not change: the encode garden at `4d37b9f` and the generated Gitpa-sized garden, published with the binaries from before and after the change, gave the same 46,767 and 9,900 files byte for byte and the same diagnostics.
 		- On the Apple M2 Pro, fastest of five warm builds, in seconds:

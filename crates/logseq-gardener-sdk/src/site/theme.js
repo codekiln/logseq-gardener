@@ -1,17 +1,8 @@
-/** Shared visitor appearance, independent of replaceable page content. */
+// lsg-theme.js: the theme controller, loaded with defer after the inline theme-start.js has applied
+// the saved layout and theme. It wires the theme menu and keeps the appearance in step with the
+// saved choice and the system setting. Hosts that swap page content call
+// window.logseqGardenerInitTheme(root).
 (() => {
-  try {
-    // Saved shell layout applies before paint; the phone overlay always starts closed.
-    const root = document.documentElement;
-    if (window.matchMedia?.('(min-width: 640px)')?.matches && window.localStorage.getItem('logseq-gardener-left-sidebar') === 'open') root.setAttribute('data-lsg-left-sidebar', 'open');
-    if (window.localStorage.getItem('logseq-gardener-wide') === 'true') root.setAttribute('data-lsg-wide', 'true');
-    // The right sidebar's column takes its width before paint; its cards load after load.
-    const right = JSON.parse(window.localStorage.getItem('logseq-gardener-right-sidebar') || 'null');
-    if (right && window.matchMedia?.('(min-width: 640px)')?.matches) {
-      root.setAttribute('data-lsg-right-sidebar', right.open ? 'open' : 'closed');
-      if (right.width > 0) root.style.setProperty('--lsg-right-width', right.width + 'px');
-    }
-  } catch { /* Layout keeps its defaults. */ }
   if (typeof window.logseqGardenerInitTheme === 'function') return;
   const key = 'logseq-gardener-theme';
   const valid = value => value === 'light' || value === 'dark';

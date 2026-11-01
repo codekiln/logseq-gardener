@@ -24,7 +24,7 @@ see-also:: [[lsg/Ref/Logseq Compatibility/Performance]], [[lsg/Ref/Publication S
 		- ### 3. Measure page loads in both builds
 			- For a quick check, run `mise run parity:perf --profiles desktop --loads 1`, or pass `--fixtures <file>` with a shorter list of pages.
 			- A full `mise run parity:perf` run takes hours, because Logseq's build needs minutes per load on the phone profile. It writes `perf.md` and `perf.json` into the run directory.
-			- To measure one feature in the run's site, pass one of `--graph`, `--slides`, `--media`, `--sidebar`, `--queries`, `--flashcards` or `--plugins`. `--baseline-lsg <binary>` also times a whole-garden build with another `lsg`, such as one built before your change.
+			- To measure one feature in the run's site, pass one of `--graph`, `--slides`, `--media`, `--sidebar`, `--queries`, `--flashcards` or `--plugins`. `--site-size` reports both builds' sizes and file counts and the size of each part of `lsg`'s site. `--baseline-lsg <binary>` also times a whole-garden build with another `lsg`, such as one built before your change.
 		- ### 4. Measure search
 			- Measure search in a built site, beside Logseq's build when the site belongs to a parity run:
 			- ```sh

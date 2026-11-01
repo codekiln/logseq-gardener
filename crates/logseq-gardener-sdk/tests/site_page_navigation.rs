@@ -10,6 +10,7 @@ use logseq_gardener_sdk::{
     site::{SiteOptions, publish_site_with_options},
 };
 
+mod support;
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 struct Fixture(PathBuf);
 impl Fixture {
@@ -59,7 +60,7 @@ impl Fixture {
         paths.sort();
         paths
             .into_iter()
-            .map(|path| fs::read_to_string(path).unwrap())
+            .map(|path| support::read_text(&path))
             .collect()
     }
 }
@@ -199,7 +200,11 @@ fn namespace_status_preserves_index_names_and_selected_empty_pages() {
     assert!(
         generated.contains("class=\"namespace-link\" aria-label=\"Visible/Branch (Namespace)\"")
     );
-    assert!(generated.contains("text-decoration-style:dotted"));
+    assert!(
+        fs::read_to_string(f.0.join("site/lsg-site.css"))
+            .unwrap()
+            .contains("text-decoration-style:dotted")
+    );
     assert!(
         !generated.contains("data-refs=\"linked\""),
         "no references, no section"

@@ -196,6 +196,35 @@ class PublishBenchTest(unittest.TestCase):
         rows = [self.row(10, digest='other'), self.row(10, runner='local')]
         self.assertIsNone(self.limit(rows))
 
+    def test_parts_cover_every_file_once(self):
+        self.assertEqual([publish_bench.part(r) for r in (
+            'tmux.html', '_refs/p-1-linked-1.html.gz', 'assets/a.png', 'lsg-search-titles-1.json', '_graph/p/1.json',
+            'lsg-site.css', '_pages/list.json', 'flashcards/decks/all.json')],
+            ['page_html', '_refs', 'assets', 'search', '_graph', 'other', 'other', 'other'])
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            for route, size in (('a.html', 10), ('b.html', 20), ('_refs/x.html.gz', 5), ('lsg-site.css', 7)):
+                (site / route).parent.mkdir(parents=True, exist_ok=True)
+                (site / route).write_bytes(b'x' * size)
+            parts = publish_bench.site_parts(site)
+            self.assertEqual(list(parts), list(publish_bench.PARTS))
+            self.assertEqual(sum(p['files'] for p in parts.values()), publish_bench.output_size(site)[0])
+            self.assertEqual(parts['page_html']['files'], 2)
+            self.assertEqual(parts['_refs']['files'], 1)
+
+    def test_size_budgets_name_the_part_over_budget(self):
+        limits = {'site_mb': 550, 'page_html_mb': 200, 'refs_mb': 100}
+        parts = {'page_html': {'files': 1, 'mb': 170.0}, '_refs': {'files': 1, 'mb': 120.0}}
+        row = {'corpus': {'name': 'encode-garden'}, 'output': {'files': 2, 'mb': 470.0, 'parts': parts}}
+        self.assertEqual(publish_bench.check_size(row, limits),
+                         ['encode-garden: _refs/ 120.0 MB exceeds its 100 MB budget'])
+        parts['_refs']['mb'] = 80.0
+        self.assertEqual(publish_bench.check_size(row, limits), [])
+        row['output']['mb'] = 600.0
+        self.assertEqual(publish_bench.check_size(row, limits), ['encode-garden: site 600.0 MB exceeds its 550 MB budget'])
+        # The generated garden has no size budget.
+        self.assertEqual(publish_bench.check_size({**row, 'corpus': {'name': 'gitpa-sized'}}, limits), [])
+
     def test_the_sample_garden_has_gitpas_shape(self):
         rng = sample_garden.random.Random(sample_garden.SEED)
         words = sample_garden.vocabulary(rng)
@@ -206,6 +235,25 @@ class PublishBenchTest(unittest.TestCase):
         for title in titles:
             if '/' in title:
                 self.assertIn(title.rsplit('/', 1)[0], titles)
+
+
+class SiteSizeTest(unittest.TestCase):
+    def test_site_size_section_lists_both_builds_and_marks_parts_over_budget(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            for route, size in (('site/a.html', 3_000_000), ('site/_refs/a-linked-1.html.gz', 2_000_000),
+                                ('logseq/index.html', 1_000_000), ('logseq/static/js/db.gz', 500_000)):
+                (run / route).parent.mkdir(parents=True, exist_ok=True)
+                (run / route).write_bytes(b'x' * size)
+            sizes = perf.site_sizes(run)
+            self.assertEqual(sizes['logseq'], {'files': 2, 'mb': 1.5})
+            self.assertEqual((sizes['lsg']['files'], sizes['lsg']['mb']), (2, 5.0))
+            limits = {'site': {'site_mb': 10, 'page_html_mb': 2, 'refs_mb': 10}}
+            text = '\n'.join(perf.site_size_markdown(sizes, limits))
+            self.assertIn('| logseq | Whole site | 2 | 1.5 |', text)
+            self.assertIn('| lsg | Whole site | 2 | 5.0 |', text)
+            self.assertIn('| lsg | Page HTML at the site root | 1 | **3.0** |', text)
+            self.assertIn('| lsg | `_refs/` | 1 | 2.0 |', text)
 
 
 class MetricsTest(unittest.TestCase):
@@ -262,6 +310,9 @@ class MetricsTest(unittest.TestCase):
                                                        'peak_memory_growth_pct': 15})
         # Publication speed (publication-speed); the design's tolerances.
         self.assertEqual(loaded.pop('publication'), {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100})
+        # Site size (published-site-size); the design's budgets.
+        self.assertEqual(loaded.pop('site'), {'site_mb': 550, 'page_html_mb': 200, 'refs_mb': 100,
+                                              'inline_script_kb': 1.5, 'build_slowdown_pct': 10})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
                                        'slides', 'queries', 'flashcards', 'loading'})
@@ -285,7 +336,7 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(set(loaded['hierarchy']), {'inline_rows', 'styles_gzip_kb', 'script_baseline_kb',
                                                     'script_growth_kb', 'fragment_gzip_kb', 'root_growth_kb',
                                                     'scroll_heap_mb', 'build_slowdown_pct'})
-        self.assertEqual(set(loaded['references']), {'script_kb', 'styles_gzip_kb', 'fragment_gzip_kb',
+        self.assertEqual(set(loaded['references']), {'script_kb', 'styles_gzip_kb', 'fragment_kb',
                                                      'open_ms_desktop', 'open_ms_phone', 'open_heap_mb',
                                                      'filter_ms', 'build_slowdown_pct'})
         self.assertEqual(set(loaded['transclusion']), {'styles_gzip_kb'})
@@ -322,8 +373,9 @@ class FlashcardsBudgetTest(unittest.TestCase):
         widget = ('<div class="cards-review" data-lsg-deck="d1"><div class="cards-title">x</div>'
                   '<div class="cards-first"><div>y</div></div></div>')
         empty = '<div class="cards-review cards-empty"><code>Cards: z</code></div>'
-        page = f'<style>.cards-review{{padding:12px}}</style><style>p{{}}</style><p>a</p>{widget}<p>b</p>{empty}'
-        self.assertEqual(budgets.without_deck_widgets(page), '<style>p{}</style><p>a</p><p>b</p>')
+        page = (f'<link rel="stylesheet" href="lsg-flashcards-widget.css"><link rel="stylesheet" href="p.css">'
+                f'<p>a</p>{widget}<p>b</p>{empty}')
+        self.assertEqual(budgets.without_deck_widgets(page), '<link rel="stylesheet" href="p.css"><p>a</p><p>b</p>')
         self.assertEqual(budgets.without_deck_widgets('<p>no deck</p>'), '<p>no deck</p>')
 
     def test_flashcards_checks(self):
@@ -417,7 +469,7 @@ class PerfMergeTest(unittest.TestCase):
         self.assertFalse(perf.build_over_budget((True, False), builds, limits))
 
     def test_baseline_slowdown_uses_the_latest_feature_budget(self):
-        self.assertEqual(perf.baseline_slowdown_budget(metrics.load_budgets()), 5)
+        self.assertEqual(perf.baseline_slowdown_budget(metrics.load_budgets()), 10)
         self.assertEqual(perf.baseline_slowdown_budget({'code': {'build_slowdown_pct': 20}}), 20)
         self.assertIsNone(perf.baseline_slowdown_budget({}))
 
@@ -685,19 +737,38 @@ class BudgetCheckTest(unittest.TestCase):
             site = Path(temp)
             styles = site / 'references.css'
             styles.write_text('.references{margin-top:24px}', encoding='utf-8')
-            limits = {'script_kb': 1, 'styles_gzip_kb': 1, 'fragment_gzip_kb': 1}
+            limits = {'script_kb': 1, 'styles_gzip_kb': 1, 'fragment_kb': 1}
             self.assertEqual(budgets.check_references(site, limits, styles),
                              ['lsg-references.js: missing from the build'])
             (site / 'lsg-references.js').write_text('x' * 500, encoding='utf-8')
             (site / '_refs').mkdir()
             self.assertEqual(budgets.check_references(site, limits, styles),
-                             ['no fixture page has a reference fragment'])
-            (site / '_refs' / 'p-1-linked-1.html').write_text('<p>small</p>', encoding='utf-8')
+                             ['no fixture page has a compressed Linked References fragment'])
+            (site / '_refs' / 'p-1-linked-1.html.gz').write_bytes(gzip.compress(b'<p>small</p>'))
             self.assertEqual(budgets.check_references(site, limits, styles), [])
-            (site / '_refs' / 'p-2-linked-1.html').write_bytes(os.urandom(3000))
+            # Files are measured as stored: 3,000 bytes of HTML that compress well stay within 1,000
+            # as a compressed fragment, but not as a readable Hierarchy file.
+            (site / '_refs' / 'p-2-linked-1.html.gz').write_bytes(gzip.compress(b'<p>a</p>' * 400))
+            (site / '_refs' / 'p-3-hierarchy-1.html').write_text('<p>a</p>' * 400, encoding='utf-8')
             failures = budgets.check_references(site, limits, styles)
-            self.assertEqual(len(failures), 1)
-            self.assertIn('_refs/p-2-linked-1.html', failures[0])
+            self.assertEqual(failures, ['_refs/p-3-hierarchy-1.html: 3,200 as stored exceed 1,000'])
+
+    def test_inline_styles_and_scripts(self):
+        theme = '<script data-lsg-theme-script>' + 'a' * 700 + '</script>'
+        page = (f'<head>{theme}<script defer src="lsg-theme.js"></script><link rel="stylesheet" href="lsg-site.css">'
+                '<script data-lsg-dialogue-start>' + 'd' * 900 + '</script>'
+                '<script type="application/json" data-lsg-page>' + 'j' * 900 + '</script></head>'
+                '<body><script data-lsg-fragments>' + 'f' * 400 + '</script></body>')
+        self.assertEqual(budgets.inline_parts(page), (0, 1100))
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            (site / 'ok.html').write_text(page, encoding='utf-8')
+            (site / 'styled.html').write_text('<style>p{}</style>' + page, encoding='utf-8')
+            (site / 'heavy.html').write_text(page.replace('a' * 700, 'a' * 1200), encoding='utf-8')
+            failures = budgets.check_inline_parts(site, ['ok.html', 'styled.html', 'heavy.html'],
+                                                  {'inline_script_kb': 1.5})
+            self.assertEqual(failures, ['styled.html: 1 inline <style> element',
+                                        'heavy.html: inline scripts 1,600 exceed 1,500'])
 
     def test_all_pages_paging_growth_script_and_list(self):
         limits = {'desktop': {'data_before_title_kb': 100, 'script_before_title_kb': 16},

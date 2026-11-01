@@ -40,7 +40,7 @@ PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'recorder' / '
 BUILD_PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'episode-list' / 'lsg-plugin.json'
 # Derived rows from build plugins: one list per placement, holding nested lists of rows.
 DERIVED_LIST = re.compile(r'<ul class="(?:outline )?lsg-derived" data-lsg-plugin="[^"]*">')
-DERIVED_STYLES = re.compile(r'<style data-lsg-derived>.*?</style>', re.S)
+DERIVED_STYLES = re.compile(r'<link rel="stylesheet" href="lsg-derived.css">')
 # The anchor a page gains when a derived row links to one of its blocks by position.
 SOURCE_ANCHOR = re.compile(r'<span id="source-block-\d+"></span>')
 # The tags a build with plugins adds before </head>: the page metadata and the host loader.
@@ -274,12 +274,13 @@ FLASHCARDS_SCRIPT = 'lsg-flashcards.js'
 FLASHCARDS_STYLES = 'lsg-flashcards.css'
 FLASHCARDS_ALL = 'flashcards/decks/all.json'
 FLASHCARDS_BATCHES = 'flashcards/cards'
+FLASHCARDS_WIDGET_STYLES = 'lsg-flashcards-widget.css'
 
 
 def without_deck_widgets(text):
-    """A page without its deck widgets: the inline style blocks that hold the widget styles and each
-    `cards-review` element, from its opening tag to its closing tag."""
-    text = re.sub(r'<style>[^<]*\.cards-review[^<]*</style>', '', text)
+    """A page without its deck widgets: the link to the widget styles and each `cards-review`
+    element, from its opening tag to its closing tag."""
+    text = text.replace(f'<link rel="stylesheet" href="{FLASHCARDS_WIDGET_STYLES}">', '')
     while True:
         match = re.search(r'<div class="cards-review', text)
         if not match:
@@ -327,18 +328,27 @@ def check_flashcards(site, pages, flashcards):
         text = deck_page.read_text(encoding='utf-8')
         if 'class="cards-review' not in text:
             failures.append(f'{title}: has no deck widget')
-        growth = metrics.gzip_size(text.encode('utf-8')) - metrics.gzip_size(without_deck_widgets(text).encode('utf-8'))
+        growth = deck_growth(site, text)
         if growth > flashcards['deck_page_growth_gzip_kb'] * 1000:
             failures.append(f'{title}: deck widgets add {growth:,} gzip, over '
                             f'{flashcards["deck_page_growth_gzip_kb"] * 1000:,.0f}')
     return failures
 
 
+def deck_growth(site, text):
+    """The gzip bytes a page's deck widgets add: their markup, and the widget styles it links."""
+    growth = metrics.gzip_size(text.encode('utf-8')) - metrics.gzip_size(without_deck_widgets(text).encode('utf-8'))
+    styles = Path(site) / FLASHCARDS_WIDGET_STYLES
+    if FLASHCARDS_WIDGET_STYLES in text and styles.exists():
+        growth += metrics.gzip_size(styles.read_bytes())
+    return growth
+
+
 def flashcards_summary(site, flashcards):
     """The sizes check_flashcards compares, as one line."""
     site = Path(site)
     text = (site / common.lsg_route(flashcards['deck_page'])).read_text(encoding='utf-8')
-    growth = metrics.gzip_size(text.encode('utf-8')) - metrics.gzip_size(without_deck_widgets(text).encode('utf-8'))
+    growth = deck_growth(site, text)
     batches = [metrics.gzip_size(b.read_bytes()) for b in (site / FLASHCARDS_BATCHES).glob('*.html')]
     return (f"{FLASHCARDS_SCRIPT}: {(site / FLASHCARDS_SCRIPT).stat().st_size:,}; {FLASHCARDS_STYLES}: "
             f"{metrics.gzip_size((site / FLASHCARDS_STYLES).read_bytes()):,} gzip; {FLASHCARDS_ALL}: "
@@ -471,7 +481,7 @@ def check_transclusion(site, pages, transclusion, styles=TRANSCLUSION_STYLES):
 
 
 def check_references(site, references, styles=REFERENCES_STYLES):
-    """Return failure messages for the references script, its styles and each fragment file."""
+    """Return failure messages for the references script, its styles and each _refs/ file as stored."""
     script = site / REFERENCES_SCRIPT
     if not script.exists():
         return [f'{REFERENCES_SCRIPT}: missing from the build']
@@ -482,14 +492,65 @@ def check_references(site, references, styles=REFERENCES_STYLES):
     packed = metrics.gzip_size(hierarchy_styles(styles, hierarchy=False).encode('utf-8'))
     if packed > references['styles_gzip_kb'] * 1000:
         failures.append(f'references styles: {packed:,} gzip exceed {references["styles_gzip_kb"] * 1000:,.0f}')
-    fragments = sorted((site / REFERENCES_DIR).glob('*.html'))
-    if not fragments:
-        failures.append('no fixture page has a reference fragment')
-    for fragment in fragments:
-        packed = metrics.gzip_size(fragment.read_bytes())
-        if packed > references['fragment_gzip_kb'] * 1000:
-            failures.append(f'{REFERENCES_DIR}/{fragment.name}: {packed:,} gzip exceed '
-                            f'{references["fragment_gzip_kb"] * 1000:,.0f}')
+    if not list((site / REFERENCES_DIR).glob('*-linked-*.html.gz')):
+        failures.append('no fixture page has a compressed Linked References fragment')
+    for fragment in sorted((site / REFERENCES_DIR).iterdir()):
+        size = fragment.stat().st_size
+        if size > references['fragment_kb'] * 1000:
+            failures.append(f'{REFERENCES_DIR}/{fragment.name}: {size:,} as stored exceed '
+                            f'{references["fragment_kb"] * 1000:,.0f}')
+    return failures
+
+
+# Inline start-ups only pages with dialogue or page properties carry; their own budgets cover them.
+OWN_BUDGET_SCRIPTS = ('data-lsg-dialogue-start', 'data-lsg-properties-start')
+
+
+class _InlineParts(html.parser.HTMLParser):
+    """Count a page's <style> elements and the bytes of its inline scripts that run, other than the
+    start-ups in OWN_BUDGET_SCRIPTS."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.styles = 0
+        self.script = 0
+        self._counting = False
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == 'style':
+            self.styles += 1
+        elif tag == 'script':
+            self._counting = (not attrs.get('src') and attrs.get('type') in (None, '', 'module')
+                              and not any(name in attrs for name in OWN_BUDGET_SCRIPTS))
+
+    def handle_data(self, data):
+        if self._counting:
+            self.script += len(data.encode('utf-8'))
+
+    def handle_endtag(self, tag):
+        if tag == 'script':
+            self._counting = False
+
+
+def inline_parts(text):
+    """(<style> elements, bytes of counted inline script) in a page."""
+    parser = _InlineParts()
+    parser.feed(text)
+    return parser.styles, parser.script
+
+
+def check_inline_parts(site, pages, limits):
+    """Return failure messages for [site]: a page with an inline <style> element, or with inline
+    scripts over inline_script_kb."""
+    failures = []
+    limit = limits['inline_script_kb'] * 1000
+    for page in pages:
+        styles, script = inline_parts((Path(site) / page).read_text(encoding='utf-8'))
+        if styles:
+            failures.append(f'{page}: {styles} inline <style> element{"s" if styles > 1 else ""}')
+        if script > limit:
+            failures.append(f'{page}: inline scripts {script:,} exceed {limit:,.0f}')
     return failures
 
 
@@ -842,6 +903,9 @@ def main():
         code_failures = check_code(temp / 'small', small, budgets['code'])
         transclusion_failures = check_transclusion(temp / 'small', small, budgets['transclusion'])
         references_failures = check_references(temp / 'small', budgets['references'])
+        site_failures = check_inline_parts(temp / 'small', small, budgets['site'])
+        site_failures += check_inline_parts(temp / 'search', site_pages(temp / 'search'), budgets['site'])
+        print(f"inline scripts: largest {max(inline_parts((temp / 'small' / p).read_text(encoding='utf-8'))[1] for p in small):,} bytes")
         all_pages_failures = check_all_pages(temp / 'all-pages-base', temp / 'large', budgets)
         hierarchy_failures = check_hierarchy(temp / 'small', grown_root(lsg, temp, GROWN_BASE),
                                              grown_root(lsg, temp, GROWN_BASE + FILLER_PAGES),
@@ -861,7 +925,7 @@ def main():
                 + inline_failures + code_failures + transclusion_failures + references_failures
                 + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
                 + search_failures + all_pages_failures + media_failures + queries_failures + flashcards_failures
-                + plugin_failures)
+                + plugin_failures + site_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

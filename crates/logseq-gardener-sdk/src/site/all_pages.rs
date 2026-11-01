@@ -13,7 +13,9 @@ pub(super) const SCRIPT_ROUTE: &str = "lsg-all-pages.js";
 /// Every entry, journals included, fetched on the first sort, search or toggle.
 pub(super) const LIST_ROUTE: &str = "_pages/list.json";
 pub(super) const LIST_DIRECTORY: &str = "_pages";
-const STYLES: &str = include_str!("all-pages.css");
+pub(super) const STYLES: &str = include_str!("all-pages.css");
+/// Where [`STYLES`] is written; All pages screens link it.
+pub(super) const STYLES_ROUTE: &str = "lsg-all-pages.css";
 const ROWS: usize = 40;
 
 /// The script with the shared fuzzy score, without comments or indentation, as
@@ -40,7 +42,9 @@ pub(super) fn script() -> String {
 
 /// Styles and the deferred script for the `<head>` of All pages screens.
 pub(super) fn head() -> String {
-    format!("<style>{STYLES}</style><script defer src=\"{SCRIPT_ROUTE}\"></script>")
+    format!(
+        "<link rel=\"stylesheet\" href=\"{STYLES_ROUTE}\"><script defer src=\"{SCRIPT_ROUTE}\"></script>"
+    )
 }
 
 /// The route of a page of the default view: the index for the first, then `pages-<n>.html`.

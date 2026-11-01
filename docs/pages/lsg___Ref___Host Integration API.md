@@ -42,6 +42,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 		- ### window.logseqGardenerInitTheme
 			- `window.logseqGardenerInitTheme(navigation)` makes a native Appearance selector that the host inserted reflect the active choice. The selector is a `<select data-lsg-theme-select>` with `system`, `light` and `dark` options inside an element with `data-lsg-theme-control`, and `navigation` is the imported element that contains it.
 			- Call it after inserting the selector. Calling it again is safe, and it replaces neither page content nor media players.
+			- `lsg-theme.js` defines it. Every page loads that script with `defer`, so it exists before `DOMContentLoaded`.
 		- ### window.logseqGardenerInitSearch
 			- `window.logseqGardenerInitSearch(document, options)` points the search button and dialog at the current document's search publication.
 			- Before calling it, update the current document's `link[rel="lsg-search"]` from the incoming page, and remove the link when the incoming page has no search publication.
@@ -54,6 +55,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 			- The function is idempotent and reads the current document's metadata. It keeps one body-level dialog outside `<main>`, so hosts can replace `<main>` normally and should keep that dialog when they replace page content.
 			- When the publication has changed or is missing, it closes the dialog, discards pending and cached data and shows or hides the search button.
 			- [[lsg/Ref/Search Dialog]] describes how the dialog behaves inside a persistent host.
+			- `lsg-search-boot.js` defines it. Every page of a site published with `--search` loads that script with `defer`, so it exists before `DOMContentLoaded`.
 		- ### window.logseqGardenerPage
 			- `window.logseqGardenerPage(init)` registers a page initializer with `lsg`'s plugin host. `init(main, signal)` runs now and after every navigation the plugin host performs, with the new `<main>` and the page's abort signal.
 			- The plugin host module defines it, so it exists on pages of a site built with a plugin module. [[lsg/Ref/Plugin Host API]] describes the navigation that runs it.
