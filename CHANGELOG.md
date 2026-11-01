@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.15](https://github.com/codekiln/logseq-gardener/compare/v0.0.14...v0.0.15) - 2026-11-01
+
+### Fixed
+
+- report each publish diagnostic once, under the file that holds it (#406)
+- keep the remembered Properties choice after plugin host navigation (#405)
+- describe when publish skips journals in its help (#404)
+
+### Performance
+
+- share page styles and compress reference fragments (#400)
+
 ## [0.0.14](https://github.com/codekiln/logseq-gardener/compare/v0.0.13...v0.0.14) - 2026-11-01
 
 ### Added
