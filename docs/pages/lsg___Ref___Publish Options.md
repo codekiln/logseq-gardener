@@ -84,9 +84,13 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 				- A segment is empty, `.` or `..`, starts or ends with whitespace, or is longer than 255 bytes in UTF-8. A literal slash in a title, stored as `%2F` in the file name, splits it into segments, so `Notes/Q/Rename with /rename` has the segment `Rename with `, which ends with a space.
 				- The title contains a backslash or a control character.
 			- To give such a page a folder, rename it or give it a `title::` property, then publish again.
+		- ### Folders spelled in different letter case
+			- Logseq treats `CLAUDE` and `Claude` as one page, so the pages `CLAUDE` and `Claude/Artifact` are a parent and its child. macOS and Windows file systems also treat the two spellings as one folder.
+			- Each such folder gets one spelling, and every page inside it uses that spelling in its URL. The folder takes the title of the page it holds, so `Claude/Artifact` is written to `CLAUDE/Artifact/index.html`. A folder that holds no page takes the spelling that sorts first, so `tmux/Session/Picker` and `tmux/session/Window` share `tmux/Session/`.
+			- Page titles keep their own spelling everywhere else, such as headings, search results and the graph.
 		- ### Titles that stop the build
 			- The build stops before it creates the output directory, and names the pages, when two pages would share a path:
-				- Two titles, or two of their folders, differ only in letter case or Unicode normalization, as `Tools/Vim` and `tools/vim` do. macOS and Windows file systems treat those as one path.
+				- Two titles differ only in letter case or Unicode normalization, as `Tools/Vim` and `tools/vim` do. macOS and Windows file systems treat those as one path.
 				- A title's last segment is `index.html` and its parent is also a page.
 				- A title's first segment is a file or folder that the build writes at the output root, such as `assets`, `graph.html` or `lsg-site.json`.
 			- Rename the page, or give it a `title::` property, then publish again.

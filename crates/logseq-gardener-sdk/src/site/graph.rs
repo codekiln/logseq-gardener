@@ -2,7 +2,7 @@
 //!
 //! The SDK's [`GraphIndex`] answers which nodes and edges each graph holds; this module lays
 //! them out, encodes them and writes the page that draws them.
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::PathBuf;
 use std::thread::JoinHandle;
@@ -40,10 +40,11 @@ fn compact(source: &str) -> String {
         .join("\n")
 }
 
-/// `graph.js` compacted, in its readable-URL variant when `readable` is set.
-pub(super) fn script(readable: bool) -> String {
-    if readable {
-        compact(&super::readable::graph(include_str!("graph.js")))
+/// `graph.js` compacted, in its readable-URL variant with these folder spellings when
+/// `readable` is set.
+pub(super) fn script(readable: Option<&BTreeMap<String, String>>) -> String {
+    if let Some(folders) = readable {
+        compact(&super::readable::graph(include_str!("graph.js"), folders))
     } else {
         compact(include_str!("graph.js"))
     }

@@ -487,6 +487,76 @@ fn unsafe_titles_keep_their_digest_file() {
 }
 
 #[test]
+fn folders_spelled_two_ways_publish_under_one_spelling() {
+    let f = Fixture::new();
+    f.write("pages/CLAUDE.md", "- See [[Claude/Artifact]]\n");
+    f.write(
+        "pages/Claude___Artifact.md",
+        "- ARTIFACT_SENTINEL, up to [[CLAUDE]]\n",
+    );
+    f.write(
+        "pages/tmux___Session___Picker.md",
+        "- PICKER_SENTINEL, see [[tmux/session/Window]]\n",
+    );
+    f.write("pages/tmux___session___Window.md", "- WINDOW_SENTINEL\n");
+    let output = f.0.join("site");
+    let selection = NamespaceSelection::new(&["CLAUDE", "Claude", "tmux"], &[]).unwrap();
+    publish_site_with_options(
+        f.0.join("garden"),
+        &output,
+        FilenameFormat::TripleLowbar,
+        &selection,
+        &f.options(),
+    )
+    .unwrap();
+    let all = files(&output);
+    for file in [
+        "CLAUDE/index.html",
+        "CLAUDE/Artifact/index.html",
+        "tmux/Session/index.html",
+        "tmux/Session/Picker/index.html",
+        "tmux/Session/Window/index.html",
+    ] {
+        assert!(
+            all.contains(&file.to_owned()),
+            "{file} missing from {all:?}"
+        );
+    }
+    assert!(read(&output, "CLAUDE/Artifact/").contains("ARTIFACT_SENTINEL"));
+    assert!(read(&output, "tmux/Session/Window/").contains("WINDOW_SENTINEL"));
+    let site: Value =
+        serde_json::from_slice(&fs::read(output.join("lsg-site.json")).unwrap()).unwrap();
+    let url = |title: &str| {
+        site["pages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|page| page["title"] == title)
+            .unwrap_or_else(|| panic!("{title:?} missing from lsg-site.json"))["url"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    assert_eq!(url("Claude/Artifact"), "CLAUDE/Artifact/");
+    assert_eq!(url("tmux/session/Window"), "tmux/Session/Window/");
+    let graph = fs::read_to_string(output.join("lsg-graph.js")).unwrap();
+    assert!(graph.contains(r#"["claude","CLAUDE"]"#), "{graph}");
+    for file in all
+        .iter()
+        .filter(|path| path.ends_with(".html") && !path.starts_with("flashcards/"))
+    {
+        let html = fs::read_to_string(output.join(file)).unwrap();
+        for (value, target) in targets(file, &html) {
+            let target = target.unwrap_or_else(|| panic!("{file}: {value} leaves the site"));
+            assert!(
+                all.contains(&target),
+                "{file}: {value} resolves to missing {target}"
+            );
+        }
+    }
+}
+
+#[test]
 fn colliding_paths_fail_before_output_and_name_both_pages() {
     for (pages, expected) in [
         (
@@ -495,13 +565,6 @@ fn colliding_paths_fail_before_output_and_name_both_pages() {
                 ("Second.md", "title:: tools/vim\n\n- two\n"),
             ],
             "pages \"Tools/Vim\" and \"tools/vim\" cannot both have readable URLs: their paths differ only in letter case or Unicode normalization",
-        ),
-        (
-            [
-                ("Tools___A.md", "- one\n"),
-                ("tools___B.md", "title:: tools/B\n\n- two\n"),
-            ],
-            "pages \"Tools\" and \"tools/B\" cannot both have readable URLs: their folders \"Tools\" and \"tools\" differ only in letter case",
         ),
         (
             [

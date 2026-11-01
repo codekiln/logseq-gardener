@@ -25,7 +25,8 @@ use crate::outline::Outline;
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, document_title, page_title};
 use crate::page_urls::{
-    PageUrlError, PageUrls, check_collisions, is_readable, readable_url, same_path,
+    PageUrlError, PageUrls, check_collisions, folder_spellings, is_readable, readable_url,
+    respelled, same_path,
 };
 use crate::publishing::{NamespaceSelection, PublicPages};
 use crate::search::digest;
@@ -99,6 +100,9 @@ pub struct Publication<'a> {
     pub spellings: BTreeMap<String, String>,
     /// Lower-cased title to its authored alias spellings.
     pub alias_spellings: BTreeMap<String, Vec<String>>,
+    /// With readable URLs, the one spelling of each folder that titles spell in more than one
+    /// way, by NFC lower-cased path. Every route under such a folder uses that spelling.
+    pub folders: BTreeMap<String, String>,
     /// Journals left out because journals were not requested or their names are not dates.
     pub skipped_journals: usize,
     /// Selected pages withheld by `public:: false` or the all-pages-public rule.
@@ -262,11 +266,7 @@ pub fn select_with_urls<'a>(
     let mut aliases = BTreeSet::new();
     let mut spellings = BTreeMap::new();
     let mut alias_spellings = BTreeMap::new();
-    for (title, route, document) in &pages {
-        names.insert(route.clone(), title, document);
-        if let Some(date) = journal_dates.get(route) {
-            names.insert_journal(route.clone(), *date);
-        }
+    for (title, _, document) in &pages {
         aliases.extend(page_aliases(document, title));
         spellings
             .entry(lookup_key(title))
@@ -279,7 +279,52 @@ pub fn select_with_urls<'a>(
         }
         alias_spellings.insert(lookup_key(title), authored);
     }
-    let namespaces = namespace_destinations(&routes, &keys, &withheld, &aliases, urls)?;
+    let mut namespaces = namespace_destinations(&routes, &keys, &withheld, &aliases, urls)?;
+    let folders = if urls == PageUrls::Readable {
+        folder_spellings(
+            routes
+                .iter()
+                .chain(namespaces.values().map(|(title, route)| (route, title)))
+                .filter(|(route, _)| is_readable(route))
+                .map(|(_, title)| title.as_str()),
+        )
+    } else {
+        BTreeMap::new()
+    };
+    if !folders.is_empty() {
+        // Each route under a folder that titles spell differently moves to that folder's one
+        // spelling; the titles keep theirs.
+        let moved = |route: &mut String, title: &str| {
+            if is_readable(route) {
+                *route = readable_url(&respelled(title, &folders))
+                    .expect("a respelled title keeps safe segments");
+            }
+        };
+        for (title, route, _) in &mut pages {
+            let previous = route.clone();
+            moved(route, title);
+            if let Some(date) = journal_dates.remove(&previous) {
+                journal_dates.insert(route.clone(), date);
+            }
+        }
+        routes = pages
+            .iter()
+            .map(|(title, route, _)| (route.clone(), title.clone()))
+            .collect();
+        keys = pages
+            .iter()
+            .map(|(title, route, _)| (lookup_key(title), route.clone()))
+            .collect();
+        for (title, route) in namespaces.values_mut() {
+            moved(route, title);
+        }
+    }
+    for (title, route, document) in &pages {
+        names.insert(route.clone(), title, document);
+        if let Some(date) = journal_dates.get(route) {
+            names.insert_journal(route.clone(), *date);
+        }
+    }
     if urls == PageUrls::Readable {
         check_collisions(
             routes
@@ -303,6 +348,7 @@ pub fn select_with_urls<'a>(
         aliases,
         spellings,
         alias_spellings,
+        folders,
         skipped_journals,
         withheld_pages,
         notices,
