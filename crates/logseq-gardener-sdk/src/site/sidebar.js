@@ -5,6 +5,8 @@
   if (window.logseqGardenerSidebar) return;
   const KEY = 'logseq-gardener-right-sidebar';
   const ZOOM = '#zoom/';
+  // Linked References and query results link each copied block to this anchor on its source page.
+  const SOURCE = 'source-block-';
   const root = document.documentElement;
   const base = new URL('.', document.currentScript?.src || location.href);
   const toggle = () => document.querySelector('[data-lsg-right-toggle]');
@@ -102,6 +104,7 @@
     return path.join('.');
   };
   const find = (doc, id) => {
+    if (id.startsWith(SOURCE)) return doc.getElementById(id)?.closest('li');
     if (!/^\d+(\.\d+)*$/.test(id)) return doc.getElementById('block-' + id.toLowerCase())?.closest('li');
     let items = [...(doc.querySelector('main>ul.outline')?.children ?? [])], item = null;
     for (const n of id.split('.')) {
@@ -413,13 +416,16 @@
   });
 
   // Which card a Shift-click asks for, or null. Page links count by their markup or a
-  // p-*.html address. Flashcard blocks are li.lsg-card, so cards are looked up as sections.
+  // p-*.html address, and block links by a #zoom/ or #source-block- hash. Flashcard
+  // blocks are li.lsg-card, so cards are looked up as sections.
   function target(event) {
     const node = event.target;
     const section = node.closest('section.lsg-card');
     const cardRoute = section && routeOf(section.card);
     const bullet = node.closest('.bullet');
     if (bullet) {
+      const [path, hash = ''] = (bullet.getAttribute('href') || '').split('#');
+      if (path && hash.startsWith(SOURCE)) return { type: 'block', route: routeAt(path), block: hash };
       const li = bullet.closest('li');
       if (section) {
         const id = li?.getAttribute('data-lsg-block');
@@ -440,6 +446,8 @@
     const [path, hash = ''] = link.getAttribute('href').split('#');
     const route = path ? routeAt(path) : cardRoute || current();
     if (link.classList.contains('block-ref-link') && hash.startsWith('block-')) return { type: 'refs', route, block: hash.slice(6) };
+    // A crumb names a block of another page; Logseq shows it as Block references.
+    if (path && hash.startsWith(SOURCE)) return { type: 'refs', route, block: hash };
     if (('#' + hash).startsWith(ZOOM)) return { type: 'block', route, block: decodeURIComponent(hash.slice(ZOOM.length - 1)) };
     if (path && (/^p-[\w-]+\.html$/.test(route) || link.matches('.page-reference a,a.page-ref,a.tag'))) return { type: 'page', route };
     return null;

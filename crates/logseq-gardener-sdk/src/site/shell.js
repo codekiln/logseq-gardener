@@ -20,10 +20,11 @@
     side ||= new Promise(done => load(near('sidebar'), done));
     side.then(() => window.logseqGardenerSidebar(event));
   };
-  // Page links count by their markup too, since a host may rewrite page addresses.
+  // Page links count by their markup too, and block links by their hash, since a host may
+  // rewrite page addresses.
   document.addEventListener('click', event => {
     const toggle = event.target.closest?.('[data-lsg-right-toggle]');
-    const hit = event.shiftKey ? event.target.closest?.('.bullet,[href^="p-"],[href*="#zoom/"],a.block-ref-link,.page-reference a,a.page-ref,a.tag') : null;
+    const hit = event.shiftKey ? event.target.closest?.('.bullet,[href^="p-"],[href*="#zoom/"],[href*="#source-block-"],a.block-ref-link,.page-reference a,a.page-ref,a.tag') : null;
     if (!desktop() || !toggle && !hit?.closest('main,.lsg-right-sidebar')) return;
     event.preventDefault();
     event.stopPropagation();
