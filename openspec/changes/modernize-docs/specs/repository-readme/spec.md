@@ -2,12 +2,12 @@
 
 ### Requirement: Reader entry point
 
-The README SHALL explain the problem, audience, intended value, current maturity, maintainer, support, license, installation, first use, and links to focused pages on the documentation site at https://codekiln.github.io/logseq-gardener/ before implementation details. Installation SHALL start with the mise commands that install a released `lsg`: globally with `mise use -g github:codekiln/logseq-gardener`, and for one project with `mise use github:codekiln/logseq-gardener`, which pins `lsg` in that project's `mise.toml`. The README SHALL link the site's install pages for checksums, other platforms and building from source.
+The README SHALL explain the problem, audience, intended value, current maturity, maintainer, support, license, installation, first use, and links to focused pages on the documentation site at https://codekiln.github.io/logseq-gardener/ before implementation details. Installation SHALL start with the mise commands that install a released `lsg`: globally with `mise use -g github:codekiln/logseq-gardener`, and for one project with `mise use github:codekiln/logseq-gardener`, which pins `lsg` in that project's `mise.toml`. The README SHALL link the site's install pages for checksums, other platforms and building from source. The README SHALL put commands that install software or change the reader's configuration in `bash` code blocks. `mise run docs:check` SHALL run every `sh` code block in the README with the checkout's release build of `lsg` first on `PATH`, and SHALL fail before it runs any block when an `sh` code block runs `mise use`, `mise install`, `mise trust`, `cargo install` or `brew install`.
 
 #### Scenario: First use
 
 - **WHEN** `mise run docs:check` runs every `sh` code block in the README
-- **THEN** each command succeeds and shows the documented help or version result
+- **THEN** each command runs the `lsg` built from the checkout, succeeds and shows the documented help or version result
 
 #### Scenario: Install with mise
 
@@ -16,12 +16,12 @@ The README SHALL explain the problem, audience, intended value, current maturity
 
 #### Scenario: Commands that change the machine
 
-- **WHEN** `mise run docs:check` runs the README's `sh` code blocks
-- **THEN** none of them runs `mise use` or another command that installs software or changes the reader's configuration
+- **WHEN** an `sh` code block in the README runs `mise use -g github:codekiln/logseq-gardener`
+- **THEN** `mise run docs:check` fails, prints the block and runs no README command
 
 ### Requirement: Verified documentation
 
-README commands and links SHALL be checked. The README's release claims SHALL match the published GitHub Releases, and its platform claims SHALL distinguish the targets that releases build from the platforms that the project checks run on. Every README link to the documentation site SHALL return a page.
+README commands and links SHALL be checked. The README's release claims SHALL match the published GitHub Releases, and its platform claims SHALL distinguish the targets that releases build from the platforms that the project checks run on. Every README link to the documentation site SHALL return a page. `mise run docs:check` SHALL fail when a README link to the documentation site names a page title that no page in `docs/pages/` has. `mise run docs:links` SHALL request every web link in the README and report each one that fails.
 
 #### Scenario: Review README
 
@@ -37,3 +37,8 @@ README commands and links SHALL be checked. The README's release claims SHALL ma
 
 - **WHEN** a contributor runs `mise run docs:links`
 - **THEN** every README link to https://codekiln.github.io/logseq-gardener/ returns a page
+
+#### Scenario: Site link to a missing page
+
+- **WHEN** the README links `https://codekiln.github.io/logseq-gardener/lsg/How%20To/Missing%20Page/` and no page in `docs/pages/` is titled `lsg/How To/Missing Page`
+- **THEN** `mise run docs:check` fails and names the link

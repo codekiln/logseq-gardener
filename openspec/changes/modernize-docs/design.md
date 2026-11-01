@@ -296,14 +296,23 @@ target/release/lsg publish --graph docs --output "$output" \
 
 From #326 on, the command also passes the readable page URL option from `readable-page-urls`. Without `--output`, the task publishes into a new `target/docs-site/<UTC time>/site`, as `parity:build` does. It prints the report, prints every diagnostic, and exits non-zero when `diagnostic_count` is not zero, keeping the directory for inspection. The Pages workflow therefore cannot deploy a site with diagnostics.
 
-`mise run docs:check` runs `docs:site` into a temporary directory, then `scripts/docs.py`, which:
+`mise run docs:check` runs these steps in order and stops at the first failure:
 
-- runs every `sh` block in `README.md`;
+- `docs:site` into a temporary directory;
+- the help link test, `tests/docs_links.rs`, against that site;
+- `scripts/docs.py`;
+- `docs:parser-check`, the Logseq parser check.
+
+`scripts/docs.py`:
+
 - checks relative links in `README.md`, `CONTRIBUTING.md`, `THIRD_PARTY_NOTICES.md` and each Markdown file under `docs/` outside `docs/pages/`;
-- fails when such a file has no `:hidden` entry;
-- fails when a page's kind tag is missing or does not match its title.
+- fails when a README link to the site names a page title that no page in `docs/pages/` has;
+- fails when a Markdown file under `docs/` outside `docs/pages/` has no `:hidden` entry, when a `:hidden` entry shares its line with another, and when an entry names a Markdown file that no longer exists;
+- fails when a page's kind tag is missing or does not match its title;
+- fails when an `sh` block in `README.md` runs `mise use`, `mise install`, `mise trust`, `cargo install` or `brew install`; the README puts those commands in `bash` blocks;
+- runs every `sh` block in `README.md` with the checkout's release build first on `PATH`, so a bare `lsg` in the README runs the `lsg` that `docs:site` built.
 
-`lsg`'s diagnostics cover links between pages, block references and unsupported syntax. #332 adds the Logseq parser check and #334 adds the help link test to `docs:check`. `mise run ci` already runs `docs:check`; the `ci` job's checkout gets `fetch-depth: 0`, since `lsg` reports page dates from a shallow clone as a diagnostic. `mise run docs:links` keeps checking README web links, and #333 adds the README's links to the site.
+`lsg`'s diagnostics cover links between pages, block references and unsupported syntax. `mise run ci` already runs `docs:check`; the `ci` job's checkout gets `fetch-depth: 0`, since `lsg` reports page dates from a shallow clone as a diagnostic. `mise run docs:links` requests every web link in the README, its links to the site included, and reports each one that fails.
 
 ### Logseq parser check
 
@@ -342,7 +351,7 @@ The site uses readable page URLs from `readable-page-urls`. #326 adds the option
 
 ### Spec changes
 
-This change modifies `parity-comparison-harness`, `published-graph-view` and `published-page-outline`, whose requirements name `docs/parity/performance.md`, to name the Performance page. It modifies `cli-static-publishing` so publishing help names the plugin pages and the readable URL layout page. #330 and #334 keep these deltas matching what they build, and the cleanup issue [#335](https://github.com/codekiln/logseq-gardener/issues/335) syncs them. Archived changes keep the paths they were written with.
+This change modifies `parity-comparison-harness`, `published-graph-view` and `published-page-outline`, whose requirements name `docs/parity/performance.md`, to name the Performance page. It modifies `cli-static-publishing` so publishing help names the plugin pages and the readable URL layout page. It modifies `custom-site-stylesheet`, whose stylesheet requirement names the local-site guide, `docs/local-site.md`, to name `lsg/How To/Customize a Published Site`, the page that took the guide's stylesheet section. #330 and #334 keep these deltas matching what they build, and the cleanup issue [#335](https://github.com/codekiln/logseq-gardener/issues/335) syncs them. Archived changes keep the paths they were written with.
 
 ## Risks / Trade-offs
 
