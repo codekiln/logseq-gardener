@@ -51,6 +51,8 @@ const FILES: &str = "M15 3v4a1 1 0 0 0 1 1h4M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 
 
 pub(super) const STYLES: &str = concat!(
     ".lsg-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:4px;height:48px;padding:0 8px;box-sizing:border-box;border-bottom:1px solid var(--lsg-border);background:var(--lsg-header)}",
+    // Fragment scrolls stop below the header, with room for the bullet row above an anchor.
+    "html{scroll-padding-top:56px}",
     ".lsg-header-space{flex:1}",
     ".lsg-button{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border:0;border-radius:6px;background:none;color:var(--lsg-muted);cursor:pointer}",
     ".lsg-button:hover{background:var(--lsg-surface);color:var(--lsg-text)}.lsg-button[hidden]{display:none}",
