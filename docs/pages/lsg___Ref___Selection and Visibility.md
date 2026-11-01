@@ -1,3 +1,55 @@
 tags:: [[Diataxis/Reference]]
+see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Published Pages]], [[lsg/Static Publishing]]
 
-- Which pages `--include` and `--exclude` select, which selected pages are published, and how references to other pages appear.
+- # Selection and Visibility Reference
+	- ## Overview
+		- `lsg publish` follows Logseq's publishing rules within the namespaces you select. `--include` and `--exclude` choose the selected pages, the visibility rules decide which selected pages are published, and references, aliases and embeds resolve only against that published content.
+		- Mixed-visibility fixtures in the [publisher tests](https://github.com/codekiln/logseq-gardener/blob/main/crates/logseq-gardener-sdk/tests/site.rs) and the [embed tests](https://github.com/codekiln/logseq-gardener/blob/main/crates/logseq-gardener-sdk/tests/site_embeds.rs) check the generated files for excluded content. Diagnostics stay outside the site. Review the report and the content of the retained source pages before you publish a sensitive garden.
+	- ## Namespace selection
+		- The SDK's `publishing::NamespaceSelection` selects logical page names with included and excluded namespace roots. `--include` and `--exclude` pass their values to it.
+		- A root selects itself and its descendants separated by `/`: `My/AI` selects `My/AI/Rule`, and `My/AIM` stays outside the selection.
+		- Exclusions take precedence over inclusions. An empty inclusion list selects nothing.
+		- Matching is exact and case-sensitive.
+		- Selectors match logical page titles, which come from the configured file name format and leading `title::` properties. [[lsg/Ref/Page Titles]] describes the title rules. Names are not file system paths.
+		- Aliases help resolve references. They do not select a page into a namespace.
+		- An empty selector, an empty namespace segment, whitespace around a segment and a control character produce constructor errors; `lsg publish` exits 2. A malformed candidate page name is left unselected.
+	- ## Published pages
+		- When `logseq/config.edn` sets `:publishing/all-pages-public? true`, or the older `:all-pages-public? true`, every selected page is published.
+		- Otherwise, as in Logseq, only selected pages whose leading properties set `public:: true`, and pages that share an alias with them, are published. The report counts the other selected pages as withheld and names each one in a diagnostic. The SDK's `publishing::PublicPages` applies this rule.
+		- A garden without `logseq/config.edn` publishes every selected page.
+		- In every case:
+			- A page with any parsed `public:: false` property is withheld as a whole, including a page where only a child block in the outline sets it.
+			- A `public:: true` page outside the selected namespaces stays out.
+			- Content nested more deeply than the renderer's visibility limit withholds its page.
+		- Journals follow the same rules as pages when `--journals` publishes them.
+		- Visibility also applies to embedded content, referenced assets, reference indexes and search data.
+	- ## Publication boundaries
+		- The publisher resolves page titles, aliases, explicit outline references and page and block embeds against selected visible content only.
+		- A namespace exclusion removes its pages and everything they contribute, such as embedded content and references. It does not redact text already written on a retained page.
+		- An ambiguous or unavailable target keeps a visible fallback in the page and gets a diagnostic.
+	- ## Hierarchy destinations
+		- Hierarchy navigation uses only the original titles of selected visible pages.
+		- An ordinary unselected ancestor may get a navigation-only page. Its body, aliases, properties and assets stay outside the publication.
+		- A stored private or visibility-withheld ancestor gets no generated destination, even when it is outside the include roots. Its segment stays plain text in each visible full-path row, and the available prefixes keep their links.
+		- A generated prefix that conflicts with a selected alias is also left unlinked.
+		- Aliases keep their source lookup behaviour and create no namespace branches.
+		- [[lsg/Ref/Published Pages]] describes the Hierarchy section and generated namespace pages.
+	- ## Page references
+		- A page reference can use a selected page's title or one of its leading aliases.
+		- Name matching ignores letter case, surrounding whitespace and a slash at either end. It also treats equivalent Unicode spellings of accented letters as equal, using Normalization Form C (NFC).
+		- Duplicate selected titles fail the build before the output directory is created.
+		- A reference to a missing or excluded page keeps the label written in the selected source.
+		- Markdown links to page file names are not resolved; they keep a visible fallback and get a diagnostic.
+	- ## Aliases
+		- Only the last leading `alias::` property of a page is used. It accepts comma-separated plain names and direct page references.
+		- A quoted or wholly literal value keeps its literal spelling. Nested properties and `aliases` metadata supply no page aliases.
+		- Competing visible claims to one name, including an alias that matches another page's title, keep the source label and get an ambiguity diagnostic.
+		- Claims from withheld pages never enter the lookup.
+		- Routes and namespace selection use the page's original logical title, never an alias.
+	- ## Block references and embeds
+		- A reference to a unique explicit `id::` UUID on a published Markdown outline block links to that block. Its default label is a short plain-text excerpt of the target block; a label written in the source takes precedence. An ordinary block reference provides navigation.
+		- Page and block embed macros insert selected visible content, including the descendants of an embedded block, with the embedded document's own asset paths.
+		- Embed expansion stops at a cycle, an active expansion chain of 16, 128 expansions, or 10,000 embedded syntax tree nodes per output document.
+		- Repeated copies of a block leave out its original ID, so block links still open the original page.
+		- A missing, excluded, private, duplicate, invalid or unsupported target stays literal and gets a diagnostic. An unavailable or ambiguous embed and an unsupported query keep their literal fallbacks.
+		- IDs in a page's root properties are not outline targets.

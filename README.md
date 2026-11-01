@@ -31,7 +31,7 @@ This creates `target/release/lsg` (`lsg.exe` on Windows). The first build downlo
 
 The outline lists documentation headings. The section command explains what the commands do and which permissions they need. The final command returns one JSON document identifying your installed version. These commands work offline and leave garden files unchanged.
 
-To publish your notes, follow [Generate a local HTML garden](docs/local-site.md). The guide covers namespace selection, fresh output directories, and rendering limits. Publishing includes journals only with `--journals` and withholds whole pages containing a parsed `public:: false` property. To open a page's source file by name, see [Find a page's source file](docs/cli.md#find-a-pages-source-file).
+To publish your notes, follow [lsg/How To/Publish Selected Namespaces](docs/pages/lsg___How%20To___Publish%20Selected%20Namespaces.md). The page covers namespace selection and fresh output directories, and links the pages on rendering limits. Publishing includes journals only with `--journals` and withholds whole pages containing a parsed `public:: false` property. To open a page's source file by name, see [Find a page's source file](docs/cli.md#find-a-pages-source-file).
 
 ## Learn more
 

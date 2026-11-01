@@ -29,11 +29,11 @@
 
 ## 4. #328 Move publishing guides into the docs graph
 
-- [ ] 4.1 Convert `docs/publishing.md` into `lsg/Static Publishing`, `lsg/Ref/Site Manifest`, `lsg/Ref/Plugin Host API`, `lsg/Ref/Build Plugin Protocol`, `lsg/How To/Add a Site Plugin` and its parts of the other pages the page map names
-- [ ] 4.2 Convert `docs/local-site.md` into `lsg/How To/Publish Selected Namespaces`, `lsg/How To/Customize a Published Site`, `lsg/Ref/Publish Options`, `lsg/Ref/Selection and Visibility`, `lsg/Ref/Rendering and Assets`, `lsg/Ref/Published Pages`, `lsg/Ref/Site Navigation` and `lsg/Ref/Host Integration API`
-- [ ] 4.3 Convert `docs/static-search.md` into `lsg/Ref/Static Search Data`, `lsg/Ref/Search Dialog` and its parts of the other pages the page map names
-- [ ] 4.4 Point the comments in `crates/logseq-gardener-sdk/examples/publish_site.rs` and `crates/logseq-gardener-sdk/src/site/host.mjs` at the new pages
-- [ ] 4.5 Delete the three documents, remove their `:hidden` lines and repoint every link to them, leaving `src/help.rs` and `tests/publish.rs` to #334
+- [x] 4.1 Convert `docs/publishing.md` into `lsg/Static Publishing`, `lsg/Ref/Site Manifest`, `lsg/Ref/Plugin Host API`, `lsg/Ref/Build Plugin Protocol`, `lsg/How To/Add a Site Plugin` and its parts of the other pages the page map names
+- [x] 4.2 Convert `docs/local-site.md` into `lsg/How To/Publish Selected Namespaces`, `lsg/How To/Customize a Published Site`, `lsg/Ref/Publish Options`, `lsg/Ref/Selection and Visibility`, `lsg/Ref/Rendering and Assets`, `lsg/Ref/Published Pages`, `lsg/Ref/Site Navigation` and `lsg/Ref/Host Integration API`
+- [x] 4.3 Convert `docs/static-search.md` into `lsg/Ref/Static Search Data`, `lsg/Ref/Search Dialog` and its parts of the other pages the page map names
+- [x] 4.4 Point the comments in `crates/logseq-gardener-sdk/examples/publish_site.rs` and `crates/logseq-gardener-sdk/src/site/host.mjs` at the new pages
+- [x] 4.5 Delete the three documents, remove their `:hidden` lines and repoint every link to them, leaving `src/help.rs` and `tests/publish.rs` to #334
 
 ## 5. #329 Move contributor and release docs into the docs graph
 

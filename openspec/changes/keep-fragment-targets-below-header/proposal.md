@@ -21,7 +21,7 @@ None.
 
 - `crates/logseq-gardener-sdk/src/site/shell.rs`: one CSS rule in `STYLES`, about 30 bytes per page.
 - Tests: `tests/site_shell.rs` asserts the rule.
-- Docs: `docs/local-site.md` tells host authors that fragment scrolling already clears the header.
+- Docs: lsg/Ref/Host Integration API, in `docs/pages/lsg___Ref___Host Integration API.md`, tells host authors that fragment scrolling already clears the header.
 - Hosts: Gitpa can remove the `scroll-padding-top` rule it added to `site/player.css` in [codekiln/gitpa#129 fix: play chapter timestamps in the pinned player](https://github.com/codekiln/gitpa/pull/129).
 
 ## Citations

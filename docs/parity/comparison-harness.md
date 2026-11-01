@@ -30,7 +30,7 @@ The reference boards quote 16,693 pages; the build has grown since they were mea
 
 ## What lsg does today
 
-`lsg publish` builds only the namespaces named with `--include` ([Generate a local HTML garden](../local-site.md)). There is no option that selects every page, so a whole-garden build needs one `--include` per top-level namespace: 1,042 of them for the encode garden on 2026-10-24.
+`lsg publish` builds only the namespaces named with `--include` ([lsg/Ref/Selection and Visibility](../pages/lsg___Ref___Selection%20and%20Visibility.md)). There is no option that selects every page, so a whole-garden build needs one `--include` per top-level namespace: 1,042 of them for the encode garden on 2026-10-24.
 
 A debug build run with all 1,042 roots and `--filename-format triple-lowbar` produced:
 

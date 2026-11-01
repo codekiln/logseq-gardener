@@ -1,3 +1,103 @@
 tags:: [[Diataxis/Reference]]
+see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/How To/Customize a Published Site]]
 
-- What each published page shows: its outline, page properties, reference sections, Hierarchy and page sequence.
+- # Published Pages Reference
+	- ## Overview
+		- Each published page shows its outline as Logseq does, then, depending on the page and the garden's settings, its page properties, a Previous and Next navigation, and the reference sections: Pages tagged with, Linked References, Hierarchy and Unlinked References. Pages that exist only as namespace parents get navigation pages of their own.
+		- [[lsg/Ref/Site Navigation]] describes the header, the sidebars and the site-wide screens around each page. [[lsg/How To/Customize a Published Site]] describes the `logseq/config.edn` settings this page names. [[lsg/Ref/Host Integration API]] describes the browser functions a host page calls when it replaces page content.
+	- ## Outline
+		- Page and journal outlines look like Logseq's: small bullets, a guide line down each level of children, Logseq's heading sizes, and task checkboxes with their marker, such as TODO or DOING. The checkboxes are read-only. The text of DONE and CANCELED tasks is struck through.
+		- ### Collapse
+			- Each block with children has its own 24px disclosure arrow beside its bullet. A reader collapses or expands the block with the arrow or by clicking its guide line.
+			- Closed arrows stay visible. Keyboard focus and touch pointers show the arrows without hover. An arrow keeps its owner when the pointer moves across nested gutters.
+			- A parent block with an attached `collapsed:: true` property starts closed and opens without JavaScript: a click or the keyboard on its summary reveals the complete outline. Nested closed parents open independently. A false or absent flag keeps the outline expanded, and a leaf block stays visible with no empty disclosure.
+			- The summary keeps the block's formatting and links. When a parent contains a page or block embed, its text labels the summary and the complete embedded content appears inside. Media, transclusions and publication visibility behave as they do in an expanded block.
+			- A link to a block inside closed outlines opens the disclosures that contain it, also on the initial page load.
+			- Collapse state stays in the reader's open tab.
+		- ### Block zoom
+			- Clicking a bullet shows that block on its own at `<page>#zoom/<id>`, with a breadcrumb back to the page and the block's parents. Back returns to the page.
+			- `<id>` is the block's `id::` UUID when it has one, and otherwise its position among its siblings at each level, such as `3.1.2`. The address keeps working when the unchanged garden is published again.
+			- Zoom stays in the reader's open tab.
+		- ### Fragment targets
+			- Every page sets `scroll-padding-top: 56px` on `html`, so a fragment target lands below the 48px sticky header, whether the browser scrolls to it or a script calls `scrollIntoView()` on it.
+		- `lsg-outline.js` runs the arrows and zoom. It loads on every page after the page has loaded. [[lsg/Ref/Host Integration API]] describes `window.logseqGardenerInitOutline` and `window.logseqGardenerRevealFragment`.
+	- ## Page properties
+		- With `:publishing/page-properties?` turned on, a page's leading properties appear in a native Properties disclosure above its outline. It starts closed unless `:publishing/page-properties-collapsed?` is false. Generated namespace pages have no property section.
+		- The fragment `#page-properties` targets the disclosure's keyboard-focusable summary, and the fragment helper opens the disclosure. A fragment can open Properties for navigation without changing the reader's remembered choice.
+		- ### Remembered choice
+			- The reader's open or closed choice applies across pages and return visits within the site's base path.
+			- A visit renews the choice for 30 days. After 30 days without a visit, Properties returns to the configured default.
+			- The saved entry holds only the disclosure choice and a last-seen timestamp.
+			- When storage is blocked, the native disclosure still works and starts in the configured default.
+		- ### Rows
+			- Rows keep their authored order, and a repeated key shows its last value.
+			- Ordinary scalar text is escaped.
+			- Direct page references and comma-separated bare tags link to the selected source pages they name.
+			- A standalone public HTTPS value is a link.
+			- A row whose reference names a missing, private, ambiguous or generated-only page is left out as a whole, including rows with mixed values.
+			- Expressions, block references, asset and file paths, absolute local paths, unsafe schemes and unsupported links are left out.
+			- Turning on page properties treats every remaining scalar value as public metadata. `:block-hidden-properties` hides author-specific operational fields.
+		- ### Keys never shown
+			- These keys never appear: `id`, `custom-id`, `custom_id`, `title`, `alias`, `aliases`, `public`, `background-color`, `background_color`, `heading`, `collapsed`, `created-at`, `updated-at`, `last-modified-at`, `created_at`, `updated_at`, `last_modified_at`, `query-table`, `query-properties`, `query-sort-by`, `query-sort-desc`, `filters`, `ls-type`, `hl-type`, `hl-page`, `hl-stamp`, `hl-color`, `todo`, `doing`, `now`, `later`, `done`, `file`, `file-path` and `file-name`, and every key that starts with `logseq.`, `logseq-proxy-` or `publishing/`.
+			- These keys and the keys in `:block-hidden-properties` are also left out of property references.
+		- `window.logseqGardenerInitProperties` is described on [[lsg/Ref/Host Integration API]].
+	- ## Page sequence
+		- Leading `prev:: [[Page title]]` and `next:: [[Page title]]` properties publish Previous and Next links after the page content. Authors choose the order, and a page can have either neighbour or both. Books, presets and other authored chains all work this way.
+		- Each value must be one direct page reference. Titles and unique aliases resolve to the selected source page.
+		- A private, excluded, missing, ambiguous, self or generated-only target gets no link.
+		- The last leading value of each key applies. Nested properties and literal code supply no sequence links.
+		- A valid neighbour that Properties shows is left out of the Previous and Next region at the bottom; the other valid neighbours stay there. A neighbour key in `:block-hidden-properties` stays hidden. Turning off `:publishing/page-sequence?` hides the region.
+	- ## Reference sections
+		- Below the outline, each page shows the sections that apply, in Logseq's order: Pages tagged with, Linked References, Hierarchy and Unlinked References.
+		- The page holds only each section's header. Its groups load from fragment files in `_refs/` when a reader opens the section, so a page's first paint does not grow with the number of pages that mention it. Without JavaScript, each section links its first fragment file, a readable page that links the next one.
+		- Only selected visible source content supplies references, filter options and mentions.
+		- ### Pages tagged with
+			- Pages tagged with "name" lists the pages whose `tags::` name the page or one of its aliases, by lower-cased title. A page that no page tags has no section.
+		- ### Linked References
+			- The header counts referring blocks: `N Linked References`, or `F of N Linked References` while a filter is active.
+			- A reference to `A/B/C` also counts for `A/B` and `A`, as in Logseq, even when `A/B/C` has no page. A block counts once however often it names the page or its aliases.
+			- Groups list journals newest first, then other pages by title.
+			- A referring block below the top level shows up to three ancestors as a breadcrumb, with `⋯` for older ones. Each crumb and each copied bullet opens the block on its own page.
+			- A page with no linked references has no section.
+			- A section starts closed when its referring-block count reaches `:ref/linked-references-collapsed-threshold`. Copied parents at `:ref/default-open-blocks-level` or deeper start closed, and authored collapsed parents stay closed.
+			- When page properties are turned on, a reference from a property shows the property's safe relevant fields and links to the original Properties disclosure. Otherwise it shows a short page-reference link.
+			- A pure block UUID reference keeps its block navigation and creates no page reference.
+		- ### Filter
+			- The funnel in the Linked References header opens the filter dialog.
+			- A click or Enter includes a page, a shift-click or Shift+Enter excludes it, and activating it again removes it.
+			- A block stays when its path, the block with its ancestors and its page, names every included page and none of the excluded ones.
+			- The options and their counts follow the blocks the filter keeps.
+			- A page's `filters::` property sets its starting filter. A reader's changes last for the visit, through `sessionStorage`.
+		- ### Unlinked References
+			- Unlinked References lists blocks that mention the page's title or an alias as plain text, by Logseq's rule: the name is not preceded by a letter, digit, `#` or `[[`, and not followed by a letter or digit. Logbooks are ignored.
+			- The header shows its count once the section is opened.
+		- `lsg-references.js` runs the sections and the filter. It loads after the page's `load` event. `window.logseqGardenerInitReferences` is described on [[lsg/Ref/Host Integration API]].
+	- ## Hierarchy
+		- A published page or generated namespace page that has namespace relatives shows a Hierarchy section, expanded, in the position the reference sections give it. Journal pages, and pages with no `/` in their title, no descendants and no namespaced alias, have no section.
+		- The section is a flat list with one row per path. The rows are the page's published descendants at every level. A namespaced leaf lists its parent's path, so `tmux/Config/local` with no descendants shows the row `tmux/Config`. A page whose alias is `AI/General/Intelligence` shows the row `AI/General`. The current page has no row of its own.
+		- For example, when `A/B/C`, `A/B/C/D`, `A/B/C/E` and `A/B/C/E/F` are published, `A/B/C` lists `A/B/C/D`, `A/B/C/E` and `A/B/C/E/F`. Each row shows the full path, and each slash-separated segment links to its cumulative namespace destination when one exists, so `A`, `A/B` and the longer prefixes have separate links. A sibling such as `A/B/Cousin` is absent from the rows of `A/B/C`.
+		- When `:ui/show-brackets?` is on in `logseq/config.edn`, each segment shows the brackets that inline page references show.
+		- The section header collapses or expands the whole list, also from the keyboard.
+		- [[lsg/Ref/Selection and Visibility]] describes which prefixes get a destination and which stay plain text.
+	- ## Namespace pages
+		- A namespace prefix with no selected source page gets its own navigation page, so a selected `Instruments/Synth/Preset` can be reached through `Instruments` and `Instruments/Synth` without those Markdown files.
+		- A generated namespace page holds navigation only. It contributes no source aliases, blocks or embeds, cannot be a homepage, and is not counted in the report's `pages`.
+		- A generated namespace page shows a Namespace notice. Its Hierarchy rows carry a Namespace badge, its All pages row does not, and links to it use a dotted underline.
+		- A selected source page keeps an ordinary page label, even when it is empty.
+		- Namespace status describes the published destination: an unselected source ancestor has the same status as a missing one.
+		- All pages lists generated namespace pages with their full logical names.
+	- ## Dialogue timestamps
+		- An original outline entry such as `- **Speaker** · 00:27:30 — Spoken text` can link its timestamp to the page's recording.
+		- Plain, bold and italic speaker labels work with `M:SS` and `H:MM:SS` timestamps. A timestamp is an absolute position in the recording. Its later components must be two digits below sixty.
+		- The entry keeps its dialogue formatting, nested entries and authored disclosures. Written responses, headings, dates, code and authored link labels keep their text.
+		- ### Recording
+			- A timestamp links only when the original page renders one distinct supported audio recording. The recording can come after the transcript. Repeated references to the same recording count as one; several different recordings leave the timestamps literal.
+			- Audio and dialogue copied through transclusions or backlinks take no part.
+			- The recording keeps its source URL, controls and preload settings. The renderer neither measures remote duration nor infers trim offsets.
+		- ### Playback
+			- A timestamp control is an ordinary link to the recording with a `#t=` fragment.
+			- A shared helper loads only on pages with timestamp controls. When a reader activates a control, it seeks the associated original inline audio. Playback begins only from that activation. The latest pending position waits for the recording's metadata and is clamped to its known duration.
+			- When the browser blocks playback, the native media controls still work. A modified click follows the link as usual.
+			- The helper loads after the page's `load` event, like the outline helper. Until it loads, or if loading fails, timestamp links keep their ordinary navigation to the recording fragment.
+			- Search-enabled dialogue pages and journal feed pages keep the 16 KB budget for scripts that load with the page.
+		- [[lsg/Ref/Host Integration API]] describes the `lsg:media-seek` event that a host with a persistent player handles, and the `link[rel="lsg-dialogue"]` metadata a host that moves routes rewrites.
