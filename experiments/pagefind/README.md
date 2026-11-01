@@ -1,6 +1,6 @@
 # Pagefind comparison
 
-This experiment indexes an `lsg` parity build with [Pagefind](https://github.com/CloudCannon/pagefind) and measures its index size, the bytes each keystroke downloads and the keystroke latency, with the same browser profiles and queries as `mise run parity:perf --search-site`. It answers one question from the [`match-logseq-search` design](../../openspec/changes/archive/2026-10-27-match-logseq-search/design.md): is `lsg`'s own split search index within Pagefind's numbers? The results are in [Search performance](../../docs/parity/search-performance.md).
+This experiment indexes an `lsg` parity build with [Pagefind](https://github.com/CloudCannon/pagefind) and measures its index size, the bytes each keystroke downloads and the keystroke latency, with the same browser profiles and queries as `mise run parity:perf --search-site`. It answers one question from the [`match-logseq-search` design](../../openspec/changes/archive/2026-10-27-match-logseq-search/design.md): is `lsg`'s own split search index within Pagefind's numbers? The results are on [lsg/Ref/Logseq Compatibility/Search Performance](../../docs/pages/lsg___Ref___Logseq%20Compatibility___Search%20Performance.md).
 
 ## Run it
 
