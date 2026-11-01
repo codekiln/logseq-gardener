@@ -220,7 +220,7 @@ fn pages_live_in_title_folders_and_lists_stay_at_the_root() {
     assert!(!all.iter().any(|path| path.starts_with("Docs/Private")));
     assert!(
         all.iter()
-            .any(|path| path.starts_with("_refs/p-") && path.ends_with("-linked-1.html")),
+            .any(|path| path.starts_with("_refs/p-") && path.ends_with("-linked-1.html.gz")),
         "{all:?}"
     );
     let start = read(&output, START);
@@ -615,6 +615,36 @@ fn a_page_named_like_a_generated_root_file_fails_before_output() {
         "page \"assets\" cannot have a readable URL: the build writes assets at the output root"
     );
     assert!(!output.exists());
+}
+
+#[test]
+fn shared_style_and_script_names_are_reserved() {
+    for name in [
+        "lsg-site.css",
+        "lsg-search.css",
+        "lsg-theme.js",
+        "lsg-search-boot.js",
+    ] {
+        let f = Fixture::new();
+        f.write("pages/Docs.md", &format!("title:: {name}\n\n- body\n"));
+        let selection = NamespaceSelection::new(&[name, "Docs"], &[]).unwrap();
+        let output = f.0.join("site");
+        let error = publish_site_with_options(
+            f.0.join("garden"),
+            &output,
+            FilenameFormat::TripleLowbar,
+            &selection,
+            &f.options(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "page \"{name}\" cannot have a readable URL: the build writes {name} at the output root"
+            )
+        );
+        assert!(!output.exists());
+    }
 }
 
 #[test]

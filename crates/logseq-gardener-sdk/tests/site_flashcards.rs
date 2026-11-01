@@ -86,8 +86,13 @@ fn decks_render_counts_first_cards_and_empty_decks() {
     let decks = fixture.html("Notes/Decks");
     assert!(!decks.contains("{{cards"), "{decks}");
     assert!(
-        decks.contains("<style>.cards-review{"),
-        "widget styles inlined"
+        decks.contains("<link rel=\"stylesheet\" href=\"lsg-flashcards-widget.css\">"),
+        "widget styles linked"
+    );
+    assert!(
+        fixture
+            .file("lsg-flashcards-widget.css")
+            .starts_with(".cards-review{")
     );
     // tmux: two cards, the scheduled one not yet due.
     assert!(

@@ -24,7 +24,8 @@ pub(super) struct PropertyView {
 }
 
 /// Properties a query table leaves out: Logseq's built-in keys, except `alias`, which
-/// Logseq shows as a column.
+/// Logseq shows as a column. The page properties box uses
+/// [`crate::page_properties::is_hidden_page_property`] instead.
 pub(super) fn is_internal(key: &str) -> bool {
     internal(key) && !matches!(key, "alias" | "aliases")
 }
@@ -155,6 +156,30 @@ fn value(
     Some((html, targets))
 }
 
+/// An `alias::` value as Logseq shows it: each alias name links to the page it names,
+/// labelled with the name as written. A name that is unsafe, missing or ambiguous drops
+/// the whole value, as for other properties.
+fn alias_value(
+    text: &str,
+    names: &PageNameIndex<String>,
+    routes: &BTreeMap<String, String>,
+) -> Option<(String, BTreeSet<String>)> {
+    let aliases = crate::page_names::linkable_property_names(text);
+    let mut links = Vec::new();
+    let mut targets = BTreeSet::new();
+    for alias in &aliases {
+        let (_, target) = value(&format!("[[{alias}]]"), names, routes)?;
+        let route = target.first()?;
+        links.push(format!(
+            "<a class=\"page-ref\" href=\"{}\">{}</a>",
+            escape(route),
+            escape(alias)
+        ));
+        targets.extend(target);
+    }
+    (!links.is_empty()).then(|| (links.join(", "), targets))
+}
+
 pub(super) fn view(
     document: &GardenDocument,
     current_route: &str,
@@ -173,7 +198,7 @@ pub(super) fn view(
     for (index, property) in props.iter().enumerate() {
         let (key, text) = (&property.0, &property.1);
         let normalized = key.to_lowercase();
-        if internal(&normalized)
+        if crate::page_properties::is_hidden_page_property(&normalized)
             || config.hidden_properties.contains(&normalized)
             || props[index + 1..]
                 .iter()
@@ -198,7 +223,12 @@ pub(super) fn view(
         } else {
             text
         };
-        let Some((html, targets)) = value(text, names, routes) else {
+        let shown = if matches!(normalized.as_str(), "alias" | "aliases") {
+            alias_value(text, names, routes)
+        } else {
+            value(text, names, routes)
+        };
+        let Some((html, targets)) = shown else {
             continue;
         };
         let row = format!(

@@ -3,7 +3,11 @@
 // Hosts that swap page content call window.logseqGardenerInitReferences(root).
 // The build trims each line and drops comment lines, so keep statements on their own lines.
 (() => {
-  const parse = (u) => fetch(u).then((r) => r.text()).then((t) => new DOMParser().parseFromString(t, 'text/html'));
+  // Linked and Unlinked References files are stored gzip-compressed; a host may already have
+  // decoded one, so only data that starts with the gzip header is decompressed. A failed request
+  // reads as an empty document, which a reference section reports as not loaded.
+  const text = (a, b = new Uint8Array(a)) => new Response(b[0] == 31 && b[1] == 139 ? new Response(b).body.pipeThrough(new DecompressionStream('gzip')) : b).text();
+  const parse = (u) => fetch(u).then((r) => r.ok ? r.arrayBuffer() : 0).then(text).then((t) => new DOMParser().parseFromString(t, 'text/html'));
   const noun = (n, w) => `${n} ${w} Reference${n === 1 ? '' : 's'}`;
   const fuzzy = (t, q) => { let i = 0; for (const c of t) if (c === q[i]) i++; return i === q.length; };
   const el = (tag, props) => Object.assign(document.createElement(tag), props);
@@ -29,9 +33,11 @@
       window.logseqGardenerRevealFragment?.(location.hash, { scroll: false });
       update();
     };
-    const file = (i) => loaded[i] ||= parse(new URL(data.files[i], src)).then((doc) => fill(i, doc));
+    const fail = () => body.prepend('References could not be loaded.');
+    const file = (i) => loaded[i] ||= parse(new URL(data.files[i], src)).then((doc) => fill(i, doc)).catch(fail);
 
-    // The first file carries the section's data; a section without one has no references.
+    // The first file carries the section's data; a section without one has no references. A
+    // file that cannot be loaded or read leaves the section saying so.
     function json() {
       return ready ||= (src ? parse(src) : Promise.resolve()).then((doc) => {
         data = doc ? JSON.parse(doc.querySelector('.references-data').textContent) : { count: 0, files: [] };
@@ -50,7 +56,7 @@
           fill(0, doc);
         }
         update();
-      });
+      }).catch(fail);
     }
 
     // Without a filter, the next file loads when the reader nears the end of the last one.
@@ -117,6 +123,7 @@
     function open(event) {
       event.preventDefault();
       json().then(() => {
+        if (!data) return;
         if (!dialog) {
           section.insertAdjacentHTML('beforeend', '<dialog class="ls-filters" aria-label="Filter"><h3>Filter</h3><p>Click to include and shift-click to exclude. Click again to remove.</p><div><b>Includes: </b></div><div><b>Excludes: </b></div><input type="search" placeholder="Search in linked pages" aria-label="Search in linked pages"><div></div></dialog>');
           dialog = section.lastChild;

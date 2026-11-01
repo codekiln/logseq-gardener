@@ -45,16 +45,19 @@ fn shared_theme_is_available_on_source_collection_and_index_documents() {
             );
             assert!(html.contains("data-lsg-theme-system hidden>Use system theme</button>"));
             assert!(html.contains("data-lsg-more aria-label=\"More\" aria-haspopup=\"menu\""));
-            assert!(html.contains("@media(prefers-color-scheme:dark)"));
-            assert!(html.contains(".theme-control[hidden]{display:none!important}"));
-            assert!(html.contains("color:var(--lsg-text);background:var(--lsg-background)"));
-            assert!(
-                html.contains("--lsg-background:#fbfcfd") && html.contains("--lsg-link:#849dff")
-            );
+            assert!(html.contains("<script defer src=\"lsg-theme.js\"></script>"));
+            assert!(html.contains("<link rel=\"stylesheet\" href=\"lsg-site.css\">"));
             documents += 1;
         }
     }
     assert!(documents >= 3);
+    let styles = fs::read_to_string(output.join("lsg-site.css")).unwrap();
+    assert!(styles.contains("@media(prefers-color-scheme:dark)"));
+    assert!(styles.contains(".theme-control[hidden]{display:none!important}"));
+    assert!(styles.contains("color:var(--lsg-text);background:var(--lsg-background)"));
+    assert!(styles.contains("--lsg-background:#fbfcfd") && styles.contains("--lsg-link:#849dff"));
+    let controller = fs::read_to_string(output.join("lsg-theme.js")).unwrap();
+    assert!(controller.contains("window.logseqGardenerInitTheme = initialize"));
     assert_eq!(
         fs::read_to_string(source.join("Notes___Page.md")).unwrap(),
         original

@@ -426,8 +426,10 @@ fn bottom_hierarchy_contains_all_flat_full_paths_and_independent_segment_links()
     assert_eq!(rows.len(), 1);
     assert_eq!(row_text(rows[0]), "A/B/C/E");
     assert_eq!(rows[0].matches("<a ").count(), 4);
-    assert!(leaf.contains("overflow-wrap:anywhere"));
-    assert!(leaf.contains("summary:focus-visible"));
+    assert!(leaf.contains("<link rel=\"stylesheet\" href=\"lsg-site.css\">"));
+    let styles = fs::read_to_string(f.0.join("site/lsg-site.css")).unwrap();
+    assert!(styles.contains("overflow-wrap:anywhere"));
+    assert!(styles.contains("summary:focus-visible"));
 }
 
 #[test]

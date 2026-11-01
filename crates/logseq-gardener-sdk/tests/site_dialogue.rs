@@ -6,6 +6,8 @@ use std::{
     path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
+
+mod support;
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 struct Fixture(PathBuf);
 impl Fixture {
@@ -56,7 +58,7 @@ impl Fixture {
             .collect();
         fragments.sort();
         for fragment in fragments {
-            html.push_str(&fs::read_to_string(fragment).unwrap());
+            html.push_str(&support::read_text(&fragment));
         }
         html
     }

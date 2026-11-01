@@ -1,0 +1,5 @@
+// lsg-search-boot.js: loaded with defer by every page when search is published. It keeps the
+// options hosts pass to window.logseqGardenerInitSearch, then loads the search start-up module
+// after the page's second animation frame, so search never delays first paint. The build drops
+// these comment lines and replaces __STARTUP__ with the start-up module's file name.
+(()=>{const f=(_,o)=>Object.assign(f.options??={},o);window.logseqGardenerInitSearch=f;const u=new URL('__STARTUP__',document.querySelector('[rel=lsg-search]').href);document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.type='module';s.src=u;s.onerror=()=>{if(!document.querySelector('[rel=lsg-search]'))return;const t=document.createElement('span');t.id='lsg-search-load';t.setAttribute('role','status');t.textContent='Search unavailable. Reload this page to retry search.';document.body.append(t)};document.head.append(s)})),{once:true})})();

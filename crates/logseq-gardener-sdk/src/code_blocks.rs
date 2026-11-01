@@ -8,14 +8,16 @@ use crate::ast::Block;
 /// For a fenced block the prefix is the fence line's indentation, or the bullet's
 /// indentation plus two spaces when the fence opens on the bullet line. A line that
 /// starts with less of the prefix loses only the part it has, and whitespace inside the
-/// fence beyond the prefix stays. Example blocks arrive from the parser without the
-/// prefix. One trailing newline is dropped. Other blocks give `None`.
+/// fence beyond the prefix stays. `#+BEGIN_SRC` and `#+BEGIN_EXAMPLE` blocks arrive from
+/// the parser without the prefix, so their text stays as it is. One trailing newline is
+/// dropped. Other blocks give `None`.
 pub fn code_text(source: &str, block: &Block) -> Option<String> {
     let (code, prefix) = match block {
         Block::Src { code, span, .. } => (
             code.as_str(),
             span.as_ref()
-                .map_or("".into(), |span| fence_prefix(source, span.0)),
+                .and_then(|span| fence_prefix(source, span.0))
+                .unwrap_or_default(),
         ),
         Block::Example { code, .. } => (code.as_str(), String::new()),
         _ => return None,
@@ -29,20 +31,20 @@ pub fn code_text(source: &str, block: &Block) -> Option<String> {
     )
 }
 
-fn fence_prefix(source: &str, start: usize) -> String {
-    let Some(line_start) = source
+/// The outline prefix of the block that opens at `start`, or `None` for a block such as
+/// `#+BEGIN_SRC` whose text the parser has already given without it.
+fn fence_prefix(source: &str, start: usize) -> Option<String> {
+    let line_start = source
         .get(..start)
-        .map(|s| s.rfind('\n').map_or(0, |i| i + 1))
-    else {
-        return String::new();
-    };
+        .map(|s| s.rfind('\n').map_or(0, |i| i + 1))?;
     let line = &source[line_start..];
     let indent = &line[..line.len() - line.trim_start_matches([' ', '\t']).len()];
-    if line[indent.len()..].starts_with("- ") {
-        format!("{indent}  ")
-    } else {
-        indent.to_owned()
-    }
+    let rest = &line[indent.len()..];
+    let (prefix, opener) = match rest.strip_prefix("- ") {
+        Some(opener) => (format!("{indent}  "), opener),
+        None => (indent.to_owned(), rest),
+    };
+    (!opener.starts_with("#+")).then_some(prefix)
 }
 
 fn strip_prefix<'a>(line: &'a str, prefix: &str) -> &'a str {
@@ -367,6 +369,25 @@ mod tests {
     fn example_text_drops_the_trailing_newline() {
         let source = "- #+BEGIN_EXAMPLE\n  long line\n  #+END_EXAMPLE\n";
         assert_eq!(src(source), "long line");
+    }
+
+    #[test]
+    fn nested_source_block_keeps_tab_indentation_like_fence_and_example() {
+        let body = "def f():\n\t  \treturn 1\n";
+        let wrap =
+            |open: &str, close: &str| format!("- a\n\t- b\n\t  {open}\n\t  {body}\t  {close}\n");
+        let expected = "def f():\n\treturn 1";
+        assert_eq!(src(&wrap("```python", "```")), expected);
+        assert_eq!(src(&wrap("#+BEGIN_EXAMPLE", "#+END_EXAMPLE")), expected);
+        assert_eq!(src(&wrap("#+BEGIN_SRC python", "#+END_SRC")), expected);
+    }
+
+    #[test]
+    fn source_block_under_top_level_bullet_keeps_space_indentation() {
+        let source = "- a\n  #+BEGIN_SRC python\n  def f():\n    return 1\n  #+END_SRC\n";
+        assert_eq!(src(source), "def f():\n  return 1");
+        let source = "- #+begin_src python\n  def f():\n    return 1\n  #+end_src\n";
+        assert_eq!(src(source), "def f():\n  return 1");
     }
 
     #[test]

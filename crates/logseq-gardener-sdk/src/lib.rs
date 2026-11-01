@@ -56,6 +56,9 @@ pub mod page_names;
 /// Find a page's source file by title, alias or journal date.
 pub mod page_lookup;
 
+/// Which page properties Logseq shows in a page's properties box.
+pub mod page_properties;
+
 /// Logseq's global graph and page graph from the reference index.
 pub mod graph;
 

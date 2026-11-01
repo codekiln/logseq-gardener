@@ -319,8 +319,9 @@ fn explicit_inputs_legacy_format_and_empty_selection() {
     // The index page, the page list, the shell, outline, references and All pages scripts,
     // the right sidebar's script and styles, the View as slides script, and the graph view's
     // page, script, worker, styles and data file, and the flashcard review's script,
-    // styles, deck list and `All` deck, and the site manifest lsg-site.json.
-    assert_eq!(files(&f.0.join("empty")).len(), 19);
+    // styles, deck list and `All` deck, the site manifest lsg-site.json, and the shared
+    // lsg-site.css, lsg-theme.js and lsg-all-pages.css.
+    assert_eq!(files(&f.0.join("empty")).len(), 22);
     let output = f.0.join("legacy");
     let result = Command::new(env!("CARGO_BIN_EXE_lsg"))
         .arg("publish")

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.14](https://github.com/codekiln/logseq-gardener/compare/v0.0.13...v0.0.14) - 2026-11-01
+
+### Changed
+
+- prepare v0.0.14 (#398)
+
+## [0.0.13](https://github.com/codekiln/logseq-gardener/compare/v0.0.12...v0.0.13) - 2026-11-01
+
+### Fixed
+
+- keep indentation inside nested #+BEGIN_SRC blocks (#390)
+- show alias, public and other page properties as Logseq does (#389)
+
 ## [0.0.12](https://github.com/codekiln/logseq-gardener/compare/v0.0.11...v0.0.12) - 2026-11-01
 
 ### Fixed
