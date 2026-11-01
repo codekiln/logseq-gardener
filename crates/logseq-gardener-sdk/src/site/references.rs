@@ -258,7 +258,7 @@ impl<'a> References<'a> {
     ) -> Sections {
         let target = route.to_owned();
         // One flat directory: a directory per page would cost a `mkdir` for each.
-        let prefix = format!("{REFS}/{}", route.trim_end_matches(".html"));
+        let prefix = format!("{REFS}/{}", crate::page_urls::stem(route));
         let mut sections = Sections {
             tagged: self.tagged(&target),
             linked: String::new(),

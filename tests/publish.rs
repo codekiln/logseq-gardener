@@ -540,6 +540,61 @@ fn cli_homepage_selects_alias_and_rejects_withheld_targets() {
 }
 
 #[test]
+fn cli_readable_urls_write_page_folders_and_collisions_fail_without_output() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Q&A.md", "- [[Notes/Other page]]\n");
+    f.write("pages/Notes___Other page.md", "- OTHER_PAGE\n");
+    let output = f.0.join("site");
+    let result = f.publish(
+        &output,
+        &["--include", "Notes", "--readable-urls", "--format", "json"],
+    );
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(report["pages"], 2);
+    assert_eq!(
+        report["index_path"],
+        output.join("index.html").to_string_lossy().as_ref()
+    );
+    let emitted = files(&output);
+    let page = String::from_utf8_lossy(&emitted[Path::new("Notes/Q&A/index.html")]);
+    assert!(page.contains("<base href=\"../../\">"));
+    assert!(page.contains("href=\"Notes/Other%20page/\""));
+    assert!(emitted.contains_key(Path::new("Notes/Other page/index.html")));
+    assert!(emitted.contains_key(Path::new("Notes/index.html")));
+    assert!(
+        !emitted
+            .keys()
+            .any(|path| path.to_string_lossy().starts_with("p-"))
+    );
+
+    f.write("pages/Lower.md", "title:: notes/other page\n\n- LOWER\n");
+    let rejected = f.0.join("rejected");
+    let result = f.publish(
+        &rejected,
+        &[
+            "--include",
+            "Notes",
+            "--include",
+            "notes",
+            "--readable-urls",
+        ],
+    );
+    assert_eq!(result.status.code(), Some(1));
+    assert!(result.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        stderr.contains("\"Notes/Other page\" and \"notes/other page\""),
+        "{stderr}"
+    );
+    assert!(!rejected.exists());
+}
+
+#[test]
 fn search_flag_emits_only_opt_in_external_artifacts() {
     let f = Fixture::new();
     f.write("pages/Notes.md", "- Searchable original text\n");

@@ -56,23 +56,25 @@ These checks run during page selection, before rendering. A page whose first seg
 
 ### Scripts in readable builds
 
-Readable builds serve variants of the outline, shell, sidebar, graph, search engine and plugin host scripts, made by replacing a few exact lines of the shared scripts:
+Readable builds serve variants of the outline, graph, search engine and plugin host scripts, made by replacing a few exact lines of the shared scripts:
 
 - outline: the zoom breadcrumb links to the page's full address, and a journal's bullet in the feed opens that journal's folder.
-- shell and sidebar: Shift-click treats a link to a folder of the site as a page link.
-- graph: a node opens its page's folder, and the page graph finds the current page and its neighbourhood file from the page's title.
+- graph: a node opens its page's folder, and the page graph finds the current page and its neighbourhood file from the page's title. The replacement functions live in `readable-graph.js`, so Node tests check them against the SDK's encoding.
 - search engine: it accepts readable page routes, so results resolve beside the manifest with no resolver.
 - plugin host: links to folders of the site are local pages, the next page's `<base>` is ignored, and the host sets `<base>` to the absolute site root before its first navigation, so the base stays fixed when history changes the address.
 
 Changing the shared scripts to handle both layouts would change every default build's script files and `revision`. A unit test checks that each replaced line occurs exactly once, so a change to a shared script fails the test instead of silently dropping a readable variant.
 
-The All pages list already carries a route for each row whose route differs from the digest name, so every readable row carries its route and the All pages script needs no variant.
+The All pages list already carries a route for each row whose route differs from the digest name, so every readable row carries its route and the All pages script needs no variant. Shift-click already recognizes page links by their `page-ref` markup, so the shell and sidebar scripts need no variant either.
+
+The inline `data-lsg-readable` script lives in `readable.js`, minified at build time like the other inline scripts, so Node tests run it directly.
 
 ## Risks / Trade-offs
 
 - [A future feature writes a fragment-only link or a page-relative URL] → the readable build test checks every `href` and `src` in every page against the files in the output, and fails on a URL that resolves outside them.
 - [A shared script changes and its readable variant no longer applies] → the exactly-once test fails.
 - [Long or non-ASCII titles produce long URLs and paths] → percent-encoding keeps the URL valid, and the 255-byte segment check fails early. Deep namespaces on Windows can still pass its path-length limit; the build then fails with the path that could not be written.
+- [Windows refuses `< > : " | ? *` in file names, and gardens use `?` and `:` in titles] → the checks accept those characters, since macOS, Linux and static hosts allow them; on Windows the build fails at the first such title with the path it could not write, and the publishing guide says so.
 - [Reading from disk without JavaScript shows folder listings] → the publishing guide says so.
 - [Folder-per-page writing is slower] → only readable builds create folders; the default layout and its budgets are unchanged, and the pull request reports a readable build's time on the encode garden.
 

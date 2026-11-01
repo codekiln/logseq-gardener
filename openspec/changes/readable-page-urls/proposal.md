@@ -25,7 +25,7 @@
 ## Impact
 
 - SDK: a new `page_urls` module with the `PageUrls` layout, the readable URL of a title, and the safety and collision checks; `publication::select_with_urls`; `SiteOptions::page_urls`; new `PageUrl` variants on `SelectError` and `SiteError`.
-- Publisher (`site/`): writes page folders, adds a `<base>` element and a short link script to readable pages, keeps reference, hierarchy, query and graph files flat under their current names, and serves readable variants of the outline, shell, sidebar, graph, search engine and plugin host scripts.
+- Publisher (`site/`): writes page folders, adds a `<base>` element and a short link script to readable pages, keeps reference, hierarchy, query and graph files flat under their current names, and serves readable variants of the outline, graph, search engine and plugin host scripts.
 - CLI: `src/cli.rs`, `src/help.rs` and the help assessment in `tests/assessments/help.json`.
 - Docs: `docs/publishing.md` and `docs/local-site.md`.
 - Gitpa can pass `--readable-urls` and drop its `package_pages` step after it upgrades; that work belongs to the Gitpa repository.

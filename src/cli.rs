@@ -4,7 +4,7 @@ use logseq_gardener_sdk::{
     page_lookup::PageCatalog,
     page_titles::FilenameFormat,
     publishing::NamespaceSelection,
-    site::{SearchOptions, SiteOptions, publish_site_with_options},
+    site::{PageUrls, SearchOptions, SiteOptions, publish_site_with_options},
 };
 use serde_json::json;
 use std::path::PathBuf;
@@ -94,6 +94,8 @@ struct PublishArgs {
     search: bool,
     #[arg(long)]
     journals: bool,
+    #[arg(long)]
+    readable_urls: bool,
     #[arg(long)]
     include: Vec<String>,
     #[arg(long)]
@@ -305,6 +307,11 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
             layout_cache: None,
             plugins: args.plugin,
             build_plugins: Default::default(),
+            page_urls: if args.readable_urls {
+                PageUrls::Readable
+            } else {
+                PageUrls::Digest
+            },
         },
     )
     .map_err(|error| Failure {

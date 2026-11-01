@@ -86,6 +86,9 @@ pub mod plugins;
 /// The pages a publication contains, and the read-only view build plugins receive.
 pub mod publication;
 
+/// How a publication names page files and links: digest file names or readable namespace URLs.
+pub mod page_urls;
+
 /// Build plugins and their contributions: checking them and resolving their links.
 pub mod contributions;
 

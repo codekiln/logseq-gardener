@@ -24,6 +24,7 @@ use crate::journals::{JournalDate, JournalFormats, journal_identity};
 use crate::outline::Outline;
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, document_title, page_title};
+use crate::page_urls::{PageUrlError, PageUrls, check_collisions, readable_url, same_path};
 use crate::publishing::{NamespaceSelection, PublicPages};
 use crate::search::digest;
 
@@ -46,6 +47,8 @@ pub enum SelectError {
     Title(PageTitleError),
     /// Two selected pages, or a page and a namespace destination, share a name or a route.
     Collision { title: String },
+    /// With readable URLs, a title cannot form a safe path, or two pages' paths collide.
+    PageUrl(PageUrlError),
 }
 
 impl fmt::Display for SelectError {
@@ -53,6 +56,7 @@ impl fmt::Display for SelectError {
         match self {
             Self::Title(error) => error.fmt(f),
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
+            Self::PageUrl(error) => error.fmt(f),
         }
     }
 }
@@ -62,6 +66,7 @@ impl std::error::Error for SelectError {
         match self {
             Self::Title(error) => Some(error),
             Self::Collision { .. } => None,
+            Self::PageUrl(error) => Some(error),
         }
     }
 }
@@ -120,7 +125,7 @@ pub fn remove_shadowed(
         .collect()
 }
 
-/// Choose the published pages of a garden and give each its route.
+/// Choose the published pages of a garden and give each its `p-<digest>.html` route.
 ///
 /// A page is published when the namespace selection includes it (journals are not subject to
 /// it), it contains no `public:: false`, and the garden's all-pages-public setting or its own
@@ -137,12 +142,39 @@ pub fn select<'a>(
     settings: &GardenSettings,
     journals: bool,
 ) -> Result<Publication<'a>, SelectError> {
+    select_with_urls(
+        garden,
+        format,
+        selection,
+        settings,
+        journals,
+        PageUrls::Digest,
+    )
+}
+
+/// Choose the published pages of a garden, as [`select`] does, and give each its route in the
+/// `urls` layout. With [`PageUrls::Readable`], every page and namespace destination gets its
+/// [`readable_url`].
+///
+/// # Errors
+///
+/// Returns a page whose title cannot be derived, a title or route shared by two pages, and with
+/// readable URLs a title that cannot form a safe path or pages whose paths collide (see
+/// [`check_collisions`]).
+pub fn select_with_urls<'a>(
+    garden: &'a Garden,
+    format: FilenameFormat,
+    selection: &NamespaceSelection,
+    settings: &GardenSettings,
+    journals: bool,
+    urls: PageUrls,
+) -> Result<Publication<'a>, SelectError> {
     let journal_formats = JournalFormats::from_settings(settings);
     let mut skipped_journals = 0;
     let mut withheld_pages = 0;
     let mut notices = Vec::new();
     let mut keys = BTreeMap::new();
-    let mut routes = BTreeMap::new();
+    let mut routes: BTreeMap<String, String> = BTreeMap::new();
     let mut pages = Vec::new();
     let mut withheld = BTreeSet::new();
     let mut garden_titles = BTreeSet::new();
@@ -200,10 +232,17 @@ pub fn select<'a>(
             });
             continue;
         }
-        let route = format!("p-{}.html", digest(&title));
-        if keys.insert(lookup_key(&title), route.clone()).is_some()
-            || routes.insert(route.clone(), title.clone()).is_some()
-        {
+        let route = route_for(&title, urls)?;
+        if let Some(previous) = keys.insert(lookup_key(&title), route.clone()) {
+            // Readable URLs name both pages, since their folders would be one on disk.
+            return Err(match routes.get(&previous) {
+                Some(other) if urls == PageUrls::Readable => {
+                    SelectError::PageUrl(same_path(other, &title))
+                }
+                _ => SelectError::Collision { title },
+            });
+        }
+        if routes.insert(route.clone(), title.clone()).is_some() {
             return Err(SelectError::Collision { title });
         }
         if let Some(identity) = journal {
@@ -232,7 +271,16 @@ pub fn select<'a>(
         }
         alias_spellings.insert(lookup_key(title), authored);
     }
-    let namespaces = namespace_destinations(&routes, &keys, &withheld, &aliases)?;
+    let namespaces = namespace_destinations(&routes, &keys, &withheld, &aliases, urls)?;
+    if urls == PageUrls::Readable {
+        check_collisions(
+            routes
+                .values()
+                .chain(namespaces.values().map(|(title, _)| title))
+                .map(String::as_str),
+        )
+        .map_err(SelectError::PageUrl)?;
+    }
     Ok(Publication {
         pages,
         routes,
@@ -252,6 +300,14 @@ pub fn select<'a>(
     })
 }
 
+/// A page's route in the `urls` layout.
+fn route_for(title: &str, urls: PageUrls) -> Result<String, SelectError> {
+    match urls {
+        PageUrls::Digest => Ok(format!("p-{}.html", digest(title))),
+        PageUrls::Readable => readable_url(title).map_err(SelectError::PageUrl),
+    }
+}
+
 /// Every namespace prefix of a published title that is not itself a published, withheld or
 /// aliased page, with its earliest spelling and its route.
 fn namespace_destinations(
@@ -259,6 +315,7 @@ fn namespace_destinations(
     keys: &BTreeMap<String, String>,
     withheld: &BTreeSet<String>,
     aliases: &BTreeSet<String>,
+    urls: PageUrls,
 ) -> Result<BTreeMap<String, (String, String)>, SelectError> {
     let mut prefixes: BTreeMap<String, String> = BTreeMap::new();
     for title in routes.values() {
@@ -281,7 +338,7 @@ fn namespace_destinations(
     let mut taken: BTreeSet<String> = routes.keys().cloned().collect();
     let mut destinations = BTreeMap::new();
     for (key, title) in prefixes {
-        let route = format!("p-{}.html", digest(&title));
+        let route = route_for(&title, urls)?;
         if !taken.insert(route.clone()) {
             return Err(SelectError::Collision { title });
         }
