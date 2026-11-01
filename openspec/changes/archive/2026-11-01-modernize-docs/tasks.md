@@ -8,7 +8,7 @@
 - [x] 1.6 Make `mise run docs:check` run `docs:site`, and extend `scripts/docs.py` to check relative links in the remaining old files, missing `:hidden` entries and kind tags that do not match titles
 - [x] 1.7 Check out full history in the `ci` job of `.github/workflows/ci.yml`
 - [x] 1.8 Add a short section to `CONTRIBUTING.md` on opening `docs/` in Logseq and building the site
-- [ ] 1.9 Open `docs/` in Logseq 0.10 desktop, re-index, and record in the pull request that the home page is `lsg`, every page loads and `git status` stays clean, or name who will make that check
+- [x] 1.9 Open `docs/` in Logseq 0.10 desktop, re-index, and record in the pull request that the home page is `lsg`, every page loads and `git status` stays clean, or name who will make that check. codekiln makes this check in [#369 Open the docs graph in Logseq 0.10 desktop](https://github.com/codekiln/logseq-gardener/issues/369).
 
 ## 2. #326 Deploy the docs site to GitHub Pages
 
@@ -16,7 +16,7 @@
 - [x] 2.2 Add `.github/workflows/docs-site.yml` with the build and deploy jobs the design describes
 - [x] 2.3 Enable GitHub Pages with the GitHub Actions source
 - [x] 2.4 Write `lsg/How To/Publish a Garden to GitHub Pages`
-- [ ] 2.5 After merge, confirm the deployment succeeded and the homepage loads at https://codekiln.github.io/logseq-gardener/, and comment on #326 with the run link
+- [x] 2.5 After merge, confirm the deployment succeeded and the homepage loads at https://codekiln.github.io/logseq-gardener/, and comment on #326 with the run link. The [comment on #326](https://github.com/codekiln/logseq-gardener/issues/326#issuecomment-6559210214) links the successful runs.
 
 ## 3. #327 Move install, CLI and tutorial docs into the docs graph
 
