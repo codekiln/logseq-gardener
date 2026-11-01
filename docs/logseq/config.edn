@@ -16,10 +16,6 @@
           "/installation.md"
           "/page-titles.md"
           "/weekend-trial.md"
-          ;; Issue #328 Move publishing guides into the docs graph
-          "/local-site.md"
-          "/publishing.md"
-          "/static-search.md"
           ;; Issue #330 Move Logseq parity reports into the docs graph
           "/parity/README.md"
           "/parity/all-pages.md"

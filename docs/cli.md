@@ -2,7 +2,7 @@
 
 Run `lsg help` to read embedded documentation. Help works offline with closed standard input and without a pager or prompts. `--no-input` makes that default explicit. `lsg`, `lsg help`, `lsg --help`, and `lsg -h` show the same root document.
 
-Use `lsg publish` to generate selected local HTML pages; see [local publishing](local-site.md) for a copyable trial and rendering limitations. `lsg publish help`, `lsg publish --help`, and `lsg publish -h` show equivalent documentation without requiring garden arguments.
+Use `lsg publish` to generate selected local HTML pages; see [lsg/How To/Publish Selected Namespaces](pages/lsg___How%20To___Publish%20Selected%20Namespaces.md) for a copyable trial and [lsg/Ref/Rendering and Assets](pages/lsg___Ref___Rendering%20and%20Assets.md) for rendering limitations. `lsg publish help`, `lsg publish --help`, and `lsg publish -h` show equivalent documentation without requiring garden arguments.
 
 Use `lsg lookup NAME --graph PATH --filename-format legacy|triple-lowbar` to print the source file of the page that `NAME` names, so an editor or agent can open it; see [Find a page's source file](#find-a-pages-source-file). `lsg lookup help`, `lsg lookup --help`, and `lsg lookup -h` show its documentation.
 
@@ -45,9 +45,9 @@ Successful results go to stdout; diagnostics go to stderr. Invalid invocations l
 
 Successful JSON has `command_path: ["publish"]`, `pages`, `journals`, `assets`, `withheld_pages`, `skipped_journals`, `diagnostic_count`, `output_directory`, and `index_path`. Selected unsupported content produces a completed site and exit zero with local diagnostics on stderr. Fatal SDK errors leave stdout empty and exit one. Invalid selectors and arguments exit two.
 
-The optional `publish --stylesheet PATH` selects a local CSS file loaded after built-in styles on every generated page. The file must be readable, regular, have a `.css` extension, and use a path without symlink components. Invalid stylesheet input returns one before output creation. See [Customize appearance](local-site.md#customize-appearance) for copying and browser resource behavior.
+The optional `publish --stylesheet PATH` selects a local CSS file loaded after built-in styles on every generated page. The file must be readable, regular, have a `.css` extension, and use a path without symlink components. Invalid stylesheet input returns one before output creation. See [lsg/How To/Customize a Published Site](pages/lsg___How%20To___Customize%20a%20Published%20Site.md) for copying and browser resource behavior.
 
-The optional `publish --journals` publishes journal pages and Logseq's journals feed; see [Publish journals](local-site.md#publish-journals). The optional `publish --search` emits a versioned external manifest, corpus and pure evaluator. Generated pages advertise the manifest without loading the corpus. See [Static search](static-search.md) for supported content, exclusions and the consumer API.
+The optional `publish --journals` publishes journal pages and Logseq's journals feed; see [lsg/How To/Customize a Published Site](pages/lsg___How%20To___Customize%20a%20Published%20Site.md). The optional `publish --search` emits a versioned external manifest, corpus and pure evaluator. Generated pages advertise the manifest without loading the corpus. See [lsg/Ref/Static Search Data](pages/lsg___Ref___Static%20Search%20Data.md) for supported content, exclusions and the consumer API.
 
 ## Find a page's source file
 

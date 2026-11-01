@@ -1,3 +1,33 @@
 tags:: [[Diataxis/Explanation]]
+see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Publish Options]], [[lsg/Architecture]]
 
-- How `lsg publish` turns selected namespaces of a garden into a static website, what it leaves unchanged, and how far plugins are trusted.
+- # Static Publishing
+	- ## Overview
+		- `lsg publish` generates a static HTML site from selected namespaces of a Logseq Markdown garden. It uses the Rust SDK to load the garden, resolve visible references and embeds, render pages and copy the supported assets those pages reference. The source garden stays unchanged.
+		- The site is a folder of HTML files, scripts and data files that any static file server can serve, or a reader can open from disk. It reads like a site that Logseq 0.10 publishes, with the same outline, reference sections, sidebars, search and graph view, all generated when the site is built.
+	- ## How a build works
+		- A build reads every Markdown file of the garden that Logseq reads, as [[lsg/Ref/Garden Loading]] describes, and gives each page its title, as [[lsg/Ref/Page Titles]] describes.
+		- It selects pages by namespace with `--include` and `--exclude`, then applies Logseq's publishing rules within that selection: `public::` properties and `:publishing/all-pages-public?`. Every later step sees only selected visible content, so references, embeds, assets, reference sections, search data and plugin data come from published pages alone. [[lsg/Ref/Selection and Visibility]] describes the rules.
+		- It renders each published page and writes it, with the site's scripts, data files and copied assets, into a new output directory. It refuses an existing directory, so nothing from an earlier build remains. [[lsg/Ref/Rendering and Assets]], [[lsg/Ref/Published Pages]] and [[lsg/Ref/Site Navigation]] describe what the site shows.
+		- It reports what it could not publish as diagnostics outside the site, and writes [[lsg/Ref/Site Manifest]], a list of the published pages and assets for build tools. [[lsg/Ref/Publish Options]] describes the report.
+		- `--timings` shows where a build spends its time. [[lsg/Ref/Publication Speed]] reports how long publication takes on a Gitpa-sized garden and on the encode garden.
+	- ## Plugins
+		- A site often needs behaviour or content that belongs to it alone, such as a podcast player that keeps playing across pages or a list of episodes on the homepage. Plugins add that through `lsg publish --plugin`, without editing the generated HTML after the build.
+		- A browser plugin is an ES module that `lsg`'s plugin host loads into each page. The host owns navigation between pages, so a plugin's region, such as a player, stays in place while the page changes. [[lsg/Ref/Plugin Host API]] describes it.
+		- A build plugin is a program that reads a JSON view of the published pages and returns rows and metadata to add to them. [[lsg/Ref/Build Plugin Protocol]] describes it.
+		- [[lsg/How To/Add a Site Plugin]] shows how to write both.
+	- ## Trust
+		- Plugins run in the reader's browser with the page's full access; the publisher does not sandbox them. Use only plugins you would add to the site yourself. The publisher limits the data that reaches a plugin to the page properties readers can already see.
+		- A build command runs on the publishing machine with your file access. The view limits what `lsg` hands the program; it does not isolate the program, which can read anything you can. Run only build plugins you trust as much as the build itself.
+		- A custom stylesheet can make the browser request any resource its `url()` and `@import` rules name, so choose CSS you trust as well.
+	- ## Who uses it
+		- Gitpa builds its podcast site with a released `lsg`. Its [Publish workflow](https://github.com/codekiln/gitpa/blob/main/.github/workflows/gh-pages.yml) downloads a pinned, checksum-verified release and keeps its own RSS validation, and its [build script](https://github.com/codekiln/gitpa/blob/main/scripts/build_site.py) supplies the site-specific presentation. Gitpa plans to move that customization into Gardener plugins ([Gitpa issue 93](https://github.com/codekiln/gitpa/issues/93)).
+		- This documentation is published with `lsg` from the `docs` folder of the repository, as [[lsg/How To/Edit the Documentation]] describes.
+		- [[lsg/Ref/Logseq Compatibility]] records what `lsg` renders as Logseq does and where it differs. [[lsg/Parser Adoption]] records the parser decision behind the SDK.
+	- ## Sources
+		- [Project Brief](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/Person___codekiln___GitHub___logseq-gardener___Project___Brief.md): describes per-page HTML through the shared garden engine.
+		- [Project Proposal](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/Person___codekiln___GitHub___logseq-gardener___Project___Proposal.md): describes Markdown export, resolved links and embeds, referenced assets, and publication filtering.
+		- [Astra's publishing proposal](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/Person___codekiln___GitHub___logseq-gardener___Project___Proposal___Astra.md): extends filtering to public diagnostics and excluded target names.
+		- [Gitpa publication workflow](https://github.com/codekiln/gitpa/blob/main/.github/workflows/gh-pages.yml): builds the podcast site with Gardener and keeps RSS validation and site-specific preparation.
+		- [Issue 11, Build a Rust static site from selected garden namespaces](https://github.com/codekiln/logseq-gardener/issues/11), and [issue 106, Match Logseq's published site for logseq-encode-garden](https://github.com/codekiln/logseq-gardener/issues/106): record the delivered publishing behaviour and its validation.
+		- [Issue 195, Expose optional versioned publishing and runtime plugin hooks](https://github.com/codekiln/logseq-gardener/issues/195): records how the plugin host and its contract for Gitpa were agreed.

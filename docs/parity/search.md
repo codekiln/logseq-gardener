@@ -66,7 +66,7 @@ Search runs against the whole graph, which the published site loads before any p
 
 ## What lsg does today
 
-From `crates/logseq-gardener-sdk/src/site/search.rs`, `search-ui.mjs`, `search.mjs` and the [static search contract](../static-search.md), checked against the whole-garden build:
+From `crates/logseq-gardener-sdk/src/site/search.rs`, `search-ui.mjs`, `search.mjs` and [lsg/Ref/Static Search Data](../pages/lsg___Ref___Static%20Search%20Data.md), checked against the whole-garden build:
 
 - **Opening:** a header button and Cmd/Ctrl+K open a native `<dialog>` titled `Search garden` with a `Close` button and a visible label `Search published pages and notes`. The dialog is 680px wide with 20px padding and a 10px radius; the input is 16px with a border and no placeholder. Empty input shows `Type to search published pages and notes.`
 - **Results:** one list of at most 20 results with a live status line (`20 results shown.`). Page results show the title; content results show the page title, the breadcrumb joined with `›`, and a bounded snippet. Ranking puts exact titles, exact aliases, prefixes and all-term title matches before content matches; ties sort by title. For `tmux` the list is 20 `tmux…` titles in alphabetical order and no content result.
