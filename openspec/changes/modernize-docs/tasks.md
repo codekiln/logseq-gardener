@@ -20,12 +20,12 @@
 
 ## 3. #327 Move install, CLI and tutorial docs into the docs graph
 
-- [ ] 3.1 Write `lsg/How To/Install with mise`, including what mise checks against each release's `.sha256` files, as read in mise's source, and embed its block of install commands on the `lsg` homepage
-- [ ] 3.2 Convert `docs/installation.md` into `lsg/How To/Install a Release Archive`, `lsg/How To/Build from Source` and the dependency step of `lsg/How To/Use the Rust SDK`, with directions for the published releases
-- [ ] 3.3 Convert `docs/cli.md` into `lsg/Ref/Command Line` and `lsg/How To/Look Up a Page File`
-- [ ] 3.4 Convert `docs/weekend-trial.md` into `lsg/Tutorial/Publish Part of a Public Garden`, using a released `lsg` installed with mise
-- [ ] 3.5 Convert `docs/page-titles.md` and `docs/garden-loading.md` into `lsg/Ref/Page Titles`, `lsg/Ref/Garden Loading` and the remaining steps of `lsg/How To/Use the Rust SDK`, describing the current loader
-- [ ] 3.6 Delete the five documents, remove their `:hidden` lines and repoint every link to them
+- [x] 3.1 Write `lsg/How To/Install with mise`, including what mise checks against each release's `.sha256` files, as read in mise's source, and embed its block of install commands on the `lsg` homepage
+- [x] 3.2 Convert `docs/installation.md` into `lsg/How To/Install a Release Archive`, `lsg/How To/Build from Source` and the dependency step of `lsg/How To/Use the Rust SDK`, with directions for the published releases
+- [x] 3.3 Convert `docs/cli.md` into `lsg/Ref/Command Line` and `lsg/How To/Look Up a Page File`
+- [x] 3.4 Convert `docs/weekend-trial.md` into `lsg/Tutorial/Publish Part of a Public Garden`, using a released `lsg` installed with mise
+- [x] 3.5 Convert `docs/page-titles.md` and `docs/garden-loading.md` into `lsg/Ref/Page Titles`, `lsg/Ref/Garden Loading` and the remaining steps of `lsg/How To/Use the Rust SDK`, describing the current loader
+- [x] 3.6 Delete the five documents, remove their `:hidden` lines and repoint every link to them
 
 ## 4. #328 Move publishing guides into the docs graph
 

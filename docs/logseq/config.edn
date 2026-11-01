@@ -10,10 +10,4 @@
              "lsg/How To/Publish a Garden to GitHub Pages"
              "lsg/Ref/Command Line"
              "lsg/Ref/Logseq Compatibility"]
- :hidden [;; Issue #327 Move install, CLI and tutorial docs into the docs graph
-          "/cli.md"
-          "/garden-loading.md"
-          "/installation.md"
-          "/page-titles.md"
-          "/weekend-trial.md"
-          ]}
+ :hidden []}

@@ -30,7 +30,7 @@ see-also:: [[lsg/How To/Contribute a Change]], [[Diataxis]]
 			- Put an image that a page shows in `docs/assets/`.
 			- Leave out queries, raw HTML, drawers, footnotes and macros that `lsg` does not render; `lsg` reports each one as a diagnostic.
 		- ### 4. Convert an old document
-			- Markdown documents that are not pages yet sit in `docs/` outside `docs/pages/`. A line in `:hidden` in `docs/logseq/config.edn` keeps each one out of the graph, such as `"/cli.md"` for `docs/cli.md`.
+			- A Markdown document in `docs/` outside `docs/pages/` is not a page yet. A line in `:hidden` in `docs/logseq/config.edn` keeps it out of the graph, such as `"/notes.md"` for `docs/notes.md`.
 			- Rewrite the document as pages: a paragraph becomes a block, a list becomes child blocks, and a heading becomes a heading block with its content as children.
 			- Delete the old document and remove its line from `:hidden`.
 			- Point every link to the old document at the new page. Inside the graph, use a page reference. Elsewhere in the repository, name the page title and its file, such as `lsg/How To/Install with mise` in `docs/pages/lsg___How To___Install with mise.md`.

@@ -1,3 +1,38 @@
 tags:: [[Diataxis/Reference]]
+see-also:: [[lsg/Ref/Page Titles]], [[lsg/How To/Use the Rust SDK]], [[lsg/Parser Adoption]]
 
-- The files `lsg` loads from a garden: every visible folder, less the paths `:hidden` names and the files git ignores.
+- # Garden Loading Reference
+	- ## Overview
+		- `lsg` reads a garden's Markdown files with the SDK's `garden::load_garden` before it resolves page titles or renders a site. Loading reads the same files Logseq reads and leaves every file unchanged. For each file it returns the original source, the path relative to the garden root, the kind, the parsed blocks, and the page and block references the parser found.
+	- ## Core Components
+		- ### Garden root
+			- The root is a folder that holds `pages/`, `journals/`, or both. Either folder may be empty or missing while the other exists.
+			- A root that is missing, is a file, or holds neither folder stops loading with an error that names the path.
+		- ### Files loaded
+			- Loading reads every visible file with the lowercase extension `.md` beneath every folder of the root, as Logseq does: `pages/a.md`, `journals/2026_10_28.md`, `tools-docs/PARAMETERS.md` and `assets/report.md` all load.
+			- A file beneath `journals/` is a journal. Every other file is a page; a page outside `pages/` takes its title from its file name, so `tools-docs/PARAMETERS.md` is the page `PARAMETERS`.
+			- Documents come back sorted by relative path, so repeated loads of the same files return them in the same order.
+			- Files of other types are skipped.
+		- ### Paths Logseq skips
+			- Loading skips every path with a folder or file name that starts with `.`, every path with a `node_modules` folder, and everything beneath `logseq/bak/`, `logseq/.recycle/` and `logseq/version-files/`, where Logseq keeps its backups and history.
+		- ### Hidden paths
+			- Loading skips every Markdown file that an entry of `:hidden` in `logseq/config.edn` hides, in every folder, `pages/` and `journals/` included.
+			- It uses Logseq's rule: after a leading `/` is added to the file's relative path and to the entry, where either lacks one, an entry hides each path that starts with it.
+			- With `:hidden ["README.md"]`, loading skips `README.md` at the root and loads `pages/README.md`. With `:hidden ["worktrees"]`, it loads nothing beneath `worktrees/`.
+		- ### Git-ignored files
+			- When the root is inside a git work tree, loading skips Markdown files outside `pages/` and `journals/` that git ignores, so a local build loads what a fresh checkout holds.
+			- Files beneath `pages/` and `journals/` load whether git tracks them, ignores them or neither.
+			- When the root is outside a git work tree, or `git` cannot run, no git filter applies.
+			- Example: `.gitignore` lists `tools`, and the root holds `tools/README.md`, `notes/kept.md` and an untracked `pages/draft.md`. Loading returns `notes/kept.md` and `pages/draft.md`.
+		- ### Title collisions
+			- When a file outside `pages/` and `journals/` has the same page name as a file beneath them, `lsg` keeps the file beneath `pages/` or `journals/`, skips the other, and reports the skipped file's path: `pages/PARAMETERS.md` wins over `mise-tasks/PARAMETERS.md`.
+			- An SDK caller applies this rule with `Garden::remove_shadowed_documents`, which returns the paths it removed.
+	- ## Technical Details
+		- ### Errors
+			- Loading stops with an error that names the file, and returns no partial garden, when a file cannot be read or is not valid UTF-8.
+			- A symlink or special file as the root, as `pages/` or `journals/`, or as a visible entry beneath them, also stops loading, without the symlink being followed.
+			- Symlinks and special files in other folders are skipped without being followed.
+		- ### Snapshot
+			- The result holds the files as they were when loading read them. Load from a stable local checkout when you compare repeated results.
+		- ### Parser
+			- Loading parses each file with [lsdoc at its tested revision](https://github.com/martinkoutecky/lsdoc/tree/32e63ef095c711d6d9947257bf5fd07d540fa59d), and keeps the source text alongside the parsed structure. [[lsg/Parser Adoption]] explains the choice of parser, its supported scope and its known differences from Logseq.

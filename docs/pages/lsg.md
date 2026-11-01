@@ -4,7 +4,8 @@ tags:: [[Diataxis/Explanation]]
 - # Logseq Gardener
 	- Logseq Gardener (`lsg`) is a command-line tool for people and coding agents who keep notes in a Logseq Markdown garden. It publishes chosen namespaces of a garden as a static website that reads like a site Logseq 0.10 publishes, and it prints the source file of a page named by its title, alias or journal date. It reads the garden and leaves every file in it unchanged.
 	- ## Get started
-		- [[lsg/How To/Install with mise]] shows how to install a released `lsg` for every project or for one project.
+		- {{embed ((23ecf0c0-bef8-45bf-8fa8-26a273de5901))}}
+		- [[lsg/How To/Install with mise]] shows how to pin a version and what mise checks when it installs `lsg`. [[lsg/How To/Install a Release Archive]] and [[lsg/How To/Build from Source]] install `lsg` without mise.
 		- [[lsg/Tutorial/Publish Part of a Public Garden]] walks you through publishing part of a public garden and reading the site in a browser.
 	- ## Publish a garden
 		- [[lsg/How To/Publish Selected Namespaces]]
