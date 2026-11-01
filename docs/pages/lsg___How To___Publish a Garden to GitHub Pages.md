@@ -63,7 +63,7 @@ see-also:: [[lsg/How To/Install with mise]], [[lsg/How To/Publish Selected Names
 			    build:
 			      runs-on: ubuntu-latest
 			      steps:
-			        - uses: actions/checkout@v4
+			        - uses: actions/checkout@v6
 			          with:
 			            fetch-depth: 0
 			        - uses: jdx/mise-action@v5
