@@ -112,6 +112,11 @@ fragment focus and scrolling. The helper accepts an encoded fragment beginning w
 `#`, opens only the target's containing disclosures, and returns the target element
 or `null` when unavailable.
 
+Every page sets `scroll-padding-top: 56px` on `html`, so a fragment target lands
+below the 48px sticky header, whether the browser scrolls to it or a script calls
+`scrollIntoView()` on it. A host's own fragment scrolling gets the same offset
+without a rule of its own.
+
 ## Reference sections
 
 Below the outline, each page shows the sections that apply in Logseq's order: **Pages tagged with**, **Linked References**, **Hierarchy** and **Unlinked References**. The page holds only each section's header; the groups load from fragment files in `_refs/` when a reader opens the section, so a page's first paint does not grow with the number of pages that mention it.
