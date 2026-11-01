@@ -699,3 +699,36 @@ fn fragments_are_gzip_with_an_empty_header_and_the_same_groups_give_the_same_fil
     }
     assert_eq!(first, stored(&again));
 }
+#[test]
+fn a_listed_block_reports_its_diagnostics_once_under_its_own_file() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Start.md", "- START\n");
+    // Notes/Start lists this block in its Linked References.
+    f.write(
+        "pages/Notes___Other.md",
+        "- [[Notes/Start]] and [[Absent]] and [help](../../src/help.rs)\n",
+    );
+    let report = f.publish();
+    let problems: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.message.contains("Absent") || d.message.contains("help.rs"))
+        .map(|d| (d.source.to_string_lossy().into_owned(), d.message.clone()))
+        .collect();
+    assert_eq!(
+        problems,
+        [
+            (
+                "pages/Notes___Other.md".to_owned(),
+                "Unresolved or excluded page reference: Absent".to_owned()
+            ),
+            (
+                "pages/Notes___Other.md".to_owned(),
+                "Unsupported local asset ../../src/help.rs: asset path escapes the source garden"
+                    .to_owned()
+            ),
+        ],
+        "{:?}",
+        report.diagnostics
+    );
+}

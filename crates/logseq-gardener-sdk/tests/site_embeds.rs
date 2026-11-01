@@ -109,14 +109,15 @@ fn embedded_assets_use_original_source_and_diagnostics_name_the_source() {
     let report = f.publish();
     assert_eq!(report.assets, 1);
     assert!(f.html("Notes/Start").contains("<img src=\"assets/"));
-    assert!(
-        report
-            .diagnostics
-            .iter()
-            .any(|d| d.message.contains("pages/nested/Other.md")),
-        "{:?}",
-        report.diagnostics
-    );
+    // The missing image is reported once, under the file that holds it.
+    let missing: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.message.contains("missing.png"))
+        .collect();
+    assert_eq!(missing.len(), 1, "{:?}", report.diagnostics);
+    assert_eq!(missing[0].source, PathBuf::from("pages/nested/Other.md"));
+    assert!(!missing[0].message.contains("pages/"), "{:?}", missing[0]);
 }
 #[test]
 fn private_excluded_missing_and_ambiguous_targets_keep_fallbacks() {
