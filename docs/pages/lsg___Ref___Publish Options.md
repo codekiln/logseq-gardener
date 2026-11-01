@@ -79,10 +79,13 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		- Rust callers set `SiteOptions::page_urls` to `PageUrls::Readable`. `page_urls::readable_url` gives the link of any title.
 		- Every page in a folder carries a `<base>` element that points at the site root, so its links, assets, scripts and search results resolve as they do from `index.html`. The site works from a static server under any path, such as `https://example.org/logseq-gardener/`, and from disk.
 		- A browser shows a folder listing for a `file://` link that ends in `/`, so pages add `index.html` to such a link as the reader follows it. With JavaScript turned off, open `index.html` from the listing.
-		- ### Titles that stop the build
-			- The build stops before it creates the output directory, and names the pages, when a selected title cannot be a path or two pages would share one:
-				- A segment is empty, `.` or `..`, starts or ends with whitespace, or is longer than 255 bytes in UTF-8.
+		- ### Titles that keep their digest file
+			- A page whose title cannot be a path keeps its `p-<digest of its title>.html` file at the output root, and every link, search result and graph node opens it there. The build reports a diagnostic that names the page, the problem and the file. A title cannot be a path when:
+				- A segment is empty, `.` or `..`, starts or ends with whitespace, or is longer than 255 bytes in UTF-8. A literal slash in a title, stored as `%2F` in the file name, splits it into segments, so `Notes/Q/Rename with /rename` has the segment `Rename with `, which ends with a space.
 				- The title contains a backslash or a control character.
+			- To give such a page a folder, rename it or give it a `title::` property, then publish again.
+		- ### Titles that stop the build
+			- The build stops before it creates the output directory, and names the pages, when two pages would share a path:
 				- Two titles, or two of their folders, differ only in letter case or Unicode normalization, as `Tools/Vim` and `tools/vim` do. macOS and Windows file systems treat those as one path.
 				- A title's last segment is `index.html` and its parent is also a page.
 				- A title's first segment is a file or folder that the build writes at the output root, such as `assets`, `graph.html` or `lsg-site.json`.

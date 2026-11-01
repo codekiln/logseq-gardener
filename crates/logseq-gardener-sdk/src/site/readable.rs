@@ -58,7 +58,8 @@ pub(super) fn outline(source: &str) -> String {
 }
 
 /// The graph script: a node opens its page's folder, and the page graph finds the current
-/// page's title, and with it the neighbourhood file named by the title's digest.
+/// page's title, and with it the neighbourhood file named by the title's digest. A page whose
+/// title cannot name folders keeps its `p-<digest>.html` file in both.
 const GRAPH: &[(&str, &str)] = &[
     (
         "  const routeOf = title => {
@@ -75,15 +76,15 @@ const GRAPH: &[(&str, &str)] = &[
     here.hash = '';
     here.search = '';
     let route = here.href.startsWith(base.href) ? here.href.slice(base.href.length).replace(/(^|\\/)index\\.html$/, '$1') : '';
-    if (!route.endsWith('/')) route",
+    if (!route.endsWith('/') && !/^p-[0-9a-f]{16}\\.html$/.test(route)) route",
     ),
     (
         "'_graph/p/' + route.slice(2, 18) + '.json'",
-        "'_graph/p/' + digestOf(titleAt(route)) + '.json'",
+        "'_graph/p/' + digestAt(route) + '.json'",
     ),
     (
         "for (let i = 0; i < global.n && centre < 0; i++) if (routeOf(global.title(i)) === route) centre = i;",
-        "for (let i = 0, title = titleAt(route); i < global.n && centre < 0; i++) if (global.title(i) === title) centre = i;",
+        "for (let i = 0; i < global.n && centre < 0; i++) if (isAt(global.title(i), route)) centre = i;",
     ),
 ];
 
@@ -91,10 +92,11 @@ pub(super) fn graph(source: &str) -> String {
     patch(source, GRAPH)
 }
 
-/// The search engine: page routes may be readable folders.
+/// The search engine: page routes may be readable folders, or digest files for titles that
+/// cannot name folders.
 const SEARCH: &[(&str, &str)] = &[(
     "/^p-[a-f0-9]{16}\\.html$/u",
-    "/^(?:(?:[\\w.~-]|%[0-9A-F]{2})+\\/)+$/u",
+    "/^(?:p-[a-f0-9]{16}\\.html|(?:(?:[\\w.~-]|%[0-9A-F]{2})+\\/)+)$/u",
 )];
 
 pub(super) fn search(source: &str) -> String {
