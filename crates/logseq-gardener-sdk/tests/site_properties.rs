@@ -300,3 +300,47 @@ fn page_properties_show_every_key_logseq_shows() {
     // An alias names the page itself, which gains no linked reference from it.
     assert!(!html.contains("data-refs=\"linked\""));
 }
+
+#[test]
+fn page_property_rows_show_names_of_pages_with_no_file() {
+    let f = Fixture::new("{:publishing/page-properties? true}");
+    f.page("Visible/Target", "- Target\n");
+    f.page(
+        "Visible/Private",
+        "public:: false\nalias:: Private Alias\n- Hidden\n",
+    );
+    f.page("Visible/Excluded/Page", "- Excluded\n");
+    f.page(
+        "Visible/Source",
+        "tags:: [[No File]]\nsee-also:: [[Other Page]]\nfoo:: bar\nmixed:: [[Visible/Target]], [[No File]]\nwithheld:: [[Visible/Private]]\nwithheld-alias:: [[Private Alias]]\nexcluded:: [[Visible/Excluded/Page]]\n- body\n",
+    );
+    f.publish();
+    let html = f.html("Visible/Source");
+    let props = properties(&html);
+    let missing = |name: &str| {
+        format!("<span class=\"page-reference unresolved no-brackets\"><span>{name}</span></span>")
+    };
+    for row in [
+        format!("<dt>tags</dt><dd>{}</dd>", missing("No File")),
+        format!("<dt>see-also</dt><dd>{}</dd>", missing("Other Page")),
+        "<dt>foo</dt><dd>bar</dd>".to_owned(),
+        format!(
+            "<dt>mixed</dt><dd><a class=\"page-ref\" href=\"{}\">Visible/Target</a>, {}</dd>",
+            route("Visible/Target"),
+            missing("No File")
+        ),
+    ] {
+        assert!(props.contains(&row), "{row} missing from {props}");
+    }
+    assert!(props.find("<dt>tags").unwrap() < props.find("<dt>see-also").unwrap());
+    // A name of a withheld or excluded page keeps its whole row out, as before.
+    for text in [
+        "<dt>withheld",
+        "<dt>excluded",
+        "Visible/Private",
+        "Private Alias",
+        "Visible/Excluded",
+    ] {
+        assert!(!html.contains(text), "{text} in {props}");
+    }
+}
