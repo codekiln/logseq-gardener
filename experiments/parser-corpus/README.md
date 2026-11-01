@@ -1,6 +1,6 @@
 # Parser comparison on an unlicensed corpus
 
-This one-time experiment compares parsers on [Pengx's knowledge garden](https://github.com/pengx17/knowledge-garden) at the revision in [sources.json](sources.json). That garden has no license, so this repository keeps only the script and [aggregate results](results.json). [Parser adoption](../../docs/parser-adoption.md) explains what the results mean.
+This one-time experiment compares parsers on [Pengx's knowledge garden](https://github.com/pengx17/knowledge-garden) at the revision in [sources.json](sources.json). That garden has no license, so this repository keeps only the script and [aggregate results](results.json). [lsg/Parser Adoption](../../docs/pages/lsg___Parser%20Adoption.md) explains what the results mean.
 
 ## What it compares
 

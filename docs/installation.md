@@ -10,7 +10,7 @@ The build requires the native linker for your platform: Xcode command-line tools
 
 There is no published binary release yet. Cargo-dist is configured to produce archives for `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`, and `x86_64-pc-windows-msvc`, each containing `lsg` or `lsg.exe`, license text, and notices.
 
-When a release is published, download the archive and its SHA-256 checksum from the same GitHub Release. Compare the archive's hash with `shasum -a 256` on macOS, `sha256sum` on Linux, or `Get-FileHash -Algorithm SHA256` in PowerShell before extracting it. Keep license and notice files with redistributed binaries. See [releases](releases.md) for source and build provenance.
+When a release is published, download the archive and its SHA-256 checksum from the same GitHub Release. Compare the archive's hash with `shasum -a 256` on macOS, `sha256sum` on Linux, or `Get-FileHash -Algorithm SHA256` in PowerShell before extracting it. Keep license and notice files with redistributed binaries. See [lsg/Ref/Release Archives](pages/lsg___Ref___Release%20Archives.md) for source and build provenance.
 
 ## Rust SDK
 
