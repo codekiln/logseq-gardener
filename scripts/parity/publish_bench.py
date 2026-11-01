@@ -8,9 +8,12 @@ cache, which needs administrator rights. The fastest warm build counts, as in pa
 because noise on a shared machine only ever adds time.
 
 A row records the lsg commit, the corpus and its digest or commit, the machine, the cold and warm
-times, the phase times of the fastest warm build, peak memory and the output's size. `--check`
-compares the fastest warm build with the recorded rows for the same corpus; the CI check on
-lsg/Ref/Publication Speed (docs/pages/lsg___Ref___Publication Speed.md) says how the limit is chosen.
+times, the phase times of the fastest warm build, peak memory, and the output's size with the size
+of each part: page HTML at the site root, `_refs/`, `assets/`, search files, `_graph/` and everything
+else. `--check` compares the fastest warm build with the recorded rows for the same corpus; the CI
+check on lsg/Ref/Publication Speed (docs/pages/lsg___Ref___Publication Speed.md) says how the limit
+is chosen. For the encode garden, `--check` also fails when the site, its page HTML or `_refs/`
+exceeds its budget in the [site] table of budgets.toml.
 """
 import argparse
 import json
@@ -77,6 +80,31 @@ def output_size(site):
     return len(files), sum(p.stat().st_size for p in files)
 
 
+# The parts of a published site that a row records, in this order. Every file falls in one part.
+PARTS = ('page_html', '_refs', 'assets', 'search', '_graph', 'other')
+
+
+def part(route):
+    """The part of the site that the file at `route`, relative to the output root, belongs to."""
+    top, _, rest = route.partition('/')
+    if not rest:
+        if top.startswith('lsg-search-'):
+            return 'search'
+        return 'page_html' if top.endswith('.html') else 'other'
+    return top if top in ('_refs', 'assets', '_graph') else 'other'
+
+
+def site_parts(site):
+    """The file count and size in MB of each part of a published site, keyed by PARTS."""
+    totals = {name: [0, 0] for name in PARTS}
+    for path in Path(site).rglob('*'):
+        if path.is_file():
+            entry = totals[part(path.relative_to(site).as_posix())]
+            entry[0] += 1
+            entry[1] += path.stat().st_size
+    return {name: {'files': files, 'mb': round(size / 1_000_000, 1)} for name, (files, size) in totals.items()}
+
+
 def run(command):
     """Run one build; return wall seconds, peak resident memory in bytes and the JSON report."""
     started = time.perf_counter()
@@ -102,6 +130,7 @@ def measure(lsg, garden, runs, temp):
         builds.append({'seconds': seconds, 'peak': peak, 'report': report})
         if attempt == 0:
             files, size = output_size(output)
+            parts = site_parts(output)
         shutil.rmtree(output)
     cold, warm = builds[0], builds[1:]
     fastest = min(warm, key=lambda b: b['seconds'])
@@ -115,7 +144,7 @@ def measure(lsg, garden, runs, temp):
         'peak_mb': round(max(b['peak'] for b in builds) / 1_000_000),
         'published': {'pages': report['pages'], 'journals': report['journals'],
                       'withheld_pages': report['withheld_pages'], 'assets': report['assets']},
-        'output': {'files': files, 'mb': round(size / 1_000_000, 1)},
+        'output': {'files': files, 'mb': round(size / 1_000_000, 1), 'parts': parts},
     }
 
 
@@ -152,11 +181,30 @@ def limit_for(rows, corpus, env, budget):
     return None, f'no recorded row for {corpus["name"]} on {env["runner"]}'
 
 
+# The parts of the site with a size budget in the [site] table, and their labels.
+SIZE_BUDGETS = (('site_mb', None, 'site'), ('page_html_mb', 'page_html', 'page HTML at the site root'),
+                ('refs_mb', '_refs', '_refs/'))
+
+
+def check_size(row, limits):
+    """Failure messages for an encode garden row whose site, page HTML or _refs/ exceeds its budget."""
+    if row['corpus']['name'] != 'encode-garden':
+        return []
+    failures = []
+    for key, part_name, label in SIZE_BUDGETS:
+        size = row['output']['mb'] if part_name is None else row['output']['parts'][part_name]['mb']
+        if size > limits[key]:
+            failures.append(f'{row["corpus"]["name"]}: {label} {size:,.1f} MB exceeds its {limits[key]:,} MB budget')
+    return failures
+
+
 def describe(row):
     phases = ', '.join(f'{name} {ms / 1000:.2f}' for name, ms in row['phases_ms'].items())
     return (f'{row["corpus"]["name"]}: cold {row["cold_s"]:.2f} s, warm {row["warm_s"]:.2f} s '
             f'(median {row["warm_median_s"]:.2f} s of {row["runs"]}); phases in seconds: {phases}; '
-            f'peak {row["peak_mb"]} MB; {row["output"]["files"]:,} files, {row["output"]["mb"]} MB')
+            f'peak {row["peak_mb"]} MB; {row["output"]["files"]:,} files, {row["output"]["mb"]} MB'
+            + ''.join(f'; {name} {part["files"]:,} files, {part["mb"]} MB'
+                      for name, part in row['output'].get('parts', {}).items()))
 
 
 def load_rows(path=ROWS):
@@ -186,7 +234,8 @@ def main():
     lsg = str(common.lsg_binary())
     names = CORPORA if args.corpus == 'all' else (args.corpus,)
     env, revision = environment(), lsg_revision()
-    budget = metrics.load_budgets()['publication']
+    budgets = metrics.load_budgets()
+    budget, size_limits = budgets['publication'], budgets['site']
     recorded = load_rows()
     rows, failures = [], []
     with tempfile.TemporaryDirectory(prefix='lsg-publish-bench-') as temp:
@@ -210,6 +259,11 @@ def main():
                     failures.append(f'{name}: warm build {row["warm_s"]:.2f} s exceeds {limit:.2f} s ({reason})')
                 else:
                     print(f'  within {limit:.2f} s ({reason})')
+                over = check_size(row, size_limits)
+                failures += over
+                if row['corpus']['name'] == 'encode-garden' and not over:
+                    print(f'  site within {size_limits["site_mb"]} MB, page HTML within '
+                          f'{size_limits["page_html_mb"]} MB and _refs/ within {size_limits["refs_mb"]} MB')
     if args.output:
         Path(args.output).write_text(json.dumps(rows, indent=2) + '\n', encoding='utf-8')
     if args.record:

@@ -299,7 +299,6 @@ fn html_page(
         String::new()
     };
     let frame = shell.render(route, home);
-    let shell_styles = shell::STYLES;
     let shell_script = shell::SCRIPT_ROUTE;
     let title = render::escape(title);
     let stylesheet = stylesheet
@@ -310,18 +309,62 @@ fn html_page(
             )
         })
         .unwrap_or_default();
-    let fragments = include_str!("fragments.js");
-    let navigation_styles = page_status::STYLES;
-    let outline_styles = outline::STYLES;
-    let inline_styles = INLINE_STYLES;
-    let code_styles = code::STYLES;
-    let transclusion_styles = TRANSCLUSION_STYLES;
-    let references_styles = references::STYLES;
-    let theme_script = include_str!("theme.js");
-    let theme_styles = include_str!("theme.css");
+    let theme_start = theme_start();
+    let fragments = fragments_script();
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_script}</script>{properties_script}<style>{theme_styles}body{{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}}main{{max-width:810px;margin:0 auto;padding:8px 16px 48px}}html[data-lsg-wide=true] main{{max-width:1280px}}@media(min-width:640px){{main{{padding-inline:32px}}}}a{{color:var(--lsg-link)}}a:focus-visible,summary:focus-visible{{outline:2px solid var(--lsg-focus);outline-offset:3px}}nav{{margin-bottom:1.5rem}}h1,h2,h3,h4,h5,h6{{line-height:1.25;overflow-wrap:anywhere}}li{{margin:.25rem 0}}pre{{overflow:auto;background:var(--lsg-surface);padding:1rem}}code{{font-size:.9em}}img,video{{max-width:100%;height:auto}}table{{border-collapse:collapse}}td,th{{border:1px solid var(--lsg-border);padding:.4rem}}.unsupported{{color:var(--lsg-warning)}}blockquote{{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}}.outline-collapsed{{list-style:none}}.outline-disclosure>summary{{cursor:pointer;overflow-wrap:anywhere}}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){{display:inline}}.page-properties{{margin-bottom:1.5rem}}.page-properties summary{{cursor:pointer}}.page-properties dl{{padding:.75rem;background:var(--lsg-surface)}}.page-property{{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}}.page-property dt{{font-weight:600}}.page-property dd{{margin:0;min-width:0;overflow-wrap:anywhere}}{navigation_styles}{outline_styles}{inline_styles}{code_styles}{transclusion_styles}{references_styles}{shell_styles}</style>{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{media_head}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_start}</script><script defer src=\"{THEME_ROUTE}\"></script>{properties_script}<link rel=\"stylesheet\" href=\"{SITE_STYLES_ROUTE}\">{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{media_head}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
     )
+}
+
+/// The search styles, linked by every page when search is published.
+pub(crate) const SEARCH_STYLES_ROUTE: &str = "lsg-search.css";
+/// The search start-up, loaded with `defer` by every page when search is published.
+pub(crate) const SEARCH_BOOT_ROUTE: &str = "lsg-search-boot.js";
+/// The shared stylesheet every page links where its built-in styles were.
+pub(crate) const SITE_STYLES_ROUTE: &str = "lsg-site.css";
+/// The theme controller, loaded with `defer` after the inline part that runs before paint.
+pub(crate) const THEME_ROUTE: &str = "lsg-theme.js";
+/// Page layout rules that belong to no other stylesheet.
+const BASE_STYLES: &str = "body{margin:0;font:16px/1.5 \"Source Sans 3\",\"Source Sans Pro\",system-ui,sans-serif;color:var(--lsg-text);background:var(--lsg-background)}main{max-width:810px;margin:0 auto;padding:8px 16px 48px}html[data-lsg-wide=true] main{max-width:1280px}@media(min-width:640px){main{padding-inline:32px}}a{color:var(--lsg-link)}a:focus-visible,summary:focus-visible{outline:2px solid var(--lsg-focus);outline-offset:3px}nav{margin-bottom:1.5rem}h1,h2,h3,h4,h5,h6{line-height:1.25;overflow-wrap:anywhere}li{margin:.25rem 0}pre{overflow:auto;background:var(--lsg-surface);padding:1rem}code{font-size:.9em}img,video{max-width:100%;height:auto}table{border-collapse:collapse}td,th{border:1px solid var(--lsg-border);padding:.4rem}.unsupported{color:var(--lsg-warning)}blockquote{border-left:3px solid var(--lsg-quote-border);margin-left:0;padding-left:1rem}.outline-collapsed{list-style:none}.outline-disclosure>summary{cursor:pointer;overflow-wrap:anywhere}.outline-disclosure>summary>:is(h1,h2,h3,h4,h5,h6){display:inline}.page-properties{margin-bottom:1.5rem}.page-properties summary{cursor:pointer}.page-properties dl{padding:.75rem;background:var(--lsg-surface)}.page-property{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0;overflow-wrap:anywhere}.page-property dt{font-weight:600}.page-property dd{margin:0;min-width:0;overflow-wrap:anywhere}";
+
+/// The built-in page styles, in the order pages carried them inline: theme, page layout,
+/// navigation, outline, inline markup, code, transclusion, references and shell.
+fn site_styles() -> String {
+    [
+        include_str!("theme.css"),
+        BASE_STYLES,
+        page_status::STYLES,
+        outline::STYLES,
+        INLINE_STYLES,
+        code::STYLES,
+        TRANSCLUSION_STYLES,
+        references::STYLES,
+        shell::STYLES,
+    ]
+    .concat()
+}
+
+/// The inline script that applies the saved layout and theme before the page paints.
+fn theme_start() -> String {
+    references::minify(include_str!("theme-start.js"))
+        .trim_end()
+        .to_owned()
+}
+
+/// The inline script at the end of the body that opens the block a link's fragment names.
+fn fragments_script() -> String {
+    references::minify(include_str!("fragments.js"))
+        .trim_end()
+        .to_owned()
+}
+
+/// The shared stylesheets and scripts every page names. Their names are fixed and their
+/// contents depend only on the `lsg` version, so a garden edit never changes them.
+fn shared_files() -> [(&'static str, String); 2] {
+    [
+        (SITE_STYLES_ROUTE, site_styles()),
+        (THEME_ROUTE, references::minify(include_str!("theme.js"))),
+    ]
 }
 
 /// Publish selected Markdown pages into an absent directory outside the garden.
@@ -919,6 +962,10 @@ pub fn publish_site_with_options(
         all_pages::list_json(&list),
     );
     documents.insert(all_pages::SCRIPT_ROUTE.to_owned(), all_pages::script());
+    documents.insert(
+        all_pages::STYLES_ROUTE.to_owned(),
+        all_pages::STYLES.to_owned(),
+    );
     if let Some(document) = homepage_document {
         documents.insert("index.html".to_owned(), document);
     }
@@ -946,7 +993,9 @@ pub fn publish_site_with_options(
     );
     documents.insert(graph::WORKER_ROUTE.to_owned(), graph::worker());
     documents.insert(graph::STYLES_ROUTE.to_owned(), graph::styles());
+    let mut has_feed_page = false;
     for (route, body) in feed.render(&feed_bodies) {
+        has_feed_page = true;
         let home = route == "index.html";
         site_pages.push(plugins::SitePage {
             id: None,
@@ -972,6 +1021,12 @@ pub fn publish_site_with_options(
         documents.insert(
             journals::SCRIPT_ROUTE.to_owned(),
             journals::SCRIPT.to_owned(),
+        );
+    }
+    if has_feed_page {
+        documents.insert(
+            journals::STYLES_ROUTE.to_owned(),
+            journals::STYLES.to_owned(),
         );
     }
     if documents
@@ -1001,7 +1056,11 @@ pub fn publish_site_with_options(
                 message,
             });
         }
-        let widget_head = format!("<style>{}</style>", flashcards::WIDGET_STYLES);
+        let widget_head = format!(
+            "<link rel=\"stylesheet\" href=\"{}\">",
+            flashcards::WIDGET_STYLES_ROUTE
+        );
+        let mut has_widget = false;
         for (route, html) in &mut documents {
             if is_html(route)
                 && !route.starts_with("_refs/")
@@ -1009,7 +1068,14 @@ pub fn publish_site_with_options(
                 && html.contains(flashcards::MARKER)
             {
                 *html = html.replacen("</head>", &(widget_head.clone() + "</head>"), 1);
+                has_widget = true;
             }
+        }
+        if has_widget {
+            documents.insert(
+                flashcards::WIDGET_STYLES_ROUTE.to_owned(),
+                flashcards::WIDGET_STYLES.to_owned(),
+            );
         }
         documents.insert(flashcards::SCRIPT_ROUTE.to_owned(), flashcards::script());
         documents.insert(
@@ -1030,6 +1096,9 @@ pub fn publish_site_with_options(
         documents.insert(queries::STYLES_ROUTE.to_owned(), queries::STYLES.to_owned());
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::script());
+    for (route, contents) in shared_files() {
+        documents.insert(route.to_owned(), contents);
+    }
     documents.insert(
         outline::SCRIPT_ROUTE.to_owned(),
         if readable {
@@ -1057,16 +1126,24 @@ pub fn publish_site_with_options(
             .join("\n")
             .replace("__LSG_SEARCH_UI__", &controller_route);
         let startup_route = format!("lsg-search-start-{}.mjs", digest(&startup));
-        let start_after_paint = r#"(()=>{const f=(_,o)=>Object.assign(f.options??={},o);window.logseqGardenerInitSearch=f;const u=new URL('__STARTUP__',document.querySelector('[rel=lsg-search]').href);document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.type='module';s.src=u;s.onerror=()=>{if(!document.querySelector('[rel=lsg-search]'))return;const t=document.createElement('span');t.id='lsg-search-load';t.setAttribute('role','status');t.textContent='Search unavailable. Reload this page to retry search.';document.body.append(t)};document.head.append(s)})),{once:true})})();"#.replace("__STARTUP__", &startup_route);
-        let styles = include_str!("search-ui.css");
+        let boot = include_str!("search-boot.js")
+            .lines()
+            .filter(|line| !line.starts_with("//"))
+            .collect::<String>()
+            .replace("__STARTUP__", &startup_route);
         let link = format!(
-            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script data-lsg-search-start>{start_after_paint}</script>"
+            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><link rel=\"stylesheet\" href=\"{SEARCH_STYLES_ROUTE}\"><script defer src=\"{SEARCH_BOOT_ROUTE}\"></script>"
         );
         for (route, html) in &mut documents {
             if is_html(route) && !route.starts_with("_refs/") && !route.starts_with("_graph/") {
                 *html = html.replacen("</head>", &(link.clone() + "</head>"), 1);
             }
         }
+        documents.insert(
+            SEARCH_STYLES_ROUTE.to_owned(),
+            include_str!("search-ui.css").to_owned(),
+        );
+        documents.insert(SEARCH_BOOT_ROUTE.to_owned(), boot);
         documents.extend(artifacts);
         documents.insert(controller_route, controller.to_owned());
         documents.insert(startup_route, startup);
@@ -1080,9 +1157,10 @@ pub fn publish_site_with_options(
     if !contributions.rows.is_empty() {
         for (route, html) in &mut documents {
             if is_html(route) && !route.starts_with("_refs/") && html.contains(derived::MARKER) {
-                *html = html.replacen("</head>", &(derived::STYLES.to_owned() + "</head>"), 1);
+                *html = html.replacen("</head>", &(derived::head() + "</head>"), 1);
             }
         }
+        documents.insert(derived::STYLES_ROUTE.to_owned(), derived::STYLES.to_owned());
     }
     if readable {
         let script = readable::script();
@@ -1327,19 +1405,25 @@ fn is_html(route: &str) -> bool {
 }
 
 /// Write the generated files on several threads: creating files, not rendering them,
-/// dominates the time to write a large garden.
+/// dominates the time to write a large garden. A route ending in `.gz` is stored
+/// gzip-compressed. Each thread takes every `threads`-th file, so the compressed files, which
+/// sort together under `_refs/`, spread evenly across the threads.
 fn write_files(output: &Path, documents: BTreeMap<String, String>) -> Result<(), SiteError> {
     let documents: Vec<_> = documents.into_iter().collect();
     let threads = std::thread::available_parallelism().map_or(1, |n| n.get().min(8));
-    let chunk = documents.len().div_ceil(threads).max(1);
     std::thread::scope(|scope| {
-        let workers: Vec<_> = documents
-            .chunks(chunk)
-            .map(|files| {
+        let documents = &documents;
+        let workers: Vec<_> = (0..threads)
+            .map(|first| {
                 scope.spawn(move || {
-                    for (route, html) in files {
+                    for (route, html) in documents.iter().skip(first).step_by(threads) {
                         let path = output.join(output_path(route));
-                        fs::write(&path, html).map_err(|error| io_error(&path, error))?;
+                        let written = if route.ends_with(".gz") {
+                            fs::write(&path, gzip(html.as_bytes()))
+                        } else {
+                            fs::write(&path, html)
+                        };
+                        written.map_err(|error| io_error(&path, error))?;
                     }
                     Ok(())
                 })
@@ -1349,6 +1433,19 @@ fn write_files(output: &Path, documents: BTreeMap<String, String>) -> Result<(),
             .into_iter()
             .try_for_each(|worker| worker.join().expect("file writer panicked"))
     })
+}
+
+/// `bytes` gzip-compressed at level 6, with no file name and a zero time in the header, so the
+/// same bytes always produce the same file.
+fn gzip(bytes: &[u8]) -> Vec<u8> {
+    use std::io::Write;
+    let mut encoder = flate2::GzBuilder::new()
+        .mtime(0)
+        .write(Vec::new(), flate2::Compression::new(6));
+    encoder
+        .write_all(bytes)
+        .expect("writing to memory cannot fail");
+    encoder.finish().expect("writing to memory cannot fail")
 }
 
 /// What renders a page's query boxes and deck widgets.

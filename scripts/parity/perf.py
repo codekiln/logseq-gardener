@@ -24,6 +24,7 @@ import budgets as budgets_check  # noqa: E402
 import common  # noqa: E402
 import logseq_db  # noqa: E402
 import metrics  # noqa: E402
+import publish_bench  # noqa: E402
 import serve  # noqa: E402
 
 QUERIES = Path(__file__).resolve().parent / 'search-queries.txt'
@@ -572,10 +573,11 @@ def build_over_budget(variant, builds, budgets):
 def baseline_slowdown_budget(budgets):
     """The latest feature's whole-garden build budget against a --baseline-lsg binary.
 
-    Loading from every folder, then All pages, then Hierarchy, then reference sections, then code.
+    Site size, then loading from every folder, then All pages, then Hierarchy, then reference
+    sections, then code.
     """
     return next((budgets[table]['build_slowdown_pct']
-                 for table in ('loading', 'all_pages', 'hierarchy', 'references', 'code')
+                 for table in ('site', 'loading', 'all_pages', 'hierarchy', 'references', 'code')
                  if 'build_slowdown_pct' in budgets.get(table, {})), None)
 
 
@@ -695,6 +697,57 @@ def record_sections(names, section_lines, before=()):
     PERFORMANCE_PAGE.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
+SITE_SIZE_SECTION = 'Site size'
+
+
+def site_sizes(run):
+    """The file count and size in MB of the run's Logseq build and of each part of its lsg build."""
+    logseq = run / 'logseq'
+    sizes = {'lsg': {'files': 0, 'mb': 0.0, 'parts': publish_bench.site_parts(run / 'site')}}
+    settings = run / 'settings.json'
+    if settings.exists():
+        settings = json.loads(settings.read_text(encoding='utf-8'))
+        sizes['measured'] = (f"{datetime.now(timezone.utc):%Y-%m-%d}, `lsg` {settings['lsg_version']} "
+                             f"({settings['lsg_commit'][:7]}) on garden commit {settings['garden_commit'][:7]}")
+    sizes['lsg']['files'], size = publish_bench.output_size(run / 'site')
+    sizes['lsg']['mb'] = round(size / 1_000_000, 1)
+    if logseq.exists():
+        files, size = publish_bench.output_size(logseq)
+        sizes['logseq'] = {'files': files, 'mb': round(size / 1_000_000, 1)}
+    return sizes
+
+
+PART_LABELS = {'page_html': 'Page HTML at the site root', '_refs': '`_refs/`', 'assets': '`assets/`',
+               'search': 'Search files', '_graph': '`_graph/`', 'other': 'Everything else'}
+
+
+def site_size_markdown(sizes, budgets):
+    """The Site size section: both builds' files and sizes, and the lsg build's parts against the
+    [site] budgets."""
+    limits = budgets.get('site', {})
+    lsg = sizes['lsg']
+    lines = ['## Site size', '',
+             'Files and sizes as written, before any server compresses them. GitHub Pages serves at most 1 GB. '
+             '**Bold** marks a size over its `[site]` budget.'
+             + (f" Measured {sizes['measured']}." if 'measured' in sizes else ''), '',
+             '| Build | Part | Files | Size (MB) |', '| --- | --- | ---: | ---: |']
+    if 'logseq' in sizes:
+        lines.append(f"| logseq | Whole site | {sizes['logseq']['files']:,} | {sizes['logseq']['mb']:,.1f} |")
+    lines.append(f"| lsg | Whole site | {lsg['files']:,} | {_marked(f'{lsg['mb']:,.1f}', lsg['mb'], limits.get('site_mb'))} |")
+    part_limits = {'page_html': limits.get('page_html_mb'), '_refs': limits.get('refs_mb')}
+    for name, part in lsg['parts'].items():
+        size = _marked(f"{part['mb']:,.1f}", part['mb'], part_limits.get(name))
+        lines.append(f"| lsg | {PART_LABELS[name]} | {part['files']:,} | {size} |")
+    return lines
+
+
+def record_site_size(run, budgets):
+    """Measure the run's two sites and replace the Site size section of the Performance page."""
+    lines = site_size_markdown(site_sizes(run), budgets)
+    print('\n'.join(lines))
+    record_sections([SITE_SIZE_SECTION], lines, before=[f'Journals feed after {FEED_BATCHES} later batches'])
+
+
 def markdown(results, budgets):
     lines = ['# Performance', '']
     lines += [f'- {key}: {value}' for key, value in results['summary'].items()]
@@ -721,6 +774,8 @@ def markdown(results, budgets):
             cells.append(text)
         lines.append(f"| {row['page']} | {row['profile']} | {row['build']} | " + ' | '.join(cells) + ' |')
     feed_limit = budgets.get('journals', {}).get('scroll_heap_mb')
+    if results.get('site_size'):
+        lines += [''] + site_size_markdown(results['site_size'], budgets)
     lines += ['', f'## Journals feed after {FEED_BATCHES} later batches', '',
               f'The home page scrolled until it shows {FEED_JOURNALS} journals or runs out. '
               'The phone heap budget applies to `lsg`.', '',
@@ -1921,6 +1976,8 @@ def main():
     parser.add_argument('--graph', action='store_true',
                         help="measure only the graph view and Page graph in the run's site; with --record, "
                              'replace their sections of the Performance page')
+    parser.add_argument('--site-size', action='store_true',
+                        help="report only the run's two sites' sizes and file counts (with --record, their section)")
     parser.add_argument('--slides', action='store_true',
                         help="measure only View as slides in the run's site; with --record, replace its section "
                              'of the Performance page')
@@ -1952,6 +2009,13 @@ def main():
         return
     if args.slides:
         measure_slides_run(args, sync_playwright)
+        return
+    if args.site_size:
+        run = common.latest_run(args.run)
+        if args.record:
+            record_site_size(run, metrics.load_budgets())
+        else:
+            print('\n'.join(site_size_markdown(site_sizes(run), metrics.load_budgets())))
         return
     if args.media:
         measure_media_run(args, sync_playwright)
@@ -2066,6 +2130,7 @@ def main():
         'all_pages': all_pages,
         'hierarchy': hierarchy,
         'build': build_rows,
+        'site_size': site_sizes(run),
     }
     (run / 'perf.json').write_text(json.dumps(results, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     text = markdown(results, budgets)

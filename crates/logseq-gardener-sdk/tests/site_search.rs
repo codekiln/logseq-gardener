@@ -219,3 +219,45 @@ fn duplicate_uuid_uses_offsets_and_large_original_outlines_have_real_destination
         assert!(ids.contains(fragment));
     }
 }
+#[test]
+fn shared_files_and_their_links_survive_a_garden_edit() {
+    let f = Fixture::new();
+    f.write("Public.md", "- Welcome [[Public/Target]]\n");
+    f.write("Public___Target.md", "- Target\n");
+    let before = f.publish("before", Some(SearchOptions::default()));
+    f.write("Public___Target.md", "- Target\n- One more block\n");
+    let after = f.publish("after", Some(SearchOptions::default()));
+    for name in [
+        "lsg-site.css",
+        "lsg-search.css",
+        "lsg-theme.js",
+        "lsg-search-boot.js",
+        "lsg-shell.js",
+    ] {
+        assert_eq!(
+            fs::read(before.join(name)).unwrap(),
+            fs::read(after.join(name)).unwrap(),
+            "{name}"
+        );
+    }
+    // Every page names the shared files with the same tags; the search manifest's digest is
+    // the only part of the head that follows the garden.
+    let tags = |site: &std::path::Path| {
+        let page = fs::read_to_string(site.join("index.html")).unwrap();
+        let head = page[..page.find("</head>").unwrap()].to_owned();
+        let manifest = head.find("<link rel=\"lsg-search\"").unwrap();
+        let end = manifest + head[manifest..].find('>').unwrap() + 1;
+        head[..manifest].to_owned() + &head[end..]
+    };
+    assert_eq!(tags(&before), tags(&after));
+    let head = tags(&after);
+    for tag in [
+        "<link rel=\"stylesheet\" href=\"lsg-site.css\">",
+        "<link rel=\"stylesheet\" href=\"lsg-search.css\">",
+        "<script defer src=\"lsg-search-boot.js\"></script>",
+        "<script defer src=\"lsg-theme.js\"></script>",
+    ] {
+        assert!(head.contains(tag), "{tag}");
+    }
+    assert!(!head.contains("<style") && !head.contains("data-lsg-search-start"));
+}

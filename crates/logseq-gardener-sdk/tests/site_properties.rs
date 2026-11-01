@@ -6,6 +6,8 @@ use std::{
     path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
+
+mod support;
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 struct Fixture(PathBuf);
 impl Fixture {
@@ -89,7 +91,7 @@ fn backlinks(f: &Fixture, title: &str) -> String {
     header.to_owned()
         + &paths
             .into_iter()
-            .map(|path| std::fs::read_to_string(path).unwrap())
+            .map(|path| support::read_text(&path))
             .collect::<String>()
 }
 
