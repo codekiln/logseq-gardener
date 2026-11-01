@@ -38,8 +38,11 @@ see-also:: [[lsg/How To/Contribute a Change]], [[Diataxis]]
 			- Run `mise run docs:site`. It builds `lsg` from your checkout, publishes the graph with search into a new folder under `target/docs-site/`, and prints the report and every diagnostic. It fails when `lsg` reports any diagnostic and keeps the folder, so you can open its `index.html` and look.
 			- Pass `--output DIR` to publish into a folder of your choice that does not exist yet.
 			- Run `mise run docs:check` before you open a pull request; `mise run ci` runs it as well. It builds the site, runs the commands in `README.md`, and checks every page's tag and the links and `:hidden` entries of the remaining old documents.
+			- `docs:check` also loads the graph with Logseq's own file parser and with the `lsg` SDK, and fails when they disagree about a page, title, alias, page reference, block reference or property. It prints each difference with its file, and with its line for a block. `mise run docs:parser-check` runs this check alone.
+			- The first run copies Logseq's parser source from your ghq checkout of [logseq/logseq](https://github.com/logseq/logseq), if you have one, or downloads it from GitHub, and keeps it in `~/.cache/logseq-gardener/`, so later runs skip that step.
 	- ## Troubleshooting
 		- If `lsg` reports an unresolved page reference, a page links a title that no page has. Correct the title or create the page.
 		- If `docs:check` names a document with no `:hidden` entry, add a line for it to `:hidden`, written as its path from `docs/` with a leading `/`.
 		- If `docs:check` names a page and its expected tag, change the page's `tags::` property to that tag, or rename the page to match its kind.
+		- If `docs:check` reports that Logseq and the SDK disagree, the page uses syntax that the SDK reads differently from Logseq, such as `alias:: #[[Name]]`. Write the value as a page reference, such as `alias:: [[Name]]`, or [open an issue](https://github.com/codekiln/logseq-gardener/issues) about the difference.
 		- If Logseq misses a page or shows a deleted one, choose Re-index from the graph menu.
