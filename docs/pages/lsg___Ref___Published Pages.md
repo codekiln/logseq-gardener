@@ -3,7 +3,7 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 
 - # Published Pages Reference
 	- ## Overview
-		- Each published page shows its outline as Logseq does, then, depending on the page and the garden's settings, its page properties, a Previous and Next navigation, and the reference sections: Pages tagged with, Linked References, Hierarchy and Unlinked References. Pages that exist only as namespace parents get navigation pages of their own.
+		- Each published page shows, depending on the page and the garden's settings, its page properties, then its outline as Logseq does, then a Previous and Next navigation and the reference sections: Pages tagged with, Linked References, Hierarchy and Unlinked References. Pages that exist only as namespace parents get navigation pages of their own.
 		- [[lsg/Ref/Site Navigation]] describes the header, the sidebars and the site-wide screens around each page. [[lsg/How To/Customize a Published Site]] describes the `logseq/config.edn` settings this page names. [[lsg/Ref/Host Integration API]] describes the browser functions a host page calls when it replaces page content.
 	- ## Outline
 		- Page and journal outlines look like Logseq's: small bullets, a guide line down each level of children, Logseq's heading sizes, and task checkboxes with their marker, such as TODO or DOING. The checkboxes are read-only. The text of DONE and CANCELED tasks is struck through.
@@ -17,7 +17,7 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 		- ### Block zoom
 			- Clicking a bullet shows that block on its own at `<page>#zoom/<id>`, with a breadcrumb back to the page and the block's parents. Back returns to the page.
 			- `<id>` is the block's `id::` UUID when it has one, and otherwise its position among its siblings at each level, such as `3.1.2`. The address keeps working when the unchanged garden is published again.
-			- Zoom stays in the reader's open tab.
+			- Zoom lives in the page's address, and the browser stores nothing for it.
 		- ### Fragment targets
 			- Every page sets `scroll-padding-top: 56px` on `html`, so a fragment target lands below the 48px sticky header, whether the browser scrolls to it or a script calls `scrollIntoView()` on it.
 		- `lsg-outline.js` runs the arrows and zoom. It loads on every page after the page has loaded. [[lsg/Ref/Host Integration API]] describes `window.logseqGardenerInitOutline` and `window.logseqGardenerRevealFragment`.
@@ -38,7 +38,7 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 			- Expressions, block references, asset and file paths, absolute local paths, unsafe schemes and unsupported links are left out.
 			- Turning on page properties treats every remaining scalar value as public metadata. `:block-hidden-properties` hides author-specific operational fields.
 		- ### Keys never shown
-			- These keys never appear: `id`, `custom-id`, `custom_id`, `title`, `alias`, `aliases`, `public`, `background-color`, `background_color`, `heading`, `collapsed`, `created-at`, `updated-at`, `last-modified-at`, `created_at`, `updated_at`, `last_modified_at`, `query-table`, `query-properties`, `query-sort-by`, `query-sort-desc`, `filters`, `ls-type`, `hl-type`, `hl-page`, `hl-stamp`, `hl-color`, `todo`, `doing`, `now`, `later`, `done`, `file`, `file-path` and `file-name`, and every key that starts with `logseq.`, `logseq-proxy-` or `publishing/`.
+			- These keys never appear: `id`, `custom-id`, `custom_id`, `title`, `alias`, `aliases`, `public`, `background-color`, `background_color`, `heading`, `collapsed`, `created-at`, `updated-at`, `last-modified-at`, `created_at`, `updated_at`, `last_modified_at`, `query-table`, `query-properties`, `query-sort-by`, `query-sort-desc`, `filters`, `ls-type`, `hl-type`, `hl-page`, `hl-stamp`, `hl-color`, `todo`, `doing`, `now`, `later`, `done`, `file`, `file-path`, `file-name` and `search-exclude`, the card scheduling keys `card-last-interval`, `card-repeats`, `card-ease-factor`, `card-next-schedule`, `card-last-reviewed` and `card-last-score`, also written with `_`, and every key that starts with `logseq.`, `logseq-proxy-` or `publishing/`.
 			- These keys and the keys in `:block-hidden-properties` are also left out of property references.
 		- `window.logseqGardenerInitProperties` is described on [[lsg/Ref/Host Integration API]].
 	- ## Page sequence
@@ -49,7 +49,8 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 		- A valid neighbour that Properties shows is left out of the Previous and Next region at the bottom; the other valid neighbours stay there. A neighbour key in `:block-hidden-properties` stays hidden. Turning off `:publishing/page-sequence?` hides the region.
 	- ## Reference sections
 		- Below the outline, each page shows the sections that apply, in Logseq's order: Pages tagged with, Linked References, Hierarchy and Unlinked References.
-		- The page holds only each section's header. Its groups load from fragment files in `_refs/` when a reader opens the section, so a page's first paint does not grow with the number of pages that mention it. Without JavaScript, each section links its first fragment file, a readable page that links the next one.
+		- Linked References and Unlinked References hold only their header in the page. Their groups load from fragment files in `_refs/` when a reader opens the section, so a page's first paint does not grow with the number of pages that mention it. Without JavaScript, each of these sections links its first fragment file, a readable page that links the next one.
+		- Pages tagged with lists all its pages in the page. Hierarchy holds its first 100 rows in the page and loads the rest from `_refs/` as the reader scrolls.
 		- Only selected visible source content supplies references, filter options and mentions.
 		- ### Pages tagged with
 			- Pages tagged with "name" lists the pages whose `tags::` name the page or one of its aliases, by lower-cased title. A page that no page tags has no section.
@@ -69,12 +70,12 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 			- The options and their counts follow the blocks the filter keeps.
 			- A page's `filters::` property sets its starting filter. A reader's changes last for the visit, through `sessionStorage`.
 		- ### Unlinked References
-			- Unlinked References lists blocks that mention the page's title or an alias as plain text, by Logseq's rule: the name is not preceded by a letter, digit, `#` or `[[`, and not followed by a letter or digit. Logbooks are ignored.
+			- Unlinked References lists blocks whose text mentions the page's title or an alias, in any letter case, by Logseq's rule: the name is not preceded by a letter, digit, `#` or `[[`, and not followed by a letter or digit. A mention inside a longer link or in code counts. Logbooks and blocks on the page itself are ignored.
 			- The header shows its count once the section is opened.
 		- `lsg-references.js` runs the sections and the filter. It loads after the page's `load` event. `window.logseqGardenerInitReferences` is described on [[lsg/Ref/Host Integration API]].
 	- ## Hierarchy
 		- A published page or generated namespace page that has namespace relatives shows a Hierarchy section, expanded, in the position the reference sections give it. Journal pages, and pages with no `/` in their title, no descendants and no namespaced alias, have no section.
-		- The section is a flat list with one row per path. The rows are the page's published descendants at every level. A namespaced leaf lists its parent's path, so `tmux/Config/local` with no descendants shows the row `tmux/Config`. A page whose alias is `AI/General/Intelligence` shows the row `AI/General`. The current page has no row of its own.
+		- The section is a flat list with one row per path. The rows are the page's descendants at every level that have a selected source page. A namespace level with only a generated namespace page has no row of its own, and stays linked inside longer paths. A namespaced leaf lists its parent's path, so `tmux/Config/local` with no descendants shows the row `tmux/Config`. A page whose alias is `AI/General/Intelligence` shows the row `AI/General`. The current page has no row of its own.
 		- For example, when `A/B/C`, `A/B/C/D`, `A/B/C/E` and `A/B/C/E/F` are published, `A/B/C` lists `A/B/C/D`, `A/B/C/E` and `A/B/C/E/F`. Each row shows the full path, and each slash-separated segment links to its cumulative namespace destination when one exists, so `A`, `A/B` and the longer prefixes have separate links. A sibling such as `A/B/Cousin` is absent from the rows of `A/B/C`.
 		- When `:ui/show-brackets?` is on in `logseq/config.edn`, each segment shows the brackets that inline page references show.
 		- The section header collapses or expands the whole list, also from the keyboard.
@@ -82,7 +83,7 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 	- ## Namespace pages
 		- A namespace prefix with no selected source page gets its own navigation page, so a selected `Instruments/Synth/Preset` can be reached through `Instruments` and `Instruments/Synth` without those Markdown files.
 		- A generated namespace page holds navigation only. It contributes no source aliases, blocks or embeds, cannot be a homepage, and is not counted in the report's `pages`.
-		- A generated namespace page shows a Namespace notice. Its Hierarchy rows carry a Namespace badge, its All pages row does not, and links to it use a dotted underline.
+		- A generated namespace page shows a Namespace notice. Links to it, in Hierarchy rows, All pages and elsewhere, use a dotted underline and an accessible name that ends in `(Namespace)`. No Hierarchy row or All pages row carries a Namespace badge.
 		- A selected source page keeps an ordinary page label, even when it is empty.
 		- Namespace status describes the published destination: an unselected source ancestor has the same status as a missing one.
 		- All pages lists generated namespace pages with their full logical names.

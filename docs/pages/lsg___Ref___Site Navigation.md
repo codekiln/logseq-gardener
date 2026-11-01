@@ -7,7 +7,7 @@ see-also:: [[lsg/Ref/Published Pages]], [[lsg/Ref/Host Integration API]], [[lsg/
 		- [[lsg/Ref/Published Pages]] describes the page itself. [[lsg/How To/Customize a Published Site]] describes the `logseq/config.edn` settings for favorites, shortcuts and colours. [[lsg/Ref/Host Integration API]] describes the browser functions a host page calls.
 	- ## Header and left sidebar
 		- Every page has Logseq's header: Toggle left sidebar on the left; Home on every page except `index.html`; and Graph, More and, from 640px wide, Toggle right sidebar on the right.
-		- The left sidebar lists Journals when a journals feed is published, Graph view, All pages, then the garden's favorites from `:favorites` in `logseq/config.edn`, in config order. Each favorite shows the title or alias as the author spelled it, and the current page is highlighted.
+		- The left sidebar lists Journals when a journals feed is published, Flashcards unless `logseq/config.edn` sets `:feature/enable-flashcards? false`, Graph view, All pages, then the garden's favorites from `:favorites` in `logseq/config.edn`, in config order. Each favorite shows the title or alias as the author spelled it, and the current page is highlighted.
 		- The sidebar starts closed. The header button or `t l` toggles it, and browser localStorage saves the state under `logseq-gardener-left-sidebar`.
 		- From 640px wide, the open sidebar is 246px and pushes the page right. On narrower screens it opens over the page and closes when the reader taps the shade, follows a link or presses Escape.
 		- ### Keyboard shortcuts
@@ -21,15 +21,16 @@ see-also:: [[lsg/Ref/Published Pages]], [[lsg/Ref/Host Integration API]], [[lsg/
 			  | `g a` | Open All pages |
 			  | `g j` | Open the journals feed |
 			  | `g g` | Open the graph view, unless `logseq/config.edn` sets `:shortcuts {:go/graph-view false}` |
+			  | `g f`, `t c` | Open or close the flashcard review, unless flashcards are turned off |
 			  | `alt+shift+c` | Add or remove the Contents card in the right sidebar |
 			- Shortcuts are ignored while the reader types in a field.
 		- ### Scripts
 			- `lsg-shell.js` at the site root runs the header and the left sidebar, and every page loads it with `defer`. After the page has loaded, it also loads `lsg-outline.js` on every page and `lsg-journals.js` on journals feed pages.
 			- Without JavaScript, the left sidebar stays closed, and its button and More stay hidden.
 	- ## Right sidebar
-		- From 640px wide, the Toggle right sidebar button at the right end of the header, or `t r`, opens a column of cards beside the page. The page itself stays where it is. Below 640px there is no right sidebar, and Shift-click follows the link.
+		- From 640px wide, the Toggle right sidebar button at the right end of the header, or `t r`, opens a column of cards beside the page. The current page and its address stay the same, and the header and the page narrow to the remaining width. Below 640px there is no right sidebar, and Shift-click follows the link.
 		- ### Adding cards
-			- Shift-click a page link, a tag or a breadcrumb to add a card for that page, a bullet to add a card for that block, or a block reference to add a Block references card.
+			- Shift-click a page link or a tag to add a card for that page, a bullet to add a card for that block, or a block reference to add a Block references card. In a zoomed block's breadcrumb, the page crumb adds a card for the page and each block crumb adds a card for its block.
 			- In Linked References and query results, a bullet adds a card for its block on the source page, and a crumb adds a Block references card for its block, as in Logseq.
 			- The top bar's Page graph button adds a card that draws the current page's neighbourhood, as Graph view below describes.
 			- The top bar also adds Contents and Help cards. An empty sidebar shows the garden's `contents` page, and `alt+shift+c` adds or removes the Contents card.
@@ -98,7 +99,7 @@ see-also:: [[lsg/Ref/Published Pages]], [[lsg/Ref/Host Integration API]], [[lsg/
 			- The Page graph card shows the same states for its own files.
 		- ### Files
 			- The publisher lays the graph out at build time with Logseq's forces and writes it to `_graph/default.bin`, and the journals graph to `_graph/journals.bin`, both stored gzip-compressed.
-			- Only `graph.html` loads them, through `lsg-graph.js`. `lsg-graph-worker.js` runs a force simulation only when a reader changes a force or drags a node.
+			- `graph.html` loads them through `lsg-graph.js`, and so does a Page graph card whose page has no neighbourhood file. On `graph.html`, `lsg-graph-worker.js` runs a force simulation only when a reader changes a force or drags a node. A Page graph card uses it to lay out each neighbourhood before its first frame.
 			- The Page graph card reads `_graph/p/<route hash>.json`, the page's neighbourhood. A page whose neighbourhood file would exceed 100 KB gzipped has none, and its card draws the neighbourhood from the global file instead.
 			- Through the SDK, `SiteOptions::layout_cache` keeps layouts between builds in a directory of your choice.
 	- ## Appearance

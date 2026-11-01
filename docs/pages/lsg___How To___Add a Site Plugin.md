@@ -11,7 +11,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 		- For a build plugin, the program its command runs, such as Node.js for `node build.mjs`.
 	- ## Steps
 		- ### 1. Write the browser module
-			- If the plugin changes pages in the browser, write an ES module whose default export has the plugin's `id`, `apiVersion: 1` and a `setup(host)` function. This module keeps one audio player across pages and plays the recording a page names in its `recording::` property:
+			- If the plugin changes pages in the browser, write an ES module whose default export has the plugin's `id`, `apiVersion: 1` and a `setup(host)` function. This module keeps one audio player across pages and loads into it the recording a page names in its `recording::` property:
 			- ```javascript
 			  export default {
 			    id: 'episode-player',
