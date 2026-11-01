@@ -25,6 +25,7 @@ const active = [];
 // lsg's per-page setup. Each script installs its document listeners once and exposes a function
 // that sets up a new <main>; window.logseqGardenerPage(init) adds more.
 const inits = [
+  (m) => window.logseqGardenerInitProperties?.(m),
   (m) => window.logseqGardenerInitOutline?.(m),
   (m) => window.logseqGardenerInitReferences?.(m),
   (m) => window.logseqGardenerAllPages?.init(m),
