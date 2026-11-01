@@ -2,8 +2,10 @@
 //! Unlinked References. The SDK reference index answers every question; this module
 //! writes each section's header into the page and its body into fragment files that
 //! `lsg-references.js` loads when a reader opens the section.
-use std::collections::{BTreeMap, BTreeSet};
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
+use std::rc::Rc;
 
 use serde_json::json;
 
@@ -81,6 +83,12 @@ pub(super) struct References<'a> {
     show_brackets: bool,
     /// Generated namespace pages by lower-cased title, for names no selected page owns.
     by_name: BTreeMap<String, String>,
+    /// Each block's rendered copy, by block and open depth. A block appears in the
+    /// sections of every page it refers to and in query results; it renders the first
+    /// time and every later listing fills in its own row numbers and bullet links.
+    contexts: RefCell<HashMap<(BlockId, i64), Rc<render::ReferenceContext>>>,
+    /// Each block's breadcrumb, which is the same wherever the block is listed.
+    crumbs: RefCell<HashMap<BlockId, Rc<str>>>,
 }
 
 impl<'a> References<'a> {
@@ -168,6 +176,8 @@ impl<'a> References<'a> {
             property_targets,
             property_rows,
             show_brackets,
+            contexts: RefCell::default(),
+            crumbs: RefCell::default(),
         }
     }
 
@@ -567,7 +577,7 @@ impl<'a> References<'a> {
             render::escape(self.title(&source))
         );
         let crumb = if block.parent.is_some() {
-            let ancestors = self.breadcrumb(id, &source, document, context, asset);
+            let ancestors = self.crumbs(id, &source, document, context, asset);
             ancestors.replacen(
                 "<div class=\"breadcrumb block-parents\">",
                 &format!("<div class=\"breadcrumb block-parents\">{page}<span class=\"crumb-sep\" aria-hidden=\"true\"></span>"),
@@ -608,16 +618,12 @@ impl<'a> References<'a> {
                 context.targets,
                 &source,
                 context.documents,
-                render::ReferencePresentation {
-                    open_depth: 64,
-                    show_brackets: self.show_brackets,
-                    entries: BTreeMap::new(),
-                    paths: BTreeMap::new(),
-                },
+                64,
+                self.show_brackets,
                 asset,
             );
-            diagnostics.extend(rendered.diagnostics);
-            rendered.html
+            diagnostics.extend(rendered.diagnostics.iter().cloned());
+            rendered.fill(&BTreeMap::new(), &BTreeMap::new())
         };
         let front = slice(block.start..split, block.level);
         let back = slice(split..block.subtree_end, block.level + 1);
@@ -700,26 +706,9 @@ impl<'a> References<'a> {
             rendered.push((block.start, block.subtree_end));
             html.push_str("<div class=\"references-block\">");
             if crumbs && block.parent.is_some() {
-                html.push_str(&self.breadcrumb(id, source, document, context, asset));
+                html.push_str(&self.crumbs(id, source, document, context, asset));
             }
             html.push_str("<div class=\"blocks-container\">");
-            let mut copy = GardenDocument {
-                relative_path: document.relative_path.clone(),
-                kind: document.kind,
-                source: String::new(),
-                parsed: lsdoc::ast::Projection {
-                    blocks: document.parsed.blocks[block.start..block.subtree_end].to_vec(),
-                    refs: lsdoc::ast::Refs {
-                        page: Vec::new(),
-                        block: Vec::new(),
-                    },
-                },
-            };
-            for copied in &mut copy.parsed.blocks {
-                if let Block::Bullet { level, .. } = copied {
-                    *level = level.saturating_sub(block.level) + 1;
-                }
-            }
             // Referring blocks inside this one carry their numbers and link their bullets.
             let mut paths = BTreeMap::new();
             let mut entries = BTreeMap::new();
@@ -738,27 +727,79 @@ impl<'a> References<'a> {
                     }
                 }
             }
-            let copy_rendered = render::render_reference_context(
-                &copy,
-                document,
-                context.names,
-                context.targets,
-                source,
-                context.documents,
-                render::ReferencePresentation {
-                    open_depth: context.config.open_depth,
-                    show_brackets: self.show_brackets,
-                    entries,
-                    paths,
-                },
-                asset,
-            );
-            html.push_str(&copy_rendered.html);
-            sections.diagnostics.extend(copy_rendered.diagnostics);
+            let copy = self.copy(id, source, document, context, asset);
+            html.push_str(&copy.fill(&paths, &entries));
+            sections
+                .diagnostics
+                .extend(copy.diagnostics.iter().cloned());
             html.push_str("</div></div>");
         }
         html.push_str(close);
         html
+    }
+
+    /// Block `id` of page `source` and its children, copied to the top level and
+    /// rendered once per build; see [`render::ReferenceContext`].
+    fn copy(
+        &self,
+        id: BlockId,
+        source: &str,
+        document: &GardenDocument,
+        context: &Context<'_, '_>,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> Rc<render::ReferenceContext> {
+        let key = (id, context.config.open_depth);
+        if let Some(rendered) = self.contexts.borrow().get(&key) {
+            return Rc::clone(rendered);
+        }
+        let block = self.index.block(id);
+        let mut copy = GardenDocument {
+            relative_path: document.relative_path.clone(),
+            kind: document.kind,
+            source: String::new(),
+            parsed: lsdoc::ast::Projection {
+                blocks: document.parsed.blocks[block.start..block.subtree_end].to_vec(),
+                refs: lsdoc::ast::Refs {
+                    page: Vec::new(),
+                    block: Vec::new(),
+                },
+            },
+        };
+        for copied in &mut copy.parsed.blocks {
+            if let Block::Bullet { level, .. } = copied {
+                *level = level.saturating_sub(block.level) + 1;
+            }
+        }
+        let rendered = Rc::new(render::render_reference_context(
+            &copy,
+            document,
+            context.names,
+            context.targets,
+            source,
+            context.documents,
+            context.config.open_depth,
+            self.show_brackets,
+            asset,
+        ));
+        self.contexts.borrow_mut().insert(key, Rc::clone(&rendered));
+        rendered
+    }
+
+    /// Block `id`'s breadcrumb, rendered once per build.
+    fn crumbs(
+        &self,
+        id: BlockId,
+        source: &str,
+        document: &GardenDocument,
+        context: &Context<'_, '_>,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> Rc<str> {
+        if let Some(crumbs) = self.crumbs.borrow().get(&id) {
+            return Rc::clone(crumbs);
+        }
+        let crumbs: Rc<str> = self.breadcrumb(id, source, document, context, asset).into();
+        self.crumbs.borrow_mut().insert(id, Rc::clone(&crumbs));
+        crumbs
     }
 
     /// The nearest three ancestors, each its first line, with `⋯` for older ones.

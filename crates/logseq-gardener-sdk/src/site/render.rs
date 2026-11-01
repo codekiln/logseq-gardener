@@ -230,8 +230,6 @@ struct RenderMode<'q> {
     hide_brackets: bool,
     reference_depth: Option<i64>,
     source_anchors: BTreeSet<usize>,
-    reference_paths: BTreeMap<usize, String>,
-    reference_entries: BTreeMap<usize, String>,
     derived: BTreeMap<usize, String>,
 }
 
@@ -271,14 +269,72 @@ pub(super) fn render_document_with_source_anchors(
     )
 }
 
-pub(super) struct ReferencePresentation {
-    pub open_depth: i64,
-    pub show_brackets: bool,
-    pub paths: BTreeMap<usize, String>,
-    pub entries: BTreeMap<usize, String>,
+/// A copied block rendered for reference sections and query results, with a gap at each
+/// copied bullet for what depends on the page that lists the copy: the bullet's row
+/// number in that page's reference data and the bullet's link to the block. The rest of
+/// the copy is the same on every page, so a block that refers to several pages renders
+/// once and [`ReferenceContext::fill`] completes it for each page.
+pub(super) struct ReferenceContext {
+    html: String,
+    slots: Vec<Slot>,
+    pub diagnostics: Vec<String>,
+}
+
+/// A gap in a [`ReferenceContext`]: byte `at` of its HTML, for the copied bullet that
+/// starts at byte `anchor` of the page's source.
+#[derive(Clone, Copy)]
+struct Slot {
+    at: usize,
+    anchor: usize,
+    kind: SlotKind,
+}
+
+#[derive(Clone, Copy)]
+enum SlotKind {
+    /// Inside the bullet's `<li>` tag: the bullet's row in the reference data.
+    Row,
+    /// The bullet itself: a link to the block when the listing page gives one.
+    Bullet,
+}
+
+impl ReferenceContext {
+    /// The copy's HTML for one listing. `rows` holds the row number of each referring
+    /// bullet and `entries` the link its bullet opens, both by the bullet's source offset;
+    /// a bullet in neither gets no row number and a bullet without a link.
+    pub fn fill(
+        &self,
+        rows: &BTreeMap<usize, String>,
+        entries: &BTreeMap<usize, String>,
+    ) -> String {
+        let mut html = String::with_capacity(self.html.len() + self.slots.len() * 48);
+        let mut copied = 0;
+        for slot in &self.slots {
+            html.push_str(&self.html[copied..slot.at]);
+            copied = slot.at;
+            match slot.kind {
+                SlotKind::Row => {
+                    if let Some(row) = rows.get(&slot.anchor) {
+                        html.push_str(&format!(" data-ref-block=\"{}\"", escape(row)));
+                    }
+                }
+                SlotKind::Bullet => match entries.get(&slot.anchor) {
+                    Some(href) => {
+                        html.push_str(&format!(
+                            "<a class=\"bullet\" href=\"{}\"></a>",
+                            escape(href)
+                        ));
+                    }
+                    None => html.push_str("<span class=\"bullet\"></span>"),
+                },
+            }
+        }
+        html.push_str(&self.html[copied..]);
+        html
+    }
 }
 
 /// `origin` is the whole page `document` was copied from, which binds its timestamps.
+/// Blocks deeper than `open_depth` start collapsed.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_reference_context(
     document: &GardenDocument,
@@ -287,25 +343,29 @@ pub(super) fn render_reference_context(
     targets: &ReferenceTargets<String>,
     route: &str,
     documents: &BTreeMap<String, EmbedPage>,
-    presentation: ReferencePresentation,
+    open_depth: i64,
+    show_brackets: bool,
     asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
-) -> Rendered {
-    render_context(
+) -> ReferenceContext {
+    let (rendered, slots) = render_with_slots(
         document,
         pages,
         targets,
         route,
         documents,
         RenderMode {
-            reference_depth: Some(presentation.open_depth),
-            hide_brackets: !presentation.show_brackets,
-            reference_paths: presentation.paths,
-            reference_entries: presentation.entries,
+            reference_depth: Some(open_depth),
+            hide_brackets: !show_brackets,
             ..RenderMode::default()
         },
         origin,
         asset,
-    )
+    );
+    ReferenceContext {
+        html: rendered.html,
+        slots,
+        diagnostics: rendered.diagnostics,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -319,15 +379,38 @@ fn render_context<'a>(
     origin: &'a GardenDocument,
     asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
 ) -> Rendered {
+    let (rendered, _) = render_with_slots(
+        document, pages, targets, route, documents, mode, origin, asset,
+    );
+    rendered
+}
+
+/// Render `document`, returning the gaps a reference copy leaves for its listing page.
+#[allow(clippy::too_many_arguments)]
+fn render_with_slots<'a>(
+    document: &'a GardenDocument,
+    pages: &'a crate::page_names::PageNameIndex<String>,
+    targets: &'a ReferenceTargets<String>,
+    route: &str,
+    documents: &'a BTreeMap<String, EmbedPage<'a>>,
+    mode: RenderMode<'a>,
+    origin: &'a GardenDocument,
+    asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
+) -> (Rendered, Vec<Slot>) {
     let mut renderer = new_renderer(document, pages, targets, route, documents, mode, asset);
     renderer.media_source = Some(origin);
     renderer.blocks(&document.parsed.blocks, 0);
+    let slots = std::mem::take(&mut renderer.slots);
+    // Linking dialogue timestamps inserts text, which would move the gaps after it. Only
+    // a page's own outline binds recordings, and only reference copies leave gaps.
+    debug_assert!(slots.is_empty() || renderer.recordings.is_empty());
     super::dialogue::finalize(&mut renderer.html, &renderer.dialogue, &renderer.recordings);
-    Rendered {
+    let rendered = Rendered {
         html: renderer.html,
         source_anchors: renderer.emitted_source_anchors,
         diagnostics: renderer.diagnostics,
-    }
+    };
+    (rendered, slots)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -366,8 +449,7 @@ fn new_renderer<'a>(
         show_brackets: !mode.hide_brackets,
         source_anchors: mode.source_anchors,
         reference_origin: document.relative_path.clone(),
-        reference_paths: mode.reference_paths,
-        reference_entries: mode.reference_entries,
+        slots: Vec::new(),
         asset,
         dialogue: Vec::new(),
         recordings: Vec::new(),
@@ -452,8 +534,8 @@ struct Renderer<'a> {
     show_brackets: bool,
     source_anchors: BTreeSet<usize>,
     reference_origin: PathBuf,
-    reference_paths: BTreeMap<usize, String>,
-    reference_entries: BTreeMap<usize, String>,
+    /// Gaps left at a reference copy's own bullets, in the order they occur in `html`.
+    slots: Vec<Slot>,
     asset: &'a mut dyn FnMut(&Path, &str) -> Result<String, String>,
 }
 
@@ -532,34 +614,31 @@ impl Renderer<'_> {
                     word: marker.as_deref(),
                     priority: item.priority.as_deref(),
                 };
+                // A reference copy's own bullets leave gaps for the listing page to fill:
+                // a row number in the `<li>` tag and a bullet that opens the block.
                 let copy = span
                     .as_ref()
-                    .filter(|_| self.source == self.reference_origin && self.embed_level() == 0);
-                let reference_attributes = copy
-                    .and_then(|span| self.reference_paths.get(&span.0))
-                    .map(|block| format!(" data-ref-block=\"{}\"", escape(block)))
-                    .unwrap_or_default();
-                // A reference copy's bullet opens the block on its own page when it has one.
-                let copy_bullet = copy.filter(|_| self.reference_depth.is_some()).map(|span| {
-                    self.reference_entries.get(&span.0).map_or_else(
-                        || "<span class=\"bullet\"></span>".to_owned(),
-                        |href| format!("<a class=\"bullet\" href=\"{}\"></a>", escape(href)),
-                    )
-                });
+                    .filter(|_| {
+                        self.source == self.reference_origin
+                            && self.embed_level() == 0
+                            && self.reference_depth.is_some()
+                    })
+                    .map(|span| span.0);
                 let slide = if self.embedded {
                     String::new()
                 } else {
                     slide_attributes(blocks, index)
                 };
                 let card = crate::cards::mentions_card(inline);
-                let item_start = format!(
-                    "<li{}{reference_attributes}{slide}>",
+                let item_start = (
                     match (collapsed, card) {
-                        (true, true) => " class=\"outline-collapsed lsg-card\"",
-                        (true, false) => " class=\"outline-collapsed\"",
-                        (false, true) => " class=\"lsg-card\"",
-                        (false, false) => "",
-                    }
+                        (true, true) => "<li class=\"outline-collapsed lsg-card\"",
+                        (true, false) => "<li class=\"outline-collapsed\"",
+                        (false, true) => "<li class=\"lsg-card\"",
+                        (false, false) => "<li",
+                    },
+                    copy,
+                    format!("{slide}>"),
                 );
                 while levels
                     .last()
@@ -575,7 +654,7 @@ impl Renderer<'_> {
                 {
                     let (_, collapsed, start) = *levels.last().unwrap();
                     self.close_item(collapsed, start, root);
-                    self.html.push_str(&item_start);
+                    self.item_start(&item_start);
                 } else if levels.len() < MAX_DEPTH {
                     self.html.push_str(if root && levels.is_empty() {
                         "<ul class=\"outline\">"
@@ -584,13 +663,13 @@ impl Renderer<'_> {
                     } else {
                         "<ul>"
                     });
-                    self.html.push_str(&item_start);
+                    self.item_start(&item_start);
                     levels.push((*level, false, None));
                 } else {
                     self.diagnostic("Outline nesting limit reached; rendered as sibling");
                     let (_, collapsed, start) = *levels.last().unwrap();
                     self.close_item(collapsed, start, root);
-                    self.html.push_str(&item_start);
+                    self.item_start(&item_start);
                 }
                 let open = levels.last_mut().unwrap();
                 open.1 = collapsed;
@@ -617,8 +696,8 @@ impl Renderer<'_> {
                         self.text(&block_label(inline, 0));
                     }
                 }
-                if let Some(bullet) = &copy_bullet {
-                    self.html.push_str(bullet);
+                if let Some(anchor) = copy {
+                    self.slot(anchor, SlotKind::Bullet);
                 } else if !self.embedded || self.embed_level() > 0 {
                     self.html.push_str(BULLET);
                 }
@@ -762,6 +841,21 @@ impl Renderer<'_> {
     }
     /// Close an outline item, first adding the derived rows of a page's own block after its
     /// children.
+    /// An outline item's opening tag, with a row gap for a reference copy's bullet.
+    fn item_start(&mut self, (open, copy, close): &(&str, Option<usize>, String)) {
+        self.html.push_str(open);
+        if let Some(anchor) = copy {
+            self.slot(*anchor, SlotKind::Row);
+        }
+        self.html.push_str(close);
+    }
+    fn slot(&mut self, anchor: usize, kind: SlotKind) {
+        self.slots.push(Slot {
+            at: self.html.len(),
+            anchor,
+            kind,
+        });
+    }
     fn close_item(&mut self, collapsed: bool, start: Option<usize>, root: bool) {
         if root
             && let Some(start) = start
