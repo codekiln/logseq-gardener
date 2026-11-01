@@ -236,6 +236,12 @@ fn plugins_add_files_metadata_and_only_those_tags() {
         .collect();
     assert_eq!(hosts.len(), 1);
     assert!(hosts[0].ends_with(".mjs"));
+    // The host applies the reader's remembered Properties choice to each adopted page before
+    // the other page initializers. scripts/plugins/browser.py checks the result in a browser.
+    let host = String::from_utf8_lossy(&output[hosts[0].as_str()]);
+    let properties = host.find("window.logseqGardenerInitProperties?.(m)");
+    let outline = host.find("window.logseqGardenerInitOutline?.(m)");
+    assert!(properties.is_some() && properties < outline, "{host}");
     for page in manifest["pages"].as_array().unwrap() {
         let url = page["url"].as_str().unwrap();
         let html = String::from_utf8(output[url].clone()).unwrap();
