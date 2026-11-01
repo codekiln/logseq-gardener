@@ -244,14 +244,15 @@ impl<K: Ord + Clone> Contribution<K> {
                     {
                         result.exclude_from_graph = true;
                     }
-                    // Values name pages; property names are storage details. Logseq reads
-                    // `alias::`, `aliases::` and `tags::` as lists of page names, bare
-                    // comma-separated names included.
-                    let linked = is_linkable_property(&prop.0);
-                    let values = if linked {
+                    // Values name pages; property names are storage details. The block's text
+                    // already holds each value's references, read as Logseq reads a property
+                    // value: a nested reference `[[Notes on [[Mldoc]]]]` names its outer page
+                    // only. Logseq also reads `alias::`, `aliases::` and `tags::` as lists of
+                    // page names, bare comma-separated names included.
+                    let values = if is_linkable_property(&prop.0) {
                         linkable_property_names(&prop.1)
                     } else {
-                        lsdoc::refs(&prop.1, "markdown").page
+                        Vec::new()
                     };
                     if prop.0.eq_ignore_ascii_case("tags") && leading {
                         // Like an alias, a value with no names, such as a quoted one, is one
@@ -1034,6 +1035,28 @@ mod tests {
             quoted.unresolved_tags(),
             &BTreeSet::from(["\"Term\"".to_owned()])
         );
+    }
+
+    #[test]
+    fn other_property_values_name_pages_as_in_logseq() {
+        let page = contribution(
+            "notes",
+            "type:: [[Notes on [[Mldoc]]]]\n\n- body\n  source:: [[Outer [[Inner]] Name]], #[[Tag [[Deep]]]], [[Plain]]\n- In the text [[Body [[Nested]] Ref]]\n",
+        );
+        assert_eq!(unresolved(&page, 0), ["Notes on [[Mldoc]]"]);
+        assert_eq!(
+            unresolved(&page, 1),
+            ["Outer [[Inner]] Name", "Plain", "Tag [[Deep]]"]
+        );
+        // In the block's text, as in Logseq, a nested reference names the inner page too.
+        assert_eq!(unresolved(&page, 2), ["Body [[Nested]] Ref", "Nested"]);
+        // Logseq reads a property value's page references, tags and nested references only,
+        // so the label of a link to a file names no page there.
+        let file_link = contribution(
+            "notes",
+            "source-md:: [Report.md](../assets/Report.md)\n\n- body\n",
+        );
+        assert!(file_link.graph_refs()[0].unresolved.is_empty());
     }
 
     #[test]

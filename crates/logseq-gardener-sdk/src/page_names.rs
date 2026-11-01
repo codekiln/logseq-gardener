@@ -68,6 +68,41 @@ fn alias_names(document: &GardenDocument) -> Vec<String> {
     names
 }
 
+/// The pages Logseq creates in every graph, spelled as Logseq spells them: the task
+/// markers, the priorities and three pages of its own (`built-in-pages-names` in
+/// Logseq's `logseq.db.default`).
+const BUILT_IN_PAGE_TITLES: [&str; 16] = [
+    "NOW",
+    "LATER",
+    "DOING",
+    "DONE",
+    "CANCELED",
+    "CANCELLED",
+    "IN-PROGRESS",
+    "TODO",
+    "WAIT",
+    "WAITING",
+    "A",
+    "B",
+    "C",
+    "Favorites",
+    "Contents",
+    "card",
+];
+
+/// Logseq's own spelling of a page it creates in every graph, such as `C` for `c` or
+/// `TODO` for `todo`, when `name` names one of them in any case.
+///
+/// Logseq creates these pages before it reads a file, so a reference keeps that spelling
+/// whatever the reference's case.
+pub fn built_in_page_title(name: &str) -> Option<&'static str> {
+    let key = lookup_key(name);
+    BUILT_IN_PAGE_TITLES
+        .iter()
+        .copied()
+        .find(|title| lookup_key(title) == key)
+}
+
 /// Whether Logseq reads a property's value as a list of page names: `alias`, `aliases`
 /// and `tags`, in any case.
 pub fn is_linkable_property(name: &str) -> bool {
