@@ -10,7 +10,7 @@ Measured on 2026-10-25 against the `gh-pages` build of garden commit `c622a4d` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from `docs/logseq-reference/Backlinks.md`; the board's group colours, breadcrumb size and chip colours differ from the live build.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Backlinks](../pages/lsg___Ref___Logseq%20Published%20Site___Backlinks.md); the board's group colours, breadcrumb size and chip colours differ from the live build.
 
 ### Section order and visibility
 

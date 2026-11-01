@@ -15,7 +15,7 @@ Logseq's build is the `gh-pages` branch of `codekiln/logseq-encode-garden`. The 
 - **Graph data.** `db.gz` holds one JavaScript assignment, `window.logseq_db="..."`. Its string is a Transit-encoded DataScript database in which `&`, `<`, `>`, `"` and `'` are replaced by `logseq____&amp;`-style tokens ([`deps/publishing/src/logseq/publishing/html.cljs`](https://github.com/logseq/logseq/blob/0.10.9/deps/publishing/src/logseq/publishing/html.cljs); reversed in [`src/main/frontend/publishing.cljs`](https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/publishing.cljs)). Decoding it gives every datom: page names from `:block/name` and `:block/original-name`, journals from `:block/journal?`, and pages with content from `:block/page`.
 - **Rendering.** The app renders in the browser. A page title appears within a second or two of loading on a local server, but Linked References render only when scrolled into view (`ui/lazy-visible` in [`src/main/frontend/components/reference.cljs`](https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/reference.cljs)), so a full-page screenshot has to scroll the page first.
 
-To view the build locally, follow the steps in [the Logseq UI reference](../logseq-reference/Reference.md): `git archive origin/gh-pages` into an empty directory and serve it with `python3 -m http.server --bind 127.0.0.1`.
+To view the build locally, follow the steps in [lsg/Ref/Logseq Published Site/Reference Sheet](../pages/lsg___Ref___Logseq%20Published%20Site___Reference%20Sheet.md): `git archive origin/gh-pages` into an empty directory and serve it with `python3 -m http.server --bind 127.0.0.1`.
 
 ### Measured counts (gh-pages build of 2026-10-23)
 

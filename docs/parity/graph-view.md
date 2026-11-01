@@ -10,7 +10,7 @@ Measured on 2026-10-26 against the `gh-pages` build of garden commit `0ce74d6` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from `docs/logseq-reference/Graph.md`. The board's 280px panel, rounded border, `Show Journals` row in the global panel and blue hub node are illustrations; the live panel is described below.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Graph View](../pages/lsg___Ref___Logseq%20Published%20Site___Graph%20View.md). The board's 280px panel, rounded border, `Show Journals` row in the global panel and blue hub node are illustrations; the live panel is described below.
 
 ### Entry points
 

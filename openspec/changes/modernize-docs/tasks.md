@@ -58,10 +58,10 @@
 
 ## 7. #331 Move the Logseq reference boards into the docs graph
 
-- [ ] 7.1 Convert `docs/logseq-reference/README.md` into `lsg/Ref/Logseq Published Site`, with the table that pairs each page with its HTML board
-- [ ] 7.2 Convert each board into its `lsg/Ref/Logseq Published Site/` page, keeping every measurement, class name and string, and every table inside a block
-- [ ] 7.3 Keep each page source on `lsg/Ref/Logseq Published Site/Clickable Prototype` in a code block
-- [ ] 7.4 Delete the board documents, remove their `:hidden` lines and repoint every link to them
+- [x] 7.1 Convert `docs/logseq-reference/README.md` into `lsg/Ref/Logseq Published Site`, with the table that pairs each page with its HTML board
+- [x] 7.2 Convert each board into its `lsg/Ref/Logseq Published Site/` page, keeping every measurement, class name and string, and every table inside a block
+- [x] 7.3 Keep each page source on `lsg/Ref/Logseq Published Site/Clickable Prototype` in a code block
+- [x] 7.4 Delete the board documents, remove their `:hidden` lines and repoint every link to them
 
 ## 8. #332 Check the docs graph with Logseq's own parser
 
