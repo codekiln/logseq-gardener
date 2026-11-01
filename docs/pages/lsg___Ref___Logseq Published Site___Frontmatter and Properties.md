@@ -58,18 +58,19 @@ tags:: [[Diataxis/Reference]]
 			- Indented `key::` lines under a block render inside it as `div.block-properties` (same box as page properties).
 			- Never shown: `id`, `collapsed`, `heading`, `background-color`, `created-at`, `updated-at`, `query-*`, `hl-*`, `ls-type`, task markers, and the `card-*` scheduling keys.
 			- A block with only hidden keys gets no box at all.
-	- ## 4 · Keys that change the page instead of showing
+	- ## 4 · Keys that change the page
 		- Garden source:
 			- ```markdown
 			  title:: tmux
-			  public:: false
+			  public:: true
 			  alias:: [[Spotify TUI Options]]
 			  ```
-		- Logseq renders: no properties box for these keys. The board lists three effects:
+		- Logseq renders: a grey box with two rows, `public : true` and `alias : Spotify TUI Options`. `title::` gets no row. Each key also changes the page:
 			- `title::` replaces the filename-derived name as the page title and the name every link resolves to.
-			- Setting `public:: false` withholds the whole page from the published site (with `:publishing/all-pages-public? true`).
+			- Setting `public:: true` publishes the page when `:publishing/all-pages-public?` is off, and `public:: false` withholds the whole page from the published site.
 			- Visiting an `alias` opens the original page; the alias also collects its own backlinks into that page's Linked References.
 		- DOM and rules:
+			- Page properties leave out `title`, `filters` and `icon` as well as the keys hidden on every block (`hidden-editable-page-properties` in `frontend/util/property.cljs`). `alias`, `public` and other keys show.
 			- Page name precedence: `title::`, then the filename with `___` read as `/` (URL-decoded).
 			- Names compare case-insensitively.
 			- Routes use the lower-cased name: `#/page/spotify%2Ftool%2Ftui`.

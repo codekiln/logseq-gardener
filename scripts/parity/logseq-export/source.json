@@ -1,0 +1,27 @@
+{
+  "repository": "https://github.com/logseq/logseq.git",
+  "ghq": "github.com/logseq/logseq",
+  "tag": "0.10.15",
+  "revision": "03bcefbdf87458f87499abb988ac3b9fac2c07d8",
+  "paths": [
+    "deps/publishing/src",
+    "deps/graph-parser/src",
+    "deps/db/src",
+    "deps/common/src",
+    "scripts/src/logseq/tasks/dev/publishing.cljs"
+  ],
+  "classpath": ["deps/publishing/src", "deps/graph-parser/src", "deps/db/src", "deps/common/src", "scripts/src"],
+  "sha256": "4d784f0d0e5602b962d881ddcc23f51219c173744f6a410746bf2c6359b89732",
+  "license": "AGPL-3.0 with additional permission",
+  "frontend": {
+    "version": "0.10.15",
+    "files": ["404.html", "VERSION", "css", "fonts", "icons", "img", "js"],
+    "sha256": "c733f8f08db2309f99a66cb004bef48d12e95b8dd3d7f88d0396eb6d2c05cbba",
+    "macos_app": "/Applications/Logseq.app/Contents/Resources/app",
+    "release": {
+      "url": "https://github.com/logseq/logseq/releases/download/0.10.15/Logseq-linux-x64-0.10.15.zip",
+      "sha256": "cfa7afc2d4311efedb1d21508858ebeaff2f3eb896254c2b569a5dc8e2aa3803",
+      "folder": "Logseq-linux-x64/resources/app"
+    }
+  }
+}

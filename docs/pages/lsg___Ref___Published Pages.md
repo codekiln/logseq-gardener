@@ -33,13 +33,19 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 			- Rows keep their authored order, and a repeated key shows its last value.
 			- Ordinary scalar text is escaped.
 			- Direct page references and comma-separated bare tags link to the selected source pages they name.
+			- Each name in `alias::` or `aliases::` links to the page it names and keeps the spelling the author wrote, as in Logseq.
 			- A standalone public HTTPS value is a link.
 			- A row whose reference names a missing, private, ambiguous or generated-only page is left out as a whole, including rows with mixed values.
 			- Expressions, block references, asset and file paths, absolute local paths, unsafe schemes and unsupported links are left out.
 			- Turning on page properties treats every remaining scalar value as public metadata. `:block-hidden-properties` hides author-specific operational fields.
 		- ### Keys never shown
-			- These keys never appear: `id`, `custom-id`, `custom_id`, `title`, `alias`, `aliases`, `public`, `background-color`, `background_color`, `heading`, `collapsed`, `created-at`, `updated-at`, `last-modified-at`, `created_at`, `updated_at`, `last_modified_at`, `query-table`, `query-properties`, `query-sort-by`, `query-sort-desc`, `filters`, `ls-type`, `hl-type`, `hl-page`, `hl-stamp`, `hl-color`, `todo`, `doing`, `now`, `later`, `done`, `file`, `file-path`, `file-name` and `search-exclude`, the card scheduling keys `card-last-interval`, `card-repeats`, `card-ease-factor`, `card-next-schedule`, `card-last-reviewed` and `card-last-score`, also written with `_`, and every key that starts with `logseq.`, `logseq-proxy-` or `publishing/`.
-			- These keys and the keys in `:block-hidden-properties` are also left out of property references.
+			- The box shows every key that Logseq 0.10.15 shows in a page's properties, and leaves out the rest:
+				- the keys Logseq hides from every block: `id`, `custom-id`, `background-color`, `background_color`, `heading`, `collapsed`, `created-at`, `updated-at`, `last-modified-at`, `created_at`, `last_modified_at`, `query-table`, `query-properties`, `query-sort-by`, `query-sort-desc`, `ls-type`, `hl-type`, `hl-page`, `hl-stamp`, `hl-color`, `logseq.macro-name`, `logseq.macro-arguments`, `logseq.order-list-type`, `logseq.tldraw.page`, `logseq.tldraw.shape`, and the task markers `todo`, `doing`, `now`, `later` and `done`;
+				- the card scheduling keys `card-last-interval`, `card-repeats`, `card-ease-factor`, `card-next-schedule`, `card-last-reviewed` and `card-last-score`, also written with `_`;
+				- the keys Logseq hides from page properties only: `title`, `filters` and `icon`;
+				- the keys in `:block-hidden-properties`.
+			- Other keys show, including `alias`, `aliases`, `public`, `tags` and `search-exclude`.
+			- The hidden keys are also left out of property references.
 		- `window.logseqGardenerInitProperties` is described on [[lsg/Ref/Host Integration API]].
 	- ## Page sequence
 		- Leading `prev:: [[Page title]]` and `next:: [[Page title]]` properties publish Previous and Next links after the page content. Authors choose the order, and a page can have either neighbour or both. Books, presets and other authored chains all work this way.
