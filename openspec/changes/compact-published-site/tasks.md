@@ -1,7 +1,7 @@
 ## 1. Baseline
 
 - [x] 1.1 Build `lsg` from `main`, keep the binary as the baseline, and publish the encode garden at the CI-pinned commit with `--journals --search` and every top-level namespace; record each part's file count and size
-- [ ] 1.2 Take `parity:screenshots` of the fixture pages in both appearances with the baseline build, for the look comparison in 6.2
+- [x] 1.2 Take `parity:screenshots` of the fixture pages in both appearances with the baseline build, for the look comparison in 6.2
 
 ## 2. Shared stylesheets
 
@@ -36,12 +36,12 @@
 ## 6. Measure
 
 - [x] 6.1 Publish the encode garden at the CI-pinned commit with the changed binary and confirm the site is under 550 MB with no post-processing; record each part's size beside the baseline in the pull request
-- [ ] 6.2 Run `parity:screenshots` again and confirm the fixture pages look the same as in 1.2
+- [x] 6.2 Run `parity:screenshots` again and confirm the fixture pages look the same as in 1.2
 - [ ] 6.3 Run `parity:build`, `parity:compare` and `parity:perf --record --baseline-lsg <baseline>` on the whole encode garden against Logseq's `gh-pages` build, and record both sites' sizes and file counts on the Performance page
-- [ ] 6.4 Run `parity:perf --search-site` on the whole encode garden and confirm the search budgets still hold
-- [ ] 6.5 Run `mise run parity:publish-bench --corpus all --record` and add the rows, with their part sizes, to `docs/parity/publication-speed.json`
+- [x] 6.4 Run `parity:perf --search-site` on the whole encode garden and confirm the search budgets still hold
+- [x] 6.5 Run `mise run parity:publish-bench --corpus all --record` and add the rows, with their part sizes, to `docs/parity/publication-speed.json`
 - [x] 6.6 Update `docs/pages/lsg___Static Publishing.md` to describe the shared files and the compressed fragments
-- [ ] 6.7 Run `mise run ci`
+- [x] 6.7 Run `mise run ci`
 
 ## 7. Follow-up
 
