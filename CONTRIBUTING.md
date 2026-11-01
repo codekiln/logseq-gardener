@@ -2,6 +2,8 @@
 
 Install the pinned tools with `mise install`. Run `mise run ci` for the same checks used by GitHub Actions. List tasks with `mise tasks`; use `mise run <task> --help` for arguments.
 
+To test a change, run `mise run build:release` and then `./target/release/lsg`. In a shell with `mise activate`, under `mise exec` and in mise tasks, a bare `lsg` also runs this checkout's build once it exists, and a globally installed `lsg` before then. A shell that reaches tools through mise shims always runs the installed `lsg`. `command -v lsg` shows which binary a bare `lsg` runs.
+
 The CI task checks formatting, Clippy, tests, documentation, dependency notices, and release configuration. Use `mise exec -- cargo fmt` to apply Rust formatting. Workspace tests cover both the CLI and SDK, including an SDK example compiled as a library consumer.
 
 Plan changes in OpenSpec and keep requirements and verification together. Agent-specific instructions are maintained in `.rulesync/`. After editing that source, run `mise exec -- rulesync generate` and `mise run rulesync:check`.
