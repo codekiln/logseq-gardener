@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Check the docs graph and the remaining Markdown files, run README examples, and check README web links."""
 import argparse
+import os
 import re
 from pathlib import Path
 import subprocess
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -13,6 +15,12 @@ CONFIG = DOCS / 'logseq' / 'config.edn'
 KIND_PAGES = {'diataxis', 'diataxis/how to', 'diataxis/tutorial', 'diataxis/reference', 'diataxis/explanation'}
 KIND_TAGS = KIND_PAGES - {'diataxis'} | {'diataxis/concept'}
 PROPERTY = re.compile(r'^([A-Za-z0-9_/-]+)::\s?(.*)$')
+# The documentation site, where each page is published at its title, as in SITE + 'lsg/Ref/Command%20Line/'.
+SITE = 'https://codekiln.github.io/logseq-gardener/'
+HOMEPAGE = 'lsg'
+# README commands that install software or change the reader's configuration go in ```bash blocks, which
+# docs:check does not run; it runs every ```sh block.
+CHANGES_MACHINE = re.compile(r'\b(?:mise\s+(?:use|install|trust)|cargo\s+install|brew\s+install)\b')
 
 
 def old_documents():
@@ -79,6 +87,11 @@ def expected_tag(title):
     return 'Diataxis/Explanation' if title == 'lsg' or title.startswith('lsg/') else None
 
 
+def page_title(page, properties):
+    """A page's title: its title:: property, or its triple-lowbar file name."""
+    return properties.get('title') or urllib.parse.unquote(page.stem.replace('___', '/'))
+
+
 def check_kind_tags():
     """Every page other than contents.md and the kind index pages carries the kind tag its title names."""
     errors = []
@@ -86,7 +99,7 @@ def check_kind_tags():
         if page.name == 'contents.md':
             continue
         properties = page_properties(page.read_text(encoding='utf-8'))
-        title = properties.get('title') or urllib.parse.unquote(page.stem.replace('___', '/'))
+        title = page_title(page, properties)
         if title.lower() in KIND_PAGES:
             continue
         expected = expected_tag(title)
@@ -123,22 +136,61 @@ def web_links(file):
                    if link.startswith(('https://', 'http://'))})
 
 
+def check_site_links(file):
+    """Every link to the documentation site names a page of the docs graph by its title."""
+    titles = {page_title(page, page_properties(page.read_text(encoding='utf-8')))
+              for page in (DOCS / 'pages').glob('*.md')}
+    errors = []
+    for link in web_links(file):
+        if not link.startswith(SITE):
+            continue
+        path = urllib.parse.unquote(link[len(SITE):].split('#')[0]).removesuffix('index.html').strip('/')
+        if (path or HOMEPAGE) not in titles:
+            errors.append(f'{file}: {link} names no page in docs/pages; a page is published at its title, '
+                          f'such as {SITE}lsg/Ref/Command%20Line/')
+    return errors
+
+
+def check_web_links(file):
+    """Request every web link in the file, including its links to the documentation site."""
+    failures = []
+    for url in web_links(file):
+        request = urllib.request.Request(url, headers={'User-Agent': 'lsg-documentation-check'})
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                print(f'{response.status} {url}')
+        except (urllib.error.URLError, TimeoutError) as error:
+            failures.append(f'{file}: {url}: {getattr(error, "code", None) or error}')
+    return failures
+
+
+def run_commands(file):
+    """Run every ```sh block in the file with this checkout's release build first on PATH."""
+    blocks = re.findall(r'```sh\n(.*?)```', file.read_text(encoding='utf-8'), re.S)
+    for block in blocks:
+        if CHANGES_MACHINE.search(block):
+            raise SystemExit(f'{file}: a ```sh block installs software or changes configuration, and docs:check '
+                             f'runs every ```sh block; put that command in a ```bash block:\n{block}')
+    release = Path(os.environ.get('CARGO_TARGET_DIR', 'target')).resolve() / 'release'
+    env = {**os.environ, 'PATH': f'{release}{os.pathsep}{os.environ.get("PATH", "")}'}
+    for block in blocks:
+        subprocess.run(['bash', '-e', '-c', block], check=True, timeout=300, env=env)
+
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--remote', action='store_true', help='check README web links (requires network)')
 args = parser.parse_args()
 readme = Path('README.md')
 if args.remote:
-    for url in web_links(readme):
-        request = urllib.request.Request(url, headers={'User-Agent': 'lsg-documentation-check'})
-        with urllib.request.urlopen(request, timeout=30) as response:
-            print(f'{response.status} {url}')
-    print('README links checked')
+    failures = check_web_links(readme)
+    if failures:
+        raise SystemExit('\n'.join(failures))
+    print('README web links, including its links to the documentation site, checked')
     raise SystemExit
 documents = old_documents()
 errors = [*check_relative_links([readme, Path('CONTRIBUTING.md'), Path('THIRD_PARTY_NOTICES.md'), *documents]),
-          *check_hidden(documents), *check_kind_tags()]
+          *check_site_links(readme), *check_hidden(documents), *check_kind_tags()]
 if errors:
     raise SystemExit('\n'.join(errors))
-for block in re.findall(r'```sh\n(.*?)```', readme.read_text(encoding='utf-8'), re.S):
-    subprocess.run(['bash', '-e', '-c', block], check=True, timeout=300)
-print('README commands, docs graph tags, :hidden entries and local documentation links passed')
+run_commands(readme)
+print('README commands and site links, docs graph tags, :hidden entries and local documentation links passed')

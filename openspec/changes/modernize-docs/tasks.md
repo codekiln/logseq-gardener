@@ -72,17 +72,17 @@
 
 ## 9. #333 Rewrite the README for released binaries and mise installs
 
-- [ ] 9.1 Rewrite `README.md`: problem and audience first, then the global and project mise installs, first use, and links to site pages for everything else
-- [ ] 9.2 Keep commands that change the machine out of executed `sh` blocks, and keep the executed first-use commands passing
-- [ ] 9.3 Make `mise run docs:links` check the README's links to the site
-- [ ] 9.4 Point the README assessment skills and the example link in `.rulesync/rules/communication-style.md` at the install page, and regenerate the RuleSync output
-- [ ] 9.5 Run `assess-readme-style` and `assess-readme-purpose`, and resolve every finding or record the accepted exception in the pull request
+- [x] 9.1 Rewrite `README.md`: problem and audience first, then the global and project mise installs, first use, and links to site pages for everything else
+- [x] 9.2 Keep commands that change the machine out of executed `sh` blocks, and keep the executed first-use commands passing
+- [x] 9.3 Make `mise run docs:links` check the README's links to the site
+- [x] 9.4 Point the README assessment skills and the example link in `.rulesync/rules/communication-style.md` at the install page, and regenerate the RuleSync output
+- [x] 9.5 Run `assess-readme-style` and `assess-readme-purpose`, and resolve every finding or record the accepted exception in the pull request
 
 ## 10. #334 Link CLI help to pages on the docs site
 
-- [ ] 10.1 Add the documentation base URL and a function that turns a page title into its URL with the SDK's readable route function
-- [ ] 10.2 Replace every `docs/` path in `src/help.rs` with a page title and URL, and update `tests/publish.rs`
-- [ ] 10.3 Add the ignored test `tests/docs_links.rs` and run it from `mise run docs:check` against the site it builds
-- [ ] 10.4 Keep the `cli-static-publishing` delta in this change matching the help text
-- [ ] 10.5 Refresh the help assessment and keep `mise run clilint:check` passing
-- [ ] 10.6 Write `lsg/How To/Link CLI Help to a Docs Page`
+- [x] 10.1 Add the documentation base URL and a function that turns a page title into its URL with the SDK's readable route function
+- [x] 10.2 Replace every `docs/` path in `src/help.rs` with a page title and URL, and update `tests/publish.rs`
+- [x] 10.3 Add the ignored test `tests/docs_links.rs` and run it from `mise run docs:check` against the site it builds
+- [x] 10.4 Keep the `cli-static-publishing` delta in this change matching the help text
+- [x] 10.5 Refresh the help assessment and keep `mise run clilint:check` passing
+- [x] 10.6 Write `lsg/How To/Link CLI Help to a Docs Page`
