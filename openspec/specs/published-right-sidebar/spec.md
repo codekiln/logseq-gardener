@@ -18,7 +18,7 @@ At viewport widths of 640px and more, the Toggle right sidebar button and the `t
 
 ### Requirement: Add cards with Shift-click
 
-At 640px and wider, Shift-click on a page reference, tag, page-valued property, breadcrumb crumb or reference group title SHALL add a card for that page; on a bullet, a card for that block; on a block reference, a Block references card for the referenced block. The main page and its URL SHALL stay the same. The new card SHALL go to the top, expanded, and the sidebar SHALL open. A target already in the sidebar SHALL move to the top and expand. The placeholder Contents card SHALL be replaced by the first added card. Links and bullets inside cards SHALL behave the same way, and a plain click on a link inside a card SHALL open the page in the main column.
+At 640px and wider, Shift-click on a page reference, tag, page-valued property, breadcrumb crumb or reference group title SHALL add a card for that page; on a bullet, a card for that block; on a block reference, a Block references card for the referenced block. A link SHALL count as a page link when it sits inside `.page-reference`, has the class `page-ref` or `tag`, or its address is a `p-*.html` file, and a link with the class `block-ref-link` SHALL count as a block reference at any address, so the gesture keeps working when a host rewrites page addresses after the build. A card's route SHALL be the address the browser resolves for the link, or for the current page when the target is one of its bullets, written relative to the site root that serves `lsg-sidebar.js`. The main page and its URL SHALL stay the same. The new card SHALL go to the top, expanded, and the sidebar SHALL open. A target already in the sidebar SHALL move to the top and expand. The placeholder Contents card SHALL be replaced by the first added card. Links and bullets inside cards SHALL behave the same way, and a plain click on a link inside a card SHALL open the page in the main column.
 
 #### Scenario: Page and block cards on tmux
 - **WHEN** a reader on `tmux` Shift-clicks the link to `tmux/Idea/Pomodoro with status line and silent flash` and then the second bullet
@@ -31,6 +31,22 @@ At 640px and wider, Shift-click on a page reference, tag, page-valued property, 
 #### Scenario: Card already present
 - **WHEN** a reader Shift-clicks a page that already has a collapsed card lower in the sidebar
 - **THEN** that card moves to the top, expanded, and no second card for the page appears
+
+#### Scenario: Page links at rewritten addresses
+- **WHEN** a host serves the site root at `/gitpa/` and pages at readable routes, and a reader on `/gitpa/GitP/A/Session/26/10/29-Thu/` Shift-clicks an inline page reference to `/gitpa/GitP/A/Session/26/10/28-Wed/`, a query result `a.page-ref` and a tag `a.tag`
+- **THEN** each adds a page card that shows its page, the first is saved with the route `GitP/A/Session/26/10/28-Wed/`, and a plain click on the same links still navigates
+
+#### Scenario: Bullet on a page at a rewritten address
+- **WHEN** a reader on `/gitpa/GitP/A/Session/26/10/29-Thu/` Shift-clicks the page's first bullet
+- **THEN** the block card is saved with the route `GitP/A/Session/26/10/29-Thu/` and block `1`, and shows that page's block
+
+#### Scenario: Links inside a card for a rewritten route
+- **WHEN** a reader opens the card menu of the page card for `GitP/A/Session/26/10/28-Wed/` and chooses Open as page, or follows a crumb in a block card from that page
+- **THEN** the browser opens `/gitpa/GitP/A/Session/26/10/28-Wed/`, with `#zoom/` and the block's identifier for a crumb
+
+#### Scenario: Link inside a flashcard block
+- **WHEN** a reader Shift-clicks a page reference inside a flashcard block (`li.lsg-card`)
+- **THEN** a card for that page is added
 
 ### Requirement: Show page and block content in cards
 
@@ -91,6 +107,10 @@ The open state, width, cards in order and each card's collapsed flag SHALL be sa
 #### Scenario: Configured start
 - **WHEN** a fixture garden sets `:default-home {:sidebar ["Contents" "tmux"]}` and a reader with no saved state opens a page
 - **THEN** the sidebar opens with a Contents card and a `tmux` card
+
+#### Scenario: Rewritten route restored on another page
+- **WHEN** a reader adds a card for `/gitpa/GitP/A/Session/26/10/28-Wed/` on one page of a host that serves readable routes, then opens `/gitpa/Microfreak/`
+- **THEN** the restored card fetches `/gitpa/GitP/A/Session/26/10/28-Wed/` and shows that page
 
 ### Requirement: Leave phones to the page
 
