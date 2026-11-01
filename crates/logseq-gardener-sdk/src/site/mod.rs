@@ -82,8 +82,9 @@ pub struct SiteOptions {
     /// How page files and links are named. [`PageUrls::Readable`] writes each page, journal and
     /// namespace page to `<title path>/index.html` and links to it as its
     /// [`readable_url`](crate::page_urls::readable_url); home, All pages, the journals feed and
-    /// the graph view stay at the output root. Unsafe titles and colliding paths fail before
-    /// output is created.
+    /// the graph view stay at the output root. A page whose title cannot form a safe path keeps
+    /// its `p-<digest>.html` file and gets a diagnostic; colliding paths fail before output is
+    /// created.
     pub page_urls: PageUrls,
 }
 
@@ -141,8 +142,8 @@ pub enum SiteError {
     InvalidPlugin(crate::plugins::PluginError),
     /// A build plugin failed, repeated another plugin's id or returned a rejected contribution.
     BuildPlugin(crate::contributions::ContributionError),
-    /// With readable URLs, a title cannot form a safe path, or a page's path collides with
-    /// another page's or with a file the build writes at the output root.
+    /// With readable URLs, a page's path collides with another page's or with a file the build
+    /// writes at the output root.
     PageUrl(PageUrlError),
     /// A filesystem operation failed; a write failure can leave partial new output.
     Io { path: PathBuf, source: io::Error },
