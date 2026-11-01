@@ -45,4 +45,4 @@
 
 ## 7. Follow-up
 
-- [ ] 7.1 After a release with this change, open an issue in logseq-encode-garden to remove the `share_repeated_styles` step from `mise-tasks/site/build`
+- [x] 7.1 After a release with this change, open an issue in logseq-encode-garden to remove the `share_repeated_styles` step from `mise-tasks/site/build`: [logseq-encode-garden#303](https://github.com/codekiln/logseq-encode-garden/issues/303), after v0.0.15
