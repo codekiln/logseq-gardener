@@ -11,7 +11,7 @@ For the default filename format and for `:file/name-format :triple-lowbar`, the 
 - namespace parents, such as `Names` for `Names/Nested`; and
 - pages that notes link to but that have no file, such as `Missing Target`.
 
-The SDK answers come from `PageCatalog`, `page_titles`, `journals`, `page_names`, `ReferenceIndex` and `GraphIndex`. The publisher is not involved.
+The SDK answers come from `PageCatalog`, `page_titles`, `journals`, `page_names`, `ReferenceIndex` and `GraphIndex`. The publisher is not involved. `tests/relationships/mod.rs` holds the code that derives them, which `mise run docs:parser-check` also runs on the docs graph.
 
 ## Where the expected results come from
 
