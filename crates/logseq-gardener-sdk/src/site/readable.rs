@@ -6,6 +6,8 @@
 //! from disk need the small script below. The shared scripts stay byte for byte the same in
 //! default builds: each variant replaces exact lines, and a test checks every line exists once.
 
+use std::collections::BTreeMap;
+
 use crate::page_urls::{base_href, is_readable};
 
 /// `readable.js` without comments or indentation: keeps a plain click on a fragment-only link
@@ -88,8 +90,16 @@ const GRAPH: &[(&str, &str)] = &[
     ),
 ];
 
-pub(super) fn graph(source: &str) -> String {
-    patch(source, GRAPH)
+/// The graph script, with `folders` from [`crate::publication::Publication::folders`] so that a
+/// node under a folder that titles spell in more than one way opens that folder's one spelling.
+pub(super) fn graph(source: &str, folders: &BTreeMap<String, String>) -> String {
+    let pairs = serde_json::to_string(&folders.iter().collect::<Vec<_>>())
+        .expect("folder spellings serialize");
+    patch(source, GRAPH).replacen(
+        "const FOLDERS = new Map([]);",
+        &format!("const FOLDERS = new Map({pairs});"),
+        1,
+    )
 }
 
 /// The search engine: page routes may be readable folders, or digest files for titles that

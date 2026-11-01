@@ -426,6 +426,7 @@ pub fn publish_site_with_options(
         aliases: _,
         spellings,
         alias_spellings,
+        folders,
         ..
     } = publication;
     let hierarchy =
@@ -939,7 +940,10 @@ pub fn publish_site_with_options(
             &graph::head(),
         ),
     );
-    documents.insert(graph::SCRIPT_ROUTE.to_owned(), graph::script(readable));
+    documents.insert(
+        graph::SCRIPT_ROUTE.to_owned(),
+        graph::script(readable.then_some(&folders)),
+    );
     documents.insert(graph::WORKER_ROUTE.to_owned(), graph::worker());
     documents.insert(graph::STYLES_ROUTE.to_owned(), graph::styles());
     for (route, body) in feed.render(&feed_bodies) {

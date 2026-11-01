@@ -12,8 +12,7 @@
 //! assert!(readable_url("Notes/../Secrets").is_err());
 //! ```
 
-use std::collections::BTreeMap;
-use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::PathBuf;
 
@@ -222,9 +221,67 @@ fn collision(first: &str, second: &str, problem: String) -> PageUrlError {
     }
 }
 
+/// One spelling for each folder that `titles` spell in more than one way, by folded path. A
+/// folder takes the spelling of the title that names it, when one does, and otherwise its lowest
+/// spelling; each folder sits in its parent's spelling. Pass a title through [`respelled`] before
+/// [`readable_url`] so that every page in a folder shares that folder's spelling.
+pub(crate) fn folder_spellings<'t>(
+    titles: impl IntoIterator<Item = &'t str>,
+) -> BTreeMap<String, String> {
+    let mut titles: Vec<&str> = titles.into_iter().collect();
+    titles.sort_unstable();
+    // Every folder by folded path: the name its last segment takes, and its spellings.
+    let mut folders: BTreeMap<String, (&str, BTreeSet<&str>)> = BTreeMap::new();
+    for &title in &titles {
+        for (end, _) in title.match_indices('/').chain([(title.len(), "")]) {
+            let folder = &title[..end];
+            let name = folder.rsplit('/').next().unwrap_or(folder);
+            let (lowest, spellings) = folders
+                .entry(folded(folder))
+                .or_insert((name, BTreeSet::new()));
+            *lowest = (*lowest).min(name);
+            spellings.insert(folder);
+        }
+    }
+    for &title in &titles {
+        if let Some((name, _)) = folders.get_mut(&folded(title)) {
+            *name = title.rsplit('/').next().unwrap_or(title);
+        }
+    }
+    let mut spellings = BTreeMap::new();
+    for (key, (_, authored)) in &folders {
+        let any = authored.first().expect("a folder has a spelling");
+        let mut path = String::with_capacity(any.len());
+        for (end, _) in any.match_indices('/').chain([(any.len(), "")]) {
+            if !path.is_empty() {
+                path.push('/');
+            }
+            path.push_str(folders[&folded(&any[..end])].0);
+        }
+        if authored.iter().any(|&spelling| spelling != path) {
+            spellings.insert(key.clone(), path);
+        }
+    }
+    spellings
+}
+
+/// `title` with its longest folder that [`folder_spellings`] lists in that folder's spelling.
+pub(crate) fn respelled(title: &str, spellings: &BTreeMap<String, String>) -> String {
+    for (end, _) in [(title.len(), "")]
+        .into_iter()
+        .chain(title.rmatch_indices('/'))
+    {
+        if let Some(spelling) = spellings.get(&folded(&title[..end])) {
+            return format!("{spelling}{}", &title[end..]);
+        }
+    }
+    title.to_owned()
+}
+
 /// Check that the readable paths of `titles` stay distinct on a case-insensitive file
-/// system: no two titles share a folded path, every folded folder has one spelling, and no
-/// title's folder is another title's `index.html`.
+/// system: no two titles share a folded path, and no title's folder is another title's
+/// `index.html`. Folders that titles spell differently are one folder in the spelling
+/// [`folder_spellings`] gives.
 ///
 /// # Errors
 ///
@@ -236,30 +293,6 @@ pub fn check_collisions<'t>(titles: impl IntoIterator<Item = &'t str>) -> Result
     for &title in &titles {
         if let Some(other) = pages.insert(folded(title), title) {
             return Err(same_path(other, title));
-        }
-    }
-    // Every folder a page's file sits in, by folded path: its spelling and a page that uses it.
-    let mut folders: BTreeMap<String, (&str, &str)> = BTreeMap::new();
-    for &title in &titles {
-        for (end, _) in title.match_indices('/').chain([(title.len(), "")]) {
-            let folder = &title[..end];
-            match folders.entry(folded(folder)) {
-                Entry::Vacant(entry) => {
-                    entry.insert((folder, title));
-                }
-                Entry::Occupied(entry) => {
-                    let (spelling, other) = *entry.get();
-                    if spelling != folder {
-                        return Err(collision(
-                            other,
-                            title,
-                            format!(
-                                "their folders {spelling:?} and {folder:?} differ only in letter case or Unicode normalization"
-                            ),
-                        ));
-                    }
-                }
-            }
         }
     }
     for &title in &titles {
@@ -387,15 +420,45 @@ mod tests {
             "pages \"Tools/Vim\" and \"tools/vim\" cannot both have readable URLs: their paths differ only in letter case or Unicode normalization"
         );
         assert!(check_collisions(["Caf\u{e9}", "Cafe\u{301}"]).is_err());
-        let error = check_collisions(["Tools/A", "tools/B"]).unwrap_err();
-        assert!(
-            error.to_string().contains("\"Tools\" and \"tools\""),
-            "{error}"
-        );
+        assert!(check_collisions(["Tools/A", "tools/B"]).is_ok());
         let error = check_collisions(["A", "A/index.html"]).unwrap_err();
         assert!(error.to_string().contains("index.html of \"A\""), "{error}");
         assert!(check_collisions(["A", "A/B", "A/B/C", "B"]).is_ok());
         assert!(check_collisions(["A/index.html"]).is_ok());
+    }
+
+    #[test]
+    fn folders_spelled_two_ways_take_one_spelling() {
+        let titles = [
+            "CLAUDE",
+            "Claude/Artifact",
+            "tmux/Session/Picker",
+            "tmux/session/Window",
+            "tmux/session/Window/Pane",
+            "Tools/A",
+        ];
+        let spellings = folder_spellings(titles);
+        assert_eq!(
+            spellings,
+            BTreeMap::from(
+                [
+                    ("claude", "CLAUDE"),
+                    ("claude/artifact", "CLAUDE/Artifact"),
+                    ("tmux/session", "tmux/Session"),
+                    ("tmux/session/window", "tmux/Session/Window"),
+                    ("tmux/session/window/pane", "tmux/Session/Window/Pane"),
+                ]
+                .map(|(key, spelling)| (key.to_owned(), spelling.to_owned()))
+            )
+        );
+        assert_eq!(respelled("Claude/Artifact", &spellings), "CLAUDE/Artifact");
+        assert_eq!(respelled("claude/X/Y", &spellings), "CLAUDE/X/Y");
+        assert_eq!(
+            respelled("tmux/session/Window/Pane", &spellings),
+            "tmux/Session/Window/Pane"
+        );
+        assert_eq!(respelled("Tools/A", &spellings), "Tools/A");
+        assert!(folder_spellings(["A", "A/B", "B/C"]).is_empty());
     }
 
     #[test]
