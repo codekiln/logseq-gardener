@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#MISE description="Compare Logseq 0.10.15's own export of a garden with the lsg site, page by page"
+#USAGE flag "--garden <path>" help="Garden to compare (default: the docs graph)"
+#USAGE flag "--static-dir <path>" help="A Logseq 0.10.15 app folder holding js/publishing/ (default: Logseq.app, else the official release, downloaded once)"
+#USAGE arg "[lsg_option]..." var=#true help="lsg publish options after --; required for a garden other than docs, which gets the docs:site options"
+set -euo pipefail
+args=()
+if [ -n "${usage_garden:-}" ]; then args+=(--garden "$usage_garden"); fi
+if [ -n "${usage_static_dir:-}" ]; then args+=(--static-dir "$usage_static_dir"); fi
+# usage shell-quotes the variadic options into one string.
+eval "lsg_options=(${usage_lsg_option:-})"
+echo "Checking Playwright's Chromium (downloaded on first use)"
+uv run --quiet --script scripts/parity/logseq_export.py --help > /dev/null
+uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell
+echo "Checking how the comparison reads fixture pages"
+uv run --quiet --with playwright==1.60.0 --no-project python -m unittest discover -s scripts/parity -p test_logseq_export.py
+uv run --quiet --script scripts/parity/logseq_export.py ${args[@]+"${args[@]}"} -- ${lsg_options[@]+"${lsg_options[@]}"}

@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Loading</title>
+<style>
+  body { margin: 0; font: 16px sans-serif; }
+  #main-content-container { height: 300px; overflow: auto; }
+  .ls-block { min-height: 200px; }
+</style>
+<!-- A Logseq 0.10 page reduced to what the comparison reads. -->
+<div class="left-sidebar"><a class="page-title">Favorite page</a></div>
+<div id="main-content-container">
+  <div class="page-blocks-inner">
+    <div class="ls-block pre-block">
+      <div class="block-properties page-properties">
+        <div><a class="page-ref page-property-key">alias</a><span>:</span><div class="page-property-value"><a class="page-ref">Fixture Alias</a></div></div>
+        <div><a class="page-ref page-property-key">tags</a><span>:</span><div class="page-property-value"><span class="bracket">[[</span><a class="page-ref">Diataxis/How To</a><span class="bracket">]]</span>, <span class="bracket">[[</span><a class="page-ref">Fixture</a><span class="bracket">]]</span></div></div>
+      </div>
+    </div>
+    <div class="ls-block">Referenced block<a class="open-block-ref-link">3</a></div>
+    <div class="ls-block">
+      <div class="CodeMirror">
+        <div class="CodeMirror-gutters"><div class="CodeMirror-gutter CodeMirror-linenumbers"></div></div>
+        <div class="CodeMirror-code">
+          <div><div class="CodeMirror-gutter-wrapper"><div class="CodeMirror-linenumber">1</div></div><pre class="CodeMirror-line"><span><span class="cm-property">margin</span>: <span class="cm-number">2</span><span class="cm-unit">px</span>;</span></pre></div>
+        </div>
+      </div>
+    </div>
+    <div class="ls-block">Text after the code</div>
+  </div>
+</div>
+<script>
+  // Logseq sets the title once the page renders, and loads more blocks when the end of the page scrolls into view.
+  setTimeout(() => { document.title = 'Fixture/Page'; }, 200);
+  const container = document.getElementById('main-content-container');
+  const later = ['Lazy block one', 'Lazy block two', 'Lazy block three'];
+  let pending = false;
+  container.addEventListener('scroll', () => {
+    if (pending || !later.length || container.scrollTop + container.clientHeight < container.scrollHeight - 50) return;
+    pending = true;
+    setTimeout(() => {
+      const block = document.createElement('div');
+      block.className = 'ls-block';
+      block.textContent = later.shift();
+      document.querySelector('.page-blocks-inner').append(block);
+      pending = false;
+    }, 100);
+  });
+</script>
