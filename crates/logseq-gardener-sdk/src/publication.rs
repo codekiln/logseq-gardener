@@ -88,6 +88,9 @@ pub struct Publication<'a> {
     pub withheld: BTreeSet<String>,
     /// Lower-cased titles of every page and journal in the garden.
     pub garden_titles: BTreeSet<String>,
+    /// Lower-cased titles and aliases of every page and journal in the garden, published or
+    /// not. A reference to a name outside this set names a page with no file.
+    pub garden_names: BTreeSet<String>,
     /// Route to date, for the published journals.
     pub journal_dates: BTreeMap<String, JournalDate>,
     /// The journal file-name and title formats the titles were derived with.
@@ -184,6 +187,7 @@ pub fn select_with_urls<'a>(
     let mut pages = Vec::new();
     let mut withheld = BTreeSet::new();
     let mut garden_titles = BTreeSet::new();
+    let mut garden_names = BTreeSet::new();
     let public = if settings.all_pages_public {
         PublicPages::all()
     } else {
@@ -217,6 +221,8 @@ pub fn select_with_urls<'a>(
             None => page_title(document, format).map_err(SelectError::Title)?,
         };
         garden_titles.insert(lookup_key(&title));
+        garden_names.insert(lookup_key(&title));
+        garden_names.extend(page_aliases(document, &title));
         let private = has_private_properties(&document.parsed.blocks);
         let unmarked = !public.includes(&title);
         if private || unmarked {
@@ -342,6 +348,7 @@ pub fn select_with_urls<'a>(
         namespaces,
         withheld,
         garden_titles,
+        garden_names,
         journal_dates,
         journal_formats,
         names,

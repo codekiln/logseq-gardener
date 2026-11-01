@@ -35,7 +35,8 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 			- Direct page references and comma-separated bare tags link to the selected source pages they name.
 			- Each name in `alias::` or `aliases::` links to the page it names and keeps the spelling the author wrote, as in Logseq.
 			- A standalone public HTTPS value is a link.
-			- A row whose reference names a missing, private, ambiguous or generated-only page is left out as a whole, including rows with mixed values.
+			- A reference to a name that no page file in the garden has, as a title or an alias, shows the name as written without a link, as the page body does. Logseq shows such a row and links it to an empty page.
+			- A row whose reference names a private page, a page outside the selected namespaces, or a name two pages share is left out as a whole, including rows with mixed values.
 			- Expressions, block references, asset and file paths, absolute local paths, unsafe schemes and unsupported links are left out.
 			- Turning on page properties treats every remaining scalar value as public metadata. `:block-hidden-properties` hides author-specific operational fields.
 		- ### Keys never shown
