@@ -1,0 +1,49 @@
+name: Docs site
+
+# Builds the docs graph with the lsg of this commit. Pull requests upload the site as the
+# github-pages artifact for preview; pushes and manual runs on main deploy it to
+# https://codekiln.github.io/logseq-gardener/.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: lsg reads page dates from git and reports a shallow clone as a diagnostic.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
+        with:
+          version: 2026.9.5
+      - run: mise run docs:site --output site
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+          # Long enough to review a pull request's preview.
+          retention-days: 14
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # One deployment at a time; a running deployment finishes before the next starts.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

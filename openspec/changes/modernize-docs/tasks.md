@@ -12,10 +12,10 @@
 
 ## 2. #326 Deploy the docs site to GitHub Pages
 
-- [ ] 2.1 Pass the readable page URL option from `readable-page-urls` in `docs:site`
-- [ ] 2.2 Add `.github/workflows/docs-site.yml` with the build and deploy jobs the design describes
-- [ ] 2.3 Enable GitHub Pages with the GitHub Actions source
-- [ ] 2.4 Write `lsg/How To/Publish a Garden to GitHub Pages`
+- [x] 2.1 Pass the readable page URL option from `readable-page-urls` in `docs:site`
+- [x] 2.2 Add `.github/workflows/docs-site.yml` with the build and deploy jobs the design describes
+- [x] 2.3 Enable GitHub Pages with the GitHub Actions source
+- [x] 2.4 Write `lsg/How To/Publish a Garden to GitHub Pages`
 - [ ] 2.5 After merge, confirm the deployment succeeded and the homepage loads at https://codekiln.github.io/logseq-gardener/, and comment on #326 with the run link
 
 ## 3. #327 Move install, CLI and tutorial docs into the docs graph
