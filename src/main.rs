@@ -1,4 +1,5 @@
 mod cli;
+mod docs;
 mod help;
 mod output;
 

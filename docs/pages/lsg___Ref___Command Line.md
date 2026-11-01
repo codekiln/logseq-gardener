@@ -29,6 +29,7 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/Ref/Publish Options]]
 			  | `help section behavior --recursive` | one section with its descendants |
 			  | `--programmatic` | the document with guidance for scripts and agents added |
 		- Levels range from 1 through 6, and `--level` and `--max-level` are mutually exclusive. An unknown section or option is an error.
+		- Publishing help names the pages of this site that hold more detail, each by its title and URL, such as `lsg/Ref/Static Search Data (https://codekiln.github.io/logseq-gardener/lsg/Ref/Static%20Search%20Data/)`. Help prints these URLs and never fetches them. Offline, find the same title in the `docs` graph of a release archive, which [[lsg/Ref/Release Archives]] describes.
 		- Help navigation follows the [codekiln-help standard](https://github.com/codekiln/clilint/blob/200e92a5d76420e8c47fd9e623da704b355dbc7d/docs/codekiln-help.md).
 	- ## JSON format 1
 		- `--format json` selects JSON output. Every successful JSON response includes `format_version: 1` and `command_path`, an array relative to `lsg`.

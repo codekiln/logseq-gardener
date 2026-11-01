@@ -80,9 +80,9 @@
 
 ## 10. #334 Link CLI help to pages on the docs site
 
-- [ ] 10.1 Add the documentation base URL and a function that turns a page title into its URL with the SDK's readable route function
-- [ ] 10.2 Replace every `docs/` path in `src/help.rs` with a page title and URL, and update `tests/publish.rs`
-- [ ] 10.3 Add the ignored test `tests/docs_links.rs` and run it from `mise run docs:check` against the site it builds
-- [ ] 10.4 Keep the `cli-static-publishing` delta in this change matching the help text
-- [ ] 10.5 Refresh the help assessment and keep `mise run clilint:check` passing
-- [ ] 10.6 Write `lsg/How To/Link CLI Help to a Docs Page`
+- [x] 10.1 Add the documentation base URL and a function that turns a page title into its URL with the SDK's readable route function
+- [x] 10.2 Replace every `docs/` path in `src/help.rs` with a page title and URL, and update `tests/publish.rs`
+- [x] 10.3 Add the ignored test `tests/docs_links.rs` and run it from `mise run docs:check` against the site it builds
+- [x] 10.4 Keep the `cli-static-publishing` delta in this change matching the help text
+- [x] 10.5 Refresh the help assessment and keep `mise run clilint:check` passing
+- [x] 10.6 Write `lsg/How To/Link CLI Help to a Docs Page`
