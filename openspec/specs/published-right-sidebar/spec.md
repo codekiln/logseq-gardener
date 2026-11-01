@@ -18,7 +18,7 @@ At viewport widths of 640px and more, the Toggle right sidebar button and the `t
 
 ### Requirement: Add cards with Shift-click
 
-At 640px and wider, Shift-click on a page reference, tag, page-valued property, breadcrumb crumb or reference group title SHALL add a card for that page; on a bullet, a card for that block; on a block reference, a Block references card for the referenced block. A link SHALL count as a page link when it sits inside `.page-reference`, has the class `page-ref` or `tag`, or its address is a `p-*.html` file, and a link with the class `block-ref-link` SHALL count as a block reference at any address, so the gesture keeps working when a host rewrites page addresses after the build. A card's route SHALL be the address the browser resolves for the link, or for the current page when the target is one of its bullets, written relative to the site root that serves `lsg-sidebar.js`. The main page and its URL SHALL stay the same. The new card SHALL go to the top, expanded, and the sidebar SHALL open. A target already in the sidebar SHALL move to the top and expand. The placeholder Contents card SHALL be replaced by the first added card. Links and bullets inside cards SHALL behave the same way, and a plain click on a link inside a card SHALL open the page in the main column.
+At 640px and wider, Shift-click on a page reference, tag, page-valued property, Pages tagged with row, reference group title, page embed header, query result, All pages row, plugin-derived page link or breadcrumb crumb SHALL add a card for that page; on a bullet, a card for that block; on a block reference, a Block references card for the referenced block. A link SHALL count as a page link when it sits inside `.page-reference`, has the class `page-ref` or `tag`, or its address is a `p-*.html` file, and a link with the class `block-ref-link` SHALL count as a block reference at any address, so the gesture keeps working when a host rewrites page addresses after the build. Gardener SHALL render each of those page links inside `.page-reference` or with the class `page-ref` or `tag`, as Logseq renders every page link as `a.page-ref`; a plugin-derived link to a block of a page SHALL stay a plain link. A card's route SHALL be the address the browser resolves for the link, or for the current page when the target is one of its bullets, written relative to the site root that serves `lsg-sidebar.js`. The main page and its URL SHALL stay the same. The new card SHALL go to the top, expanded, and the sidebar SHALL open. A target already in the sidebar SHALL move to the top and expand. The placeholder Contents card SHALL be replaced by the first added card. Links and bullets inside cards SHALL behave the same way, and a plain click on a link inside a card SHALL open the page in the main column.
 
 #### Scenario: Page and block cards on tmux
 - **WHEN** a reader on `tmux` Shift-clicks the link to `tmux/Idea/Pomodoro with status line and silent flash` and then the second bullet
@@ -47,6 +47,10 @@ At 640px and wider, Shift-click on a page reference, tag, page-valued property, 
 #### Scenario: Link inside a flashcard block
 - **WHEN** a reader Shift-clicks a page reference inside a flashcard block (`li.lsg-card`)
 - **THEN** a card for that page is added
+
+#### Scenario: Every kind of page link at rewritten addresses
+- **WHEN** a host serves pages at readable routes under `/gitpa/`, and a reader Shift-clicks a page-valued `prev::` property, a Pages tagged with row, a Linked References group title and a page embed header
+- **THEN** each adds a card for its page, and a plain click on the same links still navigates
 
 ### Requirement: Show page and block content in cards
 
