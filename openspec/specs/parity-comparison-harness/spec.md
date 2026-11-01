@@ -114,7 +114,7 @@ The harness SHALL map each page title to its `lsg` file and to its Logseq route 
 
 ### Requirement: Check lsg against performance budgets
 
-The harness SHALL read budgets for each measure and profile from a committed budget file, and the results SHALL mark every `lsg` value that exceeds its budget. `mise run parity:perf --record` SHALL rewrite `docs/parity/performance.md` with the results and the garden commit, `gh-pages` commit and `lsg` version they came from.
+The harness SHALL read budgets for each measure and profile from a committed budget file, and the results SHALL mark every `lsg` value that exceeds its budget. `mise run parity:perf --record` SHALL rewrite the `lsg/Ref/Logseq Compatibility/Performance` page, `docs/pages/lsg___Ref___Logseq Compatibility___Performance.md`, as Logseq outline Markdown with the results and the garden commit, `gh-pages` commit and `lsg` version they came from.
 
 #### Scenario: Page over budget
 - **WHEN** an `lsg` fixture page transfers more data before its title is visible than the budget allows
@@ -122,7 +122,7 @@ The harness SHALL read budgets for each measure and profile from a committed bud
 
 #### Scenario: Recorded rows
 - **WHEN** a contributor runs `mise run parity:perf --record`
-- **THEN** `docs/parity/performance.md` holds one row per fixture page, build and profile, with the commits and version used
+- **THEN** the `lsg/Ref/Logseq Compatibility/Performance` page holds one row per fixture page, build and profile, with the commits and version used, and `mise run docs:site` publishes it with no diagnostic
 
 ### Requirement: Check page size budgets in CI
 

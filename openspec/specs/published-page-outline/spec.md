@@ -66,7 +66,7 @@ The outline SHALL add no file per block and no graph data to the browser. `lsg-o
 
 #### Scenario: Zoom timing recorded
 - **WHEN** `parity:perf --record` runs on the encode garden
-- **THEN** `docs/parity/performance.md` gains the zoom time on `tmux` for both profiles, marked when over budget
+- **THEN** the `lsg/Ref/Logseq Compatibility/Performance` page gains the zoom time on `tmux` for both profiles, marked when over budget
 
 ### Requirement: Break long words to fit the screen
 

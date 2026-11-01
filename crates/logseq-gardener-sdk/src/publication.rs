@@ -24,7 +24,9 @@ use crate::journals::{JournalDate, JournalFormats, journal_identity};
 use crate::outline::Outline;
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
 use crate::page_titles::{FilenameFormat, PageTitleError, document_title, page_title};
-use crate::page_urls::{PageUrlError, PageUrls, check_collisions, readable_url, same_path};
+use crate::page_urls::{
+    PageUrlError, PageUrls, check_collisions, is_readable, readable_url, same_path,
+};
 use crate::publishing::{NamespaceSelection, PublicPages};
 use crate::search::digest;
 
@@ -47,7 +49,7 @@ pub enum SelectError {
     Title(PageTitleError),
     /// Two selected pages, or a page and a namespace destination, share a name or a route.
     Collision { title: String },
-    /// With readable URLs, a title cannot form a safe path, or two pages' paths collide.
+    /// With readable URLs, two pages' readable paths collide.
     PageUrl(PageUrlError),
 }
 
@@ -154,13 +156,13 @@ pub fn select<'a>(
 
 /// Choose the published pages of a garden, as [`select`] does, and give each its route in the
 /// `urls` layout. With [`PageUrls::Readable`], every page and namespace destination gets its
-/// [`readable_url`].
+/// [`readable_url`]. A title that cannot form a safe path keeps its `p-<digest>.html` route,
+/// and its page gets a notice that names the title, the problem and the route.
 ///
 /// # Errors
 ///
 /// Returns a page whose title cannot be derived, a title or route shared by two pages, and with
-/// readable URLs a title that cannot form a safe path or pages whose paths collide (see
-/// [`check_collisions`]).
+/// readable URLs pages whose readable paths collide (see [`check_collisions`]).
 pub fn select_with_urls<'a>(
     garden: &'a Garden,
     format: FilenameFormat,
@@ -232,7 +234,13 @@ pub fn select_with_urls<'a>(
             });
             continue;
         }
-        let route = route_for(&title, urls)?;
+        let (route, unsafe_title) = route_for(&title, urls);
+        if let Some(error) = unsafe_title {
+            notices.push(Notice {
+                source: document.relative_path.clone(),
+                message: format!("{error}; it is published at {route}"),
+            });
+        }
         if let Some(previous) = keys.insert(lookup_key(&title), route.clone()) {
             // Readable URLs name both pages, since their folders would be one on disk.
             return Err(match routes.get(&previous) {
@@ -275,9 +283,10 @@ pub fn select_with_urls<'a>(
     if urls == PageUrls::Readable {
         check_collisions(
             routes
-                .values()
-                .chain(namespaces.values().map(|(title, _)| title))
-                .map(String::as_str),
+                .iter()
+                .chain(namespaces.values().map(|(title, route)| (route, title)))
+                .filter(|(route, _)| is_readable(route))
+                .map(|(_, title)| title.as_str()),
         )
         .map_err(SelectError::PageUrl)?;
     }
@@ -300,16 +309,23 @@ pub fn select_with_urls<'a>(
     })
 }
 
-/// A page's route in the `urls` layout.
-fn route_for(title: &str, urls: PageUrls) -> Result<String, SelectError> {
+/// A page's route in the `urls` layout. With readable URLs, a title that cannot form a safe
+/// path keeps its digest route, returned with the reason.
+fn route_for(title: &str, urls: PageUrls) -> (String, Option<PageUrlError>) {
+    let digest_route = || format!("p-{}.html", digest(title));
     match urls {
-        PageUrls::Digest => Ok(format!("p-{}.html", digest(title))),
-        PageUrls::Readable => readable_url(title).map_err(SelectError::PageUrl),
+        PageUrls::Digest => (digest_route(), None),
+        PageUrls::Readable => match readable_url(title) {
+            Ok(route) => (route, None),
+            Err(error) => (digest_route(), Some(error)),
+        },
     }
 }
 
 /// Every namespace prefix of a published title that is not itself a published, withheld or
-/// aliased page, with its earliest spelling and its route.
+/// aliased page, with its earliest spelling and its route. A prefix that cannot form a safe
+/// readable path keeps its digest route without a notice of its own: every segment of the prefix
+/// belongs to a published title, whose page already has one.
 fn namespace_destinations(
     routes: &BTreeMap<String, String>,
     keys: &BTreeMap<String, String>,
@@ -338,7 +354,7 @@ fn namespace_destinations(
     let mut taken: BTreeSet<String> = routes.keys().cloned().collect();
     let mut destinations = BTreeMap::new();
     for (key, title) in prefixes {
-        let route = route_for(&title, urls)?;
+        let (route, _) = route_for(&title, urls);
         if !taken.insert(route.clone()) {
             return Err(SelectError::Collision { title });
         }

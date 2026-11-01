@@ -25,7 +25,8 @@ The documentation is a folder of Markdown files that readers find on GitHub, and
 - `parity-comparison-harness`: `parity:perf --record` rewrites the `lsg/Ref/Logseq Compatibility/Performance` page.
 - `published-graph-view`: the recorded graph rows go to that page.
 - `published-page-outline`: the recorded zoom time goes to that page.
-- `cli-static-publishing`: publishing help names the plugin reference pages on the site.
+- `cli-static-publishing`: publishing help names the plugin reference pages and the publish options page on the site.
+- `custom-site-stylesheet`: the `lsg/How To/Customize a Published Site` page describes the stylesheet option.
 
 ## Impact
 

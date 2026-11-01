@@ -2,7 +2,6 @@
 //! plugin metadata routes, and the unsafe-title and collision checks.
 use logseq_gardener_sdk::journals::JournalDate;
 use logseq_gardener_sdk::page_titles::FilenameFormat;
-use logseq_gardener_sdk::page_urls::PageUrlError;
 use logseq_gardener_sdk::publishing::NamespaceSelection;
 use logseq_gardener_sdk::search::SearchOptions;
 use logseq_gardener_sdk::site::{PageUrls, SiteError, SiteOptions, publish_site_with_options};
@@ -329,7 +328,7 @@ fn search_routes_are_page_folders_and_the_engine_accepts_them() {
         .find(|path| path.starts_with("lsg-search-engine-"))
         .unwrap();
     let engine = fs::read_to_string(output.join(engine)).unwrap();
-    assert!(engine.contains("/^(?:(?:[\\w.~-]|%[0-9A-F]{2})+\\/)+$/u"));
+    assert!(engine.contains("/^(?:p-[a-f0-9]{16}\\.html|(?:(?:[\\w.~-]|%[0-9A-F]{2})+\\/)+)$/u"));
     assert!(!engine.contains("/^p-[a-f0-9]{16}\\.html$/u"));
 }
 
@@ -384,24 +383,106 @@ fn readable_scripts_replace_the_page_address_lines() {
     assert!(outline.contains("page.href = location.href.split('#')[0];"));
     assert!(outline.contains("link.href = page.href + ZOOM + blockId(up);"));
     let graph = fs::read_to_string(output.join("lsg-graph.js")).unwrap();
-    assert!(graph.contains("const titleAt = route =>") && !graph.contains("'.html'"));
+    assert!(graph.contains("const titleAt = route =>"));
+    assert!(graph.contains("const routeOf = title => foldable(title)"));
+    assert!(graph.contains("'_graph/p/' + digestAt(route) + '.json'"));
 }
 
+/// A title with a literal slash, stored as `%2F` in its file name, whose segment
+/// `Rename with ` ends with a space.
+const SPACED: &str = "Docs/Q/Rename with /rename, then resume?";
+
 #[test]
-fn unsafe_titles_fail_before_output() {
-    for (title, problem) in [
-        ("Docs/A\\B", "it contains a backslash"),
-        ("Docs/../Up", "a segment is . or .."),
-    ] {
-        let f = Fixture::new();
-        f.write("pages/Unsafe.md", &format!("title:: {title}\n\n- body\n"));
-        let error = f.publish("site", &f.options()).unwrap_err();
+fn unsafe_titles_keep_their_digest_file() {
+    let f = Fixture::new();
+    f.write(
+        "pages/Docs___Q___Rename with %2Frename, then resume%3F.md",
+        "- SPACED_SENTINEL, see [[Docs/Guide/Start]]\n",
+    );
+    f.write(
+        "pages/Backslash.md",
+        "title:: Docs/A\\B\n\n- BACKSLASH_SENTINEL\n",
+    );
+    f.write(
+        "pages/Docs___Links.md",
+        &format!("- Links to [[{SPACED}]] and [[Docs/A\\B]]\n"),
+    );
+    let report = {
+        let output = f.0.join("site");
+        let selection = NamespaceSelection::new(&["Docs", "Other"], &[]).unwrap();
+        publish_site_with_options(
+            f.0.join("garden"),
+            &output,
+            FilenameFormat::TripleLowbar,
+            &selection,
+            &f.options(),
+        )
+        .unwrap()
+    };
+    let output = f.0.join("site");
+    let all = files(&output);
+    let site: Value =
+        serde_json::from_slice(&fs::read(output.join("lsg-site.json")).unwrap()).unwrap();
+    // The page's URL in `lsg-site.json`, which must be a digest file at the root.
+    let digest_file = |title: &str| {
+        let url = site["pages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|page| page["title"] == title)
+            .unwrap_or_else(|| panic!("{title:?} missing from lsg-site.json"))["url"]
+            .as_str()
+            .unwrap()
+            .to_owned();
         assert!(
-            matches!(&error, SiteError::PageUrl(PageUrlError::Unsafe { title: t, problem: p }) if *t == title && *p == problem),
-            "{error:?}"
+            url.starts_with("p-") && url.ends_with(".html") && !url.contains('/'),
+            "{title:?} has URL {url}"
         );
-        assert!(error.to_string().contains(&format!("{title:?}")), "{error}");
-        assert!(!f.0.join("site").exists());
+        url
+    };
+    for (title, sentinel, problem) in [
+        (
+            SPACED,
+            "SPACED_SENTINEL",
+            "a segment starts or ends with whitespace",
+        ),
+        ("Docs/A\\B", "BACKSLASH_SENTINEL", "it contains a backslash"),
+    ] {
+        let file = digest_file(title);
+        let html = fs::read_to_string(output.join(&file))
+            .unwrap_or_else(|error| panic!("{file}: {error}: {all:?}"));
+        assert!(html.contains(sentinel));
+        assert!(!html.contains("<base"), "{file} sits at the root");
+        assert!(html.contains("<script data-lsg-readable>"));
+        assert!(
+            read(&output, "Docs/Links/").contains(&format!("href=\"{file}\"")),
+            "Docs/Links does not link to {file}"
+        );
+        assert!(
+            report.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains(&format!("{title:?}"))
+                && diagnostic.message.contains(problem)),
+            "no diagnostic for {title:?}: {:?}",
+            report.diagnostics
+        );
+    }
+    // The prefix `Docs/Q/Rename with ` is a namespace page with an unsafe title too.
+    assert!(all.contains(&digest_file("Docs/Q/Rename with ")), "{all:?}");
+    assert!(all.contains(&"Docs/Q/index.html".to_owned()), "{all:?}");
+    assert!(read(&output, START).contains("<base href=\"../../../\">"));
+    for file in all
+        .iter()
+        .filter(|path| path.ends_with(".html") && !path.starts_with("flashcards/"))
+    {
+        let html = fs::read_to_string(output.join(file)).unwrap();
+        for (value, target) in targets(file, &html) {
+            let target = target.unwrap_or_else(|| panic!("{file}: {value} leaves the site"));
+            assert!(
+                all.contains(&target),
+                "{file}: {value} resolves to missing {target}"
+            );
+        }
     }
 }
 
