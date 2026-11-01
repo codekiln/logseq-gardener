@@ -12,6 +12,7 @@ mod hierarchy;
 mod journals;
 mod media;
 mod outline;
+mod page_diagnostics;
 mod page_status;
 mod plugins;
 mod properties;
@@ -724,6 +725,11 @@ pub fn publish_site_with_options(
         }
         Ok(route)
     };
+    let mut page_diagnostics = page_diagnostics::PageDiagnostics::new(
+        selected
+            .iter()
+            .map(|(_, _, document)| document.relative_path.as_path()),
+    );
     for (title, route, document) in selected {
         let properties = &property_views[&route];
         let mut omitted = properties.sequence_keys.clone();
@@ -794,10 +800,7 @@ pub fn publish_site_with_options(
             &mut asset,
         );
         for message in rendered.diagnostics.into_iter().chain(sections.diagnostics) {
-            report.diagnostics.push(SiteDiagnostic {
-                source: document.relative_path.clone(),
-                message,
-            });
+            page_diagnostics.push(&document.relative_path, message);
         }
         let is_journal = journal_dates.contains_key(&route);
         if feed.lists(&route) {
@@ -859,6 +862,7 @@ pub fn publish_site_with_options(
             report.pages += 1;
         }
     }
+    report.diagnostics.extend(page_diagnostics.finish());
     let mut entries = hierarchy.entries().collect::<Vec<_>>();
     entries.sort_by(|left, right| left.title.cmp(&right.title));
     for node in &entries {
