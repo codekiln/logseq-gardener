@@ -50,9 +50,16 @@ const PAGES = {
       h('li', { class: 'lsg-card' }, h('a', { class: 'bullet', href: '#' }), 'Front ', h('span', { class: 'page-reference' }, h('a', { href: '/gitpa/GitP/A/' }, 'GitP/A'))))),
   'gitpa/GitP/A/Session/26/10/28-Wed/': () => h('main', {},
     h('h1', {}, 'GitP/A/Session/26/10/28-Wed'),
-    h('ul', { class: 'outline' }, li(null, 'Patch', h('ul', {}, li(null, 'Filter'))))),
+    // Gardener marks blocks that Linked References copies with a source-block- anchor.
+    h('ul', { class: 'outline' }, h('li', {}, h('span', { id: 'source-block-10' }), h('a', { class: 'bullet', href: '#' }), 'Patch',
+      h('ul', {}, h('li', {}, h('span', { id: 'source-block-20' }), h('a', { class: 'bullet', href: '#' }), 'Filter'))))),
   'gitpa/GitP/A/': () => h('main', {}, h('h1', {}, 'GitP/A'), h('ul', { class: 'outline' }, li(null, 'Sessions'))),
   'gitpa/Microfreak/': () => h('main', {}, h('h1', {}, 'Microfreak'), h('ul', { class: 'outline' }, li(null, 'Synth'))),
+  // Linked References copy a block with a crumb for its parent; both link to the source page.
+  'gitpa/Arturia/': () => h('main', {}, h('h1', {}, 'Arturia'), h('ul', { class: 'outline' }, li(null, 'Maker')),
+    h('section', { class: 'references linked-references' }, h('div', { class: 'references-block' },
+      h('div', { class: 'breadcrumb block-parents' }, h('a', { href: '/gitpa/GitP/A/Session/26/10/28-Wed/#source-block-10' }, 'Patch')),
+      h('ul', { class: 'refs-outline' }, h('li', {}, h('a', { class: 'bullet', href: '/gitpa/GitP/A/Session/26/10/28-Wed/#source-block-20' }), 'Filter [[Arturia]]'))))),
 };
 PAGES['gitpa/Terminal/'] = PAGES['p-terminal.html'];
 
@@ -366,6 +373,29 @@ test('a host that rewrites page addresses keeps Shift-click, card links and save
   assert.deepEqual(again.saved(), saved);
   assert.deepEqual(again.titles(), titles);
   assert.deepEqual([...new Set(state.fetched)].sort(), ['gitpa/GitP/A/', 'gitpa/GitP/A/Session/26/10/28-Wed/', 'gitpa/GitP/A/Session/26/10/29-Thu/', 'gitpa/Microfreak/', 'gitpa/Terminal/']);
+});
+
+test('Shift-click on a Linked References crumb or bullet adds that block from its source page', async () => {
+  const root = 'https://garden.test/gitpa/';
+  const s = load({ at: root + 'Arturia/', root });
+  const refs = s.main.querySelector('.linked-references');
+  s.shift(refs.querySelector('.breadcrumb a'));
+  s.shift(refs.querySelector('.bullet'));
+  await settle();
+  // As in Logseq: a crumb opens Block references, a bullet the block itself.
+  assert.deepEqual(s.saved().cards.map(card => [card.type, card.route, card.block]), [['block', 'GitP/A/Session/26/10/28-Wed/', 'source-block-20'], ['refs', 'GitP/A/Session/26/10/28-Wed/', 'source-block-10']]);
+  const [block, crumb] = s.cards();
+  assert.equal(block.querySelector('.lsg-card-body').textContent, 'Filter');
+  assert.deepEqual(block.querySelectorAll('.lsg-breadcrumb a').map(a => a.getAttribute('href')), [root + 'GitP/A/Session/26/10/28-Wed/', root + 'GitP/A/Session/26/10/28-Wed/#zoom/1']);
+  assert.equal(s.titles()[1], 'Block references');
+  assert.match(crumb.querySelector('.lsg-card-body').textContent, /PatchFilter$/);
+  assert.deepEqual(state.fetched, ['gitpa/GitP/A/Session/26/10/28-Wed/']);
+  // Another page restores both cards.
+  const titles = s.titles();
+  const again = load({ stored: Object.fromEntries(s.storage), at: root + 'Microfreak/', root });
+  again.request('restore');
+  await settle();
+  assert.deepEqual(again.titles(), titles);
 });
 
 test('a Page graph card whose script fails to load offers Retry, which loads the script again', async () => {

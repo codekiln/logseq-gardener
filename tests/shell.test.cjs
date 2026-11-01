@@ -253,6 +253,7 @@ test('Shift-click reaches the right sidebar for page links by their markup, what
     h('a', { href: 'p-tmux.html' }),
     h('a', { href: at + '#zoom/1.2' }),
     h('a', { class: 'block-ref-link', href: '/gitpa/Terminal/#block-abc-1' }),
+    h('a', { href: '/gitpa/GitP/A/#source-block-58' }),
     h('span', { class: 'page-reference' }, h('a', { href: at })),
     h('a', { class: 'page-ref', href: '/gitpa/GitP/A/' }),
     h('a', { class: 'tag', href: '/gitpa/Microfreak/' }),
