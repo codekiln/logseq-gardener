@@ -3,7 +3,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 
 - # Host Integration API Reference
 	- ## Overview
-		- A host is a page or application that shows a published site's pages inside its own navigation: it replaces `<main>` without a full page load, keeps a media player playing across pages, or serves pages at addresses of its own. Gitpa's podcast site is one. When a build has a plugin with a browser module, `lsg`'s own plugin host does this, as [[lsg/Ref/Plugin Host API]] describes. It calls the outline, references, All pages and theme functions and `window.logseqGardenerRevealFragment` itself, and calls neither `window.logseqGardenerInitProperties` nor `window.logseqGardenerInitSearch`.
+		- A host is a page or application that shows a published site's pages inside its own navigation: it replaces `<main>` without a full page load, keeps a media player playing across pages, or serves pages at addresses of its own. Gitpa's podcast site is one. When a build has a plugin with a browser module, `lsg`'s own plugin host does this, as [[lsg/Ref/Plugin Host API]] describes. It calls the Properties, outline, references, All pages and theme functions and `window.logseqGardenerRevealFragment` itself, and does not call `window.logseqGardenerInitSearch`.
 		- The site's scripts expose browser functions on `window`, a `lsg:media-seek` event, `link` metadata and data attributes. A host calls the functions after it inserts new content, so the new content gets the behaviour a full page load gives it.
 	- ## Order of calls
 		- A host that replaces page content calls the functions in this order:

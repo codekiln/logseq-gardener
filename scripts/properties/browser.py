@@ -29,7 +29,7 @@ def main():
             graph = root / (name + '-graph')
             (graph / 'pages').mkdir(parents=True)
             (graph / 'logseq').mkdir()
-            (graph / 'logseq/config.edn').write_text('{:publishing/page-properties? true :publishing/page-properties-collapsed? ' + collapsed + '}')
+            (graph / 'logseq/config.edn').write_text('{:publishing/all-pages-public? true :publishing/page-properties? true :publishing/page-properties-collapsed? ' + collapsed + '}')
             (graph / 'pages/Notes.md').write_text('- Page without properties\n')
             (graph / 'pages/Notes___One.md').write_text('rating:: 4\nsecret:: [[Private]]\n- Original content\n\t- Child content\n')
             (graph / 'pages/Notes___Two.md').write_text('rating:: 5\n- More content\n')

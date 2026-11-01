@@ -8,8 +8,8 @@
 Builds a small garden with the fixture plugins in tests/fixtures/plugins and three generated
 ones (a probe, one whose setup throws, one whose export does not match its manifest), then checks
 playback across navigation and Back, on-demand loading, stale responses, fragments, setup
-failure, a new build during a visit, fetch failure, collapse after navigation, and that listener
-counts stay flat over 20 navigations. Prints one JSON line of results; --screenshots DIR also
+failure, a new build during a visit, fetch failure, collapse and the remembered Properties choice
+after navigation, and that listener counts stay flat over 20 navigations. Prints one JSON line of results; --screenshots DIR also
 saves the recording playing on each page.
 """
 import argparse
@@ -68,7 +68,7 @@ def build(binary, temp, plugins):
         (garden / 'pages').mkdir(parents=True)
         (garden / 'logseq').mkdir()
         (garden / 'logseq' / 'config.edn').write_text(
-            '{:publishing/page-properties? true :block-hidden-properties #{:secret}}\n', encoding='utf-8')
+            '{:publishing/all-pages-public? true :publishing/page-properties? true :block-hidden-properties #{:secret}}\n', encoding='utf-8')
         for name, text in PAGES.items():
             (garden / 'pages' / name).write_text(text, encoding='utf-8')
         for name, (activation, module) in GENERATED.items():
@@ -263,6 +263,19 @@ def main():
                 arrow.click()
                 expect(arrow).to_have_attribute('aria-expanded', 'true')
                 results['collapse_after_navigation'] = True
+
+                # The reader's remembered Properties choice applies to an adopted page. Properties
+                # starts collapsed, so open it on one page, then close it, and follow a link each time.
+                details = page.locator('main .page-properties > details')
+                key = f'lsg:/{site.name}/'
+                for choice in (True, False):
+                    follow(page, one)
+                    assert details.evaluate('(node) => node.open') is not choice
+                    page.locator('main #page-properties').click()
+                    page.wait_for_function('([key, open]) => JSON.parse(localStorage.getItem(key))?.open === open', arg=[key, choice])
+                    follow(page, two)
+                    assert details.evaluate('(node) => node.open') is choice, choice
+                results['properties_choice_after_navigation'] = True
 
                 # Listener counts stay flat over 20 navigations; page listeners from aborted pages are gone.
                 follow(page, one)

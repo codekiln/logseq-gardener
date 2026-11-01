@@ -61,7 +61,7 @@ see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Build Plugin Protocol]], 
 			- Compare its `revision` with the current page's. When they differ, the site was rebuilt: the current page stays, and a notice offers a link that loads the new version normally, so a playing recording is not cut off.
 			- Abort the current page's signal.
 			- Replace `<main>`, the title and the page metadata, update the left sidebar and the header's page-specific buttons, add any styles and scripts the new page needs, and push a history entry.
-			- Run `lsg`'s page initializers on the new `<main>`: outline arrows and zoom, references, All pages, journals, queries and theme controls. Other scripts register more with `window.logseqGardenerPage`, which [[lsg/Ref/Host Integration API]] describes.
+			- Run `lsg`'s page initializers on the new `<main>`: the remembered Properties choice, outline arrows and zoom, references, All pages, journals, queries and theme controls. Other scripts register more with `window.logseqGardenerPage`, which [[lsg/Ref/Host Integration API]] describes.
 			- Notify plugins.
 			- Reveal the fragment, as a full page load would, and move focus to it.
 		- A fetch failure, or a page without metadata such as the graph view, loads normally.
