@@ -16,10 +16,12 @@ mod page_status;
 mod plugins;
 mod properties;
 mod queries;
+mod readable;
 mod references;
 mod render;
 mod search;
 mod sequence;
+pub use crate::page_urls::PageUrls;
 pub use crate::search::SearchOptions;
 mod shell;
 
@@ -39,6 +41,7 @@ use crate::journals::{JournalDate, parse_journal_reference};
 use crate::page_list::{PageKind, PageSource, page_list};
 use crate::page_names::lookup_key;
 use crate::page_titles::{FilenameFormat, PageTitleError};
+use crate::page_urls::{PageUrlError, check_reserved, is_readable, output_path, readable_title};
 use crate::publication::{Publication, SelectError};
 use crate::publishing::NamespaceSelection;
 use crate::timing::{Stopwatch, Timings};
@@ -76,6 +79,12 @@ pub struct SiteOptions {
     /// In-process build plugins. Their ids share one namespace with the manifests' ids. With
     /// none here and no manifest `build` section, the build does no plugin work.
     pub build_plugins: crate::contributions::BuildPlugins,
+    /// How page files and links are named. [`PageUrls::Readable`] writes each page, journal and
+    /// namespace page to `<title path>/index.html` and links to it as its
+    /// [`readable_url`](crate::page_urls::readable_url); home, All pages, the journals feed and
+    /// the graph view stay at the output root. Unsafe titles and colliding paths fail before
+    /// output is created.
+    pub page_urls: PageUrls,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -132,6 +141,9 @@ pub enum SiteError {
     InvalidPlugin(crate::plugins::PluginError),
     /// A build plugin failed, repeated another plugin's id or returned a rejected contribution.
     BuildPlugin(crate::contributions::ContributionError),
+    /// With readable URLs, a title cannot form a safe path, or a page's path collides with
+    /// another page's or with a file the build writes at the output root.
+    PageUrl(PageUrlError),
     /// A filesystem operation failed; a write failure can leave partial new output.
     Io { path: PathBuf, source: io::Error },
 }
@@ -148,6 +160,7 @@ impl fmt::Display for SiteError {
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
             Self::InvalidPlugin(error) => error.fmt(f),
             Self::BuildPlugin(error) => error.fmt(f),
+            Self::PageUrl(error) => error.fmt(f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
         }
     }
@@ -160,6 +173,7 @@ impl Error for SiteError {
             Self::Title(error) => Some(error),
             Self::InvalidPlugin(error) => Some(error),
             Self::BuildPlugin(error) => Some(error),
+            Self::PageUrl(error) => Some(error),
             Self::Io { source, .. } => Some(source),
             _ => None,
         }
@@ -373,12 +387,20 @@ pub fn publish_site_with_options(
     };
     let (settings, settings_diagnostics) = GardenSettings::read(&root);
     let shadowed = crate::publication::remove_shadowed(&mut garden, format, &settings);
-    let publication =
-        crate::publication::select(&garden, format, selection, &settings, options.journals)
-            .map_err(|error| match error {
-                SelectError::Title(error) => SiteError::Title(error),
-                SelectError::Collision { title } => SiteError::Collision { title },
-            })?;
+    let readable = options.page_urls == PageUrls::Readable;
+    let publication = crate::publication::select_with_urls(
+        &garden,
+        format,
+        selection,
+        &settings,
+        options.journals,
+        options.page_urls,
+    )
+    .map_err(|error| match error {
+        SelectError::Title(error) => SiteError::Title(error),
+        SelectError::Collision { title } => SiteError::Collision { title },
+        SelectError::PageUrl(error) => SiteError::PageUrl(error),
+    })?;
     report.skipped_journals = publication.skipped_journals;
     report.withheld_pages = publication.withheld_pages;
     report.diagnostics.extend(
@@ -462,6 +484,7 @@ pub fn publish_site_with_options(
         contents,
         sidebar,
         properties: reference_config.properties,
+        readable,
     };
     let mut homepage_document = None;
     for message in config_diagnostics {
@@ -915,7 +938,7 @@ pub fn publish_site_with_options(
             &graph::head(),
         ),
     );
-    documents.insert(graph::SCRIPT_ROUTE.to_owned(), graph::script());
+    documents.insert(graph::SCRIPT_ROUTE.to_owned(), graph::script(readable));
     documents.insert(graph::WORKER_ROUTE.to_owned(), graph::worker());
     documents.insert(graph::STYLES_ROUTE.to_owned(), graph::styles());
     for (route, body) in feed.render(&feed_bodies) {
@@ -975,7 +998,7 @@ pub fn publish_site_with_options(
         }
         let widget_head = format!("<style>{}</style>", flashcards::WIDGET_STYLES);
         for (route, html) in &mut documents {
-            if route.ends_with(".html")
+            if is_html(route)
                 && !route.starts_with("_refs/")
                 && !route.starts_with("flashcards/")
                 && html.contains(flashcards::MARKER)
@@ -992,10 +1015,7 @@ pub fn publish_site_with_options(
     let query_head = queries::head();
     let mut has_queries = false;
     for (route, html) in &mut documents {
-        if route.ends_with(".html")
-            && !route.starts_with("_refs/")
-            && html.contains(queries::MARKER)
-        {
+        if is_html(route) && !route.starts_with("_refs/") && html.contains(queries::MARKER) {
             *html = html.replacen("</head>", &(query_head.clone() + "</head>"), 1);
             has_queries = true;
         }
@@ -1005,7 +1025,14 @@ pub fn publish_site_with_options(
         documents.insert(queries::STYLES_ROUTE.to_owned(), queries::STYLES.to_owned());
     }
     documents.insert(shell::SCRIPT_ROUTE.to_owned(), shell::script());
-    documents.insert(outline::SCRIPT_ROUTE.to_owned(), outline::SCRIPT.to_owned());
+    documents.insert(
+        outline::SCRIPT_ROUTE.to_owned(),
+        if readable {
+            readable::outline(outline::SCRIPT)
+        } else {
+            outline::SCRIPT.to_owned()
+        },
+    );
     documents.insert(shell::SIDEBAR_ROUTE.to_owned(), shell::sidebar_script());
     documents.insert(shell::SLIDES_ROUTE.to_owned(), shell::slides_script());
     documents.insert(
@@ -1015,7 +1042,7 @@ pub fn publish_site_with_options(
     documents.insert(references::SCRIPT_ROUTE.to_owned(), references::script());
     stopwatch.lap("render");
     if let Some(search) = search {
-        let (artifacts, manifest_route, revision) = search.artifacts();
+        let (artifacts, manifest_route, revision) = search.artifacts(readable);
         let controller = include_str!("search-ui.mjs");
         let controller_route = format!("lsg-search-ui-{}.mjs", digest(controller));
         let startup = include_str!("search-start.mjs")
@@ -1031,10 +1058,7 @@ pub fn publish_site_with_options(
             "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><style data-lsg-search-styles>{styles}</style><script data-lsg-search-start>{start_after_paint}</script>"
         );
         for (route, html) in &mut documents {
-            if route.ends_with(".html")
-                && !route.starts_with("_refs/")
-                && !route.starts_with("_graph/")
-            {
+            if is_html(route) && !route.starts_with("_refs/") && !route.starts_with("_graph/") {
                 *html = html.replacen("</head>", &(link.clone() + "</head>"), 1);
             }
         }
@@ -1050,11 +1074,20 @@ pub fn publish_site_with_options(
     // follow from the pages and settings that the other files already reflect.
     if !contributions.rows.is_empty() {
         for (route, html) in &mut documents {
-            if route.ends_with(".html")
-                && !route.starts_with("_refs/")
-                && html.contains(derived::MARKER)
-            {
+            if is_html(route) && !route.starts_with("_refs/") && html.contains(derived::MARKER) {
                 *html = html.replacen("</head>", &(derived::STYLES.to_owned() + "</head>"), 1);
+            }
+        }
+    }
+    if readable {
+        let script = readable::script();
+        for (route, html) in &mut documents {
+            if is_readable(route) || route.ends_with(".html") && !route.contains('/') {
+                *html = html.replacen(
+                    "<meta charset=\"utf-8\">",
+                    &format!("<meta charset=\"utf-8\">{}", readable::head(route, &script)),
+                    1,
+                );
             }
         }
     }
@@ -1083,7 +1116,7 @@ pub fn publish_site_with_options(
         .iter()
         .any(|plugin| plugin.module.is_some())
     {
-        let (host_route, host) = plugins::host(&plugin_manifests);
+        let (host_route, host) = plugins::host(&plugin_manifests, readable);
         let none = Vec::new();
         for page in &site_pages {
             let visible = page
@@ -1119,6 +1152,24 @@ pub fn publish_site_with_options(
     stopwatch.lap("render");
     let graph_data = graph_files.finish();
     stopwatch.lap("graph");
+    if readable {
+        let titles: Vec<String> = documents
+            .keys()
+            .filter(|route| is_readable(route))
+            .map(|route| readable_title(route))
+            .collect();
+        let generated: BTreeSet<&str> = documents
+            .keys()
+            .filter(|route| !is_readable(route))
+            .chain(copied.keys())
+            .chain(plugin_files.keys())
+            .map(String::as_str)
+            .chain(graph_data.iter().map(|(route, _)| *route))
+            .chain(stylesheet.as_ref().map(|_| "custom.css"))
+            .map(|route| route.split('/').next().unwrap_or(route))
+            .collect();
+        check_reserved(titles.iter().map(String::as_str), generated).map_err(SiteError::PageUrl)?;
+    }
     fs::create_dir(&output).map_err(|error| io_error(&output, error))?;
     if documents
         .keys()
@@ -1138,6 +1189,11 @@ pub fn publish_site_with_options(
     for directory in [graph::DIRECTORY, graph::NEIGHBOURHOODS] {
         let directory = output.join(directory);
         fs::create_dir(&directory).map_err(|error| io_error(&directory, error))?;
+    }
+    for route in documents.keys().filter(|route| is_readable(route)) {
+        let path = output.join(output_path(route));
+        let directory = path.parent().unwrap_or(&output);
+        fs::create_dir_all(directory).map_err(|error| io_error(directory, error))?;
     }
     write_files(&output, documents)?;
     for (route, contents) in plugin_files {
@@ -1259,6 +1315,12 @@ fn collect_contributions(
     crate::contributions::resolve(view, &mut outputs).map_err(SiteError::BuildPlugin)
 }
 
+/// Whether the document at `route` is an HTML page: a file ending in `.html` or a readable
+/// page folder.
+fn is_html(route: &str) -> bool {
+    route.ends_with(".html") || is_readable(route)
+}
+
 /// Write the generated files on several threads: creating files, not rendering them,
 /// dominates the time to write a large garden.
 fn write_files(output: &Path, documents: BTreeMap<String, String>) -> Result<(), SiteError> {
@@ -1271,7 +1333,7 @@ fn write_files(output: &Path, documents: BTreeMap<String, String>) -> Result<(),
             .map(|files| {
                 scope.spawn(move || {
                     for (route, html) in files {
-                        let path = output.join(route);
+                        let path = output.join(output_path(route));
                         fs::write(&path, html).map_err(|error| io_error(&path, error))?;
                     }
                     Ok(())

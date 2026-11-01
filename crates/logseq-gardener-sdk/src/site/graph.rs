@@ -40,8 +40,13 @@ fn compact(source: &str) -> String {
         .join("\n")
 }
 
-pub(super) fn script() -> String {
-    compact(include_str!("graph.js"))
+/// `graph.js` compacted, in its readable-URL variant when `readable` is set.
+pub(super) fn script(readable: bool) -> String {
+    if readable {
+        compact(&super::readable::graph(include_str!("graph.js")))
+    } else {
+        compact(include_str!("graph.js"))
+    }
 }
 
 pub(super) fn worker() -> String {
@@ -202,9 +207,8 @@ impl Pending {
                     graph.without_journal_only()
                 };
                 let json = neighbourhood_json(&graph);
-                if let Some(hash) = route
-                    .strip_prefix("p-")
-                    .and_then(|r| r.strip_suffix(".html"))
+                // Named by the title's digest in both layouts, as the page graph looks it up.
+                if let Some(hash) = crate::page_urls::stem(route).strip_prefix("p-")
                     && gzip_len(json.as_bytes()) <= NEIGHBOURHOOD_LIMIT
                 {
                     files.push((format!("{NEIGHBOURHOODS}/{hash}.json"), json));

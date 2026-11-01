@@ -127,7 +127,7 @@ impl Hierarchy {
             .map(|row| self.row(row, show_brackets))
             .collect::<Vec<_>>();
         let inline = rows.len().min(INLINE_ROWS);
-        let stem = format!("{REFS}/{}-hierarchy", route.trim_end_matches(".html"));
+        let stem = format!("{REFS}/{}-hierarchy", crate::page_urls::stem(route));
         let name = |position: usize| format!("{stem}-{}.html", position + 1);
         let chunks = rows[inline..].chunks(ROWS_PER_FILE).collect::<Vec<_>>();
         let page_title = escape(title);

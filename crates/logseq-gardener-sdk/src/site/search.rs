@@ -48,13 +48,17 @@ impl Search {
 
     /// Every search file by route, and the manifest route and revision. A block is
     /// indexed only when the renderer emitted its anchor.
-    pub fn artifacts(mut self) -> (BTreeMap<String, String>, String, String) {
+    pub fn artifacts(mut self, readable: bool) -> (BTreeMap<String, String>, String, String) {
         self.records.blocks.retain(|record| {
             self.admitted
                 .get(&record.page)
                 .is_some_and(|anchors| anchors.contains(&record.position))
         });
-        let engine = engine();
+        let engine = if readable {
+            super::readable::search(&engine())
+        } else {
+            engine()
+        };
         let engine_route = format!("lsg-search-engine-{}.mjs", super::digest(&engine));
         let files = SearchIndex::new(self.records).files(&engine_route, &FileOptions::default());
         let mut artifacts = files.files;

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Verify a --readable-urls site in Chromium under a path prefix and from disk: links, zoom, search, sidebar, graph and plugin host navigation"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+cargo build --locked
+uv run --quiet --with playwright==1.60.0 --no-project playwright install chromium-headless-shell
+uv run --quiet --script scripts/readable/browser.py --binary target/debug/lsg
