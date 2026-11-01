@@ -57,7 +57,8 @@ jobs:
 
   # Publication speed (publication-speed): cold and warm builds of the generated Gitpa-sized
   # garden and of a pinned encode garden commit, with phase times, against the rows recorded in
-  # docs/parity/publication-speed.json. The rows are uploaded so new ones can be recorded.
+  # docs/parity/publication-speed.json. The rows are uploaded so new ones can be recorded;
+  # lsg/Ref/Publication Speed (docs/pages/lsg___Ref___Publication Speed.md) says when.
   publication-speed:
     runs-on: ubuntu-latest
     env:

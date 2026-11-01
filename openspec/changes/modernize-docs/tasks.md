@@ -48,13 +48,13 @@
 
 ## 6. #330 Move Logseq parity reports into the docs graph
 
-- [ ] 6.1 Convert each feature report, `comparison-harness.md` and `search-performance.md` into its `lsg/Ref/Logseq Compatibility/` page, keeping every measurement and its date
-- [ ] 6.2 Convert `docs/parity/README.md` and `docs/parity/publication-speed.md` into `lsg/How To/Compare a Build with Logseq`, `lsg/Ref/Parity Tasks`, `lsg/How To/Measure Performance` and `lsg/Ref/Publication Speed`
-- [ ] 6.3 Make `scripts/parity/perf.py --record` write `lsg/Ref/Logseq Compatibility/Performance` as Logseq outline Markdown, convert the current results, and keep its tests passing
-- [ ] 6.4 Update the paths in `scripts/parity/`, `.mise/tasks/parity/` and the comments in `.github/workflows/ci.yml`
-- [ ] 6.5 Keep the `parity-comparison-harness`, `published-graph-view` and `published-page-outline` deltas in this change matching the page file `perf.py` writes
-- [ ] 6.6 Write the overview `lsg/Ref/Logseq Compatibility` from the reports
-- [ ] 6.7 Delete the reports, remove their `:hidden` lines and repoint every link to them
+- [x] 6.1 Convert each feature report, `comparison-harness.md` and `search-performance.md` into its `lsg/Ref/Logseq Compatibility/` page, keeping every measurement and its date
+- [x] 6.2 Convert `docs/parity/README.md` and `docs/parity/publication-speed.md` into `lsg/How To/Compare a Build with Logseq`, `lsg/Ref/Parity Tasks`, `lsg/How To/Measure Performance` and `lsg/Ref/Publication Speed`
+- [x] 6.3 Make `scripts/parity/perf.py --record` write `lsg/Ref/Logseq Compatibility/Performance` as Logseq outline Markdown, convert the current results, and keep its tests passing
+- [x] 6.4 Update the paths in `scripts/parity/`, `.mise/tasks/parity/` and the comments in `.github/workflows/ci.yml`
+- [x] 6.5 Keep the `parity-comparison-harness`, `published-graph-view` and `published-page-outline` deltas in this change matching the page file `perf.py` writes
+- [x] 6.6 Write the overview `lsg/Ref/Logseq Compatibility` from the reports
+- [x] 6.7 Delete the reports, remove their `:hidden` lines and repoint every link to them
 
 ## 7. #331 Move the Logseq reference boards into the docs graph
 

@@ -9,7 +9,7 @@
 #USAGE flag "--search-path <path>" help="Page path inside search-site (default: index.html)"
 #USAGE flag "--search-output <path>" help="JSON output for standalone search measurements"
 #USAGE flag "--search-queries <path>" help="Search query fixture list"
-#USAGE flag "--record" help="Rewrite docs/parity/performance.md with the results (with --search-site, its search sections)"
+#USAGE flag "--record" help="Rewrite the lsg/Ref/Logseq Compatibility/Performance page in docs/pages with the results (with --search-site, its search sections)"
 #USAGE flag "--graph" help="Measure only the graph view and Page graph in the run's site (with --record, their sections)"
 #USAGE flag "--slides" help="Measure only View as slides in the run's site (with --record, its section)"
 #USAGE flag "--media" help="Measure only the video pages in the run's site (with --record, their section)"

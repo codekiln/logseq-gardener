@@ -1,3 +1,39 @@
 tags:: [[Diataxis/Reference]]
+see-also:: [[lsg/Ref/Logseq Published Site]], [[lsg/How To/Compare a Build with Logseq]], [[lsg/Ref/Published Pages]], [[lsg/Ref/Site Navigation]]
 
-- What `lsg` publishes as Logseq 0.10 publishes it, and where each feature differs.
+- # Logseq Compatibility
+	- `lsg` publishes a Logseq garden as a site that reads like the site Logseq 0.10 publishes with `logseq/publish-spa`: the same page frame, outline, references, search, graph and other features, with Logseq's sizes, colours and keys. The target is a real published garden: Logseq's own build of codekiln's encode garden, the `gh-pages` branch of `codekiln/logseq-encode-garden`, which the parity tasks compare page by page with an `lsg` build of the same garden.
+	- Logseq's published site runs the Logseq app in the browser on the whole graph. `lsg` does the work when it builds the site: it writes each page as its own HTML file, evaluates queries, lays out the graph and splits the search index, and the browser loads more data only when a reader asks for it. Most differences below follow from that design, which lets `lsg`'s pages show their titles in tens of milliseconds where Logseq's take about 20 seconds on desktop.
+	- Each block below says what `lsg` publishes as Logseq does and what differs, and links the page that holds Logseq's behavior, the source references, the measurements and the fixture pages. [[lsg/Ref/Logseq Published Site]] describes Logseq's published site screen by screen.
+	- ## Pages
+		- [Page outline]([[lsg/Ref/Logseq Compatibility/Page Outline]]): ((8cb05199-293c-41ca-a714-ba609a9c7b36))
+		- [Inline markup]([[lsg/Ref/Logseq Compatibility/Inline Markup]]): ((1040dd0c-7481-4d45-a1dc-708fb08fee9d))
+		- [Code and tables]([[lsg/Ref/Logseq Compatibility/Code and Tables]]): ((16eeb7a4-dcaa-450a-8d66-31c311ff7c17))
+		- [Block references and embeds]([[lsg/Ref/Logseq Compatibility/Transclusion]]): ((cc714781-fc02-4374-b225-f97deb5488db))
+		- [Video embeds]([[lsg/Ref/Logseq Compatibility/Media Embeds]]): ((67acc7d1-0cd9-4189-819c-e216b53ae386))
+		- [Queries]([[lsg/Ref/Logseq Compatibility/Queries]]): ((fe18e38f-a191-42a7-acc9-5dd5c274a0e6))
+		- [Flashcards]([[lsg/Ref/Logseq Compatibility/Flashcards]]): ((de5a50b9-db94-4f3f-8196-b236419e9c11))
+	- ## Sections below a page
+		- [Linked references and tagged pages]([[lsg/Ref/Logseq Compatibility/References]]): ((f3267246-cff6-4b3e-b38d-22175e0ca07b))
+		- [Hierarchy]([[lsg/Ref/Logseq Compatibility/Hierarchy]]): ((dd3b36b7-b73d-4c1c-ae59-d685c3ee1cbd))
+	- ## Around the page
+		- [Header, sidebar and theme]([[lsg/Ref/Logseq Compatibility/App Shell]]): ((a1be0492-f599-40e8-8508-0240660ae635))
+		- [Right sidebar]([[lsg/Ref/Logseq Compatibility/Right Sidebar]]): ((4f926c78-f61a-40f8-ab04-1c11bf943ba7))
+		- [Search]([[lsg/Ref/Logseq Compatibility/Search]]): ((3f26eb79-c988-407e-9d2c-1d8023f390de))
+		- [All pages]([[lsg/Ref/Logseq Compatibility/All Pages]]): ((a0bca4bd-ecec-46f7-9b06-17e2a522c960))
+		- [Journals]([[lsg/Ref/Logseq Compatibility/Journals]]): ((1dc6ead6-a039-4ea4-aa89-709ac81415ed))
+		- [Graph view]([[lsg/Ref/Logseq Compatibility/Graph View]]): ((8ad7a1b4-2fae-4870-af8d-c266233cf883))
+		- [View as slides]([[lsg/Ref/Logseq Compatibility/Slides]]): ((da70cd63-2bda-445c-a145-b28b7e1760d7))
+	- ## Differences across the site
+		- `lsg` publishes a page for each page file it selects and for each namespace parent. Logseq also makes a page for every other title that a link, tag or property names. In `lsg` a link or tag to such a page shows its text without a link, and All pages, the graph view and the right sidebar have no page to open for it.
+		- `lsg` leaves out Logseq's controls that change only the reader's copy of the graph in a published site, such as Delete in All pages and the export items of the More menu, and it has no whiteboards.
+		- `lsg` shows footnote references, inline math and drawers as plain text, and an unknown macro as Logseq's warning, and reports each one as a build diagnostic.
+		- `lsg` publishes journals when the build passes `--journals`, and the namespaces that `--include` selects.
+	- ## Speed
+		- [[lsg/Ref/Logseq Compatibility/Performance]] holds the recorded measurements of both builds. On 2026-10-26, the fixture pages of `lsg`'s build showed their titles in 21 to 36 ms on desktop and 226 to 253 ms on the throttled phone profile, with a peak JavaScript heap near 2 MB. Logseq's build took 17 to 24 seconds on desktop and 185 to 205 seconds on the phone profile, after transferring about 22.6 MB with the whole graph, and used about 2 GB of heap.
+		- [Search speed]([[lsg/Ref/Logseq Compatibility/Search Performance]]): ((3bfaeda3-b372-4c33-98e7-b9eeae8061ba))
+		- [Build speed]([[lsg/Ref/Publication Speed]]): ((31339be0-cd13-4a22-b8f1-a9d73a1128d5))
+	- ## How the builds are compared
+		- [Comparison harness]([[lsg/Ref/Logseq Compatibility/Comparison Harness]]): ((e41c3897-775b-4b25-8307-ca7e1632886b))
+		- [[lsg/How To/Compare a Build with Logseq]] runs the comparison, [[lsg/How To/Measure Performance]] measures both builds, and [[lsg/Ref/Parity Tasks]] lists the tasks and the CI check on the budgets.
+		- The Hierarchy section below lists every page under `lsg/Ref/Logseq Compatibility`.

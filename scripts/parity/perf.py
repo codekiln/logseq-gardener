@@ -27,7 +27,22 @@ import metrics  # noqa: E402
 import serve  # noqa: E402
 
 QUERIES = Path(__file__).resolve().parent / 'search-queries.txt'
-PERFORMANCE_DOC = common.REPO / 'docs' / 'parity' / 'performance.md'
+# The lsg/Ref/Logseq Compatibility/Performance page, Logseq outline Markdown that --record writes:
+# page properties, the title block, its summary block, then one heading block per section.
+PERFORMANCE_PAGE = common.REPO / 'docs' / 'pages' / 'lsg___Ref___Logseq Compatibility___Performance.md'
+PAGE_HEAD = [
+    'tags:: [[Diataxis/Reference]]',
+    'see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]], '
+    '[[lsg/Ref/Logseq Compatibility/Search Performance]], [[lsg/Ref/Publication Speed]]',
+    '',
+    '- # Performance',
+    '\t- How long the fixture pages of the encode garden take to show their titles in `lsg`\'s build and in '
+    "Logseq's, what they download and how much memory they use, on a desktop profile and a throttled phone "
+    'profile, with build times and the timings of features that load after the page. '
+    '`mise run parity:perf --record` writes this page.',
+    '\t  id:: f45eb369-6fff-46e9-a147-cd0ca9c03fc9',
+]
+REPO_FILE = 'https://github.com/codekiln/logseq-gardener/blob/main/'
 SEARCH_DOC = common.REPO / 'docs' / 'parity' / 'search-performance.json'
 # Lighthouse's mobile settings: a mid-range phone on a slow 4G network.
 PROFILES = {
@@ -607,8 +622,81 @@ def fmt(field, value):
     return f'{scaled:,.0f}' if scaled >= 100 else f'{scaled:,.1f}'
 
 
+HEADING = re.compile(r'(#+) ')
+# A block at the depth of a section heading: the next section, or the end of the one before.
+SECTION_SIBLING = re.compile(r'\t?- ')
+
+
+def outline(lines):
+    """Logseq outline blocks for report Markdown: a heading of level n is a block at depth n - 1 that
+    holds what follows it, and each paragraph, list item and table is one block."""
+    blocks, depth, in_table = [], 0, False
+    for line in lines:
+        heading = HEADING.match(line)
+        if heading:
+            depth = len(heading.group(1))
+            blocks.append('\t' * (depth - 1) + '- ' + line)
+        elif line.startswith('|'):
+            blocks.append('\t' * depth + ('  ' if in_table else '- ') + line)
+        elif line.strip():
+            blocks.append('\t' * depth + '- ' + line.removeprefix('- '))
+        in_table = line.startswith('|')
+    return blocks
+
+
+def page_text(lines):
+    """The Performance page for a whole report: its properties, title and summary, then the report."""
+    blocks = outline(lines)
+    if blocks and blocks[0].startswith('- # '):
+        blocks = blocks[1:]
+    return '\n'.join(PAGE_HEAD + blocks) + '\n'
+
+
+def read_page():
+    """The Performance page's lines, or its head alone when the page does not exist yet."""
+    if not PERFORMANCE_PAGE.exists():
+        return list(PAGE_HEAD)
+    return PERFORMANCE_PAGE.read_text(encoding='utf-8').splitlines()
+
+
+def section_span(lines, name):
+    """The line range of the page's `## name` heading block and its children, or None."""
+    heading = f'\t- ## {name}'
+    if heading not in lines:
+        return None
+    start = lines.index(heading)
+    end = start + 1
+    while end < len(lines) and not SECTION_SIBLING.match(lines[end]):
+        end += 1
+    return start, end
+
+
+def replace_sections(lines, names, section_lines, before=()):
+    """Page lines with the `names` heading blocks replaced by section_lines, report Markdown for
+    those sections. The new blocks take the place of the first old one; when the page has none of
+    them, they go before the first section in `before` that the page has, or at the end."""
+    spans = sorted(span for span in (section_span(lines, name) for name in names) if span)
+    for start, end in reversed(spans):
+        del lines[start:end]
+    if spans:
+        position = spans[0][0]
+    else:
+        following = [span[0] for span in (section_span(lines, name) for name in before) if span]
+        position = min(following) if following else len(lines)
+        while position == len(lines) and lines and not lines[-1].strip():
+            lines.pop()
+            position = len(lines)
+    return lines[:position] + outline(section_lines) + lines[position:]
+
+
+def record_sections(names, section_lines, before=()):
+    """Replace the named sections of the Performance page with section_lines."""
+    lines = replace_sections(read_page(), names, section_lines, before)
+    PERFORMANCE_PAGE.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+
 def markdown(results, budgets):
-    lines = ['# Parity performance', '']
+    lines = ['# Performance', '']
     lines += [f'- {key}: {value}' for key, value in results['summary'].items()]
     loads = {}
     for row in results['pages']:
@@ -616,7 +704,7 @@ def markdown(results, budgets):
             loads.setdefault(row['build'], set()).add(row['loads'])
     lines += [f"- loads per page, {build}: {', '.join(map(str, sorted(counts)))}" for build, counts in sorted(loads.items())]
     lines += ['', 'Medians of the page loads. **Bold** marks an `lsg` value over its budget in '
-              '[`scripts/parity/budgets.toml`](../../scripts/parity/budgets.toml).', '',
+              f'[`scripts/parity/budgets.toml`]({REPO_FILE}scripts/parity/budgets.toml).', '',
               '## Page loads', '',
               '| Page | Profile | Build | ' + ' | '.join(m[2] for m in metrics.MEASURES.values()) + ' |',
               '| --- | --- | --- | ' + ' | '.join('---:' for _ in metrics.MEASURES) + ' |']
@@ -813,7 +901,7 @@ def search_markdown(results, budgets):
     lines += ['', '## Search', '',
               'Cmd/Ctrl+K on the home page, then the first query typed at once: the time from the key to the '
               'dialog and to its page results, and what that first open downloaded. Then each query in '
-              '[`search-queries.txt`](../../scripts/parity/search-queries.txt) typed a key every '
+              f'[`search-queries.txt`]({REPO_FILE}scripts/parity/search-queries.txt) typed a key every '
               f'{KEY_GAP_MS} ms. A cold keystroke fetches a word shard; a warm one does not. The heap growth is '
               'measured after the whole query list, after garbage collection. **Bold** marks an `lsg` value '
               'over its budget.', '',
@@ -909,7 +997,7 @@ def measure_search_site(args, sync_playwright):
     """Measure search in a built site and, when it is a parity run's site, Logseq's build and build time.
 
     Writes --search-output (JSON and Markdown); with --record, also docs/parity/search-performance.json
-    and the search sections of docs/parity/performance.md. Fails when an lsg value is over budget.
+    and the search sections of the Performance page. Fails when an lsg value is over budget.
     """
     budgets = metrics.load_budgets()
     profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
@@ -1103,7 +1191,7 @@ def measure_slides(browser, url, profile):
 
 
 def slides_markdown(rows, budgets):
-    """The View as slides section of docs/parity/performance.md."""
+    """The View as slides section of the Performance page."""
     limits = budgets.get('slides', {})
     lines = ['', '## View as slides', '',
              f'On `{SLIDES_PAGE}` at 1280 by 800: the time from choosing View as slides to the first slide drawn, '
@@ -1185,7 +1273,7 @@ def oversized_cards(site, limit_kb):
 
 
 def sidebar_markdown(row, sizes, budgets):
-    """The right sidebar section of docs/parity/performance.md."""
+    """The right sidebar section of the Performance page."""
     limits = budgets.get('sidebar', {})
     lines = ['', f'## Right sidebar on {common.SIDEBAR_PAGE}', '',
              f'On `{common.SIDEBAR_PAGE}` at 1280 by 800, with a cleared sidebar: Shift-click a page link, the first '
@@ -1226,7 +1314,7 @@ def sidebar_markdown(row, sizes, budgets):
 
 def measure_sidebar_run(args, sync_playwright):
     """Measure the right sidebar in a parity run's site; with --record, replace its section of
-    docs/parity/performance.md."""
+    the Performance page."""
     budgets = metrics.load_budgets()
     site = common.latest_run(args.run) / 'site'
     route = common.lsg_route(common.SIDEBAR_PAGE)
@@ -1238,19 +1326,10 @@ def measure_sidebar_run(args, sync_playwright):
         row = measure_sidebar(browser, lsg.url + route, site, common.block_ref_href(site, [route]))
         print(json.dumps(row, ensure_ascii=False), flush=True)
         browser.close()
-    block = '\n'.join(sidebar_markdown(row, sizes, budgets))
-    print(block)
+    section = sidebar_markdown(row, sizes, budgets)
+    print('\n'.join(section))
     if args.record:
-        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-        heading = f'\n## Right sidebar on {common.SIDEBAR_PAGE}'
-        start = text.find(heading)
-        if start >= 0:
-            end = text.find('\n## ', start + 1)
-            text = text[:start] + block + '\n' + (text[end:] if end >= 0 else '')
-        else:
-            slides = text.find('\n## View as slides')
-            text = text[:slides] + block + '\n' + text[slides:] if slides >= 0 else text.rstrip('\n') + '\n' + block + '\n'
-        PERFORMANCE_DOC.write_text(text, encoding='utf-8')
+        record_sections([f'Right sidebar on {common.SIDEBAR_PAGE}'], section, before=['View as slides'])
 
 
 MEDIA_PAGES = ['Person/Omer Hamerman/YouTube/26/07/The Holy Grail of Code Review TUIs',
@@ -1299,7 +1378,7 @@ def measure_media(browser, url, profile, wait_ms=MEDIA_WAIT_MS):
 
 
 def media_markdown(rows, budgets):
-    """The Video embeds section of docs/parity/performance.md."""
+    """The Video embeds section of the Performance page."""
     limit = budgets.get('media', {}).get('third_party_requests_before_click')
     if not rows:
         return []
@@ -1327,7 +1406,7 @@ def media_markdown(rows, budgets):
 
 def measure_media_run(args, sync_playwright):
     """Measure video pages in a parity run's site; with --record, replace their section of
-    docs/parity/performance.md."""
+    the Performance page."""
     budgets = metrics.load_budgets()
     site = common.latest_run(args.run) / 'site'
     profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
@@ -1341,15 +1420,10 @@ def measure_media_run(args, sync_playwright):
                 rows.append(row)
                 print(json.dumps(row, ensure_ascii=False), flush=True)
         browser.close()
-    block = '\n'.join(media_markdown(rows, budgets))
-    print(block)
+    section = media_markdown(rows, budgets)
+    print('\n'.join(section))
     if args.record:
-        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-        start = text.find('\n## Video embeds')
-        if start >= 0:
-            end = text.find('\n## ', start + 1)
-            text = text[:start] + (text[end:] if end >= 0 else '\n')
-        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+        record_sections(['Video embeds'], section)
 
 
 QUERIES_PAGE = 'Parity/Queries'
@@ -1399,7 +1473,7 @@ def measure_queries(browser, url, profile):
 
 
 def queries_markdown(rows, builds, budgets):
-    """The Queries section of docs/parity/performance.md."""
+    """The Queries section of the Performance page."""
     limits = budgets.get('queries', {})
     lines = ['', '## Queries', '',
              f'`{QUERIES_PAGE}` holds the queries analysis\'s test queries, added to a copy of the whole garden. '
@@ -1427,7 +1501,7 @@ def queries_markdown(rows, builds, budgets):
 
 def measure_queries_run(args, sync_playwright):
     """Measure QUERIES_PAGE on a copy of the run's garden; with --record, replace the Queries
-    section of docs/parity/performance.md."""
+    section of the Performance page."""
     budgets = metrics.load_budgets()
     run = common.latest_run(args.run)
     settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
@@ -1450,15 +1524,10 @@ def measure_queries_run(args, sync_playwright):
                 rows.append(row)
                 print(json.dumps(row), flush=True)
             browser.close()
-    block = '\n'.join(queries_markdown(rows, builds, budgets))
-    print(block)
+    section = queries_markdown(rows, builds, budgets)
+    print('\n'.join(section))
     if args.record:
-        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-        start = text.find('\n## Queries')
-        if start >= 0:
-            end = text.find('\n## ', start + 1)
-            text = text[:start] + (text[end:] if end >= 0 else '\n')
-        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+        record_sections(['Queries'], section)
 
 
 FLASHCARDS_PAGE = 'Parity/Flashcards'
@@ -1523,7 +1592,7 @@ def measure_flashcards(browser, url, profile):
 
 
 def flashcards_markdown(rows, builds, budgets):
-    """The Flashcards section of docs/parity/performance.md."""
+    """The Flashcards section of the Performance page."""
     limits = budgets.get('flashcards', {})
     lines = ['', '## Flashcards', '',
              f'`{FLASHCARDS_PAGE}` holds {FLASHCARDS_CARDS} cloze cards and a `{{{{cards}}}}` deck, added to a copy of '
@@ -1551,7 +1620,7 @@ def flashcards_markdown(rows, builds, budgets):
 
 def measure_flashcards_run(args, sync_playwright):
     """Measure FLASHCARDS_PAGE on a copy of the run's garden; with --record, replace the Flashcards
-    section of docs/parity/performance.md."""
+    section of the Performance page."""
     budgets = metrics.load_budgets()
     run = common.latest_run(args.run)
     settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
@@ -1574,20 +1643,15 @@ def measure_flashcards_run(args, sync_playwright):
                 rows.append(row)
                 print(json.dumps(row), flush=True)
             browser.close()
-    block = '\n'.join(flashcards_markdown(rows, builds, budgets))
-    print(block)
+    section = flashcards_markdown(rows, builds, budgets)
+    print('\n'.join(section))
     if args.record and not any('skipped' in row for row in rows):
-        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-        start = text.find('\n## Flashcards')
-        if start >= 0:
-            end = text.find('\n## ', start + 1)
-            text = text[:start] + (text[end:] if end >= 0 else '\n')
-        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+        record_sections(['Flashcards'], section)
 
 
 def measure_slides_run(args, sync_playwright):
     """Measure View as slides in a parity run's site; with --record, replace its section of
-    docs/parity/performance.md."""
+    the Performance page."""
     budgets = metrics.load_budgets()
     site = common.latest_run(args.run) / 'site'
     rows = []
@@ -1597,17 +1661,10 @@ def measure_slides_run(args, sync_playwright):
         rows.append(row)
         print(json.dumps(row), flush=True)
         browser.close()
-    print('\n'.join(slides_markdown(rows, budgets)))
+    section = slides_markdown(rows, budgets)
+    print('\n'.join(section))
     if args.record:
-        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-        start = text.find('\n## View as slides')
-        if start >= 0:
-            end = text.find('\n## ', start + 1)
-            text = text[:start] + (text[end:] if end >= 0 else '\n')
-        block = '\n'.join(slides_markdown(rows, budgets))
-        graph = text.find('\n## Graph view')
-        text = text[:graph] + block + '\n' + text[graph:] if graph >= 0 else text.rstrip('\n') + '\n' + block + '\n'
-        PERFORMANCE_DOC.write_text(text, encoding='utf-8')
+        record_sections(['View as slides'], section, before=['Graph view'])
 
 
 def _marked(text, value, limit):
@@ -1615,13 +1672,13 @@ def _marked(text, value, limit):
 
 
 def graph_markdown(report, budgets):
-    """The graph view and Page graph sections of docs/parity/performance.md."""
+    """The graph view and Page graph sections of the Performance page."""
     limits = budgets.get('graph', {})
     lines = ['', '## Graph view', '',
              'From navigating to `graph.html` (Logseq: `#/graph`) to the first frame with every node of the default '
              'view drawn; the 95th-percentile frame time while dragging the background; and the peak JS heap after '
              'the first frame, the drag and five wheel zooms. Logseq\'s desktop row comes from the '
-             '[Graph view analysis](graph-view.md), which measured 38 minutes to its first frame; `parity:perf` '
+             '[[lsg/Ref/Logseq Compatibility/Graph View]], which measured 38 minutes to its first frame; `parity:perf` '
              'does not wait that long. **Bold** marks an `lsg` value over its `[graph]` budget.', '',
              '| Profile | Build | First frame (ms) | Pan frame time, 95th percentile (ms) | Peak JS heap (MB) '
              '| Graph data (KB, gzip) | Worker loaded |',
@@ -1671,7 +1728,7 @@ def graph_markdown(report, budgets):
 
 def measure_graph_run(args, sync_playwright):
     """Measure the graph view and Page graph in a parity run's site; with --record, replace their
-    sections of docs/parity/performance.md."""
+    sections of the Performance page."""
     budgets = metrics.load_budgets()
     run = common.latest_run(args.run)
     site = run / 'site'
@@ -1712,26 +1769,18 @@ def measure_graph_run(args, sync_playwright):
         record_graph_sections(report, budgets)
 
 
+GRAPH_SECTIONS = ['Graph view', 'Page graph']
+SEARCH_SECTIONS = ['Search index', 'Search', 'Search latency per keystroke']
+
+
 def record_graph_sections(report, budgets):
-    """Replace the graph sections of docs/parity/performance.md; they sit before the search sections."""
-    text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-    start = text.find('\n## Graph view')
-    if start >= 0:
-        end = text.find('\n## Search', start)
-        text = text[:start] + (text[end:] if end >= 0 else '\n')
-    block = '\n'.join(graph_markdown(report, budgets))
-    search = text.find('\n## Search')
-    text = text[:search] + block + '\n' + text[search:] if search >= 0 else text.rstrip('\n') + '\n' + block + '\n'
-    PERFORMANCE_DOC.write_text(text, encoding='utf-8')
+    """Replace the graph sections of the Performance page; they sit before the search sections."""
+    record_sections(GRAPH_SECTIONS, graph_markdown(report, budgets), before=SEARCH_SECTIONS)
 
 
 def record_search_sections(report, budgets):
-    """Replace the search sections at the end of docs/parity/performance.md with this measurement."""
-    text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-    start = text.find('\n## Search')
-    kept = text if start < 0 else text[:start]
-    PERFORMANCE_DOC.write_text(kept.rstrip('\n') + '\n' + '\n'.join(search_markdown(report, budgets)) + '\n',
-                               encoding='utf-8')
+    """Replace the search sections of the Performance page with this measurement."""
+    record_sections(SEARCH_SECTIONS, search_markdown(report, budgets))
 
 
 PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'recorder' / 'lsg-plugin.json'
@@ -1790,7 +1839,7 @@ def measure_plugins(browser, base, routes, profile):
 
 
 def plugins_markdown(rows, sizes, budgets, titles=None):
-    """The Plugins section of docs/parity/performance.md."""
+    """The Plugins section of the Performance page."""
     limits = budgets.get('plugins', {})
     titles = titles or {}
     lines = ['', '## Plugins', '',
@@ -1821,7 +1870,7 @@ def plugins_markdown(rows, sizes, budgets, titles=None):
 
 def measure_plugins_run(args, sync_playwright):
     """Build the run's garden with the fixture plugin and measure navigation; with --record,
-    replace the Plugins section of docs/parity/performance.md."""
+    replace the Plugins section of the Performance page."""
     budgets = metrics.load_budgets()
     run = common.latest_run(args.run)
     settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
@@ -1846,15 +1895,10 @@ def measure_plugins_run(args, sync_playwright):
                 rows.append(row)
                 print(json.dumps(row), flush=True)
             browser.close()
-    block = '\n'.join(plugins_markdown(rows, sizes, budgets, titles))
-    print(block)
+    section = plugins_markdown(rows, sizes, budgets, titles)
+    print('\n'.join(section))
     if args.record:
-        text = PERFORMANCE_DOC.read_text(encoding='utf-8')
-        start = text.find('\n## Plugins')
-        if start >= 0:
-            end = text.find('\n## ', start + 1)
-            text = text[:start] + (text[end:] if end >= 0 else '\n')
-        PERFORMANCE_DOC.write_text(text.rstrip('\n') + '\n' + block + '\n', encoding='utf-8')
+        record_sections(['Plugins'], section)
 
 
 def main():
@@ -1871,29 +1915,30 @@ def main():
     parser.add_argument('--search-output', type=Path, help='JSON destination for standalone search measurements')
     parser.add_argument('--search-queries', type=Path, default=QUERIES, help='Query fixture list for search measurements')
     parser.add_argument('--record', action='store_true',
-                        help='rewrite docs/parity/performance.md; with --search-site, its search sections and '
-                             'docs/parity/search-performance.json')
+                        help='rewrite the lsg/Ref/Logseq Compatibility/Performance page, '
+                             'docs/pages/lsg___Ref___Logseq Compatibility___Performance.md; with --search-site, '
+                             'its search sections and docs/parity/search-performance.json')
     parser.add_argument('--graph', action='store_true',
                         help="measure only the graph view and Page graph in the run's site; with --record, "
-                             'replace their sections of docs/parity/performance.md')
+                             'replace their sections of the Performance page')
     parser.add_argument('--slides', action='store_true',
                         help="measure only View as slides in the run's site; with --record, replace its section "
-                             'of docs/parity/performance.md')
+                             'of the Performance page')
     parser.add_argument('--media', action='store_true',
                         help="measure only the video pages in the run's site; with --record, replace their "
-                             'section of docs/parity/performance.md')
+                             'section of the Performance page')
     parser.add_argument('--sidebar', action='store_true',
                         help=f"measure only the right sidebar on {common.SIDEBAR_PAGE} in the run's site; with --record, "
-                             'replace its section of docs/parity/performance.md')
+                             'replace its section of the Performance page')
     parser.add_argument('--queries', action='store_true',
                         help=f"measure only {QUERIES_PAGE}, the queries analysis's test queries, on a copy of the "
-                             "run's garden; with --record, replace its section of docs/parity/performance.md")
+                             "run's garden; with --record, replace its section of the Performance page")
     parser.add_argument('--flashcards', action='store_true',
                         help=f"measure only {FLASHCARDS_PAGE}, {FLASHCARDS_CARDS} cloze cards and a deck, on a copy of "
-                             "the run's garden; with --record, replace its section of docs/parity/performance.md")
+                             "the run's garden; with --record, replace its section of the Performance page")
     parser.add_argument('--plugins', action='store_true',
                         help="build the run's garden with the recorder fixture plugin and measure same-document "
-                             'navigation; with --record, replace its section of docs/parity/performance.md')
+                             'navigation; with --record, replace its section of the Performance page')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -2026,7 +2071,7 @@ def main():
     text = markdown(results, budgets)
     (run / 'perf.md').write_text(text, encoding='utf-8')
     if args.record:
-        PERFORMANCE_DOC.write_text(text, encoding='utf-8')
+        PERFORMANCE_PAGE.write_text(page_text(text.splitlines()), encoding='utf-8')
     print(f"Results: {run / 'perf.md'}")
 
 

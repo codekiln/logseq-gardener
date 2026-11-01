@@ -9,8 +9,8 @@ because noise on a shared machine only ever adds time.
 
 A row records the lsg commit, the corpus and its digest or commit, the machine, the cold and warm
 times, the phase times of the fastest warm build, peak memory and the output's size. `--check`
-compares the fastest warm build with the recorded rows for the same corpus; see
-docs/parity/publication-speed.md for how the limit is chosen.
+compares the fastest warm build with the recorded rows for the same corpus; the CI check on
+lsg/Ref/Publication Speed (docs/pages/lsg___Ref___Publication Speed.md) says how the limit is chosen.
 """
 import argparse
 import json
