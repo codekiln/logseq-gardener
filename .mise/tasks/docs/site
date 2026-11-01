@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#MISE description="Build lsg from this checkout and publish the docs graph, with search, into a new directory; fail on any diagnostic"
+#USAGE flag "--output <dir>" help="Directory to publish into; it must not exist yet (default: target/docs-site/<UTC time>/site)"
+set -euo pipefail
+output="${usage_output:-}"
+if [ -z "$output" ]; then
+  output="target/docs-site/$(date -u +%Y%m%dT%H%M%SZ)/site"
+  mkdir -p "$(dirname "$output")"
+fi
+cargo build --locked --release --bin lsg
+# lsg prints each diagnostic on stderr as it publishes; the JSON report goes to stdout.
+report="$("${CARGO_TARGET_DIR:-target}/release/lsg" publish --graph docs --output "$output" \
+  --filename-format triple-lowbar --include lsg --include Diataxis \
+  --homepage lsg --search --format json)"
+printf '%s\n' "$report"
+count="$(printf '%s' "$report" | python3 -c 'import json, sys; print(json.load(sys.stdin)["diagnostic_count"])')"
+if [ "$count" -ne 0 ]; then
+  echo "docs:site: lsg reported $count diagnostics, printed above; the site is kept in $output" >&2
+  exit 1
+fi
+echo "docs:site: published the docs graph to $output with no diagnostics"

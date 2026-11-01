@@ -1,0 +1,4 @@
+- # Reference
+	- A reference page describes one part of `lsg`, such as its commands, its options or a file it writes, for a reader to consult while they work. In [Diátaxis](https://diataxis.fr/reference/), reference serves theoretical knowledge.
+	- A reference page here is titled `lsg/Ref/<subject>` and carries `tags:: [[Diataxis/Reference]]`. It follows the page shape of [Logseq/Entity/Diataxis/Reference](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/Logseq___Entity___Diataxis___Reference.md): an overview, the structure, the components and the technical details, arranged as the subject is.
+	- The Pages tagged with section below lists every reference page. [[Diataxis]] lists the other kinds.

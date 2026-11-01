@@ -1,0 +1,6 @@
+- [[lsg]]
+- [[Diataxis]]
+	- [[Diataxis/How To]]
+	- [[Diataxis/Tutorial]]
+	- [[Diataxis/Reference]]
+	- [[Diataxis/Explanation]]

@@ -54,5 +54,9 @@ rulesync.local.jsonc
 
 /.worktrees/
 
+# Backups and deleted pages that Logseq desktop keeps in the docs graph
+docs/logseq/bak/
+docs/logseq/.recycle/
+
 # fnox cache of the release App credentials, encrypted to one maintainer key
 /fnox.local.toml
