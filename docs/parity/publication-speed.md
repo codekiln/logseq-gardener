@@ -1,6 +1,6 @@
 # Publication speed
 
-A warm build of the whole encode garden takes 21 to 30 seconds on GitHub's 4-processor runners, depending on the processor, and 18 seconds on an Apple M2 Pro laptop. A generated garden the size of Gitpa's takes 4 to 5 seconds on the runners and 3.5 seconds on the laptop. Rendering pages takes most of the time, and about half of rendering goes to the Linked References sections.
+A warm build of the whole encode garden took 21 to 30 seconds on GitHub's 4-processor runners, depending on the processor, and 18 seconds on an Apple M2 Pro laptop. A generated garden the size of Gitpa's took 4 to 5 seconds on the runners and 3.5 seconds on the laptop. Rendering pages took most of the time, and about half of rendering went to the Linked References sections. Rendering each reference copy once, since [Issue #290](https://github.com/codekiln/logseq-gardener/issues/290), cut the laptop's render phase by 32% for the encode garden and 27% for the Gitpa-sized garden; see [Rendering each reference copy once](#rendering-each-reference-copy-once).
 
 ## Measured results
 
@@ -30,9 +30,22 @@ Phase times for one encode garden build, in seconds:
 
 The `plugins`, `history` and `graph` phases measure only how long the main thread waited for work running on other threads: build plugins, the git history read and the graph layouts. All three were under 0.1 seconds, so that work finishes while pages render.
 
-## The bottleneck
+## Rendering each reference copy once
 
-Rendering runs on one thread and takes 68% to 74% of a warm build on the GitHub runners and 49% on the laptop. A 7-second profile of the laptop build during rendering put 45% of the main thread's samples in `References::render`, which renders Linked References. It copies each referencing block, with its children, and renders it again for every page the block references. [Issue #290 · Render each Linked References context once](https://github.com/codekiln/logseq-gardener/issues/290) tracks reducing that work without changing the output.
+The publisher used to copy each referring block and render the copy again for every page that listed it. It now renders each copy and breadcrumb once per build and fills in the two parts that depend on the listing page: the bullet's row number in that page's reference data and the bullet's link. The published files did not change: the encode garden at `4d37b9f` and the generated Gitpa-sized garden, published with the binaries from before and after the change, gave the same 46,767 and 9,900 files byte for byte and the same diagnostics.
+
+On the Apple M2 Pro, fastest of five warm builds, in seconds:
+
+| Corpus | Warm before | Warm after | Render before | Render after | Graph wait after | Peak memory before | Peak memory after |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Gitpa-sized | 3.50 | 2.98 | 1.65 | 1.21 | 0.00 | 563 MB | 575 MB |
+| Encode garden | 17.61 | 16.29 | 8.67 | 5.89 | 1.29 | 3,490 MB | 3,600 MB |
+
+For the encode garden, the whole build gained less than rendering did, because the graph layouts, which run on another thread during rendering, now finish after it: the main thread waits 1.3 seconds for them in the `graph` phase. Those layouts are now the next step to shorten for the encode garden.
+
+## The bottleneck before Issue #290
+
+Rendering runs on one thread and took 68% to 74% of a warm build on the GitHub runners and 49% on the laptop. A 7-second profile of the laptop build during rendering put 45% of the main thread's samples in `References::render`, which renders Linked References. It copied each referencing block, with its children, and rendered it again for every page the block references. [Issue #290 · Render each Linked References context once](https://github.com/codekiln/logseq-gardener/issues/290) removed that repeated work without changing the output.
 
 Writing the site takes 3.6 seconds on macOS and 0.8 seconds on the Linux runner for the same 46,767 files, and reading the garden 1.3 and 0.1 seconds, so file access costs far more on the laptop than on the runner.
 

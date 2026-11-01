@@ -390,6 +390,58 @@ fn overlapping_contexts_share_one_outline_and_keep_sources_and_counts() {
 }
 
 #[test]
+fn a_block_listed_on_several_pages_gets_each_pages_rows_and_bullet_links() {
+    let f = Fixture::new();
+    f.write("pages/Notes___A.md", "- A\n");
+    f.write("pages/Notes___B.md", "- B\n");
+    f.write("pages/Notes___Earlier.md", "- Earlier [[Notes/B]]\n");
+    let audio = "https://media.example.org/talk.mp3";
+    let source = format!(
+        "- Shared [[Notes/A]] [[Notes/B]]\n  - Ada · 0:05 — Hello [[Notes/B]]\n  - ![Talk]({audio})\n  - After the recording\n"
+    );
+    f.write("pages/Notes___Source.md", &source);
+    f.publish();
+    let page = route("Notes/Source");
+    let shared = source.find("- Shared").unwrap();
+    let child = source.find("  - Ada").unwrap();
+    let a = f.linked("Notes/A");
+    let b = f.linked("Notes/B");
+    // On A only the shared block refers to the page: it is row 0 and links its bullet.
+    assert!(
+        a.contains(&format!(
+            "<li data-ref-block=\"0\"><a class=\"bullet\" href=\"{page}#source-block-{shared}\"></a>Shared"
+        )),
+        "{a}"
+    );
+    assert!(
+        a.contains("<li><span class=\"bullet\"></span>Ada · 0:05 — Hello"),
+        "{a}"
+    );
+    assert_eq!(a.matches(" data-ref-block=").count(), 1, "{a}");
+    // On B the earlier page's block is row 0, and both source blocks refer to the page.
+    assert!(
+        b.contains(&format!(
+            "<li data-ref-block=\"1\"><a class=\"bullet\" href=\"{page}#source-block-{shared}\"></a>Shared"
+        )),
+        "{b}"
+    );
+    assert!(
+        b.contains(&format!(
+            "<li data-ref-block=\"2\"><a class=\"bullet\" href=\"{page}#source-block-{child}\"></a>Ada · 0:05 — Hello"
+        )),
+        "{b}"
+    );
+    // A copy leaves a recording's dialogue unlinked, so no inserted text moves its gaps.
+    for refs in [&a, &b] {
+        assert!(!refs.contains("dialogue-timestamp"), "{refs}");
+        assert!(
+            refs.contains("<li><span class=\"bullet\"></span>After the recording</li>"),
+            "{refs}"
+        );
+    }
+}
+
+#[test]
 fn property_cards_reuse_only_safe_relevant_displayed_rows() {
     let f = Fixture::new();
     f.write(
