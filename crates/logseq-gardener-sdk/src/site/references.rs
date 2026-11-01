@@ -377,15 +377,7 @@ impl<'a> References<'a> {
             "blocks": rows,
             "filter": [indexes(&filter.includes), indexes(&filter.excludes)],
         });
-        let first = self.write_files(
-            prefix,
-            "linked",
-            "Linked references",
-            target,
-            files,
-            data,
-            sections,
-        );
+        let first = Self::write_files(prefix, "linked", files, data, sections);
         let open = if (count as i128) < i128::from(context.config.threshold) {
             " open"
         } else {
@@ -393,7 +385,7 @@ impl<'a> References<'a> {
         };
         let heading = linked_heading((!filter.is_empty()).then_some(filtered), count);
         sections.linked = format!(
-            "<section class=\"references linked-references\" id=\"linked-references\" data-refs=\"linked\" data-src=\"{first}\"><details class=\"references-section\"{open}><summary><span class=\"ref-chevron\"></span><h2>{heading}</h2><button type=\"button\" class=\"filter\" title=\"Filter\" aria-label=\"Filter\" data-state=\"{}\" hidden>{FUNNEL}</button></summary><noscript><a href=\"{first}\">Show linked references</a></noscript><div class=\"references-body\"><p role=\"status\"></p></div></details></section>",
+            "<section class=\"references linked-references\" id=\"linked-references\" data-refs=\"linked\" data-src=\"{first}\"><details class=\"references-section\"{open}><summary><span class=\"ref-chevron\"></span><h2>{heading}</h2><button type=\"button\" class=\"filter\" title=\"Filter\" aria-label=\"Filter\" data-state=\"{}\" hidden>{FUNNEL}</button></summary><div class=\"references-body\"><p role=\"status\"></p></div></details></section>",
             filter_state(&filter)
         );
     }
@@ -430,25 +422,20 @@ impl<'a> References<'a> {
             )
         });
         // A page with no mentions has no file; the script shows the zero count.
-        let (source, fallback) = if files.is_empty() {
-            (String::new(), "No unlinked references.".to_owned())
+        let source = if files.is_empty() {
+            String::new()
         } else {
-            let first = self.write_files(
+            let first = Self::write_files(
                 prefix,
                 "unlinked",
-                "Unlinked references",
-                target,
                 files,
                 json!({"count": ids.len()}),
                 sections,
             );
-            (
-                format!(" data-src=\"{first}\""),
-                format!("<a href=\"{first}\">Show unlinked references</a>"),
-            )
+            format!(" data-src=\"{first}\"")
         };
         sections.unlinked = format!(
-            "<section class=\"references linked-references unlinked-references\" data-refs=\"unlinked\"{source}><details class=\"references-section\"><summary><span class=\"ref-chevron\"></span><h2>Unlinked References</h2></summary><noscript>{fallback}</noscript><div class=\"references-body\"></div></details></section>"
+            "<section class=\"references linked-references unlinked-references\" data-refs=\"unlinked\"{source}><details class=\"references-section\"><summary><span class=\"ref-chevron\"></span><h2>Unlinked References</h2></summary><div class=\"references-body\"></div></details></section>"
         );
     }
 
@@ -476,37 +463,23 @@ impl<'a> References<'a> {
         files
     }
 
-    /// Write each file as a readable page that links back to the page and on to the next
-    /// file. The first file also carries the section's data. Returns the first file's route.
-    #[allow(clippy::too_many_arguments)]
+    /// Add each file's groups as `_refs/<page>-<kind>-<n>.html.gz`, which the publisher stores
+    /// gzip-compressed. The first file also carries the section's data. Returns the first
+    /// file's route.
     fn write_files(
-        &self,
         prefix: &str,
         kind: &str,
-        label: &str,
-        target: &str,
         files: Vec<String>,
         mut data: serde_json::Value,
         sections: &mut Sections,
     ) -> String {
         let total = files.len();
         let stem = prefix.trim_start_matches(&format!("{REFS}/"));
-        let name = |position: usize| format!("{stem}-{kind}-{}.html", position + 1);
+        let name = |position: usize| format!("{stem}-{kind}-{}.html.gz", position + 1);
         data["files"] = json!((0..total).map(name).collect::<Vec<_>>());
         // `<` could end the script element; `\u003c` is the same JSON string.
         let data = data.to_string().replace('<', "\\u003c");
-        let title = render::escape(self.title(target));
-        let target = render::escape(target);
         for (position, body) in files.into_iter().enumerate() {
-            let next = if position + 1 < total {
-                format!(
-                    "<p><a href=\"{REFS}/{}\" rel=\"next\">More {}</a></p>",
-                    name(position + 1),
-                    label.to_lowercase()
-                )
-            } else {
-                String::new()
-            };
             let data = if position == 0 {
                 format!(
                     "<script type=\"application/json\" class=\"references-data\">{data}</script>"
@@ -516,9 +489,7 @@ impl<'a> References<'a> {
             };
             sections.files.push((
                 format!("{REFS}/{}", name(position)),
-                format!(
-                    "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><base href=\"../\"><title>{label}: {title}</title>{data}</head><body><main><h1>{label}: <a href=\"{target}\">{title}</a></h1><div class=\"references-fragment\">{body}</div>{next}</main></body></html>\n"
-                ),
+                format!("{data}<div class=\"references-fragment\">{body}</div>\n"),
             ));
         }
         format!("{REFS}/{}", name(0))

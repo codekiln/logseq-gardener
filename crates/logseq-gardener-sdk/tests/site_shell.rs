@@ -177,7 +177,7 @@ fn view_as_slides_is_the_first_more_item_on_page_routes_only() {
         assert!(!html.contains(item), "{name}");
     }
     // The right sidebar does not exist below 640px, so neither does the item.
-    assert!(tmux.contains(
+    assert!(f.file("lsg-site.css").contains(
         "@media(max-width:639.98px){.lsg-right-toggle,[data-lsg-slides]{display:none!important}}"
     ));
 }
@@ -187,7 +187,8 @@ fn fragment_targets_scroll_below_the_sticky_header() {
     let f = Fixture::new(CONFIG);
     f.publish(None);
     let tmux = f.page("TMUX_BODY");
-    let styles = before(&tmux, "</style>");
+    assert!(before(&tmux, "</head>").contains("<link rel=\"stylesheet\" href=\"lsg-site.css\">"));
+    let styles = f.file("lsg-site.css");
     // Both the browser's fragment scroll and fragments.js's scrollIntoView() stop
     // scroll-padding-top below the viewport's top. 56px is the 48px header plus room for
     // the block's bullet row, which starts a few pixels above the source-block anchor.

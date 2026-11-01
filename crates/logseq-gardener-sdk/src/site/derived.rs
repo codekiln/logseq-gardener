@@ -12,9 +12,16 @@ use super::render::escape;
 /// The attribute every derived row list carries, and that marks a page needing [`STYLES`].
 pub(super) const MARKER: &str = "class=\"lsg-derived";
 
-/// Bullet styles for derived rows, added only to pages that show them, so other pages keep
-/// their bytes. The values copy the outline's own bullet.
-pub(super) const STYLES: &str = "<style data-lsg-derived>.lsg-derived .lsg-dot{position:absolute;left:0;top:var(--lsg-bullet-top);width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center}.lsg-derived .lsg-dot::after{content:\"\";width:6px;height:6px;border-radius:50%;background:var(--lsg-surface);opacity:.8}</style>";
+/// Bullet styles for derived rows, written once at the site root and linked only by pages that
+/// show them, so other pages keep their bytes. The values copy the outline's own bullet.
+pub(super) const STYLES: &str = ".lsg-derived .lsg-dot{position:absolute;left:0;top:var(--lsg-bullet-top);width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center}.lsg-derived .lsg-dot::after{content:\"\";width:6px;height:6px;border-radius:50%;background:var(--lsg-surface);opacity:.8}";
+/// Where [`STYLES`] is written.
+pub(super) const STYLES_ROUTE: &str = "lsg-derived.css";
+
+/// The tag that links [`STYLES`] from a page's head.
+pub(super) fn head() -> String {
+    format!("<link rel=\"stylesheet\" href=\"{STYLES_ROUTE}\">")
+}
 
 /// A page's derived rows: the markup after each target block's children, keyed by the block's
 /// bullet offset, and the markup at the end of the outline.

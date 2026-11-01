@@ -15,7 +15,8 @@ title_ms = 1500
 peak_heap_mb = 10
 search_p95_ms = 100
 
-# The header and left sidebar on every lsg page (published-app-shell).
+# The header and left sidebar on every lsg page (published-app-shell). frame_kb is the header
+# and sidebar markup between <body> and <main>; the shell's styles are in lsg-site.css.
 [shell]
 # 6 before the right sidebar's loader, 6.5 before View as slides, 6.6 before Queries; the
 # flashcards entry in the left sidebar and its loader took 0.3 more.
@@ -88,7 +89,8 @@ build_slowdown_pct = 20
 styles_gzip_kb = 1
 
 # Pages tagged with, Linked References and Unlinked References (published-reference-sections).
-# parity:budgets checks script_kb, styles_gzip_kb and every fragment file's gzip size; parity:perf
+# parity:budgets checks script_kb, styles_gzip_kb and every _refs/ file's size as stored (Linked and
+# Unlinked References files are stored gzip-compressed); parity:perf
 # marks the time to the first group after opening a section, a filter change on the desktop, the
 # phone heap after opening both sections on mise and scrolling to the end, and a whole-garden build
 # more than build_slowdown_pct slower than the --baseline-lsg binary's.
@@ -96,7 +98,7 @@ styles_gzip_kb = 1
 # 6 before the Hierarchy loader; [hierarchy] script_growth_kb allows 1 more.
 script_kb = 7
 styles_gzip_kb = 1
-fragment_gzip_kb = 100
+fragment_kb = 100
 open_ms_desktop = 300
 open_ms_phone = 1500
 open_heap_mb = 20
@@ -260,6 +262,21 @@ in_process_blocks_ms_per_page = 0.05
 process_pages_ms_per_page = 0.1
 process_blocks_ms_per_page = 0.3
 peak_memory_growth_pct = 15
+
+# Site size (published-site-size). parity:publish-bench --check fails when the encode garden's
+# whole site, its page HTML at the site root or its _refs/ directory exceeds site_mb, page_html_mb
+# or refs_mb, measured on the files lsg publish writes with --journals, --search and every top-level
+# namespace. parity:budgets fails on any inline <style> element the publisher writes and on a fixture
+# page whose inline scripts, other than the dialogue and page-property start-ups, exceed
+# inline_script_kb. parity:perf --baseline-lsg marks a whole encode garden build more than
+# build_slowdown_pct slower than the baseline binary's. GitHub Pages serves at most 1 GB, and
+# Logseq's gh-pages build of the same garden was 218 MB in 506 files on 2026-10-27.
+[site]
+site_mb = 550
+page_html_mb = 200
+refs_mb = 100
+inline_script_kb = 1.5
+build_slowdown_pct = 10
 
 # Publication speed (publication-speed). parity:publish-bench --check compares the fastest warm
 # build of each corpus with the rows recorded in docs/parity/publication-speed.json for the same

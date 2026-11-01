@@ -23,7 +23,9 @@ pub(super) fn script() -> String {
     super::references::minify(include_str!("flashcards.js"))
 }
 pub(super) const STYLES: &str = include_str!("flashcards.css");
-/// Deck widget styles, inlined in pages that hold a deck.
+/// Where [`WIDGET_STYLES`] is written; pages that hold a deck link it.
+pub(super) const WIDGET_STYLES_ROUTE: &str = "lsg-flashcards-widget.css";
+/// Deck widget styles, linked by pages that hold a deck.
 pub(super) const WIDGET_STYLES: &str = concat!(
     ".cards-review{padding:12px}.cards-review[data-lsg-deck]{cursor:pointer}",
     ".cards-title{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;box-sizing:border-box;padding:4px 6px;border-radius:4px;background:var(--lsg-surface)}",
@@ -35,7 +37,7 @@ pub(super) const WIDGET_STYLES: &str = concat!(
     ".cards-review-open{height:24px;padding:0 12px;border:0;border-radius:4px;background:rgba(62,99,221,.9);color:#fff;font:inherit;font-size:12px;font-weight:500;cursor:pointer}",
     ".cards-empty{opacity:.6}.cards-empty code{padding:3px 5px;border-radius:4px;background:var(--lsg-surface);font-size:.8em}.cards-none{margin:8px 0 0 8px;font-weight:500}",
 );
-/// Every deck widget carries this class; pages that contain it inline the widget styles.
+/// Every deck widget carries this class; pages that contain it link the widget styles.
 pub(super) const MARKER: &str = "class=\"cards-review";
 /// The deck list the review's `Switch to` menu shows.
 pub(super) const DECK_LIST: &str = "flashcards/decks.json";

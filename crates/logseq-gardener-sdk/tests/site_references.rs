@@ -6,6 +6,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+mod support;
+
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 struct Fixture(PathBuf);
 impl Fixture {
@@ -56,10 +58,10 @@ impl Fixture {
             .map(|n| {
                 self.0
                     .join("site/_refs")
-                    .join(format!("{stem}-{kind}-{n}.html"))
+                    .join(format!("{stem}-{kind}-{n}.html.gz"))
             })
             .take_while(|path| path.exists())
-            .map(|path| fs::read_to_string(path).unwrap())
+            .map(|path| support::read_text(&path))
             .collect()
     }
     /// The Linked References header and every linked fragment.
@@ -270,8 +272,8 @@ fn original_source_relative_assets_are_retained_in_namespace_reference_copies() 
     let report = f.publish();
     assert_eq!(report.assets, 1);
     assert!(f.linked("Notes/Namespace").contains("<img src=\"assets/"));
-    // The fragment's base resolves asset and page routes from the site root.
-    assert!(f.fragments("Notes/Namespace", "linked")[0].contains("<base href=\"../\">"));
+    // Fragment routes are relative to the site root, as the page that shows them is.
+    assert!(!f.fragments("Notes/Namespace", "linked")[0].contains("../assets/"));
 }
 
 #[test]
@@ -300,7 +302,8 @@ fn escaped_titles_and_nested_asset_contexts_do_not_create_duplicate_ids() {
         1
     );
     let target = f.page("Notes/Target");
-    assert_eq!(target.matches("<script").count(), 3);
+    // The inline theme start, lsg-theme.js, lsg-shell.js and the inline fragment reveal.
+    assert_eq!(target.matches("<script").count(), 4);
 }
 
 #[test]
@@ -605,12 +608,14 @@ fn unlinked_references_load_from_fragments_with_logseqs_match_rule() {
     assert!(!fragments[0].contains("plural"));
     assert!(!fragments[0].contains("mentions itself"));
     assert!(header.contains(&format!(
-        "<noscript><a href=\"_refs/{}-unlinked-1.html\"",
+        "data-src=\"_refs/{}-unlinked-1.html.gz\"",
         route("Notes/Gadget").trim_end_matches(".html")
     )));
+    // Without scripts the section shows its header only.
+    assert!(!header.contains("<noscript>"));
     // No mentions: no file, and the script shows the zero count.
     let quiet = f.page("Notes/Quiet");
-    assert!(section(&quiet, "unlinked").contains("No unlinked references."));
+    assert!(section(&quiet, "unlinked").contains("<h2>Unlinked References</h2>"));
     assert!(!section(&quiet, "unlinked").contains("data-src"));
     assert!(f.fragments("Notes/Quiet", "unlinked").is_empty());
 }
@@ -628,15 +633,69 @@ fn bodies_stay_out_of_the_page_and_fragments_page_with_next_links() {
     f.publish();
     let page = f.page("Notes/Target");
     assert!(!page.contains("BODY_"));
-    assert!(page.contains("<noscript><a href=\"_refs/"));
+    assert!(page.contains("data-src=\"_refs/"));
+    assert!(!page.contains("<noscript>"));
     let fragments = f.fragments("Notes/Target", "linked");
     assert_eq!(fragments.len(), 3);
     assert!(fragments[0].contains("BODY_000") && !fragments[0].contains("BODY_050"));
-    assert!(fragments[0].contains("-linked-2.html\" rel=\"next\">More linked references</a>"));
-    assert!(!fragments[2].contains("rel=\"next\""));
+    // A fragment holds the section data and the groups, not a readable page.
+    assert!(
+        fragments[0].starts_with("<script type=\"application/json\" class=\"references-data\">")
+    );
+    assert!(
+        fragments
+            .iter()
+            .all(|fragment| !fragment.contains("<html") && !fragment.contains("rel=\"next\""))
+    );
     let data = data(&fragments[0]);
     assert_eq!(data["count"], 120);
     assert_eq!(data["files"].as_array().unwrap().len(), 3);
+    assert!(
+        data["files"][1]
+            .as_str()
+            .unwrap()
+            .ends_with("-linked-2.html.gz")
+    );
     assert_eq!(data["blocks"][119][0], 2);
     assert!(!fragments[1].contains("references-data"));
+}
+
+#[test]
+fn fragments_are_gzip_with_an_empty_header_and_the_same_groups_give_the_same_file() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Gadget.md", "- Gadget\n");
+    f.write(
+        "pages/Notes___Source.md",
+        "- [[Notes/Gadget]] link\n- notes/gadget mention\n",
+    );
+    f.publish();
+    let again = f.0.join("again");
+    publish_site(
+        f.0.join("garden"),
+        &again,
+        FilenameFormat::TripleLowbar,
+        &NamespaceSelection::new(&["Notes"], &["Notes/Excluded"]).unwrap(),
+    )
+    .unwrap();
+    let stored = |site: &Path| {
+        let mut files: Vec<_> = fs::read_dir(site.join("_refs"))
+            .unwrap()
+            .flatten()
+            .map(|entry| (entry.file_name(), fs::read(entry.path()).unwrap()))
+            .collect();
+        files.sort();
+        files
+    };
+    let first = stored(&f.0.join("site"));
+    let stem = route("Notes/Gadget").trim_end_matches(".html").to_owned();
+    for kind in ["linked", "unlinked"] {
+        let name = format!("{stem}-{kind}-1.html.gz");
+        let (_, bytes) = first
+            .iter()
+            .find(|(file, _)| file.to_string_lossy() == name)
+            .unwrap_or_else(|| panic!("{name} missing"));
+        // Deflate, no file name or other flags, a zero time.
+        assert_eq!(&bytes[..8], &[0x1f, 0x8b, 8, 0, 0, 0, 0, 0]);
+    }
+    assert_eq!(first, stored(&again));
 }

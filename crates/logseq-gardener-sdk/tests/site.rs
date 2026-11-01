@@ -74,6 +74,26 @@ fn route(title: &str) -> String {
     format!("p-{hash:016x}.html")
 }
 
+/// The text of the inline `<script>` that carries `attribute`.
+fn inline_script<'p>(page: &'p str, attribute: &str) -> &'p str {
+    let start = page.find(&format!("<script {attribute}>")).unwrap() + attribute.len() + 9;
+    &page[start..start + page[start..].find("</script>").unwrap()]
+}
+
+/// A hand-minified inline script from `src/site/` without its comment lines.
+fn minified(name: &str) -> String {
+    let source = match name {
+        "theme-start.js" => include_str!("../src/site/theme-start.js"),
+        "fragments.js" => include_str!("../src/site/fragments.js"),
+        _ => unreachable!(),
+    };
+    source
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with("//"))
+        .collect()
+}
+
 fn html(root: &Path, title: &str) -> String {
     fs::read_to_string(root.join(route(title))).unwrap()
 }
@@ -242,19 +262,20 @@ fn renders_readable_markup_and_escapes_source_html_and_unsafe_links() {
         assert!(page.contains(content), "missing {content}: {page}");
     }
     // Only these exact publisher-owned helpers are executable; the query adds its own.
-    assert_eq!(page.matches("<script").count(), 4);
+    assert_eq!(page.matches("<script").count(), 5);
+    assert!(page.contains("<script defer src=\"lsg-theme.js\"></script>"));
     assert!(page.contains("<script defer src=\"lsg-shell.js\"></script>"));
     assert!(page.contains("<script defer src=\"lsg-queries.js\"></script>"));
     assert!(page.contains("Live query for pages"));
     assert!(!page.contains("{{query"));
-    assert!(page.contains(&format!(
-        "<script data-lsg-theme-script>{}</script>",
-        include_str!("../src/site/theme.js")
-    )));
-    assert!(page.contains(&format!(
-        "<script data-lsg-fragments>{}</script>",
-        include_str!("../src/site/fragments.js")
-    )));
+    assert_eq!(
+        inline_script(&page, "data-lsg-theme-script"),
+        minified("theme-start.js")
+    );
+    assert_eq!(
+        inline_script(&page, "data-lsg-fragments"),
+        minified("fragments.js")
+    );
     assert!(!page.contains("<script>SOURCE_HTML_SENTINEL"));
     assert!(!page.contains("href=\"javascript:"));
     assert!(!page.contains("src=\"http://example.com/remote.png\""));
@@ -719,7 +740,10 @@ fn stylesheet_preserves_selection_sources_and_default_output() {
     for (name, contents) in files(&styled) {
         if name.extension().is_some_and(|ext| ext == "html") {
             let text = String::from_utf8(contents).unwrap();
-            assert!(text.contains("</style><link rel=\"stylesheet\" href=\"custom.css\">"));
+            assert!(text.contains(
+                "<link rel=\"stylesheet\" href=\"lsg-site.css\"><link rel=\"stylesheet\" href=\"custom.css\">"
+            ));
+            assert!(!text.contains("<style"));
             assert!(!text.contains("PRIVATE_SENTINEL") && !text.contains("EXCLUDED_SENTINEL"));
             assert!(!text.contains("custom &amp; theme"));
         }
@@ -947,4 +971,54 @@ fn publishes_markdown_outside_pages_and_names_files_a_note_page_shadows() {
         "{:?}",
         report.diagnostics
     );
+}
+
+#[test]
+fn pages_link_shared_styles_and_keep_only_pre_paint_scripts_inline() {
+    let fixture = Fixture::new();
+    fixture.write(
+        "garden/pages/Publish.md",
+        "- Start [[Publish/Start]]\n  - Child\n",
+    );
+    fixture.write("garden/pages/Publish___Start.md", "- [[Publish]] body\n");
+    publish_site(
+        fixture.garden(),
+        fixture.output(),
+        FilenameFormat::TripleLowbar,
+        &NamespaceSelection::new(&["Publish"], &[]).unwrap(),
+    )
+    .unwrap();
+    let site = fixture.output();
+    let styles = fs::read_to_string(site.join("lsg-site.css")).unwrap();
+    for part in [
+        include_str!("../src/site/theme.css"),
+        include_str!("../src/site/outline.css"),
+        include_str!("../src/site/inline.css"),
+        include_str!("../src/site/references.css"),
+    ] {
+        assert!(styles.contains(part));
+    }
+    assert!(
+        fs::read_to_string(site.join("lsg-theme.js"))
+            .unwrap()
+            .contains("logseqGardenerInitTheme")
+    );
+    for title in ["Publish", "Publish/Start"] {
+        let page = html(&site, title);
+        assert!(!page.contains("<style"), "{title}");
+        let head = &page[..page.find("</head>").unwrap()];
+        let at = |text: &str| head.find(text).unwrap_or_else(|| panic!("{title}: {text}"));
+        // The theme applies before the styles and the deferred controller follows it.
+        assert!(at("data-lsg-theme-script") < at("src=\"lsg-theme.js\""));
+        assert!(at("src=\"lsg-theme.js\"") < at("href=\"lsg-site.css\""));
+        assert!(head.contains("<script defer src=\"lsg-theme.js\"></script>"));
+        // Inline scripts on an ordinary page: the theme start and the fragment reveal.
+        let inline: usize = page
+            .split("<script")
+            .skip(1)
+            .filter(|tag| !tag.starts_with(" defer src="))
+            .map(|tag| tag[..tag.find("</script>").unwrap()].len())
+            .sum();
+        assert!(inline <= 1500, "{title}: {inline} bytes of inline script");
+    }
 }

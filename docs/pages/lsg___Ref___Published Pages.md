@@ -55,7 +55,7 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 		- A valid neighbour that Properties shows is left out of the Previous and Next region at the bottom; the other valid neighbours stay there. A neighbour key in `:block-hidden-properties` stays hidden. Turning off `:publishing/page-sequence?` hides the region.
 	- ## Reference sections
 		- Below the outline, each page shows the sections that apply, in Logseq's order: Pages tagged with, Linked References, Hierarchy and Unlinked References.
-		- Linked References and Unlinked References hold only their header in the page. Their groups load from fragment files in `_refs/` when a reader opens the section, so a page's first paint does not grow with the number of pages that mention it. Without JavaScript, each of these sections links its first fragment file, a readable page that links the next one.
+		- Linked References and Unlinked References hold only their header in the page. Their groups load from fragment files in `_refs/` when a reader opens the section, so a page's first paint does not grow with the number of pages that mention it. The fragment files are stored gzip-compressed, as `_refs/<page>-linked-<n>.html.gz` and `_refs/<page>-unlinked-<n>.html.gz`, and the browser decompresses them. Without JavaScript, these sections show their headers only.
 		- Pages tagged with lists all its pages in the page. Hierarchy holds its first 100 rows in the page and loads the rest from `_refs/` as the reader scrolls.
 		- Only selected visible source content supplies references, filter options and mentions.
 		- ### Pages tagged with

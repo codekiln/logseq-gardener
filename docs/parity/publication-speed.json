@@ -666,6 +666,153 @@
         "files": 46767,
         "mb": 1212.0
       }
+    },
+    {
+      "recorded": "2026-11-01",
+      "lsg": "e4138f6f5354bc4a027988f68307f9ca9ea7fa6a",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "c86afa4f3849e6feeb5b0bcb9a4bf0a0c3020fec168804507a011077b691194f",
+        "source_files": 2410,
+        "source_mb": 3.0,
+        "generator_version": 1
+      },
+      "environment": {
+        "runner": "local",
+        "os": "Darwin 25.6.0",
+        "machine": "arm64",
+        "cpu": "Apple M2 Pro",
+        "cpus": 12
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 3.259,
+      "warm_s": 3.009,
+      "warm_median_s": 3.086,
+      "runs": 5,
+      "phases_ms": {
+        "read": 242.5,
+        "parse": 47.4,
+        "index": 327.4,
+        "plugins": 0.0,
+        "render": 1134.4,
+        "history": 0.0,
+        "search": 267.0,
+        "graph": 63.1,
+        "write": 824.7
+      },
+      "peak_mb": 487,
+      "published": {
+        "pages": 2375,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9906,
+        "mb": 79.9,
+        "parts": {
+          "page_html": {
+            "files": 2448,
+            "mb": 32.5
+          },
+          "_refs": {
+            "files": 4951,
+            "mb": 26.2
+          },
+          "assets": {
+            "files": 0,
+            "mb": 0.0
+          },
+          "search": {
+            "files": 101,
+            "mb": 5.9
+          },
+          "_graph": {
+            "files": 2384,
+            "mb": 14.8
+          },
+          "other": {
+            "files": 22,
+            "mb": 0.6
+          }
+        }
+      }
+    },
+    {
+      "recorded": "2026-11-01",
+      "lsg": "e4138f6f5354bc4a027988f68307f9ca9ea7fa6a",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "5095bdf6e569607d806ef89b8be8e5c5e69853fd",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "local",
+        "os": "Darwin 25.6.0",
+        "machine": "arm64",
+        "cpu": "Apple M2 Pro",
+        "cpus": 12
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 16.351,
+      "warm_s": 15.984,
+      "warm_median_s": 16.5,
+      "runs": 5,
+      "phases_ms": {
+        "read": 730.5,
+        "parse": 251.1,
+        "index": 1821.0,
+        "plugins": 0.0,
+        "render": 5261.3,
+        "history": 0.0,
+        "search": 1570.0,
+        "graph": 1924.6,
+        "write": 4116.7
+      },
+      "peak_mb": 2887,
+      "published": {
+        "pages": 8732,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46774,
+        "mb": 470.2,
+        "parts": {
+          "page_html": {
+            "files": 13929,
+            "mb": 171.1
+          },
+          "_refs": {
+            "files": 17486,
+            "mb": 82.5
+          },
+          "assets": {
+            "files": 111,
+            "mb": 164.5
+          },
+          "search": {
+            "files": 1641,
+            "mb": 29.0
+          },
+          "_graph": {
+            "files": 13528,
+            "mb": 19.1
+          },
+          "other": {
+            "files": 79,
+            "mb": 3.9
+          }
+        }
+      }
     }
   ]
 }
