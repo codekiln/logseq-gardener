@@ -62,7 +62,7 @@ see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Plugin Host API]]
 			- A `metadata` contribution adds `values` to the plugin's entry in a page's metadata, beside its page property values, for its browser module's `onPageAdopted` listener.
 			- It needs a `module`. A key may not repeat one of the plugin's `pageProperties`, and a page's entry is at most 64 KB of JSON.
 		- ### How rows appear
-			- Rows render inside `<ul class="lsg-derived" data-lsg-plugin="<id>">`.
+			- Rows render inside a `<ul>` with the class `lsg-derived` and `data-lsg-plugin="<id>"`.
 			- They are added after linked references, search records, the graph, All pages counts and embeds are built, so they create no backlink, search result or graph edge, and an embed of the target block shows only its authored children.
 			- Rows carry no block anchor of their own.
 			- Contributions to the same place appear in plugin id order, then in the order each plugin returned them.

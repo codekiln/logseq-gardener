@@ -10,8 +10,8 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Plugin Host API]]
 		    "apiVersion": 1,
 		    "revision": "102ef744a7e1b199",
 		    "pages": [
-		      {"id": "show/episode 1", "title": "Show/Episode 1", "url": "p-0e2769dd320a1844.html", "kind": "page"},
-		      {"id": null, "title": "Journals", "url": "index.html", "kind": "home"}
+		      {"id": null, "title": "Journals", "url": "index.html", "kind": "home"},
+		      {"id": "show/episode 1", "title": "Show/Episode 1", "url": "p-0e2769dd320a1844.html", "kind": "page"}
 		    ],
 		    "assets": ["assets/a-ffc572edff75a892.mp4"]
 		  }

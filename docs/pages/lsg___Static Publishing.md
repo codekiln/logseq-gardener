@@ -4,7 +4,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Publish Options
 - # Static Publishing
 	- ## Overview
 		- `lsg publish` generates a static HTML site from selected namespaces of a Logseq Markdown garden. It uses the Rust SDK to load the garden, resolve visible references and embeds, render pages and copy the supported assets those pages reference. The source garden stays unchanged.
-		- The site is a folder of HTML files, scripts and data files that any static file server can serve, or a reader can open from disk. It reads like a site that Logseq 0.10 publishes, with the same outline, reference sections, sidebars, search and graph view, all generated when the site is built.
+		- The site is a folder of HTML files, scripts and data files that any static file server can serve, or a reader can open from disk. It reads like a site that Logseq 0.10 publishes, with the same outline, reference sections, sidebars and graph view, and with `--search` the same search, all generated when the site is built.
 	- ## How a build works
 		- A build reads every Markdown file of the garden that Logseq reads, as [[lsg/Ref/Garden Loading]] describes, and gives each page its title, as [[lsg/Ref/Page Titles]] describes.
 		- It selects pages by namespace with `--include` and `--exclude`, then applies Logseq's publishing rules within that selection: `public::` properties and `:publishing/all-pages-public?`. Every later step sees only selected visible content, so references, embeds, assets, reference sections, search data and plugin data come from published pages alone. [[lsg/Ref/Selection and Visibility]] describes the rules.
@@ -13,7 +13,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Publish Options
 		- `--timings` shows where a build spends its time. [[lsg/Ref/Publication Speed]] reports how long publication takes on a Gitpa-sized garden and on the encode garden.
 	- ## Plugins
 		- A site often needs behaviour or content that belongs to it alone, such as a podcast player that keeps playing across pages or a list of episodes on the homepage. Plugins add that through `lsg publish --plugin`, without editing the generated HTML after the build.
-		- A browser plugin is an ES module that `lsg`'s plugin host loads into each page. The host owns navigation between pages, so a plugin's region, such as a player, stays in place while the page changes. [[lsg/Ref/Plugin Host API]] describes it.
+		- A browser plugin is an ES module that `lsg`'s plugin host loads into the site's pages. The host owns navigation between pages, so a plugin's region, such as a player, stays in place while the page changes. [[lsg/Ref/Plugin Host API]] describes it.
 		- A build plugin is a program that reads a JSON view of the published pages and returns rows and metadata to add to them. [[lsg/Ref/Build Plugin Protocol]] describes it.
 		- [[lsg/How To/Add a Site Plugin]] shows how to write both.
 	- ## Trust

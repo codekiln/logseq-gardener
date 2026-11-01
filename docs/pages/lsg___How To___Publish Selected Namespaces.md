@@ -13,8 +13,8 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Selection and Visibility]], [[
 			- Open the garden's `logseq/config.edn`. If it sets `:file/name-format :triple-lowbar`, use `--filename-format triple-lowbar`. Otherwise use `--filename-format legacy`, for Logseq's default format.
 		- ### 2. Choose the namespaces
 			- Pass `--include` with each namespace to publish, and `--exclude` with each namespace to leave out. Each option selects the namespace and its descendants, and you can repeat either one.
-			- Selection is case-sensitive, and an exclusion always wins. With no `--include`, the index is empty.
-			- Within the selection, the garden's publishing rules decide which pages are published: a page with `public:: false` is withheld, and unless `logseq/config.edn` makes every page public, so is a page without `public:: true`. [[lsg/Ref/Selection and Visibility]] describes the rules.
+			- Selection is case-sensitive, and an exclusion always wins. With no `--include`, no page is selected; only journals are published, with `--journals`.
+			- Within the selection, the garden's publishing rules decide which pages are published: a page with `public:: false` is withheld, and so is a page without `public:: true`, unless `logseq/config.edn` makes every page public or the garden has no `logseq/config.edn`. [[lsg/Ref/Selection and Visibility]] describes the rules.
 		- ### 3. Publish into a new directory
 			- Choose an output directory that does not exist yet, whose parent exists, outside the garden. Each run needs a fresh directory.
 			- ```sh
@@ -47,7 +47,7 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Selection and Visibility]], [[
 			    --include GitP/A/Session --exclude GitP/A/Session/26/09/24-Thu
 			  ```
 			- Open the generated index, then `GitP/A/Session/24/11/19-Tue`. Its artwork and recording are HTTPS media, so viewing the artwork and listening need network access.
-			- The exclusion removes the September 24 session and its asset namespace. Retained production notes stay visible unless their page is withheld. Selecting parts of a page's outline, and evaluating the homepage's queries, are not supported yet.
+			- The exclusion removes the September 24 session and its asset namespace. Retained production notes stay visible unless their page is withheld. Selecting parts of a page's outline is not supported yet. Simple queries run when the site is built, and a Datalog query shows Logseq's query error.
 		- ### From Rust
 			- Rust programs call `site::publish_site` or `site::publish_site_with_options` from `logseq-gardener-sdk`. The [publish_site example](https://github.com/codekiln/logseq-gardener/blob/main/crates/logseq-gardener-sdk/examples/publish_site.rs) shows the call, and accepts `--include`, `--exclude`, `--stylesheet` and `--homepage`. [[lsg/How To/Use the Rust SDK]] shows how to add the SDK to a project.
 	- ## Troubleshooting

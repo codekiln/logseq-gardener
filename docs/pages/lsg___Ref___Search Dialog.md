@@ -7,7 +7,7 @@ see-also:: [[lsg/Ref/Static Search Data]], [[lsg/Ref/Host Integration API]], [[l
 		- Serve a search-enabled site over HTTP or HTTPS, also for a local preview. Pages opened from `file:` keep their ordinary navigation and hide the search button.
 	- ## Loading
 		- Search-enabled pages load a content-fingerprinted `lsg-search-start-*.mjs` startup module. It imports the full `lsg-search-ui-*.mjs` controller when a reader points at or focuses the search button, or on the first open.
-		- The search button stays hidden until JavaScript finds valid publication metadata and native dialog support.
+		- The search button stays hidden until JavaScript finds a search manifest link and native dialog support. The controller hides it again when the link is invalid.
 	- ## Layout
 		- The dialog has no visible title, `aria-label="Search"`, a visually hidden input label and the placeholder `What are you looking for?`.
 		- Results appear in the groups Filters, Pages, Commands, Current page and Blocks. Each group shows a count, `99+` from 100, and five rows until `Show more`, `mod+Down`, `mod+Up` or a click on the group name expands or collapses it.
@@ -31,7 +31,7 @@ see-also:: [[lsg/Ref/Static Search Data]], [[lsg/Ref/Host Integration API]], [[l
 	- ## State attributes
 		- | Attribute | Meaning |
 		  | --- | --- |
-		  | `data-lsg-search-state` | The dialog's state: `loading`, `searching`, `ready`, `error` or `closed`. |
+		  | `data-lsg-search-state` | The dialog's state: `loading`, `ready`, `error` or `closed`. |
 		  | `data-lsg-search-complete` | Advances after each completed result render. |
 		- The parity harness measures each keystroke by waiting for `data-lsg-search-complete` to advance, so queries with no results are measured too.
 	- ## With a persistent host

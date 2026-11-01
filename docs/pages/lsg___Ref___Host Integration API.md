@@ -3,7 +3,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 
 - # Host Integration API Reference
 	- ## Overview
-		- A host is a page or application that shows a published site's pages inside its own navigation: it replaces `<main>` without a full page load, keeps a media player playing across pages, or serves pages at addresses of its own. Gitpa's podcast site is one. When a build has a plugin with a browser module, `lsg`'s own plugin host does this, as [[lsg/Ref/Plugin Host API]] describes, and calls these functions itself.
+		- A host is a page or application that shows a published site's pages inside its own navigation: it replaces `<main>` without a full page load, keeps a media player playing across pages, or serves pages at addresses of its own. Gitpa's podcast site is one. When a build has a plugin with a browser module, `lsg`'s own plugin host does this, as [[lsg/Ref/Plugin Host API]] describes. It calls the outline, references, All pages and theme functions and `window.logseqGardenerRevealFragment` itself, and calls neither `window.logseqGardenerInitProperties` nor `window.logseqGardenerInitSearch`.
 		- The site's scripts expose browser functions on `window`, a `lsg:media-seek` event, `link` metadata and data attributes. A host calls the functions after it inserts new content, so the new content gets the behaviour a full page load gives it.
 	- ## Order of calls
 		- A host that replaces page content calls the functions in this order:
@@ -83,7 +83,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 		  | `data-lsg-theme-select` | A host's `<select>` | Marks a native Appearance selector. |
 		  | `data-lsg-theme-control` | The selector's container | Marks the element that holds the selector. |
 		  | `data-lsg-search-state` | The search dialog | The dialog's state, as [[lsg/Ref/Search Dialog]] describes. |
-		  | `data-lsg-search-complete` | The search dialog | Advances after each completed result render, as [[lsg/Ref/Search Dialog]] describes. |
+		  | `data-lsg-search-complete` | The search results list, `#lsg-search-results` | Advances after each completed result render, as [[lsg/Ref/Search Dialog]] describes. |
 		  | `data-lsg-page` | A `<script type="application/json">` in the head | The page metadata that plugins read, as [[lsg/Ref/Plugin Host API]] describes. |
 		  | `data-lsg-plugin`, `data-lsg-region` | A plugin's persistent region | The plugin's id and the region's local id, as [[lsg/Ref/Plugin Host API]] describes. |
 	- ## Rewritten page addresses
