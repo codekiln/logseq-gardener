@@ -20,7 +20,7 @@ see-also:: [[lsg/How To/Contribute a Change]], [[lsg/Releases]]
 		  | `mise run openspec:check-skill-versions` | The OpenSpec skills in `.rulesync/skills/` match the version of the managed OpenSpec CLI. |
 		  | `mise run rulesync:check` | The generated agent instructions match fresh RuleSync output. |
 		  | `mise run notices:check` | The dependency source inventory and the combined license file match the locked dependencies. |
-		  | `mise run docs:check` | The docs site builds with no `lsg` diagnostics; the `sh` code blocks in `README.md` run, and its links to the documentation site name pages; every page carries the kind tag its title names; and the remaining Markdown documents have `:hidden` entries and working local links. [[lsg/How To/Edit the Documentation]] describes it. |
+		  | `mise run docs:check` | The docs site builds with no `lsg` diagnostics; every documentation URL in `lsg` help names a page on that site, as [[lsg/How To/Link CLI Help to a Docs Page]] describes; the `sh` code blocks in `README.md` run, and its links to the documentation site name pages; every page carries the kind tag its title names; and the remaining Markdown documents have `:hidden` entries and working local links. [[lsg/How To/Edit the Documentation]] describes it. |
 		  | `mise run clilint:check` | Command behavior and help navigation against the pinned Clilint standards and the saved help assessment. Every check must pass at its full score. [[lsg/How To/Review Help Examples]] refreshes the assessment. |
 		  | `mise run release:check` | The release configuration: the release impact test and the dist configuration check, both described below. |
 	- ## Release configuration checks

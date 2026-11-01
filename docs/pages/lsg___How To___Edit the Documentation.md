@@ -47,5 +47,6 @@ see-also:: [[lsg/How To/Contribute a Change]], [[Diataxis]]
 		- If `docs:check` names a document with no `:hidden` entry, add a line for it to `:hidden`, written as its path from `docs/` with a leading `/`.
 		- If `docs:check` reports that a README link names no page, correct the address to the page title, with each space written as `%20`, as the page's address on the site shows.
 		- If `docs:check` names a page and its expected tag, change the page's `tags::` property to that tag, or rename the page to match its kind.
+		- If `docs:check` names a URL that `lsg` help prints, help links a page title that the site no longer has, often because the page was renamed. Change the title in [src/help.rs](https://github.com/codekiln/logseq-gardener/blob/main/src/help.rs) to the page's new title, as [[lsg/How To/Link CLI Help to a Docs Page]] describes.
 		- If `docs:check` reports that Logseq and the SDK disagree, the page uses syntax that the SDK reads differently from Logseq, such as `alias:: #[[Name]]`. Write the value as a page reference, such as `alias:: [[Name]]`, or [open an issue](https://github.com/codekiln/logseq-gardener/issues) about the difference.
 		- If Logseq misses a page or shows a deleted one, choose Re-index from the graph menu.

@@ -342,7 +342,7 @@ The site uses readable page URLs from `readable-page-urls`. #326 adds the option
 
 ### Spec changes
 
-This change modifies `parity-comparison-harness`, `published-graph-view` and `published-page-outline`, whose requirements name `docs/parity/performance.md`, to name the Performance page. It modifies `cli-static-publishing` so publishing help names the plugin pages. #330 and #334 keep these deltas matching what they build, and the cleanup issue [#335](https://github.com/codekiln/logseq-gardener/issues/335) syncs them. Archived changes keep the paths they were written with.
+This change modifies `parity-comparison-harness`, `published-graph-view` and `published-page-outline`, whose requirements name `docs/parity/performance.md`, to name the Performance page. It modifies `cli-static-publishing` so publishing help names the plugin pages and the readable URL layout page. #330 and #334 keep these deltas matching what they build, and the cleanup issue [#335](https://github.com/codekiln/logseq-gardener/issues/335) syncs them. Archived changes keep the paths they were written with.
 
 ## Risks / Trade-offs
 

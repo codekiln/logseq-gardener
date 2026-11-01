@@ -683,7 +683,14 @@ fn cli_plugin_adds_files_and_invalid_manifests_fail_without_output() {
     let help = String::from_utf8_lossy(&help.stdout);
     assert!(help.contains("--plugin PATH"), "{help}");
     assert!(help.contains("plugins/<id>/"), "{help}");
-    assert!(help.contains("docs/publishing.md"), "{help}");
+    assert!(
+        help.contains("lsg/Ref/Plugin Host API (https://codekiln.github.io/logseq-gardener/lsg/Ref/Plugin%20Host%20API/)"),
+        "{help}"
+    );
+    assert!(
+        help.contains("lsg/Ref/Build Plugin Protocol (https://codekiln.github.io/logseq-gardener/lsg/Ref/Build%20Plugin%20Protocol/)"),
+        "{help}"
+    );
     assert!(help.contains("optional build"), "{help}");
 }
 
