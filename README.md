@@ -36,11 +36,11 @@ To publish your notes, follow [Generate a local HTML garden](docs/local-site.md)
 ## Learn more
 
 - [Navigate help and use JSON from scripts](docs/cli.md)
-- [Understand the SDK, CLI, and parser choice](docs/architecture.md)
+- [Understand the SDK, CLI, and parser choice](docs/pages/lsg___Architecture.md)
 - [Contribute and run the project checks](CONTRIBUTING.md)
-- [Prepare and distribute releases](docs/releases.md)
+- [Prepare and distribute releases](docs/pages/lsg___Releases.md)
 - [Review dependency licenses and source notices](THIRD_PARTY_NOTICES.md)
 
 ## License
 
-Copyright © 2026 codekiln. Logseq Gardener is licensed under the [GNU Affero General Public License, version 3 only](LICENSE), without warranty. See [dependency licensing](docs/licensing.md) for the notice and source-distribution process.
+Copyright © 2026 codekiln. Logseq Gardener is licensed under the [GNU Affero General Public License, version 3 only](LICENSE), without warranty. See [dependency licensing](docs/pages/lsg___Licensing.md) for the notice and source-distribution process.

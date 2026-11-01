@@ -1,6 +1,6 @@
 # Rust parser licenses
 
-This audit records the licenses and attribution files supplied with the lsdoc revision tested in the parser comparison. Read [the adoption guide](../../../../../docs/parser-adoption.md) for the findings and remaining work.
+This audit records the licenses and attribution files supplied with the lsdoc revision tested in the parser comparison. Read [lsg/Parser Adoption](../../../../../docs/pages/lsg___Parser%20Adoption.md) for the findings and remaining work.
 
 ## Reproduce the evidence
 

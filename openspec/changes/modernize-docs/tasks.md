@@ -37,14 +37,14 @@
 
 ## 5. #329 Move contributor and release docs into the docs graph
 
-- [ ] 5.1 Convert `docs/architecture.md` and `docs/parser-adoption.md` into `lsg/Architecture`, `lsg/Parser Adoption` and `lsg/How To/Change the Parser Revision`
-- [ ] 5.2 Convert `docs/releases.md` into the release pages the page map names, describing the automated releases as they run now, and point `fnox.toml` and `.mise/tasks/release/store-app-key` at `lsg/How To/Rotate the Release App Key`
-- [ ] 5.3 Convert `docs/licensing.md` and `docs/dependencies.md` into `lsg/Licensing`, `lsg/How To/Update Dependencies`, `lsg/Ref/Dependencies` and their part of `lsg/Ref/Release Archives`, and keep `mise run notices:check` passing
-- [ ] 5.4 Convert `docs/openspec-cleanup.md` into `lsg/How To/Finish an OpenSpec Change After Merge`, point `.rulesync/rules/overview.md` at it, and run `mise exec -- rulesync generate` and `mise run rulesync:check`
-- [ ] 5.5 Convert `docs/publishing-cleanup-verification.md` into `lsg/Ref/Publishing Cleanup Verification`
-- [ ] 5.6 Convert `help-assessment.md` into `lsg/How To/Review Help Examples`, update every reference to it, and remove it from `include` in `dist-workspace.toml`
-- [ ] 5.7 Write `lsg/How To/Contribute a Change` and `lsg/Ref/Project Checks`, and shorten `CONTRIBUTING.md` to an entry point that keeps the section from #325
-- [ ] 5.8 Delete the converted documents, remove their `:hidden` lines and repoint every link to them
+- [x] 5.1 Convert `docs/architecture.md` and `docs/parser-adoption.md` into `lsg/Architecture`, `lsg/Parser Adoption` and `lsg/How To/Change the Parser Revision`
+- [x] 5.2 Convert `docs/releases.md` into the release pages the page map names, describing the automated releases as they run now, and point `fnox.toml` and `.mise/tasks/release/store-app-key` at `lsg/How To/Rotate the Release App Key`
+- [x] 5.3 Convert `docs/licensing.md` and `docs/dependencies.md` into `lsg/Licensing`, `lsg/How To/Update Dependencies`, `lsg/Ref/Dependencies` and their part of `lsg/Ref/Release Archives`, and keep `mise run notices:check` passing
+- [x] 5.4 Convert `docs/openspec-cleanup.md` into `lsg/How To/Finish an OpenSpec Change After Merge`, point `.rulesync/rules/overview.md` at it, and run `mise exec -- rulesync generate` and `mise run rulesync:check`
+- [x] 5.5 Convert `docs/publishing-cleanup-verification.md` into `lsg/Ref/Publishing Cleanup Verification`
+- [x] 5.6 Convert `help-assessment.md` into `lsg/How To/Review Help Examples`, update every reference to it, and remove it from `include` in `dist-workspace.toml`
+- [x] 5.7 Write `lsg/How To/Contribute a Change` and `lsg/Ref/Project Checks`, and shorten `CONTRIBUTING.md` to an entry point that keeps the section from #325
+- [x] 5.8 Delete the converted documents, remove their `:hidden` lines and repoint every link to them
 
 ## 6. #330 Move Logseq parity reports into the docs graph
 
