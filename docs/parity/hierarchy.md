@@ -10,7 +10,7 @@ Measured on 2026-10-25 against the `gh-pages` build of garden commit `c622a4d` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb`. Measured live values come first and win where they differ from the checkout or from `docs/logseq-reference/Hierarchy.md`. The board says a page shows its own row and that a leaf shows its own path; the live build shows neither.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb`. Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Namespace Hierarchy](../pages/lsg___Ref___Logseq%20Published%20Site___Namespace%20Hierarchy.md). The board says a page shows its own row and that a leaf shows its own path; the live build shows neither.
 
 ### Which rows appear
 
