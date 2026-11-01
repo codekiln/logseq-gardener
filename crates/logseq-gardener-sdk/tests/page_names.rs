@@ -57,3 +57,21 @@ fn normalized_titles_and_aliases_share_candidates() {
     assert_eq!(index.candidates("self"), [2]);
     assert_eq!(index.candidates("other"), [1]);
 }
+
+#[test]
+fn tags_and_nested_references_supply_aliases_as_in_logseq() {
+    // Logseq reads `#[[Name]]` and `#name` as the page they tag.
+    assert_eq!(
+        page_aliases(&document("alias:: #[[Changelog]]\n"), "Page"),
+        ["changelog"]
+    );
+    assert_eq!(
+        page_aliases(&document("alias:: #[[Tag Alias]], #short, plain\n"), "Page"),
+        ["plain", "short", "tag alias"]
+    );
+    // A nested reference names its outer page only.
+    assert_eq!(
+        page_aliases(&document("alias:: [[Outer [[Inner]] Name]]\n"), "Page"),
+        ["outer [[inner]] name"]
+    );
+}

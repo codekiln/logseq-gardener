@@ -1,1 +1,0 @@
-- [[Release Notes]] lists the changes in each release.

@@ -21,11 +21,11 @@ pub fn lookup_key(name: &str) -> String {
 
 /// Extract aliases from the last leading `alias` property.
 ///
-/// Plain comma-separated text and direct page references supply names. Quoted
-/// values remain literal, including the quotes. Formatted and code spans do not
-/// supply inner names; a value with no parsed names remains one literal name.
-/// Nested properties and `aliases` metadata do not supply aliases. Returned names
-/// are sorted, normalized and deduplicated, omitting blanks and the page itself.
+/// The value's names are [`linkable_property_names`]. Quoted values remain literal,
+/// including the quotes, and a value with no names, such as one formatted span, remains
+/// one literal name. Nested properties and `aliases` metadata do not supply aliases.
+/// Returned names are sorted, normalized and deduplicated, omitting blanks and the page
+/// itself.
 pub fn page_aliases(document: &GardenDocument, title: &str) -> Vec<String> {
     let title = lookup_key(title);
     alias_names(document)
@@ -61,31 +61,80 @@ fn alias_names(document: &GardenDocument) -> Vec<String> {
         return Vec::new();
     };
     let value = property.1.trim();
-    let mut names = Vec::new();
-    if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
-        names.push(value.to_owned());
-    } else {
-        for inline in lsdoc::inline(value, "markdown") {
-            match inline {
-                Inline::Plain { text, .. } => names.extend(
-                    text.split([',', '，'])
-                        .map(str::trim)
-                        .filter(|name| !name.is_empty())
-                        .map(str::to_owned),
-                ),
-                Inline::Link {
-                    url: Url::PageRef { v },
-                    image: false,
-                    ..
-                } => names.push(v),
-                _ => {}
-            }
+    let names = linkable_property_names(value);
+    if names.is_empty() && !value.is_empty() {
+        return vec![value.to_owned()];
+    }
+    names
+}
+
+/// Whether Logseq reads a property's value as a list of page names: `alias`, `aliases`
+/// and `tags`, in any case.
+pub fn is_linkable_property(name: &str) -> bool {
+    ["alias", "aliases", "tags"]
+        .iter()
+        .any(|linkable| name.trim().eq_ignore_ascii_case(linkable))
+}
+
+/// The page names in an `alias::`, `aliases::` or `tags::` value, as Logseq's file
+/// parser reads them, in written order without repeats.
+///
+/// A page reference `[[Name]]`, a tag `#name` or `#[[Name]]`, and a nested reference
+/// `[[Outer [[Inner]] Name]]`, which names `Outer [[Inner]] Name` only, each supply one
+/// name, and plain text between them supplies its comma-separated parts, split on ASCII
+/// or full-width commas. Code, formatted spans and other links supply nothing, and a
+/// value in double quotes supplies nothing.
+pub fn linkable_property_names(value: &str) -> Vec<String> {
+    let value = value.trim();
+    if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+        return Vec::new();
+    }
+    let mut names: Vec<String> = Vec::new();
+    let mut push = |name: &str| {
+        let name = name.trim();
+        if !name.is_empty() && !names.iter().any(|known| known == name) {
+            names.push(name.to_owned());
         }
-        if names.is_empty() && !value.is_empty() {
-            names.push(value.to_owned());
+    };
+    for inline in lsdoc::inline(value, "markdown") {
+        match &inline {
+            Inline::Plain { text, .. } => text.split([',', '，']).for_each(&mut push),
+            Inline::Tag { children, .. } => {
+                // Logseq takes a tag's first part: its text, or the reference it wraps.
+                match children.first() {
+                    Some(Inline::Plain { text, .. }) => push(text),
+                    Some(other) => {
+                        if let Some(name) = reference_name(other) {
+                            push(&name);
+                        }
+                    }
+                    None => {}
+                }
+            }
+            other => {
+                if let Some(name) = reference_name(other) {
+                    push(&name);
+                }
+            }
         }
     }
     names
+}
+
+/// The page a direct or nested page reference names.
+fn reference_name(inline: &Inline) -> Option<String> {
+    match inline {
+        Inline::Link {
+            url: Url::PageRef { v },
+            image: false,
+            ..
+        } => Some(v.clone()),
+        Inline::NestedLink { content, .. } => content
+            .strip_prefix("[[")
+            .and_then(|inner| inner.strip_suffix("]]"))
+            .map(str::to_owned),
+        _ => None,
+    }
 }
 
 /// Deterministic lookup over caller-supplied stored-page identifiers.
