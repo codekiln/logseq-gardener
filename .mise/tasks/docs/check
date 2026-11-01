@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-#MISE description="Build the docs site with no lsg diagnostics, run every README command and check the docs graph and the remaining Markdown files"
+#MISE description="Build the docs site with no lsg diagnostics, run every README command, check the docs graph and the remaining Markdown files, and compare the graph with Logseq's own parser"
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
 tmp="${TMPDIR:-/tmp}"
 site_root="$(mktemp -d "${tmp%/}/lsg-docs-check.XXXXXX")"
 mise run docs:site --output "$site_root/site"
 python3 scripts/docs.py
+mise run docs:parser-check
 rm -rf "$site_root"
