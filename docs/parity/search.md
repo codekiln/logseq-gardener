@@ -10,7 +10,7 @@ Measured on 2026-10-26 against the `gh-pages` build of garden commit `0ce74d6` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`; `cmdk.cljs` = `frontend/components/cmdk.cljs`; `list_item` = `deps/shui/src/logseq/shui/list_item/v1.cljs`). Measured live values come first and win where they differ from the checkout or from `docs/logseq-reference/Overlays.md` and `Prototype.md`. The board's 720px white dialog, bold matches and `PAGES`/`BLOCKS` labels do not match the live build.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`; `cmdk.cljs` = `frontend/components/cmdk.cljs`; `list_item` = `deps/shui/src/logseq/shui/list_item/v1.cljs`). Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Search and More Menu](../pages/lsg___Ref___Logseq%20Published%20Site___Search%20and%20More%20Menu.md) and [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md). The board's 720px white dialog, bold matches and `PAGES`/`BLOCKS` labels do not match the live build.
 
 None of the search code checks whether the site is published, so the published dialog is the desktop app's dialog, including commands and page creation.
 

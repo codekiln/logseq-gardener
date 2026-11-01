@@ -38,7 +38,7 @@ From `logseq/config.edn`:
 - **Linked References** under every journal that has any, collapsed in the encode garden because of the threshold of 0 ([`reference.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/reference.cljs#L131-L162)).
 - **Today's journal only:** the `:default-queries :journals` queries and a SCHEDULED AND DEADLINE section ([`page.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/page.cljs#L211-L226), [`scheduled_deadlines.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/components/scheduled_deadlines.cljs#L13-L41)). On a published site "today" is the reader's date, so these appear only when the build happens to include that day.
 
-The reference board `Prototype.md` shows four journals without references. The source and the live build show three, then batches of seven, each with Linked References.
+The reference board [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md) shows four journals without references. The source and the live build show three, then batches of seven, each with Linked References.
 
 ### Journal titles, pages and links
 

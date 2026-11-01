@@ -10,7 +10,7 @@ Measured on 2026-10-26 against the `gh-pages` build of the encode garden (`gh-pa
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from [Prototype](../logseq-reference/Prototype.md). The Prototype board differs from the live build in several places, listed where they occur: it opens the left sidebar by default, gives the card menu a different item list, describes Help as a list of ten shortcuts, and says new cards open with a page link and the page's outline.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md). The Prototype board differs from the live build in several places, listed where they occur: it opens the left sidebar by default, gives the card menu a different item list, describes Help as a list of ten shortcuts, and says new cards open with a page link and the page's outline.
 
 ### Opening and closing
 

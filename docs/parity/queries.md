@@ -14,7 +14,7 @@ Measured on 2026-10-27 against the `gh-pages` build of garden commit `083106d` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`, `QC` = `frontend/components/query.cljs`). Measured live values come first and win where they differ from the checkout or from `docs/logseq-reference/Prototype.md`.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`, `QC` = `frontend/components/query.cljs`). Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md).
 
 The prototype board differs from the live build in these places:
 
