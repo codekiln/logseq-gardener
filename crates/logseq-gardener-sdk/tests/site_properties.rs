@@ -138,7 +138,7 @@ fn hidden_mixed_and_unsafe_values_supply_no_rows_or_property_backlinks() {
     f.page("Visible/Private", "public:: false\n- Hidden\n");
     f.page("Visible/A", "alias:: [[Collision]]\n- A\n");
     f.page("Visible/B", "alias:: [[Collision]]\n- B\n");
-    f.page("Visible/Source","mixed:: [[Visible/Target]], [[Visible/Private]]\nambiguous:: [[Collision]]\nsecret:: [[Visible/Target]]\nid:: [[Visible/Target]]\nlogseq-proxy-source:: [[Visible/Target]]\nnext:: [[Visible/Target]]\nunsafe:: {{embed [[Visible/Target]]}}\nasset:: ../assets/local.wav\nfile-path:: file:///sensitive\nblock-ref:: ((a5292345-1111-1111-1111-111111111111))\nlocal:: /Users/private/file\nwindows:: C:\\private\\file.wav\nunc:: \\\\server\\file.wav\nscript:: javascript:alert(1)\ndata:: data:text/plain,hidden\n- Public body\n");
+    f.page("Visible/Source","mixed:: [[Visible/Target]], [[Visible/Private]]\nambiguous:: [[Collision]]\nsecret:: [[Visible/Target]]\nid:: [[Visible/Target]]\nhl-type:: [[Visible/Target]]\nnext:: [[Visible/Target]]\nunsafe:: {{embed [[Visible/Target]]}}\nasset:: ../assets/local.wav\nfile-path:: file:///sensitive\nblock-ref:: ((a5292345-1111-1111-1111-111111111111))\nlocal:: /Users/private/file\nwindows:: C:\\private\\file.wav\nunc:: \\\\server\\file.wav\nscript:: javascript:alert(1)\ndata:: data:text/plain,hidden\n- Public body\n");
     f.publish();
     let html = f.html("Visible/Source");
     assert!(properties(&html).is_empty());
@@ -148,7 +148,7 @@ fn hidden_mixed_and_unsafe_values_supply_no_rows_or_property_backlinks() {
         "Collision",
         "sensitive",
         "local.wav",
-        "logseq-proxy-source",
+        "hl-type",
         "Users/private",
         "javascript:",
         "data:text",
@@ -245,4 +245,56 @@ fn properties_controller_is_available_on_empty_pages_and_restores_before_content
             < props.find("<summary").unwrap()
     );
     assert!(props.contains("<details open>"));
+}
+
+/// Logseq 0.10.15 hides a page property only when its key is in `hidden-built-in-properties`,
+/// in `:block-hidden-properties`, or is `title`, `filters` or `icon`. Every other row shows,
+/// and each `alias` value is a link to the page under the name the author wrote.
+#[test]
+fn page_properties_show_every_key_logseq_shows() {
+    let f = Fixture::new("{:publishing/page-properties? true :block-hidden-properties #{:secret}}");
+    f.page("Visible/Other", "- Other\n");
+    f.page(
+        "Visible/Aliased",
+        "title:: Visible/Aliased\nalias:: [[Second Name]], Third Name\npublic:: true\nfilters:: {\"visible/other\" true}\nicon:: 🎯\nsearch-exclude:: true\ncustom_id:: 7\nlogseq-proxy-source:: plain text\nfile:: notes\nsecret:: shh\nid:: 6a3f6744-5403-429d-ad4a-4391e01224ea\ncollapsed:: true\nhl-page:: 3\nlogseq.order-list-type:: number\ncard-repeats:: 2\ntags:: Visible/Other\n- Body\n",
+    );
+    f.publish();
+    let html = f.html("Visible/Aliased");
+    let props = properties(&html);
+    let own = route("Visible/Aliased");
+    assert!(
+        props.contains(&format!(
+            "<dt>alias</dt><dd><a class=\"page-ref\" href=\"{own}\">Second Name</a>, <a class=\"page-ref\" href=\"{own}\">Third Name</a></dd>"
+        )),
+        "{props}"
+    );
+    for row in [
+        "<dt>public</dt><dd>true</dd>",
+        "<dt>search-exclude</dt><dd>true</dd>",
+        "<dt>custom_id</dt><dd>7</dd>",
+        "<dt>logseq-proxy-source</dt><dd>plain text</dd>",
+        "<dt>file</dt><dd>notes</dd>",
+        "<dt>tags</dt>",
+    ] {
+        assert!(props.contains(row), "{row} missing from {props}");
+    }
+    for key in [
+        "title",
+        "filters",
+        "icon",
+        "secret",
+        "id",
+        "collapsed",
+        "hl-page",
+        "logseq.order-list-type",
+        "card-repeats",
+    ] {
+        assert!(
+            !props.contains(&format!("<dt>{key}</dt>")),
+            "{key} shown in {props}"
+        );
+    }
+    assert!(props.find("<dt>alias").unwrap() < props.find("<dt>public").unwrap());
+    // An alias names the page itself, which gains no linked reference from it.
+    assert!(!html.contains("data-refs=\"linked\""));
 }
