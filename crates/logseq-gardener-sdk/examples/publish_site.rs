@@ -1,4 +1,5 @@
-//! Generate a selected local HTML garden; see docs/local-site.md for invocation.
+//! Generate a selected local HTML garden. lsg/How To/Publish Selected Namespaces, in
+//! docs/pages/lsg___How To___Publish Selected Namespaces.md, shows the invocation.
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
