@@ -61,7 +61,7 @@ Logseq has two themes, light (the default) and dark. Toggle theme and `t t` swit
 | `--ls-secondary-text-color` (body text) | `#11181c` | `#ecedee` |
 | `--ls-link-text-color` | `#3451b2` | `#849dff` |
 
-The [Prototype](../logseq-reference/Prototype.md) token table lists a fuller set (cards, overlays, header, brackets) and links `#106ba3`; where it differs from the table above, the live build wins.
+The token table on [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md) lists a fuller set (cards, overlays, header, brackets) and links `#106ba3`; where it differs from the table above, the live build wins.
 
 ### Keyboard shortcuts
 

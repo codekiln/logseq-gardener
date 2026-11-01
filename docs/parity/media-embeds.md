@@ -10,7 +10,7 @@ Measured on 2026-10-26 against the `gh-pages` build of the encode garden (`gh-pa
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from [Prototype](../logseq-reference/Prototype.md). The live build is older than the checkout in one place: its YouTube iframe has neither `picture-in-picture; web-share` in `allow` nor `referrerpolicy`. The Prototype board differs from the live build in several places, listed where they occur: it draws a 560px 16:9 placeholder, gives the timestamp the title `Seek video`, shows a toast and a `Seeked to` badge, and limits seeking to videos on the same page.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). Measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/Clickable Prototype](../pages/lsg___Ref___Logseq%20Published%20Site___Clickable%20Prototype.md). The live build is older than the checkout in one place: its YouTube iframe has neither `picture-in-picture; web-share` in `allow` nor `referrerpolicy`. The Prototype board differs from the live build in several places, listed where they occur: it draws a 560px 16:9 placeholder, gives the timestamp the title `Seek video`, shows a toast and a `Seeked to` badge, and limits seeking to videos on the same page.
 
 ### `{{video URL}}`
 
@@ -63,7 +63,7 @@ Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = 
 - **Styles.** `.svg-small svg { transform: scale(0.6); display: inline }` ([`common.css`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/common.css#L557-L560)): the icon draws at 12×12. The link inherits the block's font size (16px; 19.2px in an `h3`), has no underline and a pointer cursor. Measured colour `rgb(52, 81, 178)`, different from page references (`#106ba3`); the rule that sets it was not traced and may come from the garden's `custom.css`.
 - **Keyboard.** An anchor without `href` is not focusable; measured `focus()` leaves it unfocused, so keyboard readers cannot seek.
 - **Seek.** A click stops the event and calls `seekTo(seconds, true)` on the player of the last YouTube iframe in the document that comes before the link ([`get-player`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/extensions/video/youtube.cljs#L85-L101)). The rule is document order, not the outline or the page: a timestamp in Linked References seeks whatever YouTube iframe precedes it on screen, and with a repeated video id it seeks the last registered player. If no YouTube player precedes the link, the click does nothing. Measured: clicking `04:40` before playing put the video at 282.9 s and playing.
-- **Elsewhere.** In block reference text, breadcrumbs and search results the timestamp is plain `MM:SS` text ([Transclusion](../logseq-reference/Transclusion.md)).
+- **Elsewhere.** In block reference text, breadcrumbs and search results the timestamp is plain `MM:SS` text ([lsg/Ref/Logseq Published Site/Transclusion](../pages/lsg___Ref___Logseq%20Published%20Site___Transclusion.md)).
 - **Editing only.** `mod+shift+y` and the `Embed YouTube timestamp` command insert the current player time ([`commands.cljs`](https://github.com/logseq/og/blob/6e7afa8eb/src/main/frontend/commands.cljs#L669-L680)). Publishing has no editor.
 
 ### Video files

@@ -10,7 +10,7 @@ Measured on 2026-10-26 against the `gh-pages` build of garden commit `0ce74d6` (
 
 ## What Logseq's published site shows
 
-Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). The live build is newer than that checkout and adds a page-icon column; measured live values come first and win where they differ from the checkout or from `docs/logseq-reference/AllPages.md`. The board's 15px cells, bordered table wrapper, `Total 16693 pages` and button-styled `Next` do not match the live build.
+Source links point at the local `logseq/og` checkout, `6e7afa8eb` (`frontend` = `src/main/frontend`). The live build is newer than that checkout and adds a page-icon column; measured live values come first and win where they differ from the checkout or from [lsg/Ref/Logseq Published Site/All Pages](../pages/lsg___Ref___Logseq%20Published%20Site___All%20Pages.md). The board's 15px cells, bordered table wrapper, `Total 16693 pages` and button-styled `Next` do not match the live build.
 
 ### Which pages are listed
 
