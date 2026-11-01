@@ -25,7 +25,10 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
+      # Full history: lsg reads page dates from git and reports a shallow clone as a diagnostic.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
         with:
           version: 2026.9.5
