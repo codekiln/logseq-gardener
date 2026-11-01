@@ -429,8 +429,79 @@ class PerfMergeTest(unittest.TestCase):
         self.assertEqual([(r['build'], r['title_ms']) for r in merged], [('logseq', 15000), ('lsg', 30)])
 
 
+class PerformancePageTest(unittest.TestCase):
+    """perf.py --record writes the Performance page as Logseq outline Markdown."""
+
+    def page(self, *sections):
+        lines = list(perf.PAGE_HEAD)
+        for name in sections:
+            lines += [f'\t- ## {name}', f'\t\t- {name} text.', '\t\t- | A |', '\t\t  | --- |']
+        return lines
+
+    def names(self, lines):
+        return [line.removeprefix('\t- ## ') for line in lines if line.startswith('\t- ## ')]
+
+    def test_outline_nests_blocks_under_headings_and_keeps_tables_in_one_block(self):
+        lines = ['# Performance', '', '- measured: 2026-10-26', '', 'Medians.', '', '## Page loads', '',
+                 '| A | B |', '| --- | ---: |', '| x | **1** |', '', 'After the table.']
+        self.assertEqual(perf.outline(lines), [
+            '- # Performance', '\t- measured: 2026-10-26', '\t- Medians.', '\t- ## Page loads',
+            '\t\t- | A | B |', '\t\t  | --- | ---: |', '\t\t  | x | **1** |', '\t\t- After the table.'])
+
+    def test_whole_report_takes_the_page_head(self):
+        text = perf.page_text(['# Performance', '', '- measured: 2026-10-26', '', '## Page loads', '', '| A |'])
+        lines = text.splitlines()
+        self.assertEqual(lines[:len(perf.PAGE_HEAD)], perf.PAGE_HEAD)
+        self.assertEqual(lines[len(perf.PAGE_HEAD):], ['\t- measured: 2026-10-26', '\t- ## Page loads', '\t\t- | A |'])
+        self.assertTrue(perf.PAGE_HEAD[-1].startswith('\t  id:: '))
+
+    def test_a_section_is_replaced_in_place(self):
+        lines = perf.replace_sections(self.page('Search', 'Video embeds', 'Queries'), ['Video embeds'],
+                                      ['', '## Video embeds', '', 'New.'])
+        self.assertEqual(self.names(lines), ['Search', 'Video embeds', 'Queries'])
+        self.assertIn('\t\t- New.', lines)
+        self.assertNotIn('\t\t- Video embeds text.', lines)
+
+    def test_a_new_section_goes_before_the_named_section_or_at_the_end(self):
+        lines = perf.replace_sections(self.page('Right sidebar on tmux', 'Graph view'), ['View as slides'],
+                                      ['', '## View as slides', '', 'Slides.'], before=['Graph view'])
+        self.assertEqual(self.names(lines), ['Right sidebar on tmux', 'View as slides', 'Graph view'])
+        lines = perf.replace_sections(self.page('Search'), ['Plugins'], ['', '## Plugins', '', 'Plugins.'])
+        self.assertEqual(self.names(lines), ['Search', 'Plugins'])
+        self.assertEqual(lines[-1], '\t\t- Plugins.')
+
+    def test_search_sections_keep_the_sections_after_them(self):
+        page = self.page('Graph view', 'Search index', 'Search', 'Search latency per keystroke', 'Video embeds')
+        lines = perf.replace_sections(page, perf.SEARCH_SECTIONS,
+                                      ['', '## Search', '', 'One.', '', '## Search latency per keystroke', '', 'Two.'])
+        self.assertEqual(self.names(lines), ['Graph view', 'Search', 'Search latency per keystroke', 'Video embeds'])
+
+    def test_sections_are_recorded_on_a_new_page(self):
+        with tempfile.TemporaryDirectory() as temp:
+            page = Path(temp) / 'page.md'
+            original = perf.PERFORMANCE_PAGE
+            perf.PERFORMANCE_PAGE = page
+            try:
+                perf.record_sections(['Queries'], ['', '## Queries', '', 'Queries.'])
+            finally:
+                perf.PERFORMANCE_PAGE = original
+            self.assertEqual(page.read_text(encoding='utf-8').splitlines(),
+                             perf.PAGE_HEAD + ['\t- ## Queries', '\t\t- Queries.'])
+
+    def test_committed_page_has_the_head_and_a_heading_block_per_section(self):
+        lines = perf.PERFORMANCE_PAGE.read_text(encoding='utf-8').splitlines()
+        self.assertEqual(lines[:len(perf.PAGE_HEAD)], perf.PAGE_HEAD)
+        names = self.names(lines)
+        for name in ['Page loads', 'Right sidebar on tmux', 'View as slides', *perf.GRAPH_SECTIONS,
+                     *perf.SEARCH_SECTIONS, 'Video embeds', 'Queries', 'Plugins']:
+            self.assertIn(name, names)
+            self.assertIsNotNone(perf.section_span(lines, name))
+        for line in lines[len(perf.PAGE_HEAD):]:
+            self.assertRegex(line, r'^\t+(- |  \|)')
+
+
 class GraphTest(unittest.TestCase):
-    LIMITS = {'data_gzip_kb': 1, 'script_kb': 1, 'worker_kb': 1, 'page_graph_fragment_gzip_kb': 1}
+    LIMITS ={'data_gzip_kb': 1, 'script_kb': 1, 'worker_kb': 1, 'page_graph_fragment_gzip_kb': 1}
 
     def site(self, temp, data=100, neighbourhood=b'{}', page='<html>tmux</html>'):
         site = Path(temp)
