@@ -5,7 +5,10 @@ lockfile = true
 minimum_release_age = "1d"
 
 [tools]
-rust = { version = "1.97.0", profile = "default", components = ["rustfmt", "clippy"] }
+# mr_boxington runs Cargo through mbx (Mr Boxington), which shares compiled work across
+# worktrees. It applies only to Cargo started through mise: tasks, `mise exec`, or the shims.
+rust = { version = "1.97.0", profile = "default", components = ["rustfmt", "clippy"], mr_boxington = true }
+mr-boxington = "1.29.0"
 usage = "6.8.0"
 python = "3.14.3"
 node = "24.14.0"

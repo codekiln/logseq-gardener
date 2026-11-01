@@ -101,6 +101,40 @@ url = "https://github.com/evilmartians/lefthook/releases/download/v2.2.2/lefthoo
 url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/636518867"
 provenance = "github-attestations"
 
+[[tools.mr-boxington]]
+version = "1.29.0"
+backend = "packslip:github.com/jdx/mr-boxington"
+
+[tools.mr-boxington."platforms.linux-arm64"]
+checksum = "sha256:eeee519621082424fae16799949514b6000ba733a2d809c709a3d3ae4a0b18f7"
+url = "https://github.com/jdx/mr-boxington/releases/download/v1.29.0/mbx-aarch64-unknown-linux-gnu.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/mr-boxington/.github/workflows/release.yml"
+
+[tools.mr-boxington."platforms.linux-arm64-musl"]
+checksum = "sha256:17b35f5c27063c569f020164008cd6f3d6444a7e7a40ce7bf84954b2725d2b2b"
+url = "https://github.com/jdx/mr-boxington/releases/download/v1.29.0/mbx-aarch64-unknown-linux-musl.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/mr-boxington/.github/workflows/release.yml"
+
+[tools.mr-boxington."platforms.linux-x64"]
+checksum = "sha256:b713e1a3b8e7a8696b7e365ef222a5b4bb45b18ad6c30b6f86972194294c31ae"
+url = "https://github.com/jdx/mr-boxington/releases/download/v1.29.0/mbx-x86_64-unknown-linux-gnu.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/mr-boxington/.github/workflows/release.yml"
+
+[tools.mr-boxington."platforms.linux-x64-musl"]
+checksum = "sha256:8e4e6fcdf9aa12db83ce3dae12fcb45dd2ae9f4e5183cc5bddd51aaff010e3c0"
+url = "https://github.com/jdx/mr-boxington/releases/download/v1.29.0/mbx-x86_64-unknown-linux-musl.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/mr-boxington/.github/workflows/release.yml"
+
+[tools.mr-boxington."platforms.macos-arm64"]
+checksum = "sha256:5675b2a3b16059757933448b8fd70579716f356cae311766becd9da38c983ab5"
+url = "https://github.com/jdx/mr-boxington/releases/download/v1.29.0/mbx-aarch64-apple-darwin.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/mr-boxington/.github/workflows/release.yml"
+
+[tools.mr-boxington."platforms.windows-x64"]
+checksum = "sha256:174008f7cb29bd69f315cd4d0ba5a18e005a67b955ce73a20d7d0a6f650d340d"
+url = "https://github.com/jdx/mr-boxington/releases/download/v1.29.0/mbx-x86_64-pc-windows-msvc.zip"
+signer = "sigstore-oidc:https://github.com/jdx/mr-boxington/.github/workflows/release.yml"
+
 [[tools.node]]
 version = "24.14.0"
 backend = "core:node"
