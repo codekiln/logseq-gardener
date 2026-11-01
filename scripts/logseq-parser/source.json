@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/logseq/logseq.git",
+  "ghq": "github.com/logseq/logseq",
+  "branch": "version/file",
+  "revision": "6efedb75588763af256bc7dfd0ed5526dc91fe7c",
+  "paths": ["deps/graph-parser", "deps/db", "deps/common"],
+  "sha256": "85b6dcfc57c265d0e193b1633cab29d79b2c3fc0c1a9f3d9ce45225ac5708e03",
+  "license": "AGPL-3.0 with additional permission"
+}

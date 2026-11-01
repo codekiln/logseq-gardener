@@ -65,10 +65,10 @@
 
 ## 8. #332 Check the docs graph with Logseq's own parser
 
-- [ ] 8.1 Add a check to `mise run docs:check` that loads the docs graph with Logseq's file parser and the SDK and reports each difference in pages, titles, aliases, page references, block references or properties with its file and item
-- [ ] 8.2 Add a fixture with a deliberate mismatch and a test that the check fails on it
-- [ ] 8.3 Make the check obtain the pinned Logseq source when no local checkout has it, and confirm it runs in CI
-- [ ] 8.4 Describe the check on `lsg/How To/Edit the Documentation`
+- [x] 8.1 Add a check to `mise run docs:check` that loads the docs graph with Logseq's file parser and the SDK and reports each difference in pages, titles, aliases, page references, block references or properties with its file and item
+- [x] 8.2 Add a fixture with a deliberate mismatch and a test that the check fails on it
+- [x] 8.3 Make the check obtain the pinned Logseq source when no local checkout has it, and confirm it runs in CI
+- [x] 8.4 Describe the check on `lsg/How To/Edit the Documentation`
 
 ## 9. #333 Rewrite the README for released binaries and mise installs
 
