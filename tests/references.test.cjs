@@ -152,7 +152,8 @@ function setup({ data = DATA, open = false, storage = new Map(), throwing = fals
   window.IntersectionObserver = context.IntersectionObserver;
   vm.runInNewContext(source, context);
   const tick = () => new Promise((resolve) => setImmediate(resolve));
-  const settle = async () => { for (let i = 0; i < 10; i++) await tick(); };
+  // Decompression runs on streams, which can take many event-loop turns on a busy machine.
+  const settle = async () => { for (let i = 0; i < 10; i++) { await tick(); await new Promise((resolve) => setTimeout(resolve, 5)); } };
   const toggle = async (section) => {
     const details = section.querySelector('details');
     details.open = !details.open;
