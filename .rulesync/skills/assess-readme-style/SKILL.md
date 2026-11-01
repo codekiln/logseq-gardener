@@ -68,6 +68,6 @@ Expected finding: `progressive disclosure`. The README should show one common pa
 
 Clear disclosure:
 
-> Install with mise: `mise use -g github:codekiln/clilint`. See [Installation](docs/installation.md) for other methods and download verification.
+> Install with mise: `mise use -g github:codekiln/logseq-gardener`. See [Install with mise](https://codekiln.github.io/logseq-gardener/lsg/How%20To/Install%20with%20mise/) for checksums, other platforms and building from source.
 
 Expected result: no style problem. The common action is available immediately and the descriptive link keeps deeper detail findable.

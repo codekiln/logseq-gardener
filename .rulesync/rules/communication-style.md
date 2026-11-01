@@ -1,7 +1,7 @@
 ---
 root: false
 targets: ["*"]
-description: "Reader-centered communication standard for codekiln/clilint"
+description: "Reader-centered communication standard for codekiln/logseq-gardener"
 ---
 
 # Communication style
@@ -34,8 +34,8 @@ Progressive disclosure is not omission. When information moves out of an entry p
 
 Example for a human reader:
 
-- Clear: "Install with mise: `mise use -g github:codekiln/clilint`. See [Installation](../../docs/installation.md) for other systems and verification steps."
-- Unclear: four platform procedures appear before the reader sees how to run Clilint.
+- Clear: "Install with mise: `mise use -g github:codekiln/logseq-gardener`. See [Install with mise](https://codekiln.github.io/logseq-gardener/lsg/How%20To/Install%20with%20mise/) for checksums, other platforms and building from source."
+- Unclear: four platform procedures appear before the reader sees how to run `lsg`.
 
 Example for an agent reader:
 

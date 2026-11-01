@@ -15,6 +15,7 @@ tags:: [[Diataxis/Explanation]]
 		- [[lsg/Static Publishing]] explains what `lsg publish` does with a garden.
 	- ## Look something up
 		- [[lsg/Ref/Command Line]] lists the commands, their JSON output and their exit codes.
+		- [[lsg/How To/Look Up a Page File]] finds the file that holds a page, by the page's title, alias or journal date.
 		- [[lsg/Ref/Publish Options]] lists the options of `lsg publish`.
 		- [[lsg/Ref/Published Pages]] and [[lsg/Ref/Site Navigation]] describe what a published site shows.
 		- [[lsg/Ref/Logseq Compatibility]] says what `lsg` publishes as Logseq does and where it differs.
