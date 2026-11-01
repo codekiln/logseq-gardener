@@ -19,6 +19,11 @@ lefthook = "2.2.2"
 release-plz = "0.3.169"
 cargo-dist = "0.32.0"
 
+# Run this checkout's release build as a bare `lsg`, ahead of a globally installed one.
+# mise shims ignore this entry; CONTRIBUTING.md says how to test a change.
+[env]
+_.path = ["{{config_root}}/target/release"]
+
 # Install the lefthook git hooks when entering this repo. Idempotent.
 [hooks]
 enter = "lefthook install"

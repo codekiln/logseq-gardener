@@ -42,6 +42,8 @@ Use mise to manage project tools, environment settings, and tasks. Prefer execut
 tasks under `.mise/tasks/` to inline TOML tasks. Give each file task a `#MISE description`
 and use `#USAGE` metadata for arguments and flags.
 
+To test a change to `lsg`, run `mise run build:release` and then `./target/release/lsg`. A bare `lsg` can run a globally installed release instead, because mise shims ignore the checkout's `_.path` entry. `command -v lsg` shows which binary a bare `lsg` runs.
+
 ## ghq
 
 Many CLI tools that are relevant to this project are likely installed locally; use `ghq list --full-path | rg <item>` to find where. Feel free to update the git references on any of them.

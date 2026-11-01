@@ -2,6 +2,8 @@
 
 Install the pinned tools with `mise install`, then run `mise run ci`, which runs the same checks as GitHub Actions. List tasks with `mise tasks`; use `mise run <task> --help` for arguments.
 
+To test a change, run `mise run build:release` and then `./target/release/lsg`. In a shell with `mise activate`, under `mise exec` and in mise tasks, a bare `lsg` also runs this checkout's build once it exists, and a globally installed `lsg` before then. A shell that reaches tools through mise shims always runs the installed `lsg`. `command -v lsg` shows which binary a bare `lsg` runs.
+
 The contributor guides are pages in the documentation graph:
 
 - [lsg/How To/Contribute a Change](docs/pages/lsg___How%20To___Contribute%20a%20Change.md) takes a change from its OpenSpec plan to a pull request with a Conventional Emoji title.
