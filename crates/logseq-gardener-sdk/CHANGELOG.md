@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.16](https://github.com/codekiln/logseq-gardener/compare/v0.0.15...v0.0.16) - 2026-11-01
+
+### Fixed
+
+- show page property rows that link to a page with no file (#413)
+
 ## [0.0.15](https://github.com/codekiln/logseq-gardener/compare/v0.0.14...v0.0.15) - 2026-11-01
 
 ### Changed
