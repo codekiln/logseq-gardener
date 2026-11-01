@@ -2,7 +2,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{config::ReferenceConfig, render::escape, sequence};
-use crate::{ast::Block, garden::GardenDocument, page_names::PageNameIndex};
+use crate::{
+    ast::Block,
+    garden::GardenDocument,
+    page_names::{PageNameIndex, lookup_key},
+};
 
 pub(super) const SCRIPT: &str = include_str!("properties.js");
 pub(super) const STARTUP: &str = include_str!("properties-start.js");
@@ -75,9 +79,16 @@ fn internal(key: &str) -> bool {
         || key.starts_with("publishing/")
 }
 
+/// A property value as the properties box shows it, with the routes its links reach.
+///
+/// A reference to a unique published page links to it. A reference to a name that no page in
+/// the garden has shows the name as written, unlinked, as the page body does; Logseq shows
+/// such a value too. A reference to a withheld, excluded or ambiguous page drops the whole
+/// value.
 fn value(
     text: &str,
     names: &PageNameIndex<String>,
+    garden_names: &BTreeSet<String>,
     routes: &BTreeMap<String, String>,
 ) -> Option<(String, BTreeSet<String>)> {
     let text = text.trim();
@@ -137,16 +148,22 @@ fn value(
         if name.contains(['[', ']']) {
             return None;
         }
-        let [route] = names.candidates(name) else {
-            return None;
-        };
-        let title = routes.get(route)?;
-        html.push_str(&format!(
-            "<a class=\"page-ref\" href=\"{}\">{}</a>",
-            escape(route),
-            escape(title)
-        ));
-        targets.insert(route.clone());
+        match names.candidates(name) {
+            [route] => {
+                let title = routes.get(route)?;
+                html.push_str(&format!(
+                    "<a class=\"page-ref\" href=\"{}\">{}</a>",
+                    escape(route),
+                    escape(title)
+                ));
+                targets.insert(route.clone());
+            }
+            [] if !garden_names.contains(&lookup_key(name)) => html.push_str(&format!(
+                "<span class=\"page-reference unresolved no-brackets\"><span>{}</span></span>",
+                escape(name)
+            )),
+            _ => return None,
+        }
         rest = &rest[end + 2..];
     }
     if rest.contains("]]") {
@@ -162,13 +179,14 @@ fn value(
 fn alias_value(
     text: &str,
     names: &PageNameIndex<String>,
+    garden_names: &BTreeSet<String>,
     routes: &BTreeMap<String, String>,
 ) -> Option<(String, BTreeSet<String>)> {
     let aliases = crate::page_names::linkable_property_names(text);
     let mut links = Vec::new();
     let mut targets = BTreeSet::new();
     for alias in &aliases {
-        let (_, target) = value(&format!("[[{alias}]]"), names, routes)?;
+        let (_, target) = value(&format!("[[{alias}]]"), names, garden_names, routes)?;
         let route = target.first()?;
         links.push(format!(
             "<a class=\"page-ref\" href=\"{}\">{}</a>",
@@ -184,6 +202,7 @@ pub(super) fn view(
     document: &GardenDocument,
     current_route: &str,
     names: &PageNameIndex<String>,
+    garden_names: &BTreeSet<String>,
     routes: &BTreeMap<String, String>,
     config: &ReferenceConfig,
 ) -> PropertyView {
@@ -224,9 +243,9 @@ pub(super) fn view(
             text
         };
         let shown = if matches!(normalized.as_str(), "alias" | "aliases") {
-            alias_value(text, names, routes)
+            alias_value(text, names, garden_names, routes)
         } else {
-            value(text, names, routes)
+            value(text, names, garden_names, routes)
         };
         let Some((html, targets)) = shown else {
             continue;

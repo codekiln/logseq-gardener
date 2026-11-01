@@ -464,6 +464,7 @@ pub fn publish_site_with_options(
         namespaces: generated,
         withheld: withheld_titles,
         garden_titles,
+        garden_names,
         journal_dates,
         journal_formats,
         names,
@@ -544,7 +545,14 @@ pub fn publish_site_with_options(
         .map(|(_, route, document)| {
             (
                 route.clone(),
-                properties::view(document, route, &names, &routes, &reference_config),
+                properties::view(
+                    document,
+                    route,
+                    &names,
+                    &garden_names,
+                    &routes,
+                    &reference_config,
+                ),
             )
         })
         .collect();
