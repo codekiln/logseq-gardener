@@ -43,7 +43,7 @@ use unicode_normalization::UnicodeNormalization;
 
 use crate::ast::Block;
 use crate::garden::GardenDocument;
-use crate::page_names::lookup_key;
+use crate::page_names::{is_linkable_property, linkable_property_names, lookup_key};
 
 /// A block that can refer to pages: a bullet with its own lines, or the page's leading
 /// properties.
@@ -223,6 +223,14 @@ impl<K: Ord + Clone> Contribution<K> {
             let leading = level == 0;
             // Page names inside an advanced query are part of the query, not references.
             let mut names = lsdoc::refs(&without_query_blocks(source), "markdown").page;
+            // Logseq's parser also gives a block a reference to its task marker's page and its
+            // priority's page: `TODO [#A] write` names `TODO` and `A`.
+            if let Some(Block::Bullet {
+                marker, priority, ..
+            }) = blocks.get(start)
+            {
+                names.extend(marker.iter().chain(priority).cloned());
+            }
             let mut property_names = BTreeSet::new();
             for block in &blocks[start..end] {
                 let Block::Properties { props, .. } = block else {
@@ -236,30 +244,37 @@ impl<K: Ord + Clone> Contribution<K> {
                     {
                         result.exclude_from_graph = true;
                     }
-                    // Values name pages; property names are storage details.
-                    names.extend(lsdoc::refs(&prop.1, "markdown").page);
-                    if prop.0.eq_ignore_ascii_case("tags") {
-                        // Logseq's tags property also accepts comma-separated bare page names,
-                        // alone or mixed with `[[links]]`.
-                        let tags: Vec<String> = if prop.1.starts_with('"') {
-                            Vec::new()
+                    // Values name pages; property names are storage details. Logseq reads
+                    // `alias::`, `aliases::` and `tags::` as lists of page names, bare
+                    // comma-separated names included.
+                    let linked = is_linkable_property(&prop.0);
+                    let values = if linked {
+                        linkable_property_names(&prop.1)
+                    } else {
+                        lsdoc::refs(&prop.1, "markdown").page
+                    };
+                    if prop.0.eq_ignore_ascii_case("tags") && leading {
+                        // Like an alias, a value with no names, such as a quoted one, is one
+                        // literal tag, though the block does not refer to it.
+                        let literal = prop.1.trim();
+                        let tags = if values.is_empty() && !literal.is_empty() {
+                            vec![literal.to_owned()]
                         } else {
-                            tag_names(&prop.1)
+                            values.clone()
                         };
-                        if leading {
-                            for tag in &tags {
-                                match resolve(tag) {
-                                    Some(page) => {
-                                        result.tags.insert(page);
-                                    }
-                                    None => {
-                                        result.unresolved_tags.insert(tag.clone());
-                                    }
+                        for tag in &tags {
+                            match resolve(tag) {
+                                Some(page) => {
+                                    result.tags.insert(page);
+                                }
+                                None => {
+                                    result.unresolved_tags.insert(tag.clone());
                                 }
                             }
                         }
-                        names.extend(tags);
-                    } else if prop.0.eq_ignore_ascii_case("filters") && leading {
+                    }
+                    names.extend(values);
+                    if prop.0.eq_ignore_ascii_case("filters") && leading {
                         for (name, include) in parse_filters(&prop.1) {
                             if let Some(id) = resolve(&name) {
                                 if include {
@@ -377,40 +392,6 @@ fn without_query_blocks(source: &str) -> std::borrow::Cow<'_, str> {
         from = end;
     }
     String::from_utf8_lossy(&text).into_owned().into()
-}
-
-/// The names in a `tags::` value: comma-separated entries, each a `[[link]]`, a `#tag` or a
-/// bare name. Commas inside a link belong to the name.
-fn tag_names(value: &str) -> Vec<String> {
-    let mut names = Vec::new();
-    let mut depth = 0;
-    let mut start = 0;
-    let bytes = value.as_bytes();
-    for (index, &byte) in bytes.iter().enumerate() {
-        match byte {
-            b'[' if bytes.get(index + 1) == Some(&b'[') => depth += 1,
-            b']' if bytes.get(index + 1) == Some(&b']') && depth > 0 => depth -= 1,
-            b',' if depth == 0 => {
-                names.push(&value[start..index]);
-                start = index + 1;
-            }
-            _ => {}
-        }
-    }
-    names.push(&value[start..]);
-    names
-        .into_iter()
-        .map(|entry| {
-            let entry = entry.trim();
-            entry
-                .strip_prefix("[[")
-                .and_then(|inner| inner.strip_suffix("]]"))
-                .unwrap_or_else(|| entry.trim_start_matches('#'))
-                .trim()
-                .to_owned()
-        })
-        .filter(|name| !name.is_empty())
-        .collect()
 }
 
 /// Leading page properties, followed by nothing but blank lines.
@@ -1003,6 +984,58 @@ mod tests {
         assert!(index.block(index.linked(&"Term".to_owned())[0]).properties);
     }
 
+    fn unresolved(page: &Contribution<String>, block: usize) -> Vec<&str> {
+        page.graph_refs()[block]
+            .unresolved
+            .iter()
+            .map(String::as_str)
+            .collect()
+    }
+
+    #[test]
+    fn task_markers_and_priorities_name_their_pages() {
+        let page = contribution(
+            "notes",
+            "- TODO write\n- [#A] TODO later\n- DONE [#B] [[tmux]]\n- todo lower case\n- TODOs plural\n",
+        );
+        assert_eq!(unresolved(&page, 0), ["TODO"]);
+        // Logseq reads a marker only at the start of the block.
+        assert_eq!(unresolved(&page, 1), ["A"]);
+        assert_eq!(unresolved(&page, 2), ["B", "DONE"]);
+        assert!(unresolved(&page, 3).is_empty());
+        assert!(unresolved(&page, 4).is_empty());
+        let index = index(&[("notes", "- DOING set up [[mise]]\n"), ("TODO", "- x\n")]);
+        assert_eq!(index.linked(&"mise".to_owned()).len(), 1);
+    }
+
+    #[test]
+    fn alias_and_tags_values_name_pages_as_in_logseq() {
+        let page = contribution(
+            "notes",
+            "alias:: tmux, #[[AWS]]\n\n- body\n  alias:: Term, [[Outer [[mise]] Name]]\n- tags:: plain [[Diataxis]] text\n",
+        );
+        let graph = page.graph_refs();
+        assert_eq!(
+            graph[0].direct,
+            BTreeSet::from(["AWS".to_owned(), "tmux".to_owned()])
+        );
+        // A nested reference in the value names its outer page only.
+        assert_eq!(graph[1].direct, BTreeSet::from(["Term".to_owned()]));
+        assert_eq!(unresolved(&page, 1), ["Outer [[mise]] Name"]);
+        // Plain text around a reference names pages, split at commas.
+        assert_eq!(graph[2].direct, BTreeSet::from(["Diataxis".to_owned()]));
+        assert_eq!(unresolved(&page, 2), ["plain", "text"]);
+        // A quoted value names nothing.
+        let quoted = contribution("notes", "alias:: \"tmux\"\ntags:: \"Term\"\n\n- body\n");
+        assert!(quoted.graph_refs()[0].direct.is_empty());
+        assert!(quoted.graph_refs()[0].unresolved.is_empty());
+        // As in Logseq, the quoted tags value is still the page's one literal tag.
+        assert_eq!(
+            quoted.unresolved_tags(),
+            &BTreeSet::from(["\"Term\"".to_owned()])
+        );
+    }
+
     #[test]
     fn graph_references_record_property_names_without_changing_linked_references() {
         let source = "tags:: Term, Unknown Tag\nexclude-from-graph-view:: true\n\n- AWS:: [[tmux]]\n- [[mise/Config]] [[Nowhere]]\n";
@@ -1098,7 +1131,10 @@ mod tests {
             index.tagged_with(&"Term".to_owned()),
             ["delta", "gamma", "zeta"]
         );
-        assert_eq!(tag_names("a, [[b, c]], #d"), ["a", "b, c", "d"]);
+        assert_eq!(
+            linkable_property_names("a, [[b, c]], #d"),
+            ["a", "b, c", "d"]
+        );
     }
 
     #[test]
