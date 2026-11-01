@@ -33,7 +33,7 @@ else
   [[ -n $app_id ]] || { printf 'error: pass --app-id the first time\n' >&2; exit 1; }
   op item template get "Secure Note" \
     | jq --rawfile key "$key_file" --arg id "$app_id" --arg url "$app_settings" \
-         --arg note "Release GitHub App for $repo. Rotate with: mise run release:store-app-key <pem> (see docs/releases.md)." '
+         --arg note "Release GitHub App for $repo. Rotate with: mise run release:store-app-key <pem> (see lsg/How To/Rotate the Release App Key in docs/pages/lsg___How To___Rotate the Release App Key.md)." '
         .fields |= map(if .id == "notesPlain" then .value = $note else . end)
         | .fields += [
             {"label": "app-id", "type": "STRING", "value": $id},

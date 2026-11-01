@@ -28,6 +28,6 @@ The SDK highlights fenced code with the TextMate grammars that [two-face 0.5.2](
 
 ## Cargo dependencies
 
-[docs/dependencies.md](docs/dependencies.md) explains the CLI's direct dependencies. [The source inventory](docs/dependency-sources.json) records each locked package's version, source, checksum, and declared license. [Third-party dependency licenses](THIRD_PARTY_LICENSES.txt) contains the upstream license and NOTICE text for locked packages. No dependency source has been modified or incorporated into the project's Rust modules.
+[lsg/Ref/Dependencies](docs/pages/lsg___Ref___Dependencies.md) explains the direct dependencies of the CLI and the SDK. [The source inventory](docs/dependency-sources.json) records each locked package's version, source, checksum, and declared license. [Third-party dependency licenses](THIRD_PARTY_LICENSES.txt) contains the upstream license and NOTICE text for locked packages. No dependency source has been modified or incorporated into the project's Rust modules.
 
-Before distributing a modified dependency, add its modification date, summary, attribution, exact upstream revision, and applicable source obligations here. Follow [the licensing process](docs/licensing.md) for corresponding-source materials accompanying binary releases.
+Before distributing a modified dependency, add its modification date, summary, attribution, exact upstream revision, and applicable source obligations here. Follow [lsg/Licensing](docs/pages/lsg___Licensing.md) for corresponding-source materials accompanying binary releases.
