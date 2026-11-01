@@ -46,6 +46,39 @@ The publisher SHALL write the journals-off graph to `_graph/default.bin` and the
 - **WHEN** a reader opens `tmux`
 - **THEN** the browser fetches no file under `_graph/` and no graph script
 
+### Requirement: Show the graph's loading state
+
+While `graph.html` downloads, decodes or draws a graph data file, the graph area SHALL show, once the load has taken 500 ms, a spinner, the status `Loading the graph…` and a `Cancel` button, centred over the canvas. A load that finishes within 500 ms SHALL show none of them. The status SHALL sit in a live region that is in the page before the load starts, so screen readers announce each message. `Cancel` SHALL abort the download and leave `The graph was not loaded.` with a `Load the graph` button. A failed download SHALL leave `The graph could not be loaded.` with a `Retry` button. Either button SHALL start the load again at once, showing the spinner and `Cancel` without the delay, and SHALL download the file again rather than reuse the failed or cancelled one.
+
+Turning Journals on or off SHALL load through the same states. A newer load SHALL replace an older one, so the drawn graph always matches the Journals switch once loading ends. While a message covers a graph that is already drawn, that graph SHALL stay visible at reduced opacity. The settings panel SHALL appear with the first drawn graph. When a drawn graph replaces the messages while focus is on their button, focus SHALL move to the canvas.
+
+The spinner, message and button SHALL follow Logseq's graph loading and error states: a 20px spinner beside the text, 14px text in the muted colour, and a 28px outlined button below, using the site's colour tokens in both themes.
+
+#### Scenario: Fast load
+
+- **WHEN** `_graph/default.bin` arrives and the first frame is drawn within 500 ms of opening `graph.html`
+- **THEN** no spinner, status text or button appears
+
+#### Scenario: Slow load
+
+- **WHEN** `_graph/default.bin` has not arrived 500 ms after opening `graph.html`
+- **THEN** the graph area shows the spinner, `Loading the graph…` and `Cancel`, and a screen reader announces `Loading the graph…`
+
+#### Scenario: Cancel and load
+
+- **WHEN** a reader presses `Cancel` while the graph loads, then presses `Load the graph`
+- **THEN** the download stops, the graph area says `The graph was not loaded.`, and the second press downloads `_graph/default.bin` again and draws it
+
+#### Scenario: Failure and retry
+
+- **WHEN** the download of `_graph/default.bin` fails and the reader presses `Retry`
+- **THEN** the graph area says `The graph could not be loaded.` until the press, then downloads the file again and draws it
+
+#### Scenario: Cancel the journals graph
+
+- **WHEN** a reader turns on Journals, cancels the download of `_graph/journals.bin`, then turns Journals off
+- **THEN** the default graph stays drawn, dimmed, behind `The graph was not loaded.`, and turning Journals off draws it at full opacity without a new download
+
 ### Requirement: Draw nodes and edges in Logseq's look
 
 Each node SHALL be a circle of size `8 × max(1, ∛n)`, where n is its degree, coloured `#999` (dark theme `#93a1a1`), green for a page used as a tag (dark theme orange), and for a namespace parent one of Logseq's ten colours chosen by Logseq's hash of its name. Labels SHALL be the page's title at 12px in `rgba(0,0,0,0.8)` (dark theme `rgba(255,255,255,0.8)`). Edges SHALL be 1px `#cccccc` (dark theme the accent colour or `#094b5a`). Hovering a node SHALL draw it in the accent colour (`#6366F1` when none is set), its label on `rgba(238,238,238,1)` in `#333333`, and its edges in `#A5B4FC`. Labels SHALL be drawn for the hovered and selected nodes and for every node whose drawn size reaches 12px at the current zoom, so zooming in shows every label. The drawing SHALL follow the site's theme when the reader toggles it.
