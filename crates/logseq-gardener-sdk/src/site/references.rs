@@ -285,7 +285,7 @@ impl<'a> References<'a> {
         );
         for page in pages {
             html.push_str(&format!(
-                "<li><a href=\"{}\">{}</a></li>",
+                "<li><a class=\"page-ref\" href=\"{}\">{}</a></li>",
                 render::escape(page),
                 render::escape(self.title(page))
             ));
@@ -649,7 +649,7 @@ impl<'a> References<'a> {
         let (mut html, close) = match style {
             GroupStyle::References => (
                 format!(
-                    "<div class=\"references-blocks-item\"><details class=\"references-group\" open><summary class=\"foldable-title\"><span class=\"ref-chevron\"></span><a href=\"{route}\">{title}</a></summary>"
+                    "<div class=\"references-blocks-item\"><details class=\"references-group\" open><summary class=\"foldable-title\"><span class=\"ref-chevron\"></span><a class=\"page-ref\" href=\"{route}\">{title}</a></summary>"
                 ),
                 "</details></div>",
             ),

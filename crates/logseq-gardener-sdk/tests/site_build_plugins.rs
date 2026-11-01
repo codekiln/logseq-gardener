@@ -239,7 +239,7 @@ fn rows_follow_the_target_blocks_children_and_links_resolve() {
     let outro = home.find("Outro").unwrap();
     assert!(child < derived && derived < outro, "{home}");
     assert!(home.contains(&format!(
-        "<a href=\"{episode}\">Show/Episode 1</a> — 42 min"
+        "<a class=\"page-ref\" href=\"{episode}\">Show/Episode 1</a> — 42 min"
     )));
     assert!(home.contains("[[Secret]] &lt;b&gt;x&lt;/b&gt;"), "{home}");
     assert!(!home.contains("<b>x</b>"));
@@ -425,7 +425,7 @@ fn derived_rows_reach_no_index_and_no_other_page() {
     }
     let html = String::from_utf8_lossy(&after[&home]).into_owned();
     let end = html
-        .rfind("data-lsg-plugin=\"episodes\"><li><span class=\"lsg-dot\"></span><a href=")
+        .rfind("data-lsg-plugin=\"episodes\"><li><span class=\"lsg-dot\"></span><a class=\"page-ref\" href=")
         .unwrap();
     assert!(
         html[..end].ends_with("<ul class=\"outline lsg-derived\" "),

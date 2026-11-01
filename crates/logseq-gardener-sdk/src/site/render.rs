@@ -1208,8 +1208,10 @@ impl Renderer<'_> {
         self.html.push_str(PAGE_ICON);
         match route {
             Some(route) => {
-                self.html
-                    .push_str(&format!("<a href=\"{}\">", escape(route)));
+                self.html.push_str(&format!(
+                    "<a class=\"page-ref\" href=\"{}\">",
+                    escape(route)
+                ));
                 self.text(title);
                 self.html.push_str("</a>");
             }
