@@ -29,7 +29,7 @@ The publisher SHALL require a readable regular local file with a case-insensitiv
 
 ### Requirement: CLI stylesheet selection and guidance
 
-`lsg publish` SHALL accept optional native-path `--stylesheet PATH` and delegate to SDK options. Fatal stylesheet errors SHALL exit one with empty stdout. Offline publishing help and the local-site guide SHALL describe the option, validation, stylesheet precedence, and relative-resource behavior. Help SHALL reflect implemented alias, block-reference, and HTTPS media support.
+`lsg publish` SHALL accept optional native-path `--stylesheet PATH` and delegate to SDK options. Fatal stylesheet errors SHALL exit one with empty stdout. Offline publishing help and the `lsg/How To/Customize a Published Site` page SHALL describe the option, validation, stylesheet precedence, and relative-resource behavior. Help SHALL reflect implemented alias, block-reference, and HTTPS media support.
 
 #### Scenario: CLI custom appearance
 
