@@ -15,7 +15,7 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 			  lsg publish --graph /path/to/garden --output /private/tmp/site --filename-format triple-lowbar --include GitP --homepage "Ghost in the Patch"
 			  ```
 			- The page must be uniquely selected and visible. `lsg publish` renders it at `index.html`, keeps its own page route, and moves the complete page list to `pages.html`, which the left sidebar's All pages link opens.
-			- A missing or ambiguous homepage fails the build before the output directory is created. Without `--homepage`, `index.html` is the generated page list.
+			- A missing or ambiguous homepage fails the build before the output directory is created. Without `--homepage`, `index.html` is the generated page list, or the journals feed when you publish journals as step 2 describes.
 		- ### 2. Publish journals
 			- If you want journals in the site, add `--journals`. Every file under `journals/` becomes a page. Without `--journals`, journals are counted in the report and skipped.
 			- Each journal is titled with `:journal/page-title-format` from `logseq/config.edn`, whose Logseq default is `MMM do, yyyy`. The encode garden's `journals/2026_10_23.md` becomes `2026-10-23 Fri`.
@@ -59,10 +59,10 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 			- ```sh
 			  lsg publish --graph /path/to/garden --output /private/tmp/styled-site --filename-format triple-lowbar --include GitP/A/Session --stylesheet /path/to/theme.css
 			  ```
-			- `lsg publish` copies the file unchanged to `custom.css` beside the HTML files and loads it after the built-in styles, so standard CSS specificity and cascade rules apply. Without `--stylesheet`, the site keeps the built-in look. The stylesheet does not count toward the report's asset count.
-			- The path must name a readable regular file with a `.css` extension, in any letter case, and have no symlink components. If a parent folder is a symlink, such as `/private/tmp` on macOS, use the physical path. An invalid stylesheet fails the build before the output directory is created.
+			- `lsg publish` copies the file unchanged to `custom.css` at the output root and loads it after the main built-in styles, so standard CSS specificity and cascade rules apply. The styles of All pages, the journals feed, the graph view, queries, media and search load after it, so a rule for those parts may need a more specific selector. Without `--stylesheet`, the site keeps the built-in look. The stylesheet does not count toward the report's asset count.
+			- The path must name a readable regular file with a `.css` extension, in any letter case, and have no symlink components. If a parent folder is a symlink, such as `/tmp` on macOS, use the physical path, such as `/private/tmp`. An invalid stylesheet fails the build before the output directory is created.
 			- Use CSS you trust: the browser can request resources that `url()` and `@import` name. Relative resource URLs resolve from the copied stylesheet in the output root. Only the stylesheet itself is copied, so arrange its other resources separately.
-			- Rust callers use `site::publish_site_with_options` with `SiteOptions { stylesheet: Some(path) }`; `site::publish_site` keeps the built-in look. The `publish_site` SDK example accepts the same `--stylesheet PATH` flag.
+			- Rust callers use `site::publish_site_with_options` with `SiteOptions { stylesheet: Some(path), ..Default::default() }`; `site::publish_site` keeps the built-in look. The `publish_site` SDK example accepts the same `--stylesheet PATH` flag.
 		- ### 8. Change the colours
 			- The default colours are Logseq's indigo theme. If you want other colours, set these custom properties in your stylesheet:
 				- `--lsg-text`, `--lsg-background`, `--lsg-surface`, `--lsg-sidebar`, `--lsg-header`, `--lsg-link`, `--lsg-border`, `--lsg-quote-border`, `--lsg-warning`, `--lsg-focus` and `--lsg-muted`.
@@ -78,7 +78,7 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 			- A stylesheet with fixed colours needs matching dark values for its own components.
 			- The header carries Logseq's `cp__header` class and the left sidebar's Graph view item carries `graph-view-nav`, so a stylesheet written to hide Logseq's entry points to the graph view hides these too.
 	- ## Troubleshooting
-		- If `--homepage` fails, the title or alias names no selected visible page, or names more than one. Check the letter case and the `--include` options.
+		- If `--homepage` fails, the title or alias names no selected visible page, or names more than one. Check that an `--include` option selects the page, with the same letter case.
 		- If `--stylesheet` is refused, check the `.css` extension and replace any symlinked folder in the path with its physical path.
 		- If a favorite or a setting has no effect, read the report: a favorite that names no published page, and a setting `lsg` cannot use, each get a diagnostic.
 		- If the search button does not appear, serve the site over HTTP or HTTPS instead of opening it from disk.

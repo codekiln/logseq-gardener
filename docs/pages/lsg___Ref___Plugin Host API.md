@@ -23,7 +23,8 @@ see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Build Plugin Protocol]], 
 				- `apiVersion` is unsupported;
 				- two manifests share an `id`;
 				- a manifest has neither `module` nor `build`;
-				- a module, stylesheet or build program path is absolute, contains `..`, passes through a symlink, is not a regular file, or collides with another file of the plugin.
+				- a module, stylesheet or build program path is absolute, contains `..`, passes through a symlink or is not a regular file;
+				- a stylesheet name collides with the module or another stylesheet of the plugin, ignoring letter case.
 			- Plugins are ordered by `id`, so the order of `--plugin` arguments does not change the output.
 			- The SDK's `plugins::read_manifests` runs the same checks for other callers.
 			- [`tests/fixtures/plugins/recorder`](https://github.com/codekiln/logseq-gardener/tree/main/tests/fixtures/plugins/recorder) is a complete example.

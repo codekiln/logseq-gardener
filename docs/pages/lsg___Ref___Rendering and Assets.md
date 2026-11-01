@@ -8,7 +8,7 @@ see-also:: [[lsg/Ref/Published Pages]], [[lsg/Ref/Selection and Visibility]], [[
 	- ## Blocks and inline syntax
 		- The publisher renders outlines, headings, paragraphs, emphasis, literal code, quotes and tables.
 		- Raw HTML and Hiccup appear as escaped literal content.
-		- Unsupported syntax gets a visible fallback in the page and a diagnostic in the report.
+		- Unsupported syntax gets a visible fallback in the page and a diagnostic in the report. A `{{renderer …}}` macro renders nothing and gets only the diagnostic.
 	- ## Links
 		- Ordinary HTTP, HTTPS and mailto links stay links.
 		- An email autolink such as `<reader@example.org>` becomes a mailto link. An address in literal code stays literal, and an address inside another link's label stays plain label text.
@@ -21,15 +21,16 @@ see-also:: [[lsg/Ref/Published Pages]], [[lsg/Ref/Selection and Visibility]], [[
 		- A local asset URL resolves relative to its source document and must point beneath the graph's `assets/` folder.
 		- The publisher copies only the assets that selected rendered content requests.
 		- It rejects symlinks, paths that leave `assets/`, absolute URLs, URLs with a query or fragment, and unsupported file types.
-		- Supported types are PNG, JPEG, GIF, WebP, AVIF, ICO, PDF, MP3, MP4, OGG, WAV and WebM.
+		- Supported types are PNG, JPEG, GIF, WebP, AVIF, ICO, PDF, MP3, MP4, MOV, OGG, WAV and WebM.
 	- ## Media syntax
 		- | Image syntax pointing at | Renders as |
 		  | --- | --- |
 		  | A raster image | An image |
 		  | An MP3, WAV or OGG recording | Labelled audio controls and a link to the recording |
-		  | A PDF or a video | A link |
+		  | An MP4, WebM or MOV video | A video player with controls |
+		  | A local PDF | A link |
 		- An ordinary Markdown link to an asset stays a link.
-		- A link to a local recording requests a download. A link to a hosted recording may open it in the browser; whether it downloads depends on the host and the browser.
+		- The link beside the audio controls requests a download for a local recording. For a hosted recording the link reads `Open recording` and may open the recording in the browser; whether it downloads depends on the host and the browser.
 		- Browser playback depends on the recording's codec.
 	- ## Page routes
 		- Each page has a deterministic, fixed-length route derived from its title, `p-<digest of its title>.html` beside `index.html`, and the publisher checks routes for collisions.

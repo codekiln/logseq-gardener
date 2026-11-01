@@ -15,9 +15,9 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			- An ambiguous alias supplies no search key. A stored title stays its page's own searchable title even when another page claims it as an alias.
 			- An alias match returns the stored page once.
 		- ### Searchable text
-			- Searchable bullet text includes plain prose, inline code, emphasis, subscript and superscript, unique selected page references and the labels of explicit HTTP and HTTPS links.
+			- Searchable bullet text includes plain prose, inline code, emphasis, subscript and superscript, unique selected page references and the labels of explicit HTTP and HTTPS links. A `{{youtube-timestamp}}` macro contributes its displayed time, such as `10:20`.
 			- A tag contributes text only when its name resolves to a unique selected page.
-			- Search leaves out property values, comments, paragraphs outside bullets, code fences, tables, custom containers, unsupported inline constructs, raw HTML, query and macro arguments, block reference expansions and asset metadata.
+			- Search leaves out property values, comments, paragraphs outside bullets, code fences, tables, custom containers, unsupported inline constructs, raw HTML, query arguments, the arguments of other macros, block reference expansions and asset metadata.
 			- A page or block embed contributes no copied target text. The selected target's original bullets are searchable on their own.
 			- Generated namespace titles and searching property content are not supported yet.
 		- ### Exclusions
@@ -85,10 +85,10 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 		- Each group reports its full match count and returns at most 100 results.
 		- The SDK's `SearchIndex::query` returns the same groups in the same order. [`tests/search-fixture.json`](https://github.com/codekiln/logseq-gardener/blob/main/tests/search-fixture.json) runs in both engines.
 	- ## Engine API
-		- Import the manifest's engine URL on first use. The engine has no DOM, network, storage or navigation side effects. The caller fetches the files relative to the manifest and passes their text.
+		- Import the manifest's engine URL on first use. The engine has no DOM, network, storage or navigation side effects. The caller fetches the files relative to the manifest, and passes the parsed manifest and the text of every other file.
 		- ```javascript
 		  const engine = await import(engineURL);
-		  const manifest = engine.prepareManifest(manifestJSON, expectedRevision);
+		  const manifest = engine.prepareManifest(JSON.parse(manifestText), expectedRevision);
 		  const index = engine.createIndex(manifest, await text(engine.titlesFile(manifest)));
 		  for (const key of engine.missingShards(index, input)) {
 		    engine.addShard(index, key, await text(engine.shardFile(manifest, key)));

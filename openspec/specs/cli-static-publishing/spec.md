@@ -55,7 +55,7 @@ The root help SHALL discover publish, and publish SHALL provide equivalent help,
 
 ### Requirement: Plugin selection from the CLI
 
-`lsg publish` SHALL accept a repeatable native-path `--plugin PATH` naming a plugin manifest and pass the manifests to the SDK's site options. A manifest error, a failing build plugin or a rejected build contribution SHALL exit one with empty stdout, a message on stderr naming the manifest or plugin and the problem, and no output directory. Publishing help SHALL describe the option, the manifest fields including the `build` section, the `plugins/<id>/` output folder and where the lifecycle and the build protocol are documented.
+`lsg publish` SHALL accept a repeatable native-path `--plugin PATH` naming a plugin manifest and pass the manifests to the SDK's site options. A manifest error, a failing build plugin or a rejected build contribution SHALL exit one with empty stdout, a message on stderr naming the manifest or plugin and the problem, and no output directory. Publishing help SHALL describe the option, the manifest fields including the `build` section and the `plugins/<id>/` output folder, and SHALL name the `lsg/Ref/Plugin Host API` and `lsg/Ref/Build Plugin Protocol` pages with their documentation site URLs for the lifecycle and the build protocol.
 
 #### Scenario: Publish with a plugin
 
@@ -75,7 +75,7 @@ The root help SHALL discover publish, and publish SHALL provide equivalent help,
 #### Scenario: Discover plugins offline
 
 - **WHEN** a caller reads publishing help without a garden
-- **THEN** the help describes `--plugin` and its `build` section and links the publishing guide's plugin section
+- **THEN** the help describes `--plugin` and its `build` section and names the `lsg/Ref/Plugin Host API` and `lsg/Ref/Build Plugin Protocol` pages with their documentation site URLs
 
 ### Requirement: Optional publication timings
 
@@ -95,7 +95,7 @@ lsg publish SHALL accept an optional --timings flag. With it, human output SHALL
 
 ### Requirement: Readable URL option
 
-`lsg publish` SHALL accept an optional `--readable-urls` flag and pass the readable layout to the SDK's site options. An unsafe or colliding title SHALL exit one with empty stdout, a message naming the pages on stderr and no output directory. Publishing help SHALL describe the flag, the folder layout, what stays at the output root, how unsafe and colliding titles fail, and where the publishing guide describes the layout.
+`lsg publish` SHALL accept an optional `--readable-urls` flag and pass the readable layout to the SDK's site options. An unsafe or colliding title SHALL exit one with empty stdout, a message naming the pages on stderr and no output directory. Publishing help SHALL describe the flag, the folder layout, what stays at the output root and how unsafe and colliding titles fail, and SHALL name the `lsg/Ref/Publish Options` page with its documentation site URL for the layout.
 
 #### Scenario: Publish readable URLs
 
@@ -110,4 +110,4 @@ lsg publish SHALL accept an optional --timings flag. With it, human output SHALL
 #### Scenario: Discover readable URLs offline
 
 - **WHEN** a caller reads publishing help without a garden
-- **THEN** the help describes `--readable-urls` and the layout it writes
+- **THEN** the help describes `--readable-urls` and the layout it writes and names the `lsg/Ref/Publish Options` page with its documentation site URL

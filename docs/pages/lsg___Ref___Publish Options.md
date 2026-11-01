@@ -15,7 +15,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		  | `--graph PATH` | Required. The root folder of the garden. |
 		  | `--output PATH` | Required. A new directory to publish into, as Output directory below describes. |
 		  | `--filename-format FORMAT` | Required. `triple-lowbar` when the garden's `logseq/config.edn` sets `:file/name-format :triple-lowbar`, and `legacy` for Logseq's default file name format. [[lsg/Ref/Page Titles]] describes how each format gives a page its title. |
-		  | `--include NAMESPACE` | Selects a namespace and its descendants. Repeat it to select more namespaces. With no `--include`, nothing is selected and the index is empty. |
+		  | `--include NAMESPACE` | Selects a namespace and its descendants. Repeat it to select more namespaces. With no `--include`, no page is selected, and the index lists only the journals that `--journals` publishes. |
 		  | `--exclude NAMESPACE` | Removes a namespace and its descendants from the selection. Repeat it to remove more namespaces. An exclusion always wins over an inclusion. |
 		  | `--homepage TITLE` | Renders the selected page or alias `TITLE` at `index.html`. |
 		  | `--journals` | Publishes every file under `journals/` as a page, with Logseq's journals feed. |
@@ -56,7 +56,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		  | `timings` | With `--timings`, a list of `{"phase": NAME, "ms": MILLISECONDS}`. |
 		  | `total_ms` | With `--timings`, the total time in milliseconds. |
 		- Paths accept native operating system arguments. `output_directory` and `index_path` are display strings of those paths.
-		- `--timings` reports the phases `read` (finding and reading source files and checking options), `parse`, `index` (selection, names, references, queries and search records), `plugins` (waiting for build plugins), `render` (page and list documents), `history` (waiting for the git history read), `search` (search files), `graph` (waiting for graph layouts and neighbourhoods) and `write`, each in milliseconds to one decimal place. A waiting phase measures only the time the publisher waited for work that ran alongside other phases. Without `--format json`, the timings are a line on standard error: `Timings in milliseconds: read 12.3, parse 45.6, ...; total 210.4`. `--timings` changes no published file. [[lsg/How To/Measure Performance]] shows how to use it, and [[lsg/Ref/Publication Speed]] records measured builds.
+		- `--timings` reports the phases `read` (finding and reading source files and checking options), `parse`, `index` (selection, names, references, queries and search records), `plugins` (waiting for build plugins), `render` (page and list documents), `history` (waiting for the git history read), `search` (search files), `graph` (waiting for graph layouts and neighbourhoods) and `write`, each in milliseconds, rounded to one decimal place. A waiting phase measures only the time the publisher waited for work that ran alongside other phases. Without `--format json`, the timings are a line on standard error: `Timings in milliseconds: read 12.3, parse 45.6, ...; total 210.4`. `--timings` changes no published file. [[lsg/How To/Measure Performance]] shows how to use it, and [[lsg/Ref/Publication Speed]] records measured builds.
 	- ## Exit codes
 		- | Code | Meaning |
 		  | --- | --- |
@@ -74,7 +74,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		  | `GitP/A/Session/26/10/20-Tue` | `GitP/A/Session/26/10/20-Tue/index.html` | `GitP/A/Session/26/10/20-Tue/` |
 		  | `Notes/Q&A: 2026` | `Notes/Q&A: 2026/index.html` | `Notes/Q%26A%3A%202026/` |
 		  | `2026-10-23 Fri`, a journal | `2026-10-23 Fri/index.html` | `2026-10-23%20Fri/` |
-		- Each segment of a link keeps letters, digits, `-`, `.`, `_` and `~`, and percent-encodes every other character as UTF-8.
+		- Each segment of a link keeps ASCII letters and digits, `-`, `.`, `_` and `~`, and percent-encodes every other character as UTF-8.
 		- The home page, All pages, the journals feed and the graph view stay at the output root under the names they have without the option. A `--homepage` page is written both to `index.html` and to its own folder.
 		- Rust callers set `SiteOptions::page_urls` to `PageUrls::Readable`. `page_urls::readable_url` gives the link of any title.
 		- Every page in a folder carries a `<base>` element that points at the site root, so its links, assets, scripts and search results resolve as they do from `index.html`. The site works from a static server under any path, such as `https://example.org/logseq-gardener/`, and from disk.
