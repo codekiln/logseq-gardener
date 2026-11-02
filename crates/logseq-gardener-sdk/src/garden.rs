@@ -10,6 +10,7 @@ use std::process::{Command, Stdio};
 
 use crate::ast::{Block, Projection};
 use crate::garden_config;
+use crate::property_names::valid_property_name;
 use crate::timing::Stopwatch;
 
 /// A read-only collection of Markdown documents, sorted by relative path.
@@ -402,9 +403,17 @@ impl Walk<'_> {
 /// such as `# [[Filed]]` after a bulleted block, is a block of its own rather than more
 /// text of the bullet above. The parser reports such a line as a heading; this turns it
 /// into a bullet at the same level.
+///
+/// Logseq also drops each property whose name it rejects, such as `` `status `` in a block
+/// that starts with the code `` `status:: [[Done]]` ``
+/// ([`crate::property_names::valid_property_name`]). The properties block stays, with the
+/// properties Logseq keeps, so the outline keeps its shape.
 pub fn parse_document(source: &str) -> Projection {
     let mut parsed = lsdoc::parse_to_projection(source);
     for block in &mut parsed.blocks {
+        if let Block::Properties { props, .. } = block {
+            props.retain(|prop| valid_property_name(&prop.0));
+        }
         if let Block::Heading {
             level,
             size,
@@ -452,6 +461,23 @@ mod tests {
                 (1, None, "3".to_owned()),
             ]
         );
+    }
+
+    #[test]
+    fn drops_the_properties_logseq_rejects() {
+        let parsed =
+            parse_document("- `status:: [[Done]]` marks a finished task.\n  kind:: note\n");
+        let props: Vec<_> = parsed
+            .blocks
+            .iter()
+            .filter_map(|block| match block {
+                Block::Properties { props, .. } => Some(props),
+                _ => None,
+            })
+            .flatten()
+            .map(|prop| prop.0.as_str())
+            .collect();
+        assert_eq!(props, ["kind"]);
     }
 
     #[test]

@@ -774,3 +774,23 @@ fn a_space_inside_the_brackets_keeps_the_reference_off_the_trimmed_page() {
     );
     assert_eq!(setup.matches(&link).count(), 2, "{setup}");
 }
+
+#[test]
+fn a_property_name_logseq_rejects_adds_no_reference() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Done.md", "- Finished work\n");
+    // Logseq's parser reads `` `status `` as a property name that is not valid, drops the
+    // property and its reference, and shows the block as empty.
+    f.write(
+        "pages/Notes___Setup.md",
+        "- `status:: [[Notes/Done]]` marks a finished task.\n",
+    );
+    f.write(
+        "pages/Notes___Plain.md",
+        "- Read [[Notes/Done]] first\n  `status:: [[Notes/Done]]`\n",
+    );
+    f.publish();
+    let linked = f.linked("Notes/Done");
+    assert!(linked.contains("<h2>1 Linked Reference</h2>"), "{linked}");
+    assert!(linked.contains("Read"), "{linked}");
+}

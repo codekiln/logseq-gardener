@@ -59,6 +59,9 @@ pub mod page_lookup;
 /// Which page properties Logseq shows in a page's properties box.
 pub mod page_properties;
 
+/// Which property names Logseq's file parser keeps.
+pub mod property_names;
+
 /// Logseq's global graph and page graph from the reference index.
 pub mod graph;
 
