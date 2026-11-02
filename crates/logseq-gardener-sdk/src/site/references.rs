@@ -589,6 +589,7 @@ impl<'a> References<'a> {
                         block: Vec::new(),
                     },
                 },
+                title_spellings: document.title_spellings.clone(),
             };
             for copied in &mut copy.parsed.blocks {
                 if let Block::Bullet { level, .. } = copied {
@@ -748,6 +749,7 @@ impl<'a> References<'a> {
                     block: Vec::new(),
                 },
             },
+            title_spellings: document.title_spellings.clone(),
         };
         for copied in &mut copy.parsed.blocks {
             if let Block::Bullet { level, .. } = copied {

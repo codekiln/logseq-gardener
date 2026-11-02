@@ -494,6 +494,7 @@ pub(super) fn render_crumb(
                 block: Vec::new(),
             },
         },
+        title_spellings: document.title_spellings.clone(),
     };
     let mut renderer = new_renderer(&empty, pages, targets, route, documents, mode, asset);
     renderer.in_reference = true;
@@ -1918,6 +1919,7 @@ mod tests {
             kind: DocumentKind::Page,
             source: source.into(),
             parsed: lsdoc::parse_to_projection(source),
+            title_spellings: Default::default(),
         }
     }
     fn render(source: &str) -> Rendered {

@@ -513,6 +513,7 @@ mod tests {
             kind: crate::garden::DocumentKind::Page,
             source: source.to_owned(),
             parsed: lsdoc::parse_to_projection(source),
+            title_spellings: Default::default(),
         };
         let visible = vec![(
             "recording".to_owned(),

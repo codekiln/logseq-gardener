@@ -468,3 +468,68 @@ fn timed_loading_matches_loading_and_records_read_then_parse() {
         timings.get("read").unwrap() + timings.get("parse").unwrap()
     );
 }
+
+/// The titles of the garden's pages with the triple-lowbar filename format, by path.
+fn titles(garden: &Garden) -> Vec<(&str, String)> {
+    garden
+        .documents
+        .iter()
+        .filter(|document| document.kind == DocumentKind::Page)
+        .map(|document| {
+            (
+                document.relative_path.to_str().unwrap(),
+                page_title(document, FilenameFormat::TripleLowbar).unwrap(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn a_page_that_names_itself_in_another_spelling_takes_that_spelling() {
+    // Each expected title is the one Logseq's file parser gives the page (issue #444).
+    let fixture = Fixture::new();
+    fixture.write("pages/Solvespace.md", "alias:: [[SolveSpace]]\n\n- CAD\n");
+    fixture.write("pages/Foo.md", "- see [[foo]]\n");
+    fixture.write("pages/Qux.md", "- [[qux/child]]\n");
+    fixture.write("pages/Tagged.md", "tags:: tagged\n\n- x\n");
+    fixture.write("pages/Hashtag.md", "- #hashtag\n");
+    fixture.write("pages/Other.md", "title:: Chosen\n\n- [[CHOSEN]]\n");
+    fixture.write("pages/Todo.md", "- TODO do it\n");
+    // A later block's spelling wins; within one block, the first one written.
+    fixture.write("pages/Multi.md", "- [[MULTI]]\n- [[multi]]\n");
+    fixture.write("pages/Multi2.md", "- [[MULTI2]] [[multi2]]\n");
+    // A file Logseq reads earlier spells the page first, so its spelling stays.
+    fixture.write(
+        "journals/2024_01_01.md",
+        "- [[bar]], [[baz]], [[same]] and [[word]]\n",
+    );
+    fixture.write("pages/Bar.md", "- [[BAR]]\n");
+    fixture.write("pages/Same.md", "- [[Same]]\n");
+    // Without a reference to itself, a page keeps the spelling of its file name.
+    fixture.write("pages/Baz.md", "- nothing\n");
+    fixture.write("pages/Plain.md", "- [[Elsewhere]]\n");
+    fixture.write(
+        "pages/Word.md",
+        "- The text says WORD without a reference\n",
+    );
+    let garden = load_garden(&fixture.0).unwrap();
+    assert_eq!(
+        titles(&garden),
+        [
+            ("pages/Bar.md", "bar".to_owned()),
+            ("pages/Baz.md", "Baz".to_owned()),
+            ("pages/Foo.md", "foo".to_owned()),
+            ("pages/Hashtag.md", "hashtag".to_owned()),
+            ("pages/Multi.md", "multi".to_owned()),
+            ("pages/Multi2.md", "MULTI2".to_owned()),
+            ("pages/Other.md", "CHOSEN".to_owned()),
+            ("pages/Plain.md", "Plain".to_owned()),
+            ("pages/Qux.md", "qux".to_owned()),
+            ("pages/Same.md", "same".to_owned()),
+            ("pages/Solvespace.md", "SolveSpace".to_owned()),
+            ("pages/Tagged.md", "tagged".to_owned()),
+            ("pages/Todo.md", "TODO".to_owned()),
+            ("pages/Word.md", "Word".to_owned()),
+        ]
+    );
+}

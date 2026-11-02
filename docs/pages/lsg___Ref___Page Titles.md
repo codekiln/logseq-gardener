@@ -3,7 +3,7 @@ see-also:: [[lsg/Ref/Garden Loading]], [[lsg/How To/Use the Rust SDK]]
 
 - # Page Titles Reference
 	- ## Overview
-		- `lsg` and the SDK's `page_titles::page_title` derive the title of each page from its file's name or from a leading `title::` property. The caller chooses the filename format, which matches the garden's `:file/name-format` setting in `logseq/config.edn`: `pages/Names___Nested.md` is the page `Names/Nested` with the triple-lowbar format and `Names___Nested` with the legacy format.
+		- `lsg` and the SDK's `page_titles::page_title` derive the title of each page from its file's name or from a leading `title::` property. A page that refers to itself in another spelling takes that spelling, as in Logseq. The caller chooses the filename format, which matches the garden's `:file/name-format` setting in `logseq/config.edn`: `pages/Names___Nested.md` is the page `Names/Nested` with the triple-lowbar format and `Names___Nested` with the legacy format.
 		- The rules follow the Logseq OG source revision recorded in the [relationship experiment](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/current-og-relationships/experiments/file-relationships/README.md).
 	- ## Rules
 		- ### Contents page
@@ -19,6 +19,13 @@ see-also:: [[lsg/Ref/Garden Loading]], [[lsg/How To/Use the Rust SDK]]
 		- ### Triple-lowbar format
 			- The triple-lowbar format replaces each non-overlapping `___` in the stem with `/`, decodes each ASCII percent escape once, and removes empty segments between slashes.
 			- Escapes of non-ASCII bytes stay encoded: `%C3%A9` stays `%C3%A9`, where the legacy format decodes it to `é`.
+		- ### A page that refers to itself
+			- When a page's file refers to the page in another spelling, the page takes that spelling: `pages/Solvespace.md` holding `alias:: [[SolveSpace]]` is the page `SolveSpace`. Every reference counts: a page reference or tag in the text, a name in a property value such as `alias::` or `tags::`, a namespace parent such as `qux` in `[[qux/child]]` on `pages/Qux.md`, and a task marker such as `TODO`.
+			- When Logseq has the page before it reads the file, the page keeps that earlier spelling. Logseq creates its own pages, such as `TODO` and `Contents`, before it reads any file. It reads journals first, from the newest file name, then files whose path holds `contents.`, then the other files by path, and a file it reads earlier that refers to the page spells it first. In the encode garden, a journal that writes `[[brew]]` makes `pages/Brew.md`, which lists `brew` as an alias, the page `brew`.
+			- When the file refers to the page in more than one spelling, the last block that refers to it gives the spelling. Within one block, a namespace parent wins over a name written in the text, and among the names written in the text the first one wins.
+			- A page whose file does not refer to the page keeps the title from its file name or `title::` property.
+			- `load_garden` records these spellings in each document's `title_spellings`, and `page_title` uses them. A document built without `load_garden` keeps the title from its file name or `title::` property.
+			- Namespace selection matches the title as `page_title` spells it, so `--include SolveSpace` selects `pages/Solvespace.md` in the example above, and `--include Solvespace` does not.
 	- ## Errors
 		- `page_title` returns a `PageTitleError` with the file's relative path and the reason when the file is a journal, when its path is not a Markdown path outside `journals/`, when its file name is not valid UTF-8, or when the title is empty.
 		- An empty or whitespace-only title is an error the SDK raises for publishing. Logseq OG itself accepts an empty `title::` override.
