@@ -1,5 +1,7 @@
 use logseq_gardener_sdk::garden::{DocumentKind, GardenDocument};
-use logseq_gardener_sdk::page_names::{PageNameIndex, lookup_key, page_aliases};
+use logseq_gardener_sdk::page_names::{
+    AliasEntry, AliasGroups, PageNameIndex, lookup_key, page_aliases,
+};
 
 fn document(source: &str) -> GardenDocument {
     GardenDocument {
@@ -74,4 +76,68 @@ fn tags_and_nested_references_supply_aliases_as_in_logseq() {
         page_aliases(&document("alias:: [[Outer [[Inner]] Name]]\n"), "Page"),
         ["outer [[inner]] name"]
     );
+}
+
+/// Logseq 0.10.15 lists, in a page's `alias` row, the page's own aliases and then every other
+/// name one or two alias links away, and opens a name that is a page's title on that page.
+#[test]
+fn alias_groups_list_names_as_logseq_does() {
+    let mut groups = AliasGroups::default();
+    groups.insert(
+        "garden",
+        "Knowledge/Garden",
+        &document("alias:: [[Digital Garden]], [[Zettelkasten]]\n"),
+    );
+    groups.insert("digital", "Digital Garden", &document(""));
+    groups.insert("source", "Source", &document("alias:: [[Target]]\n"));
+    groups.insert("target", "Target", &document("alias:: [[Other Name]]\n"));
+    groups.insert("a", "Claim A", &document("alias:: [[Collision]]\n"));
+    groups.insert("b", "Claim B", &document("alias:: [[Collision]]\n"));
+    groups.insert(
+        "brew",
+        "brew",
+        &document("alias:: [[brew]], [[homebrew]], [[Homebrew]]\n"),
+    );
+    let entry = |name: &str, page, authored| AliasEntry {
+        name: name.to_owned(),
+        page,
+        authored,
+    };
+    assert_eq!(
+        groups.entries(&"garden"),
+        [
+            entry("Digital Garden", "digital", true),
+            entry("Zettelkasten", "garden", true)
+        ]
+    );
+    assert_eq!(
+        groups.entries(&"digital"),
+        [
+            entry("Knowledge/Garden", "garden", false),
+            entry("Zettelkasten", "garden", false)
+        ]
+    );
+    assert_eq!(
+        groups.entries(&"source"),
+        [
+            entry("Target", "target", true),
+            entry("Other Name", "target", false)
+        ]
+    );
+    assert_eq!(
+        groups.entries(&"target"),
+        [
+            entry("Other Name", "target", true),
+            entry("Source", "source", false)
+        ]
+    );
+    assert_eq!(
+        groups.entries(&"a"),
+        [entry("Collision", "a", true), entry("Claim B", "b", false)]
+    );
+    assert_eq!(
+        groups.entries(&"brew"),
+        [entry("brew", "brew", true), entry("homebrew", "brew", true)]
+    );
+    assert!(groups.entries(&"missing").is_empty());
 }

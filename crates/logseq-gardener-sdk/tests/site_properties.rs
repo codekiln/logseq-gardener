@@ -344,3 +344,81 @@ fn page_property_rows_show_names_of_pages_with_no_file() {
         assert!(!html.contains(text), "{text} in {props}");
     }
 }
+
+/// Logseq 0.10.15 lists in the `alias` row the page's own aliases and the pages that name
+/// it as their alias. An alias that is also another page's title opens that page.
+#[test]
+fn alias_row_lists_every_alias_as_logseq_does() {
+    let f = Fixture::new("{:publishing/page-properties? true}");
+    f.page(
+        "Visible/Garden",
+        "alias:: [[Visible/Digital Garden]], [[Zettelkasten]]\n- Garden\n",
+    );
+    f.page("Visible/Digital Garden", "");
+    f.page(
+        "Visible/Datascript",
+        "alias:: [[Visible/Query/Datascript]]\n- DataScript\n",
+    );
+    f.page("Visible/Query/Datascript", "-\n");
+    f.page("Visible/Source", "alias:: [[Visible/Target]]\n- Source\n");
+    f.page(
+        "Visible/Target",
+        "alias:: [[Other Name]]\ntype:: note\n- Target\n",
+    );
+    f.page(
+        "Visible/Private",
+        "public:: false\nalias:: [[Visible/Target]]\n- Hidden\n",
+    );
+    f.publish();
+    let link =
+        |route: String, name: &str| format!("<a class=\"page-ref\" href=\"{route}\">{name}</a>");
+    let rows = [
+        (
+            "Visible/Garden",
+            format!(
+                "<dt>alias</dt><dd>{}, {}</dd>",
+                link(route("Visible/Digital Garden"), "Visible/Digital Garden"),
+                link(route("Visible/Garden"), "Zettelkasten")
+            ),
+        ),
+        (
+            "Visible/Datascript",
+            format!(
+                "<dt>alias</dt><dd>{}</dd>",
+                link(
+                    route("Visible/Query/Datascript"),
+                    "Visible/Query/Datascript"
+                )
+            ),
+        ),
+        (
+            "Visible/Source",
+            format!(
+                "<dt>alias</dt><dd>{}, {}</dd>",
+                link(route("Visible/Target"), "Visible/Target"),
+                link(route("Visible/Target"), "Other Name")
+            ),
+        ),
+        (
+            "Visible/Target",
+            format!(
+                "<dt>alias</dt><dd>{}, {}</dd>",
+                link(route("Visible/Target"), "Other Name"),
+                link(route("Visible/Source"), "Visible/Source")
+            ),
+        ),
+    ];
+    for (title, row) in rows {
+        let html = f.html(title);
+        assert!(
+            properties(&html).contains(&row),
+            "{row} missing from {}",
+            properties(&html)
+        );
+    }
+    // A withheld page that names the page as its alias adds no name.
+    assert!(!f.html("Visible/Target").contains("Visible/Private"));
+    // Only the page's own aliases are references: the source names the target.
+    assert!(backlinks(&f, "Visible/Target").contains(&route("Visible/Source")));
+    assert!(!f.html("Visible/Source").contains("data-refs=\"linked\""));
+}
