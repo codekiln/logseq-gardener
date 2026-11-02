@@ -194,3 +194,49 @@ fn outline_blocks_break_long_words_to_fit_a_phone_screen() {
     let rule = &style[..style.find('}').unwrap()];
     assert!(rule.contains("overflow-wrap:anywhere"), "{rule}");
 }
+
+/// The class Logseq's rule gives the item of a block whose bullet it hides.
+const EMPTY: &str = "<li class=\"lsg-empty\">";
+
+#[test]
+fn a_block_with_no_text_hides_its_bullet_as_logseq_does() {
+    let f = Fixture::new();
+    // The page's first and last blocks keep their bullets, as do a block with children
+    // and a block with a property Logseq shows. A nested block keeps no such exception.
+    f.write(
+        "pages/Notes___Start.md",
+        "- first\n- # Frontmatter and body\n\t- id:: 6add3ffb-e52b-4e8f-908a-9958186e4dfb\n\t- text\n\t-\n\t- kind:: note\n-\n\t- child\n- \n- ---\n- last\n",
+    );
+    f.write("pages/Notes___Ends.md", "-\n- middle\n-\n");
+    f.publish();
+    let html = f.html("Notes/Start");
+    assert_eq!(html.matches(EMPTY).count(), 4, "{html}");
+    let outline = html.split_once("<ul class=\"outline\">").unwrap().1;
+    assert!(
+        outline.starts_with(&format!("<li>{BULLET}first</li>")),
+        "{html}"
+    );
+    assert!(outline.contains(&format!("<ul>{EMPTY}<span id=\"block-6add3ffb-e52b-4e8f-908a-9958186e4dfb\"></span>{BULLET}</li><li>{BULLET}text</li>{EMPTY}{BULLET}</li><li>{BULLET}</li></ul>")), "{html}");
+    assert!(outline.contains(&format!("<li>{BULLET}<ul><li>{BULLET}child</li></ul></li>{EMPTY}{BULLET}</li>{EMPTY}{BULLET}<hr></li><li>{BULLET}last</li></ul>")), "{html}");
+    let ends = f.html("Notes/Ends");
+    assert!(!ends.contains(EMPTY), "{ends}");
+}
+
+#[test]
+fn an_embedded_block_with_no_text_hides_its_bullet() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Host.md", "- {{embed [[Notes/Embedded]]}}\n");
+    f.write("pages/Notes___Embedded.md", "tags:: x\n\n-\n- a\n-\n- b\n");
+    f.publish();
+    let host = f.html("Notes/Host");
+    let embed = host
+        .split_once("<div class=\"blocks-container\">")
+        .unwrap()
+        .1;
+    assert!(
+        embed.starts_with(&format!(
+            "<ul>{EMPTY}{BULLET}</li><li>{BULLET}a</li>{EMPTY}{BULLET}</li><li>{BULLET}b</li></ul>"
+        )),
+        "{host}"
+    );
+}

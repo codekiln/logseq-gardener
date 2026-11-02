@@ -53,9 +53,34 @@ pub fn is_hidden_page_property(key: &str) -> bool {
         || crate::cards::is_hidden_property(&key)
 }
 
+/// Whether Logseq 0.10.15 hides a block property, before the graph's
+/// `:block-hidden-properties`: one of its built-in keys or a card scheduling key. `key` is
+/// compared as Logseq stores it, lower-cased with spaces and underscores as hyphens.
+pub fn is_hidden_block_property(key: &str) -> bool {
+    let key = key.trim().to_lowercase().replace([' ', '_'], "-");
+    HIDDEN_BUILT_IN.contains(&key.as_str()) || crate::cards::is_hidden_property(&key)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_hidden_page_property;
+    use super::{is_hidden_block_property, is_hidden_page_property};
+
+    #[test]
+    fn hides_what_logseq_hides_on_a_block() {
+        for key in [
+            "id",
+            "custom_id",
+            "Collapsed",
+            "heading",
+            "created_at",
+            "card-ease-factor",
+        ] {
+            assert!(is_hidden_block_property(key), "{key}");
+        }
+        for key in ["title", "icon", "kind", "alias", "public"] {
+            assert!(!is_hidden_block_property(key), "{key}");
+        }
+    }
 
     #[test]
     fn hides_what_logseq_hides_on_a_page() {
