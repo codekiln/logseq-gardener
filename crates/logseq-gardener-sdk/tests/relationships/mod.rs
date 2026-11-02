@@ -16,7 +16,7 @@ use logseq_gardener_sdk::journals::{JournalFormats, journal_identity, parse_jour
 use logseq_gardener_sdk::outline::{BlockId, bullet_properties};
 use logseq_gardener_sdk::page_lookup::{MatchedBy, PageCatalog};
 use logseq_gardener_sdk::page_names::{
-    has_outer_space, lookup_key, page_alias_spellings, page_aliases, reference_key,
+    AliasGroups, has_outer_space, lookup_key, page_alias_spellings, reference_key,
 };
 use logseq_gardener_sdk::page_titles::{FilenameFormat, page_title};
 use logseq_gardener_sdk::references::{Contribution, PageEntry, ReferenceIndex};
@@ -154,6 +154,11 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
     });
     let namespace = |title: &str| graph_index.namespace_parent(title).map(reference_key);
 
+    let mut groups = AliasGroups::default();
+    for document in &garden.documents {
+        groups.insert(path(document), &titles[&path(document)], document);
+    }
+
     let mut pages: Vec<StoredPage> = garden
         .documents
         .iter()
@@ -162,7 +167,7 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
             let title = titles[&file].clone();
             StoredPage {
                 name: lookup_key(&title),
-                aliases: page_aliases(document, &title),
+                aliases: groups.stored_aliases(&file),
                 namespace: namespace(&title),
                 journal_day: days.get(&file).cloned(),
                 title,
@@ -172,8 +177,8 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
         .collect();
     pages.sort_by(|a, b| a.file.cmp(&b.file));
 
-    // Each alias name that is no page's title finds the files that declare it. The first
-    // file to declare a name, in path order, gives its spelling.
+    // Each alias name that is no page's title finds the pages that record it as an alias.
+    // The first file to declare a name, in path order, gives its spelling.
     let mut spellings = BTreeMap::new();
     for document in &garden.documents {
         for alias in page_alias_spellings(document, &titles[&path(document)]) {
@@ -188,12 +193,13 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
                 .iter()
                 .all(|page| page.matched_by == MatchedBy::Alias)
                 .then(|| AliasName {
+                    files: pages
+                        .iter()
+                        .filter(|page| page.aliases.contains(&name))
+                        .map(|page| page.file.clone())
+                        .collect(),
                     name,
                     title,
-                    files: found
-                        .iter()
-                        .map(|page| page.relative_path.to_string_lossy().replace('\\', "/"))
-                        .collect(),
                 })
         })
         .collect();

@@ -14,7 +14,7 @@ use super::render;
 use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::journals::JournalDate;
-use crate::page_names::{PageNameIndex, has_outer_space, page_alias_spellings, reference_key};
+use crate::page_names::{AliasGroups, PageNameIndex, has_outer_space, reference_key};
 use crate::references::{BlockId, Contribution, Filter, PageEntry, ReferenceIndex};
 use crate::transclusion::{EmbedPage, ReferenceTargets};
 
@@ -83,6 +83,9 @@ pub(super) struct References<'a> {
     show_brackets: bool,
     /// Generated namespace pages by lower-cased title, for names no selected page owns.
     by_name: BTreeMap<String, String>,
+    /// The other selected pages of each page's alias group, whose linked references the
+    /// page's Linked References also list.
+    alias_pages: BTreeMap<String, Vec<String>>,
     /// Each block's rendered copy, by block and open depth. A block appears in the
     /// sections of every page it refers to and in query results; it renders the first
     /// time and every later listing fills in its own row numbers and bullet links.
@@ -122,6 +125,7 @@ impl<'a> References<'a> {
     pub fn new(
         selected: &[(String, String, &'a GardenDocument)],
         names: &PageNameIndex<String>,
+        alias_groups: &AliasGroups<String>,
         property_views: Option<&BTreeMap<String, super::properties::PropertyView>>,
         destinations: BTreeMap<String, String>,
         dates: BTreeMap<String, JournalDate>,
@@ -168,9 +172,22 @@ impl<'a> References<'a> {
                 )
             })
             .collect();
-        let aliases: BTreeMap<_, _> = selected
+        // Unlinked References look for every name of the page's alias group, as Logseq's
+        // `get-page-alias-names` lists them.
+        let aliases: BTreeMap<_, Vec<String>> = selected
             .iter()
-            .map(|(title, route, document)| (route, page_alias_spellings(document, title)))
+            .map(|(_, route, _)| {
+                let names = alias_groups
+                    .entries(route)
+                    .into_iter()
+                    .map(|entry| entry.name);
+                (route, names.collect())
+            })
+            .collect();
+        let alias_pages = selected
+            .iter()
+            .map(|(_, route, _)| (route.clone(), alias_groups.group_pages(route)))
+            .filter(|(_, pages)| !pages.is_empty())
             .collect();
         let pages = destinations.iter().map(|(route, title)| PageEntry {
             id: route.clone(),
@@ -179,6 +196,7 @@ impl<'a> References<'a> {
         });
         Self {
             by_name: by_name.clone(),
+            alias_pages,
             index: ReferenceIndex::build(pages, contributions),
             sources: selected
                 .iter()
@@ -230,9 +248,20 @@ impl<'a> References<'a> {
         &self.index
     }
 
-    /// Number of distinct pages that refer to `target`.
+    /// Number of distinct pages among the Linked References of `target`.
     pub fn page_count(&self, target: &str) -> usize {
-        self.index.referring_pages(&target.to_owned())
+        self.linked_blocks(&target.to_owned())
+            .iter()
+            .map(|id| id.document)
+            .collect::<BTreeSet<_>>()
+            .len()
+    }
+
+    /// The blocks a page's Linked References list: those that refer to the page or to
+    /// another page of its alias group.
+    fn linked_blocks(&self, target: &String) -> Vec<BlockId> {
+        let aliases = self.alias_pages.get(target).map_or(&[][..], Vec::as_slice);
+        self.index.linked_with_aliases(target, aliases)
     }
 
     fn title<'t>(&'t self, route: &'t str) -> &'t str {
@@ -279,9 +308,9 @@ impl<'a> References<'a> {
             files: Vec::new(),
             diagnostics: Vec::new(),
         };
-        let linked = self.index.linked(&target);
+        let linked = self.linked_blocks(&target);
         if !linked.is_empty() {
-            self.linked(&target, &prefix, linked, context, asset, &mut sections);
+            self.linked(&target, &prefix, &linked, context, asset, &mut sections);
         }
         self.unlinked(&target, &prefix, context, asset, &mut sections);
         sections
@@ -631,10 +660,19 @@ impl<'a> References<'a> {
     ) -> String {
         let route = render::escape(source);
         let title = render::escape(self.title(source));
+        // Logseq marks a group whose page is in the target's alias group.
+        let alias = target
+            .and_then(|target| self.alias_pages.get(target))
+            .is_some_and(|pages| pages.iter().any(|page| page == source));
+        let label = if alias {
+            "<span class=\"ref-alias\">Alias</span>"
+        } else {
+            ""
+        };
         let (mut html, close) = match style {
             GroupStyle::References => (
                 format!(
-                    "<div class=\"references-blocks-item\"><details class=\"references-group\" open><summary class=\"foldable-title\"><span class=\"ref-chevron\"></span><a class=\"page-ref\" href=\"{route}\">{title}</a></summary>"
+                    "<div class=\"references-blocks-item\"><details class=\"references-group\" open><summary class=\"foldable-title\"><span class=\"ref-chevron\"></span><a class=\"page-ref\" href=\"{route}\">{title}</a>{label}</summary>"
                 ),
                 "</details></div>",
             ),

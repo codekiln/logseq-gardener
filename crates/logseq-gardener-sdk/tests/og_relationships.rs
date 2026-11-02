@@ -96,3 +96,52 @@ fn expected_results_cover_both_configurations() {
         .collect();
     assert_eq!(names, ["default", "triple-lowbar"]);
 }
+
+/// When a page lists another page that has a file as its alias, Logseq records the alias on
+/// both pages: the named page gets the listing page and the listing's other names
+/// (issue #453). `scripts/logseq-parser/check.py` agrees on this garden.
+#[test]
+fn an_alias_is_recorded_on_the_page_it_names_too() {
+    let root = fixtures().with_file_name("alias-of-another-page");
+    let derived = derive(&root, FilenameFormat::TripleLowbar);
+    let aliases: Vec<(&str, Vec<&str>)> = derived
+        .pages
+        .iter()
+        .map(|page| {
+            (
+                page.title.as_str(),
+                page.aliases.iter().map(String::as_str).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        aliases,
+        [
+            (
+                "Homebrew",
+                vec!["bottles", "brew", "formulae", "package manager"]
+            ),
+            ("Package Manager", vec!["bottles", "brew", "homebrew"]),
+            ("brew", vec!["bottles", "homebrew", "package manager"]),
+        ]
+    );
+    assert_eq!(
+        derived.aliases,
+        [
+            AliasName {
+                name: "bottles".into(),
+                title: "Bottles".into(),
+                files: vec![
+                    "pages/Homebrew.md".into(),
+                    "pages/Package Manager.md".into(),
+                    "pages/brew.md".into(),
+                ],
+            },
+            AliasName {
+                name: "formulae".into(),
+                title: "Formulae".into(),
+                files: vec!["pages/Homebrew.md".into()],
+            },
+        ]
+    );
+}
