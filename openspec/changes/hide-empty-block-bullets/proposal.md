@@ -4,7 +4,7 @@ Logseq's published site shows no bullet beside a block that has no text, and `ls
 
 ## What Changes
 
-- The SDK reports, for each outline block, whether it has no text by Logseq's rule: an empty first line, no property Logseq shows, and nothing after them but horizontal rules.
+- The SDK reports, for each outline block, whether it has no text by Logseq's rule: an empty first line or one holding only a task marker, no property Logseq shows, and nothing after them but horizontal rules.
 - The SDK says which blocks Logseq shows without a bullet: a block with no text and no children that is neither the first nor the last block of the outline.
 - The publisher marks those blocks, and the shared stylesheet hides their bullet until the pointer is over the block, as Logseq does.
 

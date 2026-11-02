@@ -26,6 +26,7 @@ When the rule holds, Logseq renders an empty `span.bullet-container`. Moving the
 ## Decisions
 
 - **The SDK owns the rule.** `OutlineBlock::empty` holds Logseq's `block-content-empty?`, and `Outline::hides_bullet` adds the children, first-block and last-block conditions. `Outline::from_blocks` already reads each block's properties and children, so the check adds one pass over the blocks the publisher already walks. `page_properties::is_hidden_block_property` holds the property names Logseq hides from blocks: its built-in hidden keys and the card scheduling keys.
+- **A lone task marker counts as an empty title.** Logseq's parser reads `- TODO` as a task marker with an empty title, while lsdoc gives `TODO` as the block's text. The SDK treats a first line that holds only an upper-case marker word as empty, so the block's bullet is hidden as in Logseq's build.
 - **The first and last blocks come from the outline being rendered.** The publisher builds an `Outline` for each list of blocks it renders: a page, an embedded page or block, or a reference copy. The first bullet of that list is Logseq's first block unless page properties, a heading line or other text comes before it; the last top-level bullet is Logseq's last block unless a top-level heading line comes after it. A top-level heading line also ends the body of the bullet before it, because Logseq starts a new block there.
 - **The publisher renders a class.** `site/render.rs` adds `lsg-empty` to the block's `<li>` and keeps the bullet element. The shared stylesheet rule `:is(.outline,.refs-outline) li.lsg-empty:not(:hover)>.bullet{visibility:hidden}` hides the bullet until the pointer is over the item. The item of such a block has no children, so hovering the item means hovering the block's row. Pages load no new script, and each page's added work is one class per such block.
 - **Hover shows the bullet, as in Logseq.** A static page has no editing state, so the pointer is the one condition left that changes at run time. CSS `:hover` gives the same result as Logseq's mouse-over handler without a script. `visibility: hidden` also takes the hidden bullet out of the keyboard order until it is shown, which matches Logseq, whose hidden bullet is an empty `span` with no action.
@@ -49,6 +50,10 @@ Decided by the agent without codekiln: no, for now. `lsg` publishes no block pro
 ### 3 - Where should the class go?
 
 Decided by the agent without codekiln: on the block's `<li>`. A reference copy's bullet is filled in later for each listing page, and its `<li>` is written with the copy, so the class on the item reaches the page outline, embeds and reference copies through one path.
+
+### 4 - Should a block written `- TODO` count as having no text?
+
+Decided by the agent without codekiln: yes. Logseq's build of the encode garden hides that block's bullet on `iia/0830 Voice AI Panel`, because its parser takes the word as a task marker and leaves the title empty.
 
 ## Open Questions
 

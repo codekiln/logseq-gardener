@@ -2,7 +2,7 @@
 
 ### Requirement: Report the blocks whose bullet Logseq hides
 
-The SDK SHALL report whether each outline block has no text, as Logseq's `block-content-empty?` decides: its first line is empty, each of its properties is one Logseq hides from blocks, and its body holds only horizontal rules and blank lines. The hidden properties SHALL be Logseq's built-in hidden keys and the card scheduling keys, compared lower-cased with spaces and underscores as hyphens. A heading line at the top level SHALL end the body, because Logseq starts a block there.
+The SDK SHALL report whether each outline block has no text, as Logseq's `block-content-empty?` decides: its first line is empty or holds only an upper-case task marker such as `TODO`, each of its properties is one Logseq hides from blocks, and its body holds only horizontal rules and blank lines. The hidden properties SHALL be Logseq's built-in hidden keys and the card scheduling keys, compared lower-cased with spaces and underscores as hyphens. A heading line at the top level SHALL end the body, because Logseq starts a block there.
 
 The SDK SHALL report that Logseq hides a block's bullet when the block has no text, has no children, and is neither the first nor the last block of the outline it belongs to. The first block SHALL be the first bullet only when no page properties, heading line or other text comes before it; the last block SHALL be the last top-level bullet only when no top-level heading line comes after it. A nested block SHALL have neither exception.
 

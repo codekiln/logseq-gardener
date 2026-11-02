@@ -279,7 +279,7 @@ impl Outline {
 }
 
 /// Whether the bullet at `index`, whose content ends before `end`, has no text: an empty
-/// first line, only properties Logseq hides, and a body of horizontal rules and blank
+/// first line or one with only a task marker, only properties Logseq hides, and a body of horizontal rules and blank
 /// lines. Logseq's `block-content-empty?` in `src/main/frontend/components/block.cljs`.
 /// A heading line at the top level starts a block of its own in Logseq, so the body ends
 /// there.
@@ -287,7 +287,16 @@ fn content_empty(source: &[Block], index: usize, end: usize) -> bool {
     let Some(Block::Bullet { inline, .. }) = source.get(index) else {
         return false;
     };
-    inline.is_empty()
+    // Logseq reads a lone marker word, such as `- TODO`, as a task marker with an empty
+    // title; lsdoc gives the word as text.
+    let title_empty = match inline.as_slice() {
+        [] => true,
+        [Inline::Plain { text, .. }] => {
+            TaskMarker::parse(text).is_some() && !text.bytes().any(|b| b.is_ascii_lowercase())
+        }
+        _ => false,
+    };
+    title_empty
         && bullet_properties(source, index)
             .all(|(key, _)| crate::page_properties::is_hidden_block_property(key))
         && source[index + 1..end]
@@ -431,12 +440,14 @@ mod tests {
     #[test]
     fn empty_blocks() {
         let outline = outline(
-            "- text\n-\n- id:: 6add3ffb-e52b-4e8f-908a-9958186e4dfb\n- kind:: note\n- ---\n- \n  ---\n  ---\n- > quote\n- <!-- note -->\n- [[Page]]\n",
+            "- text\n-\n- id:: 6add3ffb-e52b-4e8f-908a-9958186e4dfb\n- kind:: note\n- ---\n- \n  ---\n  ---\n- > quote\n- <!-- note -->\n- [[Page]]\n- TODO\n- TODO x\n",
         );
         let empty: Vec<_> = outline.blocks.iter().map(|b| b.empty).collect();
         assert_eq!(
             empty,
-            [false, true, true, false, true, true, false, false, false]
+            [
+                false, true, true, false, true, true, false, false, false, true, false
+            ]
         );
     }
 
