@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::ast::{Block, Projection};
+use crate::block_ids;
 use crate::garden_config;
 use crate::property_names::valid_property_name;
 use crate::timing::Stopwatch;
@@ -128,6 +129,11 @@ fn require_directory(path: &Path, metadata: &fs::Metadata) -> Result<(), GardenL
 /// loading with a path-bearing error. Unreadable inputs and invalid UTF-8 stop
 /// loading too. Ordinary non-Markdown files are ignored. No source files are written.
 ///
+/// When blocks share an `id::`, the block Logseq reads first keeps it, and the others
+/// lose their id properties, as in Logseq's file parser. Logseq reads journals first,
+/// from the last path to the first, then files whose path holds `contents.`, then every
+/// other file by path.
+///
 /// The result preserves raw parser output without deriving names from paths,
 /// resolving links or aliases, or determining publication visibility; see
 /// [`Garden::remove_shadowed_documents`] for title collisions across folders.
@@ -186,6 +192,8 @@ pub fn load_garden_timed(
         });
     }
     stopwatch.lap("read");
+    block_ids::keep_each_block_id_once(&mut documents);
+    stopwatch.lap("parse");
     Ok(Garden { documents })
 }
 

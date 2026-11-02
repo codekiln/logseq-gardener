@@ -204,7 +204,8 @@ fn duplicate_uuid_uses_offsets_and_large_original_outlines_have_real_destination
     f.write("Public.md", &source);
     let output = f.publish("site", Some(SearchOptions::default()));
     let (corpus, raw) = Fixture::corpus(&output);
-    assert!(!raw.contains("#block-12345678"));
+    // The first block keeps the id, as in Logseq; the second is addressed by its offset.
+    assert_eq!(raw.matches("#block-12345678").count(), 1);
     assert!(raw.contains("line 10049"));
     let records = corpus["content"].as_array().unwrap();
     let html =

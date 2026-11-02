@@ -515,7 +515,17 @@ fn block_links_resolve_selected_nested_ids_without_exposing_other_targets() {
         start.contains("<span class=\"block-ref\">Nested <strong>target</strong> &amp; &lt;unsafe&gt; <span class=\"page-reference\"><span>Notes/Other</span></span></span>"),
         "{start}"
     );
-    for unavailable in [duplicate, excluded, private, root] {
+    // Logseq reads Notes___Duplicate.md before Notes___Target.md, so its block keeps the id.
+    assert!(
+        start.contains(&format!(
+            "href=\"{}#block-{duplicate}\"",
+            route("Notes/Duplicate")
+        )),
+        "{start}"
+    );
+    assert!(start.contains("<span class=\"block-ref\">Duplicate two</span>"));
+    assert!(!target.contains(&format!("id=\"block-{duplicate}\"")));
+    for unavailable in [excluded, private, root] {
         assert!(!start.contains(&format!("#block-{unavailable}")));
         assert!(start.contains(&format!(
             "<span class=\"warning\" title=\"Block ref invalid\">(({unavailable}))</span>"
@@ -532,7 +542,6 @@ fn block_links_resolve_selected_nested_ids_without_exposing_other_targets() {
         ] {
             assert!(!text.contains(sentinel), "leaked {sentinel}");
         }
-        assert!(!text.contains(&format!("id=\"block-{duplicate}\"")));
         assert!(!text.contains(&format!("id=\"block-{root}\"")));
     }
     assert_eq!(report.assets, 0);
@@ -542,7 +551,7 @@ fn block_links_resolve_selected_nested_ids_without_exposing_other_targets() {
             .iter()
             .filter(|d| d.message.contains("block reference"))
             .count()
-            >= 4
+            >= 3
     );
     assert_eq!(before, files(&fixture.garden()));
 }
