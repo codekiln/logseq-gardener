@@ -84,6 +84,21 @@ pub fn page_title(
     document: &GardenDocument,
     format: FilenameFormat,
 ) -> Result<String, PageTitleError> {
+    let title = written_title(document, format)?;
+    // A page that refers to itself in another spelling takes that spelling, as in Logseq.
+    Ok(match document.title_spellings.get(&lookup_key(&title)) {
+        Some(spelling) => spelling.clone(),
+        None => title,
+    })
+}
+
+/// The title that the file name or `title::` property gives, before [`page_title`] applies
+/// the spelling of a page that refers to itself in another spelling. Releases before that
+/// spelling named the page's digest file after this title.
+pub(crate) fn written_title(
+    document: &GardenDocument,
+    format: FilenameFormat,
+) -> Result<String, PageTitleError> {
     let path = &document.relative_path;
     if document.kind == DocumentKind::Journal {
         return Err(PageTitleError::UnsupportedJournal { path: path.clone() });
@@ -125,11 +140,6 @@ pub fn page_title(
             }
             FilenameFormat::TripleLowbar => decode_triple_lowbar(&stem.replace("___", "/")),
         }
-    };
-    // A page that refers to itself in another spelling takes that spelling, as in Logseq.
-    let title = match document.title_spellings.get(&lookup_key(&title)) {
-        Some(spelling) => spelling.clone(),
-        None => title,
     };
     if title.trim().is_empty() {
         Err(PageTitleError::EmptyTitle { path: path.clone() })
