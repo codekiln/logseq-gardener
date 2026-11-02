@@ -626,6 +626,42 @@ fn cli_readable_urls_publish_an_unsafe_title_at_its_digest_file() {
 }
 
 #[test]
+fn cli_redirect_old_urls_write_digest_redirects_and_a_name_map() {
+    let f = Fixture::new();
+    f.write(
+        "pages/Notes___Other page.md",
+        "alias:: Elsewhere\n\n- OTHER_PAGE\n",
+    );
+    let output = f.0.join("site");
+    let result = f.publish(
+        &output,
+        &[
+            "--include",
+            "Notes",
+            "--readable-urls",
+            "--redirect-old-urls",
+        ],
+    );
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let emitted = files(&output);
+    assert!(emitted.iter().any(|(path, contents)| {
+        let name = path.to_string_lossy();
+        name.starts_with("p-")
+            && String::from_utf8_lossy(contents)
+                .contains("location.replace(\"Notes/Other%20page/\" + location.hash)")
+    }));
+    let map: serde_json::Value =
+        serde_json::from_slice(&emitted[Path::new("lsg-old-urls.json")]).unwrap();
+    assert_eq!(map["elsewhere"], "Notes/Other%20page/");
+    let index = String::from_utf8_lossy(&emitted[Path::new("index.html")]);
+    assert!(index.contains("data-lsg-old-urls"));
+}
+
+#[test]
 fn search_flag_emits_only_opt_in_external_artifacts() {
     let f = Fixture::new();
     f.write("pages/Notes.md", "- Searchable original text\n");

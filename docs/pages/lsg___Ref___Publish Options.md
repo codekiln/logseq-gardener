@@ -23,6 +23,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		  | `--stylesheet PATH` | Copies a CSS file to `custom.css` and loads it after the built-in styles. |
 		  | `--plugin PATH` | Adds the site plugin whose manifest is `PATH`. Repeat it to add more plugins. |
 		  | `--readable-urls` | Writes each page to a folder named by its title, as Readable URLs below describes. |
+		  | `--redirect-old-urls` | Keeps links to old page addresses working, as Old URL redirects below describes. |
 		  | `--timings` | Also reports how long each publication phase took. |
 		  | `--format json` | Prints the report as one JSON document. |
 		- [[lsg/Ref/Selection and Visibility]] describes how `--include` and `--exclude` match page titles and which selected pages are published.
@@ -95,3 +96,19 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 				- A title's first segment is a file or folder that the build writes at the output root, such as `assets`, `graph.html` or `lsg-site.json`.
 			- Rename the page, or give it a `title::` property, then publish again.
 			- Windows also refuses `<`, `>`, `:`, `"`, `|`, `?` and `*` in file names. A readable build on Windows stops at the first title with one of them, names the path it could not write, and can leave partial output.
+	- ## Old URL redirects
+		- `--redirect-old-urls` keeps links to a garden's earlier addresses working after it moves to `--readable-urls`. Use it when the site was published before with lsg's default layout or with Logseq's own publishing:
+		- ```sh
+		  lsg publish --graph /path/to/garden --output /tmp/new-site --filename-format triple-lowbar --include GitP --readable-urls --redirect-old-urls
+		  ```
+		- | Old address | Opens |
+		  | --- | --- |
+		  | `p-<digest>.html#ls-block-1`, from lsg's default layout | The page's folder, such as `GitP/A/Session/#ls-block-1` |
+		  | `#/page/gitp%2Fa%2Fsession`, from Logseq's published site | The page named by the title, journal title or alias, ignoring letter case |
+		  | `#/all-pages` | All pages |
+		  | `#/graph` | `graph.html` |
+		- Each digest redirect is a small file at the output root. It works with JavaScript turned off, without the `#fragment`, and asks search engines to index the page's folder instead.
+		- `index.html` fetches `lsg-old-urls.json`, a map of page names to URLs, only when its address starts with `#/page/`. An alias that names two pages is left out. A name that matches no page leaves the reader on `index.html`. Chrome and Firefox block that fetch for a site opened from disk, so `#/page/` links work only when a server serves the site.
+		- Without `--readable-urls`, pages are already at their digest files, so only the `#/` links are redirected.
+		- A digest redirect whose name another generated file already has, such as a page titled `p-<digest>.html`, stops the build before it creates the output directory and names the page.
+		- Rust callers set `SiteOptions::old_url_redirects` to `true`.

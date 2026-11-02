@@ -97,6 +97,8 @@ struct PublishArgs {
     #[arg(long)]
     readable_urls: bool,
     #[arg(long)]
+    redirect_old_urls: bool,
+    #[arg(long)]
     include: Vec<String>,
     #[arg(long)]
     exclude: Vec<String>,
@@ -312,6 +314,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
             } else {
                 PageUrls::Digest
             },
+            old_url_redirects: args.redirect_old_urls,
         },
     )
     .map_err(|error| Failure {
