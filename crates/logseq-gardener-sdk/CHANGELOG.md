@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.20](https://github.com/codekiln/logseq-gardener/compare/v0.0.19...v0.0.20) - 2026-11-02
+
+### Fixed
+
+- label property links with the name as written, as Logseq does (#429)
+
 ## [0.0.19](https://github.com/codekiln/logseq-gardener/compare/v0.0.18...v0.0.19) - 2026-11-02
 
 ### Fixed
