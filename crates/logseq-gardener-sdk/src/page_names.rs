@@ -26,21 +26,22 @@ pub fn namespace_parent(name: &str) -> Option<&str> {
     name.rsplit_once('/').map(|(parent, _)| parent)
 }
 
-/// Whether a name ends in a space, as a [`namespace_parent`] can. A written page name has
-/// its spaces trimmed, so such a name never names a garden page or a written reference.
-pub fn ends_in_space(name: &str) -> bool {
-    name.len() != name.trim_end().len()
+/// Whether a name starts or ends with a space. Logseq keeps those spaces in a page
+/// reference, so `[[Release Notes ]]` names `Release Notes `, and in a
+/// [`namespace_parent`]. A page title has none, so such a name never names a garden page.
+pub fn has_outer_space(name: &str) -> bool {
+    name.len() != name.trim().len()
 }
 
-/// [`lookup_key`] that keeps a space at the end of the name, as Logseq does for a
-/// [`namespace_parent`]: `MacOS ` and `MacOS` get different keys. For a name without
-/// such a space it is [`lookup_key`].
-pub fn namespace_parent_key(name: &str) -> String {
-    if !ends_in_space(name) {
+/// The lookup key Logseq gives a name as written: [`lookup_key`] without trimming the
+/// spaces at its ends, so `Release Notes `, ` Release Notes` and `Release Notes` get three
+/// different keys. For a name without such spaces it is [`lookup_key`].
+pub fn reference_key(name: &str) -> String {
+    if !has_outer_space(name) {
         return lookup_key(name);
     }
-    let name = name.trim_start();
     let name = name.strip_prefix('/').unwrap_or(name);
+    let name = name.strip_suffix('/').unwrap_or(name);
     name.to_lowercase().nfc().collect()
 }
 
@@ -121,8 +122,8 @@ const BUILT_IN_PAGE_TITLES: [&str; 16] = [
 /// Logseq creates these pages before it reads a file, so a reference keeps that spelling
 /// whatever the reference's case.
 pub fn built_in_page_title(name: &str) -> Option<&'static str> {
-    // A namespace parent such as `A ` for `A /Notes` is a page of its own, not `A`.
-    let key = namespace_parent_key(name);
+    // A name such as `A ` for `A /Notes` or `[[A ]]` is a page of its own, not `A`.
+    let key = reference_key(name);
     BUILT_IN_PAGE_TITLES
         .iter()
         .copied()

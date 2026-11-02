@@ -16,7 +16,7 @@ use logseq_gardener_sdk::journals::{JournalFormats, journal_identity, parse_jour
 use logseq_gardener_sdk::outline::{BlockId, bullet_properties};
 use logseq_gardener_sdk::page_lookup::{MatchedBy, PageCatalog};
 use logseq_gardener_sdk::page_names::{
-    ends_in_space, lookup_key, namespace_parent_key, page_alias_spellings, page_aliases,
+    has_outer_space, lookup_key, page_alias_spellings, page_aliases, reference_key,
 };
 use logseq_gardener_sdk::page_titles::{FilenameFormat, page_title};
 use logseq_gardener_sdk::references::{Contribution, PageEntry, ReferenceIndex};
@@ -129,7 +129,7 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
     // A written name names a page when exactly one page answers to it, as published links do.
     // A namespace parent that ends in a space names no page with a file.
     let resolve = |name: &str| match catalog.find(name).as_slice() {
-        [page] if !ends_in_space(name) => {
+        [page] if !has_outer_space(name) => {
             Some(page.relative_path.to_string_lossy().replace('\\', "/"))
         }
         _ => None,
@@ -152,11 +152,7 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
         hidden: &BTreeSet::new(),
         is_journal_name: &|name| parse_journal_reference(name, &formats).is_some(),
     });
-    let namespace = |title: &str| {
-        graph_index
-            .namespace_parent(title)
-            .map(namespace_parent_key)
-    };
+    let namespace = |title: &str| graph_index.namespace_parent(title).map(reference_key);
 
     let mut pages: Vec<StoredPage> = garden
         .documents
@@ -210,10 +206,10 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
         .iter()
         .filter(|node| {
             node.page.is_none()
-                && (ends_in_space(&node.title) || catalog.find(&node.title).is_empty())
+                && (has_outer_space(&node.title) || catalog.find(&node.title).is_empty())
         })
         .map(|node| FilelessPage {
-            name: namespace_parent_key(&node.title),
+            name: reference_key(&node.title),
             title: node.title.clone(),
             namespace: namespace(&node.title),
         })
@@ -242,7 +238,7 @@ fn document(document: &GardenDocument) -> Document {
     let contribution = Contribution::from_document(
         path(document),
         document,
-        &|name| Some(namespace_parent_key(name)),
+        &|name| Some(reference_key(name)),
         None,
     );
     let blocks = contribution

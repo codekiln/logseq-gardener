@@ -1318,6 +1318,9 @@ impl Renderer<'_> {
         }
     }
     fn page_link(&mut self, target: &str, label: &[Inline], depth: usize) {
+        // Logseq's link shows and opens the name without the spaces inside its brackets,
+        // though the block refers to the name with them.
+        let target = target.trim();
         if self.in_reference {
             self.html.push_str(if self.show_brackets {
                 "<span class=\"page-reference\"><span>"
