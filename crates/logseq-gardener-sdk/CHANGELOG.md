@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.26](https://github.com/codekiln/logseq-gardener/compare/v0.0.25...v0.0.26) - 2026-11-02
+
+### Fixed
+
+- hide the bullet of a block with no text, as Logseq does (#457)
+
 ## [0.0.25](https://github.com/codekiln/logseq-gardener/compare/v0.0.24...v0.0.25) - 2026-11-02
 
 ### Fixed
