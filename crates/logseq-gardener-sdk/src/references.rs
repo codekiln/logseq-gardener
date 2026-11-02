@@ -43,7 +43,9 @@ use unicode_normalization::UnicodeNormalization;
 
 use crate::ast::Block;
 use crate::garden::GardenDocument;
-use crate::page_names::{is_linkable_property, linkable_property_names, lookup_key};
+use crate::page_names::{
+    is_linkable_property, linkable_property_names, namespace_parent, namespace_parent_key,
+};
 
 /// A block that can refer to pages: a bullet with its own lines, or the page's leading
 /// properties.
@@ -141,8 +143,11 @@ pub struct BlockId {
 }
 
 impl<K: Ord + Clone> Contribution<K> {
-    /// Collect a document's referring blocks. `resolve` maps an authored page name to
-    /// its page, and returns `None` for names that are missing or ambiguous.
+    /// Collect a document's referring blocks. `resolve` maps an authored page name, or a
+    /// namespace parent of one, to its page, and returns `None` for names that are missing
+    /// or ambiguous. A namespace parent can end in a space, such as `MacOS ` for
+    /// `MacOS /Applications Folder`; no garden page answers to it, as in Logseq
+    /// ([`crate::page_names::ends_in_space`]).
     /// `properties` replaces the references of the leading properties, for callers that
     /// show only some property rows.
     pub fn from_document(
@@ -288,14 +293,23 @@ impl<K: Ord + Clone> Contribution<K> {
                     }
                 }
             }
+            // A written name names its page without the spaces around it.
+            for name in &mut names {
+                let trimmed = name.trim();
+                if trimmed.len() != name.len() {
+                    *name = trimmed.to_owned();
+                }
+            }
             // Logseq's parser also names each namespace parent, even when the child page
-            // itself does not exist: `[[mise/ls]]` refers to `mise`.
+            // itself does not exist: `[[mise/ls]]` refers to `mise`. A parent keeps a space
+            // before its slash, so `[[MacOS /Applications Folder]]` refers to `MacOS `, and
+            // `resolve` finds no garden page for it.
             let namespaces: Vec<String> = names
                 .iter()
                 .flat_map(|name| {
                     let mut parents = Vec::new();
                     let mut rest = name.as_str();
-                    while let Some((parent, _)) = rest.rsplit_once('/') {
+                    while let Some(parent) = namespace_parent(rest) {
                         parents.push(parent.to_owned());
                         rest = parent;
                     }
@@ -313,9 +327,8 @@ impl<K: Ord + Clone> Contribution<K> {
                         graph.direct.insert(page);
                     }
                     None => {
-                        let name = name.trim();
                         if !name.is_empty() {
-                            graph.unresolved.insert(name.to_owned());
+                            graph.unresolved.insert(name.clone());
                         }
                     }
                 }
@@ -487,7 +500,7 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
         let mut by_title = BTreeMap::new();
         let mut patterns: BTreeMap<String, Vec<K>> = BTreeMap::new();
         for page in pages {
-            by_title.insert(lookup_key(&page.title), page.id.clone());
+            by_title.insert(namespace_parent_key(&page.title), page.id.clone());
             for name in std::iter::once(&page.title).chain(&page.aliases) {
                 let name = normalize(name.trim());
                 if !name.is_empty() {
@@ -504,8 +517,8 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
             .map(|(id, title)| {
                 let mut ancestors = Vec::new();
                 let mut name = title.as_str();
-                while let Some((parent, _)) = name.rsplit_once('/') {
-                    if let Some(parent_id) = by_title.get(&lookup_key(parent)) {
+                while let Some(parent) = namespace_parent(name) {
+                    if let Some(parent_id) = by_title.get(&namespace_parent_key(parent)) {
                         ancestors.push(K::clone(parent_id));
                     }
                     name = parent;
@@ -827,6 +840,7 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
 mod tests {
     use super::*;
     use crate::garden::DocumentKind;
+    use crate::page_names::{ends_in_space, lookup_key};
 
     fn document(source: &str) -> GardenDocument {
         GardenDocument {
@@ -940,6 +954,45 @@ mod tests {
                 .iter()
                 .all(|id| index.page(*id) != &mise)
         );
+    }
+
+    #[test]
+    fn a_namespace_parent_keeps_the_space_before_its_slash() {
+        // Logseq names the parent of `MacOS /Applications Folder` `MacOS `, which no page
+        // file has, so neither the reference nor the child page counts for `MacOS`.
+        let titles = ["MacOS", "MacOS /Applications Folder", "notes"];
+        let resolve = |name: &str| {
+            titles
+                .iter()
+                .find(|title| !ends_in_space(name) && lookup_key(title) == lookup_key(name))
+                .map(|title| (*title).to_owned())
+        };
+        let sources = [
+            ("notes", "- Apps live in [[MacOS /Applications Folder]]\n"),
+            ("MacOS /Applications Folder", "- Apps\n"),
+        ];
+        let index = ReferenceIndex::build(
+            titles.iter().map(|title| PageEntry {
+                id: (*title).to_owned(),
+                title: (*title).to_owned(),
+                aliases: vec![],
+            }),
+            sources
+                .iter()
+                .map(|(page, source)| {
+                    Contribution::from_document(
+                        (*page).to_owned(),
+                        &document(source),
+                        &resolve,
+                        None,
+                    )
+                })
+                .collect(),
+        );
+        let child = "MacOS /Applications Folder".to_owned();
+        assert_eq!(index.linked(&child).len(), 1);
+        assert!(index.linked(&"MacOS".to_owned()).is_empty());
+        assert_eq!(index.backlink_count(&"MacOS".to_owned()), 0);
     }
 
     #[test]

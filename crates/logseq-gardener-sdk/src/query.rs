@@ -27,7 +27,7 @@ use std::fmt;
 use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::journals::{JournalDate, JournalFormats, parse_journal_reference};
-use crate::page_names::lookup_key;
+use crate::page_names::{lookup_key, namespace_parent, namespace_parent_key};
 use crate::references::{BlockId, ReferenceIndex};
 
 /// Why a query could not be read or run, with the byte offset of the problem in the text
@@ -1393,9 +1393,7 @@ impl<'a, K: Ord + Clone> QueryGraph<'a, K> {
                 self.index
                     .pages()
                     .filter(|(_, title)| {
-                        title
-                            .rsplit_once('/')
-                            .is_some_and(|(p, _)| lookup_key(p) == parent)
+                        namespace_parent(title).is_some_and(|p| namespace_parent_key(p) == parent)
                     })
                     .map(|(page, _)| page.clone())
                     .collect()
