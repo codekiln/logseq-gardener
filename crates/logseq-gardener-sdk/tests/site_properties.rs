@@ -465,3 +465,43 @@ fn property_links_keep_the_name_as_written() {
     // The links still count as references to the page they open.
     assert!(backlinks(&f, "Visible/Garden/er").contains(&route("Visible/Garden")));
 }
+
+#[test]
+fn a_block_whose_property_name_logseq_rejects_shows_logseq_warning() {
+    let f = Fixture::new("{}");
+    // Logseq reads `` `logseq-entity `` as a property name, rejects it, and shows the block
+    // with no text and a warning that names it.
+    f.page(
+        "Visible/Asset",
+        "- # Frontmatter and body\n\t- `Logseq_Entity:: [[Visible/Asset]]` identifies a local asset.\n\t- kind:: note\n",
+    );
+    f.publish();
+    let html = f.html("Visible/Asset");
+    let warning = "<div class=\"invalid-properties mb-2\"><div title=\"Invalid properties\" class=\"warning\">Invalid property names: <button class=\"p-1 mr-2\">`logseq-entity</button></div><code>Property name begins with a non-numeric character and can contain alphanumeric characters and . * + ! - _ ? $ % &amp; = &lt; &gt;. If -, + or . are the first character, the second character (if any) must be non-numeric.</code></div>";
+    assert_eq!(html.matches(warning).count(), 1, "{html}");
+    assert!(!html.contains("identifies a local asset"), "{html}");
+}
+
+#[test]
+fn a_page_property_name_logseq_rejects_shows_logseq_warning_once() {
+    let f = Fixture::new("{}");
+    // A name that repeats, in another letter case or with an underscore, is listed once.
+    f.page(
+        "Visible/Note",
+        "`Owner_Name:: [[Visible/Asset]]\n`owner-name:: x\nkind:: note\n\n- first block\n\t- kind:: note\n",
+    );
+    f.publish();
+    let html = f.html("Visible/Note");
+    assert_eq!(
+        html.matches("<div class=\"invalid-properties mb-2\">")
+            .count(),
+        1,
+        "{html}"
+    );
+    assert!(
+        html.contains(
+            "Invalid property names: <button class=\"p-1 mr-2\">`owner-name</button></div>"
+        ),
+        "{html}"
+    );
+}
