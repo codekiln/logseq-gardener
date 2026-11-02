@@ -131,7 +131,7 @@ fn private_excluded_missing_and_ambiguous_targets_keep_fallbacks() {
     for name in ["A", "B"] {
         f.write(
             &format!("pages/Notes___{name}.md"),
-            "alias:: Shared\n- AMBIGUOUS_CONTENT\n  id:: 12345678-1234-1234-1234-123456789abc\n",
+            "alias:: Shared\n- AMBIGUOUS_CONTENT\n",
         );
     }
     let report = f.publish();
@@ -144,7 +144,8 @@ fn private_excluded_missing_and_ambiguous_targets_keep_fallbacks() {
     ] {
         assert!(!html.contains(sentinel));
     }
-    // Page embeds keep their well and the name from the macro; the block embed shows nothing.
+    // Page embeds keep their well and the name from the macro; the embed of a block id
+    // that no block gives shows nothing.
     assert!(!html.contains("{{embed"));
     assert_eq!(html.matches("class=\"embed-page\"").count(), 4);
     assert_eq!(html.matches("class=\"blocks-container\"").count(), 0);
@@ -267,4 +268,34 @@ fn embedded_blocks_have_bullets_and_keep_their_collapse() {
         well.contains("<li class=\"outline-collapsed\"><details class=\"outline-disclosure\">")
     );
     assert!(!html.contains("id=\"block-"));
+}
+#[test]
+fn a_block_id_two_pages_share_names_the_block_logseq_reads_first() {
+    let f = Fixture::new();
+    let id = "67c822b0-3271-41da-a14f-4f023a1f4556";
+    f.write(
+        "pages/Notes___Start.md",
+        &format!("- {{{{embed (({id}))}}}}\n- (({id}))\n"),
+    );
+    f.write(
+        "pages/Notes___json5.md",
+        &format!("- About JSON5\n  id:: {id}\n"),
+    );
+    f.write(
+        "pages/Notes___jsonc.md",
+        &format!("- About JSONC\n  id:: {id}\n"),
+    );
+    let report = f.publish();
+    let html = f.html("Notes/Start");
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.source == std::path::Path::new(".")),
+        "{:?}",
+        report.diagnostics
+    );
+    assert_eq!(html.matches("About JSON5").count(), 2, "{html}");
+    assert!(!html.contains("About JSONC"), "{html}");
+    assert!(!html.contains("Block ref invalid"), "{html}");
 }

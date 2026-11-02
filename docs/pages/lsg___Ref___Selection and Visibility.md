@@ -48,10 +48,11 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Published Pages]], [[lsg/Stati
 		- Routes and namespace selection use the page's original logical title, never an alias.
 	- ## Block references and embeds
 		- A reference to a unique explicit `id::` UUID on a published Markdown outline block links to that block. Its default label is the target block's first line, with its inline markup, task checkbox and heading; a label written in the source takes precedence. An ordinary block reference provides navigation.
+		- When several blocks give the same `id::`, the block Logseq reads first keeps it: journal files from the last path to the first, then files whose path holds `contents.`, then other files by path, and within a file the first block. The other blocks lose the id.
 		- Page and block embed macros insert selected visible content, including the descendants of an embedded block, with the embedded document's own asset paths.
 		- References and embeds share Logseq's nesting limit of 5 levels. Past it, an embed shows `Embed depth is too deep` and a reference shows `Block ref nesting is too deep`.
 		- A page embed of the page itself, or of a page already being embedded, renders only its header. Expansion also stops after 128 expansions or 10,000 embedded syntax tree nodes per output document.
 		- Repeated copies of a block leave out its original ID, so block links still open the original page.
-		- A block reference whose target is missing, excluded, private, duplicate, invalid or unsupported shows its `((uuid))` source as a warning titled `Block ref invalid`. An unavailable or ambiguous block embed renders nothing, and an unavailable or ambiguous page embed shows its frame and a header with the page name as plain text, with no body. Each gets a diagnostic.
+		- A block reference whose target is missing, excluded, private, invalid or unsupported shows its `((uuid))` source as a warning titled `Block ref invalid`. An unavailable or ambiguous block embed renders nothing, and an unavailable or ambiguous page embed shows its frame and a header with the page name as plain text, with no body. Each gets a diagnostic.
 		- A query that does not parse or cannot run shows Logseq's query error, with a diagnostic. A query inside an embed or a block reference stays literal.
 		- IDs in a page's root properties are not outline targets.

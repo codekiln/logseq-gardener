@@ -370,9 +370,9 @@ fn view_holds_published_pages_and_blocks_only() {
         &json!({"id": "22222222-2222-4222-8222-222222222222", "pageId": "show/episode 1", "text": "Second", "children": []})
     );
     assert_eq!(of("home")[1]["id"], HOME_BLOCK);
-    assert_eq!(of("show/episode 2")[0]["id"], "1");
+    // Logseq reads Show___Episode 2.md first, so its block keeps the shared id.
+    assert_eq!(of("show/episode 2")[0]["id"], SHARED);
     assert_eq!(of("show/other")[0]["id"], "1");
-    assert!(!text.contains(&format!("\"id\":\"{SHARED}\"")));
     let pages_view: Value = serde_json::from_str(&pages_views.lock().unwrap()[0]).unwrap();
     assert_eq!(pages_view["blocks"], json!([]));
     assert_eq!(

@@ -44,6 +44,9 @@ pub mod garden_settings;
 /// Bounded EDN reading for `logseq/config.edn`.
 mod garden_config;
 
+/// Which block keeps an `id::` that more than one block gives.
+mod block_ids;
+
 /// Block references and embeds: what they show and Logseq's nesting limit.
 pub mod transclusion;
 
