@@ -745,6 +745,22 @@ pub fn publish_site_with_options(
         }
         Ok(route)
     };
+    // Releases before lsg spelled a page's title as Logseq does named its digest file after
+    // the title its file name or `title::` gives.
+    let earlier_titles: Vec<(String, String)> = if options.old_url_redirects && readable {
+        selected
+            .iter()
+            .filter(|(_, _, document)| document.kind == crate::garden::DocumentKind::Page)
+            .filter_map(|(title, route, document)| {
+                crate::page_titles::written_title(document, format)
+                    .ok()
+                    .filter(|written| written != title)
+                    .map(|written| (written, route.clone()))
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
     let mut page_diagnostics = page_diagnostics::PageDiagnostics::new(
         selected
             .iter()
@@ -1196,6 +1212,9 @@ pub fn publish_site_with_options(
                         .values()
                         .map(|(title, route)| (title.as_str(), route.as_str())),
                 ),
+            earlier_titles
+                .iter()
+                .map(|(title, route)| (title.as_str(), route.as_str())),
             alias_keys
                 .iter()
                 .map(|alias| (alias.clone(), names.candidates(alias))),

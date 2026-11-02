@@ -40,6 +40,12 @@ impl Fixture {
             "pages/Backslash.md",
             "title:: GitP/A\\B\n\n- BACKSLASH_SENTINEL\n",
         );
+        // Logseq titles this page `SolveSpace`; releases before lsg did named its file
+        // after `Solvespace`.
+        fixture.write(
+            "pages/Solvespace.md",
+            "alias:: [[SolveSpace]]\n\n- SOLVESPACE_SENTINEL\n",
+        );
         fixture.write("journals/2026_10_23.md", "- A journal entry.\n");
         fixture
     }
@@ -63,7 +69,8 @@ impl Fixture {
     fn publish(&self, site: &str, options: &SiteOptions) -> Result<PathBuf, SiteError> {
         let output = self.0.join(site);
         let selection =
-            NamespaceSelection::new(&["GitP", "Other", "CLAUDE", "Claude"], &[]).unwrap();
+            NamespaceSelection::new(&["GitP", "Other", "CLAUDE", "Claude", "SolveSpace"], &[])
+                .unwrap();
         publish_site_with_options(
             self.0.join("garden"),
             &output,
@@ -156,6 +163,22 @@ fn every_default_layout_page_file_opens_the_readable_page() {
         assert!(html.contains(&format!("<link rel=\"canonical\" href=\"{route}\">")));
         assert!(html.contains(&format!("content=\"0; url={route}\"")));
         assert!(html.contains("<meta name=\"robots\" content=\"noindex\">"));
+    }
+}
+
+#[test]
+fn the_title_spelling_of_earlier_releases_opens_the_page() {
+    let f = Fixture::new();
+    let output = f
+        .publish("site", &f.options(PageUrls::Readable, true))
+        .unwrap();
+    assert_eq!(urls(&output)["SolveSpace"], "SolveSpace/");
+    for title in ["SolveSpace", "Solvespace"] {
+        let html = fs::read_to_string(output.join(format!("p-{}.html", digest(title)))).unwrap();
+        assert!(
+            html.contains("location.replace(\"SolveSpace/\" + location.hash)"),
+            "{title}: {html}"
+        );
     }
 }
 

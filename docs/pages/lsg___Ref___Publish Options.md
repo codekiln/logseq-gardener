@@ -107,6 +107,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		  | `#/page/gitp%2Fa%2Fsession`, from Logseq's published site | The page named by the title, journal title or alias, ignoring letter case |
 		  | `#/all-pages` | All pages |
 		  | `#/graph` | `graph.html` |
+		- A page that lsg titles in the spelling of its own alias, such as `pages/Solvespace.md` with `alias:: [[SolveSpace]]`, also gets a redirect at the digest file of `Solvespace`, the title that earlier releases used.
 		- Each digest redirect is a small file at the output root. It works with JavaScript turned off, without the `#fragment`, and asks search engines to index the page's folder instead.
 		- `index.html` fetches `lsg-old-urls.json`, a map of page names to URLs, only when its address starts with `#/page/`. An alias that names two pages is left out. A name that matches no page leaves the reader on `index.html`. Chrome and Firefox block that fetch for a site opened from disk, so `#/page/` links work only when a server serves the site.
 		- Without `--readable-urls`, pages are already at their digest files, so only the `#/` links are redirected.

@@ -26,9 +26,9 @@ Build plugins return rows and metadata for pages. They cannot write files or add
 
 logseq-encode-garden has about 10,000 titles and aliases. Putting the map in `index.html` would add hundreds of kilobytes to every home page load. The script in `index.html` is a few hundred bytes and fetches `lsg-old-urls.json` only when the fragment starts with `#/`. This is what logseq-encode-garden does today.
 
-### Digest names come from the same title the digest layout uses
+### Digest names come from the titles the digest layout used
 
-The digest layout names a page `p-<digest of its title>.html`, using the title before any folder respelling. The redirect uses that same title, so a page whose folder takes another spelling still gets the file its old link names.
+The digest layout names a page `p-<digest of its title>.html`, using the title before any folder respelling. The redirect uses that same title, so a page whose folder takes another spelling still gets the file its old link names. Since v0.0.25, a page that refers to itself in another spelling, such as `pages/Solvespace.md` with `alias:: [[SolveSpace]]`, takes Logseq's spelling as its title. Releases before that named its file after the file-name title, which logseq-encode-garden's live site still serves, so such a page gets a second redirect at that name.
 
 ### An alias that names two pages gets no entry
 

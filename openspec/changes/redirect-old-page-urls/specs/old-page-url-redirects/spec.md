@@ -32,6 +32,15 @@ With readable URLs and the option, the publisher SHALL write, for each published
 - **WHEN** a garden is published with the option and without readable URLs
 - **THEN** the output has no redirect files, since every page is at its digest file
 
+### Requirement: Redirects from an earlier title spelling
+
+With readable URLs and the option, a page that the publisher titles in another spelling than its file name or `title::` property gives, because the page refers to itself in that spelling as Logseq reads it, SHALL also get a digest file redirect at `p-<digest of the title its file name or title:: gives>.html`. Earlier releases named the page's file after that title.
+
+#### Scenario: Page titled by its own alias
+
+- **WHEN** `pages/Solvespace.md` with `alias:: [[SolveSpace]]` is published with readable URLs and the option
+- **THEN** both `p-<digest of "SolveSpace">.html` and `p-<digest of "Solvespace">.html` open `SolveSpace/`
+
 ### Requirement: Redirect file contents
 
 Each digest file redirect SHALL redirect with JavaScript turned off, link to the page by its title, name the page's route as its canonical URL and ask search engines not to index it.
