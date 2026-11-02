@@ -14,7 +14,7 @@ use super::render;
 use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::journals::JournalDate;
-use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings};
+use crate::page_names::{PageNameIndex, ends_in_space, namespace_parent_key, page_alias_spellings};
 use crate::references::{BlockId, Contribution, Filter, PageEntry, ReferenceIndex};
 use crate::transclusion::{EmbedPage, ReferenceTargets};
 
@@ -91,15 +91,31 @@ pub(super) struct References<'a> {
     crumbs: RefCell<HashMap<BlockId, Rc<str>>>,
 }
 
+/// The page a name names: a selected page, else a page in `by_name`. A namespace parent
+/// that ends in a space, such as `MacOS ` for `MacOS /Applications Folder`, names no
+/// selected page, as in Logseq; it can name a generated namespace page spelled the same.
+fn resolve(
+    names: &PageNameIndex<String>,
+    by_name: &BTreeMap<String, String>,
+    name: &str,
+) -> Option<String> {
+    let candidates = if ends_in_space(name) {
+        &[]
+    } else {
+        names.candidates(name)
+    };
+    match candidates {
+        [route] => Some(route.clone()),
+        [] => by_name.get(&namespace_parent_key(name)).cloned(),
+        _ => None,
+    }
+}
+
 impl<'a> References<'a> {
     /// The page a written name or alias names: a selected page, else a generated
     /// namespace page; `None` when the name is missing or ambiguous.
     pub fn resolve(&self, names: &PageNameIndex<String>, name: &str) -> Option<String> {
-        match names.candidates(name) {
-            [route] => Some(route.clone()),
-            [] => self.by_name.get(&lookup_key(name)).cloned(),
-            _ => None,
-        }
+        resolve(names, &self.by_name, name)
     }
 
     pub fn new(
@@ -112,13 +128,9 @@ impl<'a> References<'a> {
     ) -> Self {
         let by_name: BTreeMap<_, _> = destinations
             .iter()
-            .map(|(route, title)| (lookup_key(title), route.clone()))
+            .map(|(route, title)| (namespace_parent_key(title), route.clone()))
             .collect();
-        let resolve = |name: &str| match names.candidates(name) {
-            [route] => Some(route.clone()),
-            [] => by_name.get(&lookup_key(name)).cloned(),
-            _ => None,
-        };
+        let resolve = |name: &str| resolve(names, &by_name, name);
         let property_targets: Option<BTreeMap<_, _>> = property_views.map(|views| {
             views
                 .iter()

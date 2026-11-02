@@ -15,7 +15,9 @@ use logseq_gardener_sdk::graph::{GraphIndex, GraphSettings, GraphSource};
 use logseq_gardener_sdk::journals::{JournalFormats, journal_identity, parse_journal_reference};
 use logseq_gardener_sdk::outline::{BlockId, bullet_properties};
 use logseq_gardener_sdk::page_lookup::{MatchedBy, PageCatalog};
-use logseq_gardener_sdk::page_names::{lookup_key, page_alias_spellings, page_aliases};
+use logseq_gardener_sdk::page_names::{
+    ends_in_space, lookup_key, namespace_parent_key, page_alias_spellings, page_aliases,
+};
 use logseq_gardener_sdk::page_titles::{FilenameFormat, page_title};
 use logseq_gardener_sdk::references::{Contribution, PageEntry, ReferenceIndex};
 use logseq_gardener_sdk::transclusion::page_targets;
@@ -125,8 +127,11 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
     }
 
     // A written name names a page when exactly one page answers to it, as published links do.
+    // A namespace parent that ends in a space names no page with a file.
     let resolve = |name: &str| match catalog.find(name).as_slice() {
-        [page] => Some(page.relative_path.to_string_lossy().replace('\\', "/")),
+        [page] if !ends_in_space(name) => {
+            Some(page.relative_path.to_string_lossy().replace('\\', "/"))
+        }
         _ => None,
     };
     let index = ReferenceIndex::build(
@@ -147,7 +152,11 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
         hidden: &BTreeSet::new(),
         is_journal_name: &|name| parse_journal_reference(name, &formats).is_some(),
     });
-    let namespace = |title: &str| graph_index.namespace_parent(title).map(lookup_key);
+    let namespace = |title: &str| {
+        graph_index
+            .namespace_parent(title)
+            .map(namespace_parent_key)
+    };
 
     let mut pages: Vec<StoredPage> = garden
         .documents
@@ -199,9 +208,12 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
     let mut fileless: Vec<FilelessPage> = graph
         .nodes
         .iter()
-        .filter(|node| node.page.is_none() && catalog.find(&node.title).is_empty())
+        .filter(|node| {
+            node.page.is_none()
+                && (ends_in_space(&node.title) || catalog.find(&node.title).is_empty())
+        })
         .map(|node| FilelessPage {
-            name: lookup_key(&node.title),
+            name: namespace_parent_key(&node.title),
             title: node.title.clone(),
             namespace: namespace(&node.title),
         })
@@ -230,7 +242,7 @@ fn document(document: &GardenDocument) -> Document {
     let contribution = Contribution::from_document(
         path(document),
         document,
-        &|name| Some(lookup_key(name)),
+        &|name| Some(namespace_parent_key(name)),
         None,
     );
     let blocks = contribution

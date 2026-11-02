@@ -19,6 +19,31 @@ pub fn lookup_key(name: &str) -> String {
     name.to_lowercase().nfc().collect()
 }
 
+/// The namespace parent of a page name, as Logseq's file parser splits it: the text before
+/// the last `/`. A space before that slash stays, so the parent of
+/// `MacOS /Applications Folder` is `MacOS `, which Logseq keeps apart from `MacOS`.
+pub fn namespace_parent(name: &str) -> Option<&str> {
+    name.rsplit_once('/').map(|(parent, _)| parent)
+}
+
+/// Whether a name ends in a space, as a [`namespace_parent`] can. A written page name has
+/// its spaces trimmed, so such a name never names a garden page or a written reference.
+pub fn ends_in_space(name: &str) -> bool {
+    name.len() != name.trim_end().len()
+}
+
+/// [`lookup_key`] that keeps a space at the end of the name, as Logseq does for a
+/// [`namespace_parent`]: `MacOS ` and `MacOS` get different keys. For a name without
+/// such a space it is [`lookup_key`].
+pub fn namespace_parent_key(name: &str) -> String {
+    if !ends_in_space(name) {
+        return lookup_key(name);
+    }
+    let name = name.trim_start();
+    let name = name.strip_prefix('/').unwrap_or(name);
+    name.to_lowercase().nfc().collect()
+}
+
 /// Extract aliases from the last leading `alias` property.
 ///
 /// The value's names are [`linkable_property_names`]. Quoted values remain literal,
@@ -96,7 +121,8 @@ const BUILT_IN_PAGE_TITLES: [&str; 16] = [
 /// Logseq creates these pages before it reads a file, so a reference keeps that spelling
 /// whatever the reference's case.
 pub fn built_in_page_title(name: &str) -> Option<&'static str> {
-    let key = lookup_key(name);
+    // A namespace parent such as `A ` for `A /Notes` is a page of its own, not `A`.
+    let key = namespace_parent_key(name);
     BUILT_IN_PAGE_TITLES
         .iter()
         .copied()
