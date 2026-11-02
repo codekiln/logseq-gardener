@@ -1,0 +1,1 @@
+- `status:: [[Done]]` marks a finished task.

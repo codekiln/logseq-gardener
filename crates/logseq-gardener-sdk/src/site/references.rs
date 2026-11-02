@@ -14,7 +14,7 @@ use super::render;
 use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::journals::JournalDate;
-use crate::page_names::{PageNameIndex, ends_in_space, namespace_parent_key, page_alias_spellings};
+use crate::page_names::{PageNameIndex, has_outer_space, page_alias_spellings, reference_key};
 use crate::references::{BlockId, Contribution, Filter, PageEntry, ReferenceIndex};
 use crate::transclusion::{EmbedPage, ReferenceTargets};
 
@@ -91,22 +91,23 @@ pub(super) struct References<'a> {
     crumbs: RefCell<HashMap<BlockId, Rc<str>>>,
 }
 
-/// The page a name names: a selected page, else a page in `by_name`. A namespace parent
-/// that ends in a space, such as `MacOS ` for `MacOS /Applications Folder`, names no
-/// selected page, as in Logseq; it can name a generated namespace page spelled the same.
+/// The page a name names: a selected page, else a page in `by_name`. A name with a space
+/// at either end, such as `Release Notes ` for `[[Release Notes ]]` or the namespace parent
+/// `MacOS ` for `MacOS /Applications Folder`, names no selected page, as in Logseq; it can
+/// name a generated namespace page spelled the same.
 fn resolve(
     names: &PageNameIndex<String>,
     by_name: &BTreeMap<String, String>,
     name: &str,
 ) -> Option<String> {
-    let candidates = if ends_in_space(name) {
+    let candidates = if has_outer_space(name) {
         &[]
     } else {
         names.candidates(name)
     };
     match candidates {
         [route] => Some(route.clone()),
-        [] => by_name.get(&namespace_parent_key(name)).cloned(),
+        [] => by_name.get(&reference_key(name)).cloned(),
         _ => None,
     }
 }
@@ -128,7 +129,7 @@ impl<'a> References<'a> {
     ) -> Self {
         let by_name: BTreeMap<_, _> = destinations
             .iter()
-            .map(|(route, title)| (namespace_parent_key(title), route.clone()))
+            .map(|(route, title)| (reference_key(title), route.clone()))
             .collect();
         let resolve = |name: &str| resolve(names, &by_name, name);
         let property_targets: Option<BTreeMap<_, _>> = property_views.map(|views| {

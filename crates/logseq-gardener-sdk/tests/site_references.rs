@@ -748,3 +748,29 @@ fn a_space_before_a_slash_keeps_the_reference_off_the_trimmed_parent() {
     assert!(linked.contains("<h2>1 Linked Reference</h2>"), "{linked}");
     assert!(!linked.contains("Applications Folder"), "{linked}");
 }
+
+#[test]
+fn a_space_inside_the_brackets_keeps_the_reference_off_the_trimmed_page() {
+    let f = Fixture::new();
+    f.write("pages/Notes___Release Notes.md", "- What changed\n");
+    f.write(
+        "pages/Notes___Plain.md",
+        "- Read [[Notes/Release Notes]] first\n",
+    );
+    // Logseq names `Notes/Release Notes ` and ` Notes/Release Notes`, pages without a file,
+    // though both links still open `Notes/Release Notes`.
+    f.write(
+        "pages/Notes___Setup.md",
+        "- Read [[Notes/Release Notes ]] first\n- Then [[ Notes/Release Notes]] again\n",
+    );
+    f.publish();
+    let linked = f.linked("Notes/Release Notes");
+    assert!(linked.contains("<h2>1 Linked Reference</h2>"), "{linked}");
+    assert!(!linked.contains("Then"), "{linked}");
+    let setup = f.page("Notes/Setup");
+    let link = format!(
+        "<a href=\"{}\">Notes/Release Notes</a>",
+        route("Notes/Release Notes")
+    );
+    assert_eq!(setup.matches(&link).count(), 2, "{setup}");
+}

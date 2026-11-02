@@ -40,7 +40,7 @@
 //! ```
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use crate::page_names::{built_in_page_title, lookup_key, namespace_parent, namespace_parent_key};
+use crate::page_names::{built_in_page_title, lookup_key, namespace_parent, reference_key};
 use crate::references::ReferenceIndex;
 
 /// Which pages the global graph draws: Logseq's `:graph/settings`. Every switch is off by
@@ -240,10 +240,10 @@ impl<K> Graph<K> {
 
     /// The position of the node whose title matches, ignoring case.
     pub fn position(&self, title: &str) -> Option<usize> {
-        let key = namespace_parent_key(title);
+        let key = reference_key(title);
         self.nodes
             .iter()
-            .position(|node| namespace_parent_key(&node.title) == key)
+            .position(|node| reference_key(&node.title) == key)
     }
 
     /// Whether an edge joins the two titled nodes.
@@ -372,23 +372,15 @@ struct Builder<'s, 'a, K> {
 
 impl<K: Ord + Clone> Builder<'_, '_, K> {
     /// The node for a name: a published page, an existing reference-only page or a new one.
-    /// Hidden pages and Logseq's UUID and asset names have none.
+    /// Hidden pages and Logseq's UUID and asset names have none. A name keeps the spaces at
+    /// its ends, as in Logseq: `Release Notes ` from `[[Release Notes ]]` and `MacOS ` from
+    /// `MacOS /Applications Folder` are nodes apart from `Release Notes` and `MacOS`.
     fn name(&mut self, name: &str) -> Option<u32> {
-        self.node(name.trim())
-    }
-
-    /// The node for a namespace parent, which keeps a space before its slash as in Logseq:
-    /// `MacOS ` for `MacOS /Applications Folder` is a different node from `MacOS`.
-    fn parent(&mut self, name: &str) -> Option<u32> {
-        self.node(name.trim_start())
-    }
-
-    fn node(&mut self, name: &str) -> Option<u32> {
-        let key = namespace_parent_key(name);
+        let key = reference_key(name);
         if let Some(&found) = self.by_key.get(&key) {
             return Some(found);
         }
-        if name.is_empty() || self.source.hidden.contains(&key) || uuid_or_asset(name) {
+        if name.trim().is_empty() || self.source.hidden.contains(&key) || uuid_or_asset(name) {
             return None;
         }
         let index = self.nodes.len() as u32;
@@ -422,7 +414,7 @@ impl<K: Ord + Clone> GraphIndex<K> {
         };
         let mut ids = BTreeMap::new();
         for (page, title) in index.pages() {
-            let key = namespace_parent_key(title);
+            let key = reference_key(title);
             if builder.by_key.contains_key(&key) {
                 continue;
             }
@@ -458,7 +450,7 @@ impl<K: Ord + Clone> GraphIndex<K> {
                     let mut rest = name.as_str();
                     expanded.extend(builder.name(rest));
                     while let Some(parent) = namespace_parent(rest) {
-                        expanded.extend(builder.parent(parent));
+                        expanded.extend(builder.name(parent));
                         rest = parent;
                     }
                 }
@@ -498,7 +490,7 @@ impl<K: Ord + Clone> GraphIndex<K> {
         while at < builder.nodes.len() {
             let title = builder.nodes[at].title.clone();
             let up = namespace_parent(&title)
-                .and_then(|name| builder.parent(name))
+                .and_then(|name| builder.name(name))
                 .filter(|&up| up as usize != at);
             if let Some(up) = up {
                 relations.push((at as u32, up, Relation::Namespace));
@@ -755,13 +747,13 @@ impl<K: Ord + Clone> GraphIndex<K> {
 
     /// The node for a title, ignoring case.
     pub fn contains(&self, title: &str) -> bool {
-        self.by_key.contains_key(&namespace_parent_key(title))
+        self.by_key.contains_key(&reference_key(title))
     }
 
     /// The title of a node's namespace parent, ignoring case: `A/B` for `A/B/C`, whether or
     /// not either page has a file. `None` for a title without `/` or a title the graph lacks.
     pub fn namespace_parent(&self, title: &str) -> Option<&str> {
-        let at = *self.by_key.get(&namespace_parent_key(title))?;
+        let at = *self.by_key.get(&reference_key(title))?;
         let up = self.parent[at as usize]?;
         Some(&self.nodes[up as usize].title)
     }
@@ -797,7 +789,7 @@ mod tests {
         }
 
         fn resolve(&self, name: &str) -> Option<String> {
-            if crate::page_names::ends_in_space(name) {
+            if crate::page_names::has_outer_space(name) {
                 return None;
             }
             let key = lookup_key(name);
@@ -1151,6 +1143,29 @@ mod tests {
         let graph = garden.graph_index(&index);
         assert_eq!(graph.namespace_parent("A / B / C"), Some("A / B "));
         assert_eq!(graph.namespace_parent("A / B "), Some("A "));
+    }
+
+    #[test]
+    fn a_page_reference_keeps_the_spaces_inside_its_brackets() {
+        // Logseq names `Release Notes ` and ` Notes/Setup`, pages without a file, and keeps
+        // them apart from `Release Notes` and `Notes/Setup`.
+        let garden = Garden::new(&[
+            (
+                "Plan",
+                "- [[Release Notes ]] and [[ Notes/Setup]]\n- [[ ]] names nothing\n",
+            ),
+            ("Release Notes", "- What changed\n"),
+            ("Notes/Setup", "- Steps\n"),
+        ]);
+        let graph = garden.graph(GraphSettings::everything(true));
+        assert!(graph.has_edge("Plan", "Release Notes "));
+        assert!(!graph.has_edge("Plan", "Release Notes"));
+        assert!(graph.has_edge("Plan", " Notes/Setup"));
+        assert!(!graph.has_edge("Plan", "Notes/Setup"));
+        assert_eq!(graph.node("Release Notes ").unwrap().page, None);
+        assert_eq!(graph.node(" Notes/Setup").unwrap().page, None);
+        assert!(graph.has_edge(" Notes/Setup", " Notes"));
+        assert!(graph.nodes.iter().all(|node| !node.title.trim().is_empty()));
     }
 
     #[test]

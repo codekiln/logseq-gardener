@@ -44,7 +44,7 @@ use unicode_normalization::UnicodeNormalization;
 use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::page_names::{
-    is_linkable_property, linkable_property_names, namespace_parent, namespace_parent_key,
+    is_linkable_property, linkable_property_names, namespace_parent, reference_key,
 };
 
 /// A block that can refer to pages: a bullet with its own lines, or the page's leading
@@ -145,9 +145,9 @@ pub struct BlockId {
 impl<K: Ord + Clone> Contribution<K> {
     /// Collect a document's referring blocks. `resolve` maps an authored page name, or a
     /// namespace parent of one, to its page, and returns `None` for names that are missing
-    /// or ambiguous. A namespace parent can end in a space, such as `MacOS ` for
-    /// `MacOS /Applications Folder`; no garden page answers to it, as in Logseq
-    /// ([`crate::page_names::ends_in_space`]).
+    /// or ambiguous. A name keeps the spaces at its ends, such as `Release Notes ` for
+    /// `[[Release Notes ]]` or `MacOS ` for the parent of `MacOS /Applications Folder`; no
+    /// garden page answers to it, as in Logseq ([`crate::page_names::has_outer_space`]).
     /// `properties` replaces the references of the leading properties, for callers that
     /// show only some property rows.
     pub fn from_document(
@@ -293,17 +293,14 @@ impl<K: Ord + Clone> Contribution<K> {
                     }
                 }
             }
-            // A written name names its page without the spaces around it.
-            for name in &mut names {
-                let trimmed = name.trim();
-                if trimmed.len() != name.len() {
-                    *name = trimmed.to_owned();
-                }
-            }
-            // Logseq's parser also names each namespace parent, even when the child page
-            // itself does not exist: `[[mise/ls]]` refers to `mise`. A parent keeps a space
-            // before its slash, so `[[MacOS /Applications Folder]]` refers to `MacOS `, and
-            // `resolve` finds no garden page for it.
+            // Logseq drops a blank name, such as the one `[[ ]]` writes.
+            names.retain(|name| !name.trim().is_empty());
+            // A written name keeps the spaces inside its brackets, as Logseq's parser keeps
+            // them: `[[Release Notes ]]` refers to `Release Notes `, and `resolve` finds no
+            // garden page for it. Logseq's parser also names each namespace parent, even when
+            // the child page itself does not exist: `[[mise/ls]]` refers to `mise`. A parent
+            // keeps a space before its slash, so `[[MacOS /Applications Folder]]` refers to
+            // `MacOS `.
             let namespaces: Vec<String> = names
                 .iter()
                 .flat_map(|name| {
@@ -500,7 +497,7 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
         let mut by_title = BTreeMap::new();
         let mut patterns: BTreeMap<String, Vec<K>> = BTreeMap::new();
         for page in pages {
-            by_title.insert(namespace_parent_key(&page.title), page.id.clone());
+            by_title.insert(reference_key(&page.title), page.id.clone());
             for name in std::iter::once(&page.title).chain(&page.aliases) {
                 let name = normalize(name.trim());
                 if !name.is_empty() {
@@ -518,7 +515,7 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
                 let mut ancestors = Vec::new();
                 let mut name = title.as_str();
                 while let Some(parent) = namespace_parent(name) {
-                    if let Some(parent_id) = by_title.get(&namespace_parent_key(parent)) {
+                    if let Some(parent_id) = by_title.get(&reference_key(parent)) {
                         ancestors.push(K::clone(parent_id));
                     }
                     name = parent;
@@ -840,7 +837,7 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
 mod tests {
     use super::*;
     use crate::garden::DocumentKind;
-    use crate::page_names::{ends_in_space, lookup_key};
+    use crate::page_names::{has_outer_space, lookup_key};
 
     fn document(source: &str) -> GardenDocument {
         GardenDocument {
@@ -964,7 +961,7 @@ mod tests {
         let resolve = |name: &str| {
             titles
                 .iter()
-                .find(|title| !ends_in_space(name) && lookup_key(title) == lookup_key(name))
+                .find(|title| !has_outer_space(name) && lookup_key(title) == lookup_key(name))
                 .map(|title| (*title).to_owned())
         };
         let sources = [
@@ -993,6 +990,39 @@ mod tests {
         assert_eq!(index.linked(&child).len(), 1);
         assert!(index.linked(&"MacOS".to_owned()).is_empty());
         assert_eq!(index.backlink_count(&"MacOS".to_owned()), 0);
+    }
+
+    #[test]
+    fn a_page_reference_keeps_the_spaces_inside_its_brackets() {
+        // Logseq names `Release Notes ` for `[[Release Notes ]]` and ` Notes/Setup` for
+        // `[[ Notes/Setup]]`, which no page file has.
+        let titles = ["Release Notes", "Notes", "Notes/Setup", "plan"];
+        let resolve = |name: &str| {
+            titles
+                .iter()
+                .find(|title| !has_outer_space(name) && lookup_key(title) == lookup_key(name))
+                .map(|title| (*title).to_owned())
+        };
+        let source =
+            "- [[Release Notes ]] first\n- [[ Notes/Setup]] next\n- [[release notes]] last\n";
+        let index = ReferenceIndex::build(
+            titles.iter().map(|title| PageEntry {
+                id: (*title).to_owned(),
+                title: (*title).to_owned(),
+                aliases: vec![],
+            }),
+            vec![Contribution::from_document(
+                "plan".to_owned(),
+                &document(source),
+                &resolve,
+                None,
+            )],
+        );
+        let release = "Release Notes".to_owned();
+        assert_eq!(index.linked(&release).len(), 1);
+        assert_eq!(index.backlink_count(&release), 1);
+        assert!(index.linked(&"Notes/Setup".to_owned()).is_empty());
+        assert!(index.linked(&"Notes".to_owned()).is_empty());
     }
 
     #[test]
