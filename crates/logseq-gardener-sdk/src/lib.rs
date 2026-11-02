@@ -47,6 +47,9 @@ mod garden_config;
 /// Which block keeps an `id::` that more than one block gives.
 mod block_ids;
 
+/// The spelling Logseq gives a page that refers to itself in another spelling.
+mod title_spellings;
+
 /// Block references and embeds: what they show and Logseq's nesting limit.
 pub mod transclusion;
 

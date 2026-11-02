@@ -1,6 +1,6 @@
 //! Read Markdown sources without interpreting Logseq graph identities.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -13,6 +13,7 @@ use crate::block_ids;
 use crate::garden_config;
 use crate::property_names::valid_property_name;
 use crate::timing::Stopwatch;
+use crate::title_spellings;
 
 /// A read-only collection of Markdown documents, sorted by relative path.
 #[derive(Debug, Clone, PartialEq)]
@@ -33,6 +34,14 @@ pub struct GardenDocument {
     /// Parsed Markdown blocks and parser-extracted page and block references.
     /// References are unresolved syntax, not logical graph identities.
     pub parsed: Projection,
+    /// The spelling Logseq gives the page's title, by the [`lookup_key`] of the title that
+    /// the file name or `title::` property gives, when the page refers to itself in another
+    /// spelling. [`load_garden`] fills it for both filename formats, and
+    /// [`page_title`] uses it; empty for a journal and for a page that keeps its title.
+    ///
+    /// [`lookup_key`]: crate::page_names::lookup_key
+    /// [`page_title`]: crate::page_titles::page_title
+    pub title_spellings: BTreeMap<String, String>,
 }
 
 /// Classification by source directory, without filename or date interpretation.
@@ -189,10 +198,12 @@ pub fn load_garden_timed(
             kind,
             source,
             parsed,
+            title_spellings: BTreeMap::new(),
         });
     }
     stopwatch.lap("read");
     block_ids::keep_each_block_id_once(&mut documents);
+    title_spellings::spell_titles_as_logseq(&mut documents);
     stopwatch.lap("parse");
     Ok(Garden { documents })
 }

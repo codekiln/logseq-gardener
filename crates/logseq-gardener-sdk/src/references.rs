@@ -15,6 +15,7 @@
 //!     kind: DocumentKind::Page,
 //!     source: source.to_owned(),
 //!     parsed: lsdoc::parse_to_projection(source),
+//!     title_spellings: Default::default(),
 //! };
 //! let notes = document("- Set up [[mise/Config]]\n- mise runs tasks\n");
 //! let resolve = |name: &str| match name.to_lowercase().as_str() {
@@ -884,6 +885,7 @@ mod tests {
             kind: DocumentKind::Page,
             source: source.to_owned(),
             parsed: lsdoc::parse_to_projection(source),
+            title_spellings: Default::default(),
         }
     }
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.25](https://github.com/codekiln/logseq-gardener/compare/v0.0.24...v0.0.25) - 2026-11-02
+
+### Fixed
+
+- title a page that refers to itself in another spelling as Logseq does (#454)
+
 ## [0.0.24](https://github.com/codekiln/logseq-gardener/compare/v0.0.23...v0.0.24) - 2026-11-02
 
 ### Fixed
