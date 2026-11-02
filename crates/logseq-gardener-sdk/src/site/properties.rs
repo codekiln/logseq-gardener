@@ -79,11 +79,22 @@ fn internal(key: &str) -> bool {
         || key.starts_with("publishing/")
 }
 
+/// The label of a property link, as Logseq's `page-inner` chooses it: the name as written,
+/// so a reference through an alias reads as the alias, except that a name written as the
+/// lower-cased title of the page it opens shows that title.
+fn reference_label<'a>(name: &'a str, title: &'a str) -> &'a str {
+    if name == lookup_key(title) {
+        title
+    } else {
+        name
+    }
+}
+
 /// A property value as the properties box shows it, with the routes its links reach.
 ///
-/// A reference to a unique published page links to it. A reference to a name that no page in
-/// the garden has shows the name as written, unlinked, as the page body does; Logseq shows
-/// such a value too. A reference to a withheld, excluded or ambiguous page drops the whole
+/// A reference to a unique published page links to it, labelled by [`reference_label`]. A
+/// reference to a name that no page in the garden has shows the name as written, unlinked, as
+/// the page body does; Logseq shows such a value too. A reference to a withheld, excluded or ambiguous page drops the whole
 /// value.
 fn value(
     text: &str,
@@ -154,7 +165,7 @@ fn value(
                 html.push_str(&format!(
                     "<a class=\"page-ref\" href=\"{}\">{}</a>",
                     escape(route),
-                    escape(title)
+                    escape(reference_label(name, title))
                 ));
                 targets.insert(route.clone());
             }

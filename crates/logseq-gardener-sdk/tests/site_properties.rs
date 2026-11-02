@@ -115,7 +115,7 @@ fn book_and_preset_properties_keep_order_scalars_aliases_and_avoid_duplicate_seq
     assert!(props.contains("href=\"https://media.example/preset.mbp?x=1&amp;y=2\""));
     assert!(props.contains("<a class=\"external-link\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://media.example/preset.mbp"));
     assert!(props.contains(&format!(
-        "<a class=\"page-ref\" href=\"{}\">Visible/Book/One",
+        "<a class=\"page-ref\" href=\"{}\">First chapter</a>",
         route("Visible/Book/One")
     )));
     assert!(props.find("<dt>rating").unwrap() < props.find("<dt>prev").unwrap());
@@ -421,4 +421,47 @@ fn alias_row_lists_every_alias_as_logseq_does() {
     // Only the page's own aliases are references: the source names the target.
     assert!(backlinks(&f, "Visible/Target").contains(&route("Visible/Source")));
     assert!(!f.html("Visible/Source").contains("data-refs=\"linked\""));
+}
+
+/// Logseq labels a page reference in a property value with the name as written, so a
+/// reference through an alias reads as the alias. A name written as the lower-cased title of
+/// the page it opens shows that title.
+#[test]
+fn property_links_keep_the_name_as_written() {
+    let f = Fixture::new("{:publishing/page-properties? true}");
+    f.page(
+        "Visible/Garden/er",
+        "alias:: [[Knowledge Gardener]]\n- Gardener\n",
+    );
+    f.page("Visible/Tag", "- Tag\n");
+    f.page(
+        "Visible/Garden",
+        "tags:: visible/tag\nsee-also:: [[Knowledge Gardener]], [[knowledge gardener]], [[VISIBLE/garden/ER]], [[visible/garden/er]]\n- Garden\n",
+    );
+    f.publish();
+    let html = f.html("Visible/Garden");
+    let props = properties(&html);
+    let gardener = |name: &str| {
+        format!(
+            "<a class=\"page-ref\" href=\"{}\">{name}</a>",
+            route("Visible/Garden/er")
+        )
+    };
+    for row in [
+        format!(
+            "<dt>see-also</dt><dd>{}, {}, {}, {}</dd>",
+            gardener("Knowledge Gardener"),
+            gardener("knowledge gardener"),
+            gardener("VISIBLE/garden/ER"),
+            gardener("Visible/Garden/er")
+        ),
+        format!(
+            "<dt>tags</dt><dd><a class=\"page-ref\" href=\"{}\">Visible/Tag</a></dd>",
+            route("Visible/Tag")
+        ),
+    ] {
+        assert!(props.contains(&row), "{row} missing from {props}");
+    }
+    // The links still count as references to the page they open.
+    assert!(backlinks(&f, "Visible/Garden/er").contains(&route("Visible/Garden")));
 }
