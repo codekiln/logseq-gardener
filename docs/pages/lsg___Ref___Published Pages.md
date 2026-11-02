@@ -32,7 +32,7 @@ see-also:: [[lsg/Ref/Site Navigation]], [[lsg/Ref/Host Integration API]], [[lsg/
 		- ### Rows
 			- Rows keep their authored order, and a repeated key shows its last value.
 			- Ordinary scalar text is escaped.
-			- Direct page references and comma-separated bare tags link to the selected source pages they name.
+			- Direct page references and comma-separated bare tags link to the selected source pages they name. Each link keeps the spelling the author wrote, so a link through an alias reads as the alias, as in Logseq. A name written as a page title in lower case shows that title, as Logseq does.
 			- Each name in `alias::` or `aliases::` links to the page it names and keeps the spelling the author wrote, as in Logseq.
 			- A standalone public HTTPS value is a link.
 			- A reference to a name that no page file in the garden has, as a title or an alias, shows the name as written without a link, as the page body does. Logseq shows such a row and links it to an empty page.
