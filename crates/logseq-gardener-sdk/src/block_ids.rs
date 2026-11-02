@@ -106,6 +106,7 @@ mod tests {
             },
             source: source.to_owned(),
             parsed: parse_document(source),
+            title_spellings: Default::default(),
         }
     }
 

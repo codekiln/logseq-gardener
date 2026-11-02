@@ -434,12 +434,14 @@ fn property_links_keep_the_name_as_written() {
         "alias:: [[Knowledge Gardener]]\n- Gardener\n",
     );
     f.page("Visible/Tag", "- Tag\n");
+    // The links sit on a page outside `Visible/Garden`: a page that names its own namespace
+    // parent in another spelling takes that spelling as its title.
     f.page(
-        "Visible/Garden",
+        "Visible/Notes",
         "tags:: visible/tag\nsee-also:: [[Knowledge Gardener]], [[knowledge gardener]], [[VISIBLE/garden/ER]], [[visible/garden/er]]\n- Garden\n",
     );
     f.publish();
-    let html = f.html("Visible/Garden");
+    let html = f.html("Visible/Notes");
     let props = properties(&html);
     let gardener = |name: &str| {
         format!(
@@ -463,7 +465,7 @@ fn property_links_keep_the_name_as_written() {
         assert!(props.contains(&row), "{row} missing from {props}");
     }
     // The links still count as references to the page they open.
-    assert!(backlinks(&f, "Visible/Garden/er").contains(&route("Visible/Garden")));
+    assert!(backlinks(&f, "Visible/Garden/er").contains(&route("Visible/Notes")));
 }
 
 #[test]

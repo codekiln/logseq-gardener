@@ -156,6 +156,7 @@ mod tests {
             },
             source: source.to_owned(),
             parsed: lsdoc::parse_to_projection(source),
+            title_spellings: Default::default(),
         }
     }
 

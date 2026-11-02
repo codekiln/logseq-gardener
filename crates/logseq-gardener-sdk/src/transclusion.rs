@@ -352,6 +352,7 @@ mod tests {
             relative_path: "pages/test.md".into(),
             source: source.into(),
             parsed: lsdoc::parse_to_projection(source),
+            title_spellings: Default::default(),
         }
     }
 

@@ -98,6 +98,7 @@ mod tests {
             kind: DocumentKind::Page,
             source: source.into(),
             parsed: lsdoc::parse_to_projection(source),
+            title_spellings: Default::default(),
         };
         let mut names = PageNameIndex::default();
         names.insert("p-keyshort.html".to_owned(), "Keyshort", &document);

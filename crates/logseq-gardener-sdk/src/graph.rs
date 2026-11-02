@@ -19,6 +19,7 @@
 //!     kind: DocumentKind::Page,
 //!     source: source.to_owned(),
 //!     parsed: lsdoc::parse_to_projection(source),
+//!     title_spellings: Default::default(),
 //! };
 //! let foam = document("tags:: Tool\n\n- Like [[Obsidian]]\n");
 //! let resolve = |name: &str| (name.to_lowercase() == "foam").then_some("Foam");
@@ -771,6 +772,7 @@ mod tests {
             kind: DocumentKind::Page,
             source: source.to_owned(),
             parsed: lsdoc::parse_to_projection(source),
+            title_spellings: Default::default(),
         }
     }
 

@@ -489,7 +489,9 @@ fn unsafe_titles_keep_their_digest_file() {
 #[test]
 fn folders_spelled_two_ways_publish_under_one_spelling() {
     let f = Fixture::new();
-    f.write("pages/CLAUDE.md", "- See [[Claude/Artifact]]\n");
+    // `CLAUDE` names no page under it: a link to `Claude/Artifact` would name its own
+    // namespace parent as `Claude`, and Logseq would title the page `Claude`.
+    f.write("pages/CLAUDE.md", "- An assistant\n");
     f.write(
         "pages/Claude___Artifact.md",
         "- ARTIFACT_SENTINEL, up to [[CLAUDE]]\n",

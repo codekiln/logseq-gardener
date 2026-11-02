@@ -6,6 +6,7 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::ast::Block;
 use crate::garden::{DocumentKind, GardenDocument};
+use crate::page_names::lookup_key;
 
 /// Filename conventions selected by the garden's `:file/name-format` setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,8 +76,10 @@ pub(crate) fn title_property(document: &GardenDocument) -> Option<String> {
 /// properties block supplies the last case-insensitive `title` property; later
 /// blocks do not override the filename. Paths starting with `pages/contents.`
 /// yield `Contents` before considering properties. Capitalization and property
-/// values are preserved. This does not create canonical lookup keys, resolve
-/// aliases, read graph configuration, or derive journal dates.
+/// values are preserved. When the page refers to itself in another spelling, the
+/// title takes the spelling Logseq gives it, which [`crate::garden::load_garden`]
+/// records in [`GardenDocument::title_spellings`]. This does not create canonical
+/// lookup keys, resolve aliases, read graph configuration, or derive journal dates.
 pub fn page_title(
     document: &GardenDocument,
     format: FilenameFormat,
@@ -122,6 +125,11 @@ pub fn page_title(
             }
             FilenameFormat::TripleLowbar => decode_triple_lowbar(&stem.replace("___", "/")),
         }
+    };
+    // A page that refers to itself in another spelling takes that spelling, as in Logseq.
+    let title = match document.title_spellings.get(&lookup_key(&title)) {
+        Some(spelling) => spelling.clone(),
+        None => title,
     };
     if title.trim().is_empty() {
         Err(PageTitleError::EmptyTitle { path: path.clone() })
