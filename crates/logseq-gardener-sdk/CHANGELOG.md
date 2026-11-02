@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.18](https://github.com/codekiln/logseq-gardener/compare/v0.0.17...v0.0.18) - 2026-11-02
+
+### Fixed
+
+- name the namespace parent of a reference with a space before its slash as Logseq does (#422)
+
 ## [0.0.17](https://github.com/codekiln/logseq-gardener/compare/v0.0.16...v0.0.17) - 2026-11-01
 
 ### Fixed
