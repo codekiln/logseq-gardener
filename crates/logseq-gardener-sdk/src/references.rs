@@ -46,6 +46,7 @@ use crate::garden::GardenDocument;
 use crate::page_names::{
     is_linkable_property, linkable_property_names, namespace_parent, reference_key,
 };
+use crate::property_names::valid_property_name;
 
 /// A block that can refer to pages: a bullet with its own lines, or the page's leading
 /// properties.
@@ -226,8 +227,11 @@ impl<K: Ord + Clone> Contribution<K> {
             let source = document.source.get(byte..end_byte).unwrap_or_default();
             // Page properties sit before the first bullet, even when other text follows them.
             let leading = level == 0;
-            // Page names inside an advanced query are part of the query, not references.
-            let mut names = lsdoc::refs(&without_query_blocks(source), "markdown").page;
+            // Page names inside an advanced query are part of the query, not references, and
+            // Logseq drops a property it rejects together with the names in its value.
+            let text = without_query_blocks(source);
+            let text = without_rejected_property_values(&text, &blocks[start..end], byte);
+            let mut names = lsdoc::refs(&text, "markdown").page;
             // Logseq's parser also gives a block a reference to its task marker's page and its
             // priority's page: `TODO [#A] write` names `TODO` and `A`.
             if let Some(Block::Bullet {
@@ -403,6 +407,60 @@ fn without_query_blocks(source: &str) -> std::borrow::Cow<'_, str> {
         from = end;
     }
     String::from_utf8_lossy(&text).into_owned().into()
+}
+
+/// The text of a unit that starts at byte `offset` of its document, with the value of each
+/// property in `blocks` whose name Logseq rejects blanked out. Logseq's parser drops such
+/// a property and the page names in its value: `` `status:: [[Done]]` `` refers to no page.
+fn without_rejected_property_values<'a>(
+    source: &'a str,
+    blocks: &[Block],
+    offset: usize,
+) -> std::borrow::Cow<'a, str> {
+    let mut text: Option<Vec<u8>> = None;
+    for block in blocks {
+        let Block::Properties {
+            span: Some(span), ..
+        } = block
+        else {
+            continue;
+        };
+        let start = span.0.saturating_sub(offset).min(source.len());
+        let end = span.1.saturating_sub(offset).min(source.len());
+        let mut line_start = start;
+        for line in source.as_bytes()[start..end].split(|&b| b == b'\n') {
+            if let Some(value) = rejected_property_value(line) {
+                let text = text.get_or_insert_with(|| source.as_bytes().to_vec());
+                for byte in &mut text[line_start + value..line_start + line.len()] {
+                    *byte = b' ';
+                }
+            }
+            line_start += line.len() + 1;
+        }
+    }
+    match text {
+        Some(text) => String::from_utf8_lossy(&text).into_owned().into(),
+        None => source.into(),
+    }
+}
+
+/// Where the value starts in a `key:: value` line whose key Logseq rejects, read as the
+/// Markdown parser reads a property line: spaces, the key, then `::`.
+fn rejected_property_value(line: &[u8]) -> Option<usize> {
+    let indent = line
+        .iter()
+        .take_while(|&&b| matches!(b, b' ' | b'\t' | 0x1a | 0x0c))
+        .count();
+    let colons = indent + line[indent..].windows(2).position(|pair| pair == b"::")?;
+    let key = &line[indent..colons];
+    if key.is_empty()
+        || key
+            .iter()
+            .any(|&b| matches!(b, b' ' | b'\t' | 0x1a | 0x0c | b'\r' | b':'))
+    {
+        return None;
+    }
+    (!valid_property_name(std::str::from_utf8(key).ok()?)).then_some(colons + 2)
 }
 
 /// Leading page properties, followed by nothing but blank lines.
@@ -913,6 +971,20 @@ mod tests {
         assert!(index.linked(&"tmux".to_owned()).is_empty());
         assert!(index.linked(&"mise".to_owned()).is_empty());
         assert_eq!(index.linked(&"AWS".to_owned()).len(), 1);
+    }
+
+    #[test]
+    fn a_property_logseq_rejects_names_no_page() {
+        // Logseq rejects the property names `` `status `` and `` `owner ``, so their values
+        // name no page; `kind::` is kept, and the text before the properties still counts.
+        let index = index(&[(
+            "notes",
+            "- `status:: [[tmux]]` marks a finished task.\n- Uses [[AWS]]\n  `owner:: [[AWS]]`\n  kind:: [[Term]]\n  `owner:: [[mise]]`\n",
+        )]);
+        assert!(index.linked(&"tmux".to_owned()).is_empty());
+        assert!(index.linked(&"mise".to_owned()).is_empty());
+        assert_eq!(index.linked(&"AWS".to_owned()).len(), 1);
+        assert_eq!(index.linked(&"Term".to_owned()).len(), 1);
     }
 
     #[test]

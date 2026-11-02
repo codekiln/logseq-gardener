@@ -2,6 +2,6 @@
 #MISE description="Load the docs graph with Logseq's own file parser and with the SDK, and fail where they disagree"
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
-# The check must still fail on its fixture, where the SDK reads a property inside code that starts a block and Logseq reads code.
+# The check must still fail on its fixture, where two pages give a block the same id and Logseq keeps it on one of them.
 python3 -m unittest discover -s scripts/logseq-parser -p 'test_*.py'
 python3 scripts/logseq-parser/check.py docs
