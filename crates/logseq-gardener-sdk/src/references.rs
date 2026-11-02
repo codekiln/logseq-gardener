@@ -46,7 +46,7 @@ use crate::garden::GardenDocument;
 use crate::page_names::{
     is_linkable_property, linkable_property_names, namespace_parent, reference_key,
 };
-use crate::property_names::valid_property_name;
+use crate::property_names::rejected_property_line;
 
 /// A block that can refer to pages: a bullet with its own lines, or the page's leading
 /// properties.
@@ -429,7 +429,7 @@ fn without_rejected_property_values<'a>(
         let end = span.1.saturating_sub(offset).min(source.len());
         let mut line_start = start;
         for line in source.as_bytes()[start..end].split(|&b| b == b'\n') {
-            if let Some(value) = rejected_property_value(line) {
+            if let Some((_, value)) = rejected_property_line(line) {
                 let text = text.get_or_insert_with(|| source.as_bytes().to_vec());
                 for byte in &mut text[line_start + value..line_start + line.len()] {
                     *byte = b' ';
@@ -442,25 +442,6 @@ fn without_rejected_property_values<'a>(
         Some(text) => String::from_utf8_lossy(&text).into_owned().into(),
         None => source.into(),
     }
-}
-
-/// Where the value starts in a `key:: value` line whose key Logseq rejects, read as the
-/// Markdown parser reads a property line: spaces, the key, then `::`.
-fn rejected_property_value(line: &[u8]) -> Option<usize> {
-    let indent = line
-        .iter()
-        .take_while(|&&b| matches!(b, b' ' | b'\t' | 0x1a | 0x0c))
-        .count();
-    let colons = indent + line[indent..].windows(2).position(|pair| pair == b"::")?;
-    let key = &line[indent..colons];
-    if key.is_empty()
-        || key
-            .iter()
-            .any(|&b| matches!(b, b' ' | b'\t' | 0x1a | 0x0c | b'\r' | b':'))
-    {
-        return None;
-    }
-    (!valid_property_name(std::str::from_utf8(key).ok()?)).then_some(colons + 2)
 }
 
 /// Leading page properties, followed by nothing but blank lines.

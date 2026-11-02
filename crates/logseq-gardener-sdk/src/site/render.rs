@@ -16,6 +16,8 @@ const MAX_DEPTH: usize = 64;
 /// The same bytes for every block, so the bullets compress to almost nothing;
 /// `lsg-outline.js` resolves the block from the bullet's position.
 const BULLET: &str = "<a class=\"bullet\" href=\"#\"></a>";
+/// The text Logseq shows under the names in its "Invalid property names" warning.
+const INVALID_PROPERTY_HELP: &str = "Property name begins with a non-numeric character and can contain alphanumeric characters and . * + ! - _ ? $ % & = < >. If -, + or . are the first character, the second character (if any) must be non-numeric.";
 
 /// Logseq's page glyph at the start of a page embed's header.
 const PAGE_ICON: &str = "<svg class=\"page-icon\" viewBox=\"0 0 14 20\" width=\"16\" height=\"20\" aria-hidden=\"true\"><path d=\"M2 .5h4.8l6.7 7.2V18a1.5 1.5 0 0 1-1.5 1.5H2A1.5 1.5 0 0 1 .5 18V2A1.5 1.5 0 0 1 2 .5z\" fill=\"currentColor\" opacity=\".35\"/><path d=\"M7 5.5V0l7 7.5H9a2 2 0 0 1-2-2z\" fill=\"currentColor\"/></svg>";
@@ -713,7 +715,8 @@ impl Renderer<'_> {
                 continue;
             }
             match block {
-                Block::Properties { .. } | Block::Comment { .. } | Block::CommentBlock { .. } => {}
+                Block::Properties { .. } => self.invalid_properties(block),
+                Block::Comment { .. } | Block::CommentBlock { .. } => {}
                 Block::Paragraph { inline, .. } if is_blank(inline) => {}
                 Block::Paragraph { inline, .. } => {
                     let tag = if contains_embed(inline, 0) {
@@ -838,6 +841,26 @@ impl Renderer<'_> {
             self.close_item(collapsed, start, root);
             self.html.push_str("</ul>");
         }
+    }
+    /// Logseq's warning for the property names it rejects in a properties block, such as
+    /// `` `status `` in a block that starts with the code `` `status:: [[Done]]` ``. Logseq
+    /// renders it with `invalid-properties-cp`; its buttons have no action.
+    fn invalid_properties(&mut self, block: &Block) {
+        let names = crate::property_names::rejected_property_names(self.text_source, block);
+        if names.is_empty() {
+            return;
+        }
+        self.html.push_str(
+            "<div class=\"invalid-properties mb-2\"><div title=\"Invalid properties\" class=\"warning\">Invalid property names: ",
+        );
+        for name in &names {
+            self.html.push_str("<button class=\"p-1 mr-2\">");
+            self.text(name);
+            self.html.push_str("</button>");
+        }
+        self.html.push_str("</div><code>");
+        self.text(INVALID_PROPERTY_HELP);
+        self.html.push_str("</code></div>");
     }
     /// Close an outline item, first adding the derived rows of a page's own block after its
     /// children.
