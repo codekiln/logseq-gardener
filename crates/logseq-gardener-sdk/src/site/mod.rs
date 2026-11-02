@@ -597,6 +597,7 @@ pub fn publish_site_with_options(
     let reference_index = references::References::new(
         &selected,
         &names,
+        &alias_groups,
         reference_config.properties.then_some(&property_views),
         hierarchy
             .entries()

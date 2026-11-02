@@ -202,11 +202,19 @@ fn reference_name(inline: &Inline) -> Option<String> {
 /// Deterministic lookup over caller-supplied stored-page identifiers.
 ///
 /// A caller controls which documents enter the index. Publishing inserts only
-/// visible selected pages. Different identifiers remain distinct candidates even
-/// when an alias overlaps a title; repeated claims by one identifier are unique.
+/// visible selected pages. A name that is a page's title names that page, even when other
+/// pages list it as an alias, because Logseq keeps one page per name and records the alias
+/// on that page. When that page holds no text and one other page lists the name as an
+/// alias, the name names the other page, as Logseq's links open the alias's source page
+/// (`get-redirect-page-name` in Logseq's `frontend.db.model`). Pages that share a title, or
+/// that share an alias no page has as its title, remain distinct candidates; repeated
+/// claims by one identifier are unique.
 #[derive(Debug, Clone)]
 pub struct PageNameIndex<T> {
-    names: BTreeMap<String, Vec<T>>,
+    titles: BTreeMap<String, Vec<T>>,
+    aliases: BTreeMap<String, Vec<T>>,
+    /// Pages that hold no text.
+    empty: BTreeSet<T>,
     journals: BTreeMap<JournalDate, Vec<T>>,
     journal_formats: JournalFormats,
 }
@@ -214,7 +222,9 @@ pub struct PageNameIndex<T> {
 impl<T> Default for PageNameIndex<T> {
     fn default() -> Self {
         Self {
-            names: BTreeMap::new(),
+            titles: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            empty: BTreeSet::new(),
             journals: BTreeMap::new(),
             journal_formats: JournalFormats::default(),
         }
@@ -232,11 +242,15 @@ impl<T: Ord + Clone> PageNameIndex<T> {
 
     /// Insert the title and leading aliases for one stored page.
     pub fn insert(&mut self, id: T, title: &str, document: &GardenDocument) {
-        for name in std::iter::once(lookup_key(title)).chain(page_aliases(document, title)) {
-            if name.is_empty() {
-                continue;
-            }
-            insert_sorted(self.names.entry(name).or_default(), id.clone());
+        let key = lookup_key(title);
+        if !key.is_empty() {
+            insert_sorted(self.titles.entry(key).or_default(), id.clone());
+        }
+        if is_empty_page(document) {
+            self.empty.insert(id.clone());
+        }
+        for name in page_aliases(document, title) {
+            insert_sorted(self.aliases.entry(name).or_default(), id.clone());
         }
     }
 
@@ -248,17 +262,38 @@ impl<T: Ord + Clone> PageNameIndex<T> {
     }
 
     /// Return sorted distinct candidates: empty means unavailable, one is unique,
-    /// and multiple candidates are ambiguous. A query that names no title or alias
-    /// falls back to the journal with the date it spells, as Logseq resolves
-    /// `[[Feb 1st, 2025]]`. No filesystem access is performed.
+    /// and multiple candidates are ambiguous. The pages titled with the query come first:
+    /// when there are any, the pages that list the query as an alias are left out, unless
+    /// the titled page holds no text and exactly one page lists the query as an alias. A
+    /// query that names no title or alias falls back to the journal with the date it
+    /// spells, as Logseq resolves `[[Feb 1st, 2025]]`. No filesystem access is performed.
     pub fn candidates(&self, query: &str) -> &[T] {
-        if let Some(candidates) = self.names.get(&lookup_key(query)) {
+        let key = lookup_key(query);
+        let aliases = self.aliases.get(&key).map(Vec::as_slice);
+        if let Some(titled) = self.titles.get(&key) {
+            return match (titled.as_slice(), aliases) {
+                ([page], Some(source @ [_])) if self.empty.contains(page) => source,
+                _ => titled,
+            };
+        }
+        if let Some(candidates) = aliases {
             return candidates;
         }
         parse_journal_reference(query, &self.journal_formats)
             .and_then(|date| self.journals.get(&date))
             .map_or(&[], Vec::as_slice)
     }
+}
+
+/// Whether a page holds no text, as Logseq's `page-empty-or-dummy?` decides: its file is
+/// empty, or holds one bullet with nothing after the dash.
+fn is_empty_page(document: &GardenDocument) -> bool {
+    let mut lines = document
+        .source
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty());
+    matches!((lines.next(), lines.next()), (None, _) | (Some("-"), None))
 }
 
 fn insert_sorted<T: Ord>(candidates: &mut Vec<T>, id: T) {
@@ -354,6 +389,57 @@ impl<T: Ord + Clone> AliasGroups<T> {
         self.own.insert(id, shown);
     }
 
+    /// The lookup keys of the names Logseq's file parser records as the page's aliases, its
+    /// `:block/alias` (`extract-page-alias-and-tags` in Logseq's
+    /// `logseq.graph-parser.extract`), sorted: the names of the page's own `alias::` value,
+    /// and for each page whose `alias::` value names this page, that page and the other
+    /// names of its value. So `pages/brew.md` with `alias:: [[Homebrew]]` gives the page
+    /// `Homebrew` the alias `brew`.
+    pub fn stored_aliases(&self, id: &T) -> Vec<String> {
+        let Some(page) = self.keys.get(id) else {
+            return Vec::new();
+        };
+        self.out
+            .get(page)
+            .into_iter()
+            .flatten()
+            .filter(|key| *key != page)
+            .cloned()
+            .collect()
+    }
+
+    /// The other inserted pages in the page's alias group, by identifier: the pages whose
+    /// titles are names one or two alias links away, as Logseq's `page-alias-set` finds
+    /// them. Logseq lists the blocks that refer to any of them among the page's linked
+    /// references.
+    pub fn group_pages(&self, id: &T) -> Vec<T> {
+        let Some(page) = self.keys.get(id) else {
+            return Vec::new();
+        };
+        let mut pages: Vec<T> = self
+            .group(page)
+            .into_iter()
+            .filter_map(|key| self.pages.get(key))
+            .map(|(other, _)| other.clone())
+            .filter(|other| other != id)
+            .collect();
+        pages.sort();
+        pages.dedup();
+        pages
+    }
+
+    /// Every name one or two alias links away from the page's lookup key, in either
+    /// direction, without the key itself (the `alias` rule in Logseq's `logseq.db.rules`).
+    fn group(&self, page: &String) -> BTreeSet<&String> {
+        let out = |key: &str| self.out.get(key).into_iter().flatten();
+        let into = |key: &str| self.into.get(key).into_iter().flatten();
+        let mut group: BTreeSet<&String> = out(page).chain(into(page)).collect();
+        group.extend(out(page).flat_map(|key| out(key)));
+        group.extend(into(page).flat_map(|key| into(key)));
+        group.remove(page);
+        group
+    }
+
     fn link(&mut self, from: &str, to: &str) {
         self.out
             .entry(from.to_owned())
@@ -378,13 +464,7 @@ impl<T: Ord + Clone> AliasGroups<T> {
         let Some(page) = self.keys.get(id) else {
             return Vec::new();
         };
-        let none = BTreeSet::new();
-        let out = |key: &str| self.out.get(key).unwrap_or(&none);
-        let into = |key: &str| self.into.get(key).unwrap_or(&none);
-        let mut group: BTreeSet<&String> = out(page).iter().chain(into(page)).collect();
-        group.extend(out(page).iter().flat_map(|key| out(key)));
-        group.extend(into(page).iter().flat_map(|key| into(key)));
-        group.remove(page);
+        let group = self.group(page);
         let target = |key: &str| -> Option<T> {
             if let Some((target, _)) = self.pages.get(key) {
                 return Some(target.clone());

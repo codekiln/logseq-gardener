@@ -55,9 +55,11 @@ fn normalized_titles_and_aliases_share_candidates() {
     let mut index = PageNameIndex::default();
     index.insert(2, "Café", &document("alias:: /SELF/, Café\n"));
     index.insert(1, "Other", &document("alias:: [[CAFÉ]], café, /Other/\n"));
+    index.insert(3, "Third", &document("alias:: [[SELF]]\n"));
     assert_eq!(lookup_key(" /CAFÉ/ "), "café");
-    assert_eq!(index.candidates(" /café/ "), [1, 2]);
-    assert_eq!(index.candidates("self"), [2]);
+    // A page's title names that page, although another page lists it as an alias.
+    assert_eq!(index.candidates(" /café/ "), [2]);
+    assert_eq!(index.candidates("self"), [2, 3]);
     assert_eq!(index.candidates("other"), [1]);
 }
 
@@ -141,4 +143,26 @@ fn alias_groups_list_names_as_logseq_does() {
         [entry("brew", "brew", true), entry("homebrew", "brew", true)]
     );
     assert!(groups.entries(&"missing").is_empty());
+}
+
+/// Logseq keeps one page per name: a page's title names that page although another page
+/// lists it as an alias, unless the titled page holds no text, when Logseq's link opens the
+/// page that lists the alias (issue #453).
+#[test]
+fn a_title_names_its_page_unless_the_page_is_empty() {
+    let mut index = PageNameIndex::default();
+    index.insert(
+        "brew",
+        "brew",
+        &document("alias:: [[Homebrew]], [[Kegs]]\n\n- body\n"),
+    );
+    index.insert("homebrew", "Homebrew", &document("- A package manager\n"));
+    index.insert("kegs", "Kegs", &document("-\n"));
+    index.insert("other", "Other", &document("alias:: [[Empty]]\n"));
+    index.insert("second", "Second", &document("alias:: [[Empty]]\n"));
+    index.insert("empty", "Empty", &document(""));
+    assert_eq!(index.candidates("Homebrew"), ["homebrew"]);
+    assert_eq!(index.candidates("Kegs"), ["brew"]);
+    // Two pages list the name, so the empty page keeps it.
+    assert_eq!(index.candidates("Empty"), ["empty"]);
 }

@@ -703,6 +703,26 @@ impl<K: Ord + Clone> ReferenceIndex<K> {
         self.linked.get(page).map_or(&[], Vec::as_slice)
     }
 
+    /// Logseq's linked references of a page whose alias group holds other pages: the blocks
+    /// [`Self::linked`] lists for the page and for each page in `aliases`, outside the page
+    /// itself, each once, in document order (`get-page-referenced-blocks` in Logseq's
+    /// `frontend.db.model`). `aliases` are the other pages of the page's alias group, such as
+    /// [`crate::page_names::AliasGroups::group_pages`] returns.
+    pub fn linked_with_aliases(&self, page: &K, aliases: &[K]) -> Vec<BlockId> {
+        if aliases.is_empty() {
+            return self.linked(page).to_vec();
+        }
+        let own = self.positions.get(page).copied();
+        let mut blocks: Vec<BlockId> = std::iter::once(page)
+            .chain(aliases)
+            .flat_map(|page| self.linked(page).iter().copied())
+            .filter(|id| Some(id.document) != own)
+            .collect();
+        blocks.sort();
+        blocks.dedup();
+        blocks
+    }
+
     /// Blocks whose text mentions the page's title or an alias, outside the page itself.
     pub fn unlinked(&self, page: &K) -> &[BlockId] {
         self.unlinked.get(page).map_or(&[], Vec::as_slice)

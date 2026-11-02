@@ -599,8 +599,12 @@ fn block_references_show_the_first_line_and_ids_follow_property_precedence() {
 #[test]
 fn aliases_use_selected_visible_candidates_and_preserve_source() {
     let fixture = Fixture::new();
-    fixture.write("garden/pages/Publish___Start.md", "- [[Shared]] [Source label]([[Shared]]) [[Clash]] [[PrivateOnly]] [[ExcludedOnly]] [[Nested]] [[Literal]]\n");
-    fixture.write("garden/pages/Publish___File.md", "title:: Publish/Chosen\nalias:: Shared, Shared, Clash\n\n- Selected content\n  alias:: Nested\n");
+    fixture.write("garden/pages/Publish___Start.md", "- [[Shared]] [Source label]([[Shared]]) [[Clash]] [[Twice]] [[PrivateOnly]] [[ExcludedOnly]] [[Nested]] [[Literal]]\n");
+    fixture.write("garden/pages/Publish___File.md", "title:: Publish/Chosen\nalias:: Shared, Shared, Clash, Twice\n\n- Selected content\n  alias:: Nested\n");
+    fixture.write(
+        "garden/pages/Publish___Other.md",
+        "alias:: Twice\n\n- Another claim\n",
+    );
     fixture.write(
         "garden/pages/Publish___Clash.md",
         "title:: Clash\n\n- A real title\n",
@@ -629,12 +633,14 @@ fn aliases_use_selected_visible_candidates_and_preserve_source() {
         "href=\"{}\">Source label</a>",
         route("Publish/Chosen")
     )));
-    assert!(html.contains("<span class=\"page-reference unresolved\"><span>Clash</span>"));
+    // A page's title names that page, although another page lists it as an alias.
+    assert!(html.contains(&format!("href=\"{}\">Clash</a>", route("Clash"))));
+    assert!(html.contains("<span class=\"page-reference unresolved\"><span>Twice</span>"));
     assert!(
         report
             .diagnostics
             .iter()
-            .any(|d| d.message == "Ambiguous selected page reference: Clash")
+            .any(|d| d.message == "Ambiguous selected page reference: Twice")
     );
     for unavailable in ["PrivateOnly", "ExcludedOnly", "Nested", "Literal"] {
         assert!(html.contains(&format!(

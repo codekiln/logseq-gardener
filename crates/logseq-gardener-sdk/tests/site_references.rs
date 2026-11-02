@@ -794,3 +794,84 @@ fn a_property_name_logseq_rejects_adds_no_reference() {
     assert!(linked.contains("<h2>1 Linked Reference</h2>"), "{linked}");
     assert!(linked.contains("Read"), "{linked}");
 }
+
+/// `pages/Notes___brew.md` lists the page `Notes/Homebrew`, which has its own file, as an
+/// alias, and Logseq records the alias on both pages (issue #453). `[[Notes/Homebrew]]`
+/// opens that page, and each page's Linked References also list the blocks that refer to the
+/// other page, with an `Alias` label on the group of the other page's own blocks.
+#[test]
+fn an_alias_that_names_a_page_joins_both_pages_linked_references() {
+    let f = Fixture::new();
+    f.write(
+        "pages/Notes___brew.md",
+        "alias:: [[Notes/Homebrew]]\n\n- The command\n",
+    );
+    f.write(
+        "pages/Notes___Homebrew.md",
+        "- A package manager, see [[Notes/brew]]\n",
+    );
+    f.write(
+        "pages/Notes___A.md",
+        "- Install with [[Notes/brew]]\n- Read about [[Notes/Homebrew]]\n",
+    );
+    f.write("pages/Notes___B.md", "- Type Notes/brew to start\n");
+    let report = f.publish();
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("Ambiguous")),
+        "{:?}",
+        report.diagnostics
+    );
+    let a = f.page("Notes/A");
+    assert!(
+        a.contains(&format!(
+            "href=\"{}\">Notes/Homebrew</a>",
+            route("Notes/Homebrew")
+        )),
+        "{a}"
+    );
+    let homebrew = f.linked("Notes/Homebrew");
+    assert!(
+        f.page("Notes/Homebrew")
+            .contains("<h2>3 Linked References</h2>"),
+        "{homebrew}"
+    );
+    assert!(homebrew.contains("Install with"), "{homebrew}");
+    assert!(homebrew.contains("Read about"), "{homebrew}");
+    assert!(
+        homebrew.contains(&format!(
+            "href=\"{}\">Notes/brew</a><span class=\"ref-alias\">Alias</span></summary>",
+            route("Notes/brew")
+        )),
+        "{homebrew}"
+    );
+    let brew = f.linked("Notes/brew");
+    assert!(
+        f.page("Notes/brew")
+            .contains("<h2>3 Linked References</h2>"),
+        "{brew}"
+    );
+    assert!(brew.contains("A package manager"), "{brew}");
+    assert!(
+        brew.contains(&format!(
+            "href=\"{}\">Notes/Homebrew</a><span class=\"ref-alias\">Alias</span></summary>",
+            route("Notes/Homebrew")
+        )),
+        "{brew}"
+    );
+    assert!(
+        brew.contains(&format!(
+            "href=\"{}\">Notes/A</a></summary>",
+            route("Notes/A")
+        )),
+        "{brew}"
+    );
+    // Unlinked References look for every name of the alias group.
+    assert!(
+        f.fragments("Notes/Homebrew", "unlinked")
+            .concat()
+            .contains("Type Notes/brew")
+    );
+}
