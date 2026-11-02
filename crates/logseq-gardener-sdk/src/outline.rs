@@ -1,5 +1,5 @@
 //! The blocks of one page's outline: depth, ancestry, task markers, headings,
-//! authored collapse and identifiers that stay the same across builds.
+//! authored collapse, empty blocks and identifiers that stay the same across builds.
 //!
 //! ```
 //! use logseq_gardener_sdk::outline::{BlockId, Outline};
@@ -11,7 +11,7 @@
 //! ```
 use std::fmt;
 
-use crate::ast::Block;
+use crate::ast::{Block, Inline};
 
 /// A task marker at the start of a block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -121,6 +121,9 @@ pub struct OutlineBlock {
     pub heading: Option<u8>,
     /// `collapsed:: true` on a block that has children.
     pub collapsed: bool,
+    /// The block has no text, as Logseq's `block-content-empty?` decides: an empty first
+    /// line, no property Logseq shows, and nothing after them but horizontal rules.
+    pub empty: bool,
     pub id: BlockId,
     /// The position path, also for blocks identified by UUID.
     pub path: Vec<u32>,
@@ -134,6 +137,12 @@ pub struct OutlineBlock {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Outline {
     pub blocks: Vec<OutlineBlock>,
+    /// Source index of the first bullet when it is also the first block Logseq lists:
+    /// no page properties, heading or other content comes before it.
+    first: Option<usize>,
+    /// Source index of the last top-level bullet when it is also the last block Logseq
+    /// lists: no top-level heading comes after it.
+    last: Option<usize>,
 }
 
 impl Outline {
@@ -197,6 +206,7 @@ impl Outline {
                 priority: priority.clone(),
                 heading,
                 collapsed: property("collapsed").is_some_and(|v| v.eq_ignore_ascii_case("true")),
+                empty: false,
                 id,
                 start: span.as_ref().map(|span| span.0),
                 index,
@@ -205,10 +215,46 @@ impl Outline {
             child_counts.push(0);
             levels.push((*level, blocks.len() - 1));
         }
-        for block in &mut blocks {
+        let ends: Vec<usize> = blocks
+            .iter()
+            .skip(1)
+            .map(|block| block.index)
+            .chain([source.len()])
+            .collect();
+        for (block, end) in blocks.iter_mut().zip(ends) {
             block.collapsed &= block.has_children;
+            block.empty = content_empty(source, block.index, end);
         }
-        Self { blocks }
+        let first = blocks
+            .first()
+            .map(|block| block.index)
+            .filter(|&index| source[..index].iter().all(blank));
+        let last = blocks
+            .iter()
+            .rev()
+            .find(|block| block.depth == 1)
+            .map(|block| block.index)
+            .filter(|&index| {
+                !source[index..]
+                    .iter()
+                    .any(|block| matches!(block, Block::Heading { level: 1, .. }))
+            });
+        Self {
+            blocks,
+            first,
+            last,
+        }
+    }
+
+    /// Whether Logseq hides the block's bullet on a published page while the pointer is
+    /// not over the block, as its `block-control` decides: the block is empty, has no
+    /// children, and is neither the first nor the last block of the outline. The first
+    /// and last blocks count only at the top level; a nested block has no such exception.
+    pub fn hides_bullet(&self, block: &OutlineBlock) -> bool {
+        block.empty
+            && !block.has_children
+            && self.first != Some(block.index)
+            && self.last != Some(block.index)
     }
 
     /// The block an identifier names.
@@ -230,6 +276,51 @@ impl Outline {
             self.blocks[*i].parent
         })
     }
+}
+
+/// Whether the bullet at `index`, whose content ends before `end`, has no text: an empty
+/// first line or one with only a task marker, only properties Logseq hides, and a body of horizontal rules and blank
+/// lines. Logseq's `block-content-empty?` in `src/main/frontend/components/block.cljs`.
+/// A heading line at the top level starts a block of its own in Logseq, so the body ends
+/// there.
+fn content_empty(source: &[Block], index: usize, end: usize) -> bool {
+    let Some(Block::Bullet { inline, .. }) = source.get(index) else {
+        return false;
+    };
+    // Logseq reads a lone marker word, such as `- TODO`, as a task marker with an empty
+    // title; lsdoc gives the word as text.
+    let title_empty = match inline.as_slice() {
+        [] => true,
+        [Inline::Plain { text, .. }] => {
+            TaskMarker::parse(text).is_some() && !text.bytes().any(|b| b.is_ascii_lowercase())
+        }
+        _ => false,
+    };
+    title_empty
+        && bullet_properties(source, index)
+            .all(|(key, _)| crate::page_properties::is_hidden_block_property(key))
+        && source[index + 1..end]
+            .iter()
+            .take_while(|block| !matches!(block, Block::Heading { level: 1, .. }))
+            .enumerate()
+            .all(|(offset, block)| match block {
+                Block::Properties { .. } => offset == 0,
+                Block::Hr { .. } => true,
+                _ => blank(block),
+            })
+}
+
+/// A paragraph of line breaks and spaces, such as a blank line after page properties.
+pub(crate) fn blank_inline(inline: &[Inline]) -> bool {
+    inline.iter().all(|node| match node {
+        Inline::Break { .. } | Inline::HardBreak { .. } => true,
+        Inline::Plain { text, .. } => text.trim().is_empty(),
+        _ => false,
+    })
+}
+
+fn blank(block: &Block) -> bool {
+    matches!(block, Block::Paragraph { inline, .. } if blank_inline(inline))
 }
 
 /// Every property of the bullet at `index`, in source order, from the block after it, or
@@ -344,6 +435,44 @@ mod tests {
         assert_eq!(first.blocks[b].path, [3, 2]);
         let deep = first.find(&BlockId::parse("3.2.1").unwrap()).unwrap();
         assert_eq!(first.ancestors(deep).collect::<Vec<_>>(), [b, 2]);
+    }
+
+    #[test]
+    fn empty_blocks() {
+        let outline = outline(
+            "- text\n-\n- id:: 6add3ffb-e52b-4e8f-908a-9958186e4dfb\n- kind:: note\n- ---\n- \n  ---\n  ---\n- > quote\n- <!-- note -->\n- [[Page]]\n- TODO\n- TODO x\n",
+        );
+        let empty: Vec<_> = outline.blocks.iter().map(|b| b.empty).collect();
+        assert_eq!(
+            empty,
+            [
+                false, true, true, false, true, true, false, false, false, true, false
+            ]
+        );
+    }
+
+    #[test]
+    fn hides_the_bullet_of_an_empty_block_between_the_first_and_last() {
+        let hidden = |source: &str| {
+            let outline = outline(source);
+            outline
+                .blocks
+                .iter()
+                .map(|block| outline.hides_bullet(block))
+                .collect::<Vec<_>>()
+        };
+        // The first and last top-level blocks and a block with children keep their bullets;
+        // a nested block that is first or last among its siblings does not.
+        assert_eq!(
+            hidden("-\n- a\n-\n\t- child\n-\n\t-\n\t- b\n\t-\n-\n"),
+            [false, false, false, false, false, true, false, true, false]
+        );
+        // Page properties or a heading line before the first bullet are Logseq's first
+        // block, and a top-level heading line after the last bullet is its last.
+        assert_eq!(hidden("tags:: x\n\n-\n- a\n"), [true, false]);
+        assert_eq!(hidden("# Title\n-\n- a\n"), [true, false]);
+        assert_eq!(hidden("- a\n-\n# Tail\n"), [false, true]);
+        assert_eq!(hidden("\n-\n- a\n"), [false, false]);
     }
 
     #[test]

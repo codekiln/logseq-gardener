@@ -58,15 +58,6 @@ fn slide_attributes(blocks: &[Block], index: usize) -> String {
         .collect()
 }
 
-/// A paragraph of line breaks and spaces, such as a blank line after page properties.
-fn is_blank(inline: &[Inline]) -> bool {
-    inline.iter().all(|node| match node {
-        Inline::Break { .. } | Inline::HardBreak { .. } => true,
-        Inline::Plain { text, .. } => text.trim().is_empty(),
-        _ => false,
-    })
-}
-
 pub(super) struct Rendered {
     pub html: String,
     pub source_anchors: BTreeSet<usize>,
@@ -633,12 +624,21 @@ impl Renderer<'_> {
                     slide_attributes(blocks, index)
                 };
                 let card = crate::cards::mentions_card(inline);
+                // `lsg-empty` hides the bullet of a block with no text until the pointer
+                // is over the block, as Logseq does.
+                let classes: Vec<&str> = [
+                    (collapsed, "outline-collapsed"),
+                    (card, "lsg-card"),
+                    (outline.hides_bullet(item), "lsg-empty"),
+                ]
+                .into_iter()
+                .filter_map(|(on, class)| on.then_some(class))
+                .collect();
                 let item_start = (
-                    match (collapsed, card) {
-                        (true, true) => "<li class=\"outline-collapsed lsg-card\"",
-                        (true, false) => "<li class=\"outline-collapsed\"",
-                        (false, true) => "<li class=\"lsg-card\"",
-                        (false, false) => "<li",
+                    if classes.is_empty() {
+                        "<li".to_owned()
+                    } else {
+                        format!("<li class=\"{}\"", classes.join(" "))
                     },
                     copy,
                     format!("{slide}>"),
@@ -718,7 +718,7 @@ impl Renderer<'_> {
             match block {
                 Block::Properties { .. } => self.invalid_properties(block),
                 Block::Comment { .. } | Block::CommentBlock { .. } => {}
-                Block::Paragraph { inline, .. } if is_blank(inline) => {}
+                Block::Paragraph { inline, .. } if crate::outline::blank_inline(inline) => {}
                 Block::Paragraph { inline, .. } => {
                     let tag = if contains_embed(inline, 0) {
                         "div"
@@ -866,7 +866,7 @@ impl Renderer<'_> {
     /// Close an outline item, first adding the derived rows of a page's own block after its
     /// children.
     /// An outline item's opening tag, with a row gap for a reference copy's bullet.
-    fn item_start(&mut self, (open, copy, close): &(&str, Option<usize>, String)) {
+    fn item_start(&mut self, (open, copy, close): &(String, Option<usize>, String)) {
         self.html.push_str(open);
         if let Some(anchor) = copy {
             self.slot(*anchor, SlotKind::Row);
