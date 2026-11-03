@@ -845,12 +845,14 @@ impl Renderer<'_> {
     }
     /// Logseq's warning for the property names it rejects in a properties block, such as
     /// `` `status `` in a block that starts with the code `` `status:: [[Done]]` ``. Logseq
-    /// renders it with `invalid-properties-cp`; its buttons have no action.
+    /// renders it with `invalid-properties-cp`; its buttons have no action. The report gets a
+    /// diagnostic that opens with the warning's words, so a garden's CI can fail on it.
     fn invalid_properties(&mut self, block: &Block) {
         let names = crate::property_names::rejected_property_names(self.text_source, block);
         if names.is_empty() {
             return;
         }
+        self.diagnostic(format!("Invalid property names: {}", names.join(", ")));
         self.html.push_str(
             "<div class=\"invalid-properties mb-2\"><div title=\"Invalid properties\" class=\"warning\">Invalid property names: ",
         );
