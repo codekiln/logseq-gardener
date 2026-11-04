@@ -1,9 +1,7 @@
 ## Purpose
 
 Define reusable page alias lookup within publication visibility.
-
 ## Requirements
-
 ### Requirement: Extract leading page aliases
 
 The SDK SHALL extract aliases from the last case-insensitive `alias` property in the first parsed properties block, reading the value as Logseq's file parser reads `alias::`, `aliases::` and `tags::` values. Each direct page reference `[[Name]]`, tag `#name` and tagged reference `#[[Name]]` SHALL supply one name, and a nested reference `[[Outer [[Inner]] Name]]` SHALL supply `Outer [[Inner]] Name` and no inner name. Plain text between them SHALL supply its comma-separated parts, split on ASCII or full-width commas. Quoted values SHALL remain one literal name including quotes. Code and formatted spans SHALL not contribute their inner text as names; a nonempty value with no parsed names SHALL remain a complete literal name. Nested properties and `aliases` SHALL not provide page aliases. Blank and self aliases SHALL be omitted.
@@ -26,7 +24,7 @@ The SDK SHALL extract aliases from the last case-insensitive `alias` property in
 
 ### Requirement: Preserve page name candidates
 
-The SDK SHALL provide reusable deterministic candidate lookup for caller-supplied page identifiers. Titles, aliases and lookup queries SHALL share trimmed lowercase NFC keys with one leading and trailing slash removed. Repeated claims from one page SHALL be deduplicated. Claims from different pages, including title and alias collisions, SHALL remain distinguishable and ambiguous.
+The SDK SHALL provide reusable deterministic candidate lookup for caller-supplied page identifiers. Titles, aliases and lookup queries SHALL share trimmed lowercase NFC keys with one leading and trailing slash removed. Repeated claims from one page SHALL be deduplicated. A name that is the title of an inserted page SHALL name that page alone, although other pages list the name as an alias, because Logseq keeps one page per name. When that page holds no text, meaning its file is empty or holds one bullet with nothing after the dash, and exactly one other page lists the name as an alias, the name SHALL name that other page, as Logseq's links open the alias's source page. Pages that share a title, and pages that share an alias no page has as its title, SHALL remain distinguishable and ambiguous.
 
 #### Scenario: Duplicate alias claims
 - **WHEN** Alias Source and Chosen Name both claim Other Name
@@ -34,7 +32,11 @@ The SDK SHALL provide reusable deterministic candidate lookup for caller-supplie
 
 #### Scenario: Unicode and title collision
 - **WHEN** a title and another page's alias have equivalent normalized spelling
-- **THEN** lookup retains both candidates for either spelling
+- **THEN** lookup returns the titled page for either spelling
+
+#### Scenario: Empty titled page
+- **WHEN** `pages/brew.md` lists `Kegs` as an alias and `pages/Kegs.md` holds only `-`
+- **THEN** lookup of `Kegs` returns `brew`
 
 ### Requirement: Resolve within publication visibility
 
@@ -69,3 +71,16 @@ The SDK SHALL provide a reusable operation that lists, for one of the pages a ca
 #### Scenario: Own title and repeated spellings
 - **WHEN** `brew` has `alias:: [[brew]], [[homebrew]], [[Homebrew]]`
 - **THEN** the list for `brew` is `brew` and `homebrew`, both opening `brew`
+
+### Requirement: Record an alias on the page it names
+
+The SDK SHALL give each inserted page the aliases Logseq's file parser records for it (`:block/alias`, from `extract-page-alias-and-tags`): the names of the page's own `alias::` value, and, for each page whose `alias::` value names this page, that page and the other names of its value. Aliases SHALL be lookup keys, without the page's own key.
+
+#### Scenario: A page lists another page as its alias
+- **WHEN** `pages/brew.md` holds `alias:: [[Homebrew]], [[Package Manager]], [[Bottles]]`, `pages/Homebrew.md` holds `alias:: [[Formulae]]`, and `pages/Package Manager.md` has no aliases
+- **THEN** `brew` has the aliases `bottles`, `homebrew` and `package manager`; `Homebrew` has `bottles`, `brew`, `formulae` and `package manager`; and `Package Manager` has `bottles`, `brew` and `homebrew`
+
+#### Scenario: Parser check
+- **WHEN** `scripts/logseq-parser/check.py` runs on that garden
+- **THEN** Logseq and the SDK agree
+
