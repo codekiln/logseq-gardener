@@ -1,9 +1,7 @@
 ## Purpose
 
 Show published readers which pages refer to the current page, with safe source context, related-page filters, and configurable disclosure.
-
 ## Requirements
-
 ### Requirement: Index authored references from published sources
 
 The publisher SHALL take linked references from the SDK reference index, which derives them only from selected visible original documents. Page identities SHALL resolve through existing selected-title and alias rules. Each referring block SHALL count once per target, and self-page references SHALL be omitted. Parsed page links, tags, embed page targets, and authored page-reference property values SHALL supply references, and a reference to a namespace child SHALL also count for each of its namespace ancestors; property names, literal code, comments, external links, generated navigation, and pure block UUID references SHALL not manufacture page backlinks. Missing or ambiguous identities SHALL supply no result or filter option. Safe generated namespace destinations SHALL receive the references of their namespace children and MAY receive authored references without entering source alias, embed, or homepage lookup.
@@ -108,7 +106,7 @@ The publisher SHALL read integer `:ref/linked-references-collapsed-threshold` an
 
 ### Requirement: Render each listed block once per build
 
-The publisher SHALL render a referring block's copy and its breadcrumb at most once per build at a given open depth, and SHALL reuse them wherever the block is listed: in each target's Linked References, in Unlinked References and in query results. Each listing SHALL add only what depends on it: the row number of each referring bullet in that page's reference data and the link each copied bullet opens. The diagnostics a copy produces SHALL be reported for every page that lists it, as before. The published files SHALL be byte for byte identical to rendering the copy separately for each listing.
+The publisher SHALL render a referring block's copy and its breadcrumb at most once per build at a given open depth, and SHALL reuse them wherever the block is listed: in each target's Linked References, in Unlinked References and in query results. Each listing SHALL add only what depends on it: the row number of each referring bullet in that page's reference data and the link each copied bullet opens. A diagnostic a copy produces SHALL be reported once, under the file the copied block comes from, and SHALL be left out when that file's own page reports the same diagnostic. The published files SHALL be byte for byte identical to rendering the copy separately for each listing.
 
 #### Scenario: Block that links to several pages
 - **WHEN** one block links to `tmux`, `mise` and `nvim`
@@ -117,3 +115,20 @@ The publisher SHALL render a referring block's copy and its breadcrumb at most o
 #### Scenario: Whole-garden output
 - **WHEN** the encode garden is published with `--journals` and `--search` before and after this change
 - **THEN** both builds write the same files with the same bytes
+
+#### Scenario: Listed block with a missing link
+- **WHEN** a block in `pages/Notes___Other.md` links to `Notes/Start` and to a missing page `Absent`
+- **THEN** the report has one diagnostic for `Absent`, with source `pages/Notes___Other.md`, and none under `pages/Notes___Start.md`
+
+### Requirement: List the references of a page's alias group
+
+A page's Linked References SHALL list, besides the blocks that refer to the page, the blocks that refer to any other selected page of its alias group, as Logseq's `get-page-referenced-blocks` does. The alias group SHALL be every page one or two alias links away in either direction, with the links Logseq's file parser records. Blocks on the page itself SHALL be left out, and each block SHALL be listed once. The heading's count and the journal feed's count of referring pages SHALL include these blocks. The group of a page in the alias group SHALL show the muted `Alias` label after its title: 14px, weight 500, 50% opacity. Queries SHALL keep matching a page by its own references only, as Logseq's `page-ref` rule does.
+
+#### Scenario: Two pages that alias each other
+- **WHEN** `pages/Notes___brew.md` holds `alias:: [[Notes/Homebrew]]`, `pages/Notes___Homebrew.md` holds `- A package manager, see [[Notes/brew]]`, and `pages/Notes___A.md` holds `- Install with [[Notes/brew]]` and `- Read about [[Notes/Homebrew]]`
+- **THEN** both pages read `3 Linked References`, both list the two blocks of `Notes/A`, and each lists the other page's block in a group labelled `Alias`
+
+#### Scenario: Encode garden
+- **WHEN** a reader opens `Dolt`, whose `alias::` names the page `GitHub/dolthub/dolt`
+- **THEN** its Linked References read `17 Linked References` in 12 groups, including `2026-03-12 Thu`, which refers only to `GitHub/dolthub/dolt`, as in Logseq's build
+
