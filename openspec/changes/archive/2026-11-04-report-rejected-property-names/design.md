@@ -18,7 +18,7 @@ The encode garden's `mise-tasks/site/build` writes those lines to a file, and it
 
 ## Decisions
 
-- `invalid_properties` records the diagnostic through `Renderer::diagnostic`, right where it draws the warning. The report then holds a diagnostic exactly where a reader sees the warning, and copied blocks follow the rule that `PageDiagnostics` already applies to every other diagnostic.
+- `invalid_properties` records the diagnostic through `Renderer::diagnostic`, right where it draws the warning. The report then holds a diagnostic wherever a reader sees the warning, and copied blocks follow the rule that `PageDiagnostics` already applies to every other diagnostic.
 - The message is `Invalid property names: ` followed by the names from `rejected_property_names`, in its order, separated by `, `. It opens with the warning's own words, so a reader of the report knows what they will see on the page, and a CI check can match the fixed prefix. Resolved Question 2 records the choice.
 - `lsg publish` still exits 0. Logseq publishes such a block with its warning, and the CLI contract reports unsupported content as a diagnostic with success. Each garden decides in its own CI whether the diagnostic fails its build.
 
