@@ -130,6 +130,23 @@ fn loads_only_visible_markdown_in_deterministic_path_order() {
 }
 
 #[test]
+fn reads_no_page_from_a_file_that_holds_only_whitespace() {
+    let fixture = Fixture::new();
+    fixture.write("pages/empty.md", "");
+    fixture.write("pages/newlines.md", "\n\n");
+    fixture.write("pages/spaces.md", "  \n");
+    fixture.write("pages/dash.md", "-\n");
+    fixture.write("journals/2026_10_06.md", "");
+    let garden = load_garden(&fixture.0).unwrap();
+    let paths: Vec<_> = garden
+        .documents
+        .iter()
+        .map(|document| document.relative_path.as_path())
+        .collect();
+    assert_eq!(paths, ["pages/dash.md"].map(Path::new));
+}
+
+#[test]
 fn accepts_empty_pages_or_journals_but_rejects_unrelated_roots() {
     for name in ["pages", "journals"] {
         let fixture = Fixture::new();

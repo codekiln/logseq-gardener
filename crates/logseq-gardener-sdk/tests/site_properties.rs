@@ -356,7 +356,7 @@ fn alias_row_lists_every_alias_as_logseq_does() {
         "Visible/Garden",
         "alias:: [[Visible/Digital Garden]], [[Zettelkasten]]\n- Garden\n",
     );
-    f.page("Visible/Digital Garden", "");
+    f.page("Visible/Digital Garden", "-\n");
     f.page(
         "Visible/Datascript",
         "alias:: [[Visible/Query/Datascript]]\n- DataScript\n",
