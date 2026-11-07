@@ -1,5 +1,7 @@
 use logseq_gardener_sdk::{
-    page_titles::FilenameFormat, publishing::NamespaceSelection, site::publish_site,
+    page_titles::FilenameFormat,
+    publishing::NamespaceSelection,
+    site::{SiteReport, publish_site},
 };
 use std::{
     fs,
@@ -33,14 +35,14 @@ impl Fixture {
         )
         .unwrap();
     }
-    fn publish(&self) {
+    fn publish(&self) -> SiteReport {
         publish_site(
             self.0.join("garden"),
             self.0.join("site"),
             FilenameFormat::TripleLowbar,
             &NamespaceSelection::new(&["Visible"], &["Visible/Excluded"]).unwrap(),
         )
-        .unwrap();
+        .unwrap()
     }
     fn html(&self, name: &str) -> String {
         fs::read_to_string(self.0.join("site").join(route(name))).unwrap()
@@ -354,7 +356,7 @@ fn alias_row_lists_every_alias_as_logseq_does() {
         "Visible/Garden",
         "alias:: [[Visible/Digital Garden]], [[Zettelkasten]]\n- Garden\n",
     );
-    f.page("Visible/Digital Garden", "");
+    f.page("Visible/Digital Garden", "-\n");
     f.page(
         "Visible/Datascript",
         "alias:: [[Visible/Query/Datascript]]\n- DataScript\n",
@@ -482,6 +484,73 @@ fn a_block_whose_property_name_logseq_rejects_shows_logseq_warning() {
     let warning = "<div class=\"invalid-properties mb-2\"><div title=\"Invalid properties\" class=\"warning\">Invalid property names: <button class=\"p-1 mr-2\">`logseq-entity</button></div><code>Property name begins with a non-numeric character and can contain alphanumeric characters and . * + ! - _ ? $ % &amp; = &lt; &gt;. If -, + or . are the first character, the second character (if any) must be non-numeric.</code></div>";
     assert_eq!(html.matches(warning).count(), 1, "{html}");
     assert!(!html.contains("identifies a local asset"), "{html}");
+}
+
+/// The report's diagnostics for rejected property names, as `(file, message)`.
+fn rejected_property_diagnostics(report: &SiteReport) -> Vec<(String, String)> {
+    report
+        .diagnostics
+        .iter()
+        .filter(|d| d.message.starts_with("Invalid property names: "))
+        .map(|d| (d.source.display().to_string(), d.message.clone()))
+        .collect()
+}
+
+#[test]
+fn a_block_whose_property_name_logseq_rejects_is_reported() {
+    let f = Fixture::new("{}");
+    f.page(
+        "Visible/Asset",
+        "- `Logseq_Entity:: [[Visible/Asset]]` identifies a local asset.\n- kind:: note\n",
+    );
+    let report = f.publish();
+    assert_eq!(
+        rejected_property_diagnostics(&report),
+        [(
+            "pages/Visible___Asset.md".to_owned(),
+            "Invalid property names: `logseq-entity".to_owned()
+        )]
+    );
+}
+
+#[test]
+fn page_properties_with_two_rejected_names_are_reported_once() {
+    let f = Fixture::new("{}");
+    f.page(
+        "Visible/Note",
+        "`owner_name:: x\n`Kind:: y\nkind:: note\n\n- first block\n",
+    );
+    let report = f.publish();
+    assert_eq!(
+        rejected_property_diagnostics(&report),
+        [(
+            "pages/Visible___Note.md".to_owned(),
+            "Invalid property names: `owner-name, `kind".to_owned()
+        )]
+    );
+}
+
+#[test]
+fn an_embedded_block_reports_rejected_property_names_under_its_own_file() {
+    let f = Fixture::new("{}");
+    f.page(
+        "Visible/Asset",
+        "- `logseq-entity:: [[Visible/Asset]]` identifies a local asset.\n",
+    );
+    f.page("Visible/Hub", "- {{embed [[Visible/Asset]]}}\n");
+    let report = f.publish();
+    // The embed shows the warning, and the report names only the file that holds the block.
+    assert!(
+        f.html("Visible/Hub")
+            .contains("<div class=\"invalid-properties mb-2\">")
+    );
+    assert_eq!(
+        rejected_property_diagnostics(&report),
+        [(
+            "pages/Visible___Asset.md".to_owned(),
+            "Invalid property names: `logseq-entity".to_owned()
+        )]
+    );
 }
 
 #[test]

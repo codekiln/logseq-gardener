@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.30](https://github.com/codekiln/logseq-gardener/compare/v0.0.29...v0.0.30) - 2026-11-07
+
+### Fixed
+
+- read no page from a file that holds only whitespace, as Logseq does (#477)
+
+## [0.0.29](https://github.com/codekiln/logseq-gardener/compare/v0.0.28...v0.0.29) - 2026-11-04
+
+### Added
+
+- report rejected property names as a publish diagnostic (#475)
+
+## [0.0.28](https://github.com/codekiln/logseq-gardener/compare/v0.0.27...v0.0.28) - 2026-11-02
+
+### Added
+
+- redirect old page URLs to readable URLs (#471)
+
 ## [0.0.27](https://github.com/codekiln/logseq-gardener/compare/v0.0.26...v0.0.27) - 2026-11-02
 
 ### Fixed

@@ -21,5 +21,15 @@ class EmptyPageFileFixture(unittest.TestCase):
         ])
 
 
+class EmptyPageFileFixture(unittest.TestCase):
+    def test_check_passes_when_page_files_are_empty_or_blank(self):
+        # fixtures/empty-page-file holds an empty dotenv.md, a whitespace-only blank.md and
+        # Notes.md, which links to dotenv. Logseq reads no page from the first two files and
+        # makes dotenv from the link alone; the SDK reads the same pages.
+        result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'empty-page-file'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 if __name__ == '__main__':
     unittest.main()
