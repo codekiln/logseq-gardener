@@ -125,6 +125,10 @@ pub struct GraphRefs<K> {
     pub direct: BTreeSet<K>,
     /// Names the block writes that name no known page, as written.
     pub unresolved: BTreeSet<String>,
+    /// Namespace parents of the names the block writes, as written, that name no known
+    /// page. Logseq's parser creates each as a page, even when the written name is an
+    /// alias of a page: `[[AI/General/Intelligence]]` names `AI/General` and `AI`.
+    pub unresolved_parents: BTreeSet<String>,
     /// The block's property names, lower-cased, such as `prev` for `prev::`.
     pub property_names: BTreeSet<String>,
 }
@@ -321,8 +325,20 @@ impl<K: Ord + Clone> Contribution<K> {
             let mut graph = GraphRefs {
                 direct: BTreeSet::new(),
                 unresolved: BTreeSet::new(),
+                unresolved_parents: BTreeSet::new(),
                 property_names,
             };
+            let mut parent_refs = BTreeSet::new();
+            for name in &namespaces {
+                match resolve(name) {
+                    Some(page) => {
+                        parent_refs.insert(page);
+                    }
+                    None => {
+                        graph.unresolved_parents.insert(name.clone());
+                    }
+                }
+            }
             for name in &names {
                 match resolve(name) {
                     Some(page) => {
@@ -340,10 +356,7 @@ impl<K: Ord + Clone> Contribution<K> {
                 Some(targets) if is_properties => targets.clone(),
                 _ => names.iter().filter_map(|name| resolve(name)).collect(),
             };
-            let refs = refs
-                .into_iter()
-                .chain(namespaces.iter().filter_map(|name| resolve(name)))
-                .collect();
+            let refs = refs.into_iter().chain(parent_refs).collect();
             while parents
                 .last()
                 .is_some_and(|(previous, _)| *previous >= level)

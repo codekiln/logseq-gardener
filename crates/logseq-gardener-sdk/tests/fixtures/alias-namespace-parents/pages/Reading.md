@@ -1,0 +1,2 @@
+- An essay on [[AI/General/Intelligence]]
+- A list of [[CLI/Tool/Mac]] apps

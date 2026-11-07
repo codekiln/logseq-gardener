@@ -455,6 +455,11 @@ impl<K: Ord + Clone> GraphIndex<K> {
                         rest = parent;
                     }
                 }
+                // A name that opens a page through an alias still names the parents it
+                // writes: `[[AI/General/Intelligence]]` names `AI/General` and `AI`.
+                for name in &graph.unresolved_parents {
+                    expanded.extend(builder.name(name));
+                }
                 for name in graph.property_names.iter().filter(|n| property_page(n)) {
                     if let Some(node) = builder.name(name) {
                         direct.insert(node);
@@ -985,6 +990,55 @@ mod tests {
         // A reference-only namespace child brings in its parents.
         assert!(graph.has_edge("x/y/z", "x/y") && graph.has_edge("x/y", "x"));
         assert!(!graph.has_edge("Video", "x/y"));
+    }
+
+    #[test]
+    fn an_alias_in_a_namespace_brings_in_its_parents() {
+        // `AGI` lists `AI/General/Intelligence` as an alias, so that name opens `AGI`.
+        let resolve = |name: &str| match lookup_key(name).as_str() {
+            "agi" | "ai/general/intelligence" => Some("AGI".to_owned()),
+            "reading" => Some("Reading".to_owned()),
+            _ => None,
+        };
+        let sources = [
+            ("AGI", "alias:: [[AI/General/Intelligence]]\n\n- body\n"),
+            ("Reading", "- An essay on [[AI/General/Intelligence]]\n"),
+        ];
+        let index = ReferenceIndex::build(
+            sources.iter().map(|(title, _)| PageEntry {
+                id: (*title).to_owned(),
+                title: (*title).to_owned(),
+                aliases: vec![],
+            }),
+            sources
+                .iter()
+                .map(|(title, source)| {
+                    Contribution::from_document(
+                        (*title).to_owned(),
+                        &document(source),
+                        &resolve,
+                        None,
+                    )
+                })
+                .collect(),
+        );
+        let none = BTreeSet::new();
+        let graph_index = GraphIndex::new(&GraphSource {
+            index: &index,
+            journals: &none,
+            hidden: &none,
+            is_journal_name: &|_| false,
+        });
+        let graph = graph_index.graph(GraphSettings::everything(true));
+        // Logseq creates the parents as pages without a file, joined by their namespace.
+        assert!(graph.node("AI").is_some_and(|node| node.page.is_none()));
+        assert!(graph.has_edge("AI/General", "AI"));
+        assert!(graph.has_edge("Reading", "AGI"));
+        // The parents join the page graphs of the pages that write the name.
+        let reading = graph_index
+            .neighbourhood(&"Reading".to_owned(), false)
+            .unwrap();
+        assert!(reading.node("AI/General").is_some() && reading.node("AI").is_some());
     }
 
     #[test]

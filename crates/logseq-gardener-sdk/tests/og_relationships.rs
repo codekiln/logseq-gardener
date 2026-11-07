@@ -145,3 +145,31 @@ fn an_alias_is_recorded_on_the_page_it_names_too() {
         ]
     );
 }
+
+#[test]
+fn an_alias_in_a_namespace_names_its_namespace_parents() {
+    // `AGI` lists `AI/General/Intelligence` as an alias, and `Brew` lists `CLI/Tool/Mac`,
+    // whose parent `CLI` has a file. Logseq creates the other parents as pages without a file.
+    let root = fixtures().with_file_name("alias-namespace-parents");
+    let derived = derive(&root, FilenameFormat::TripleLowbar);
+    assert_eq!(
+        derived.fileless,
+        [
+            FilelessPage {
+                name: "ai".into(),
+                title: "AI".into(),
+                namespace: None,
+            },
+            FilelessPage {
+                name: "ai/general".into(),
+                title: "AI/General".into(),
+                namespace: Some("ai".into()),
+            },
+            FilelessPage {
+                name: "cli/tool".into(),
+                title: "CLI/Tool".into(),
+                namespace: Some("cli".into()),
+            },
+        ]
+    );
+}
