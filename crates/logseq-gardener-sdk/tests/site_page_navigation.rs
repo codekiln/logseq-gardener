@@ -193,7 +193,7 @@ fn only_last_leading_direct_property_value_supplies_a_neighbor() {
 fn namespace_status_preserves_index_names_and_selected_empty_pages() {
     let f = Fixture::new();
     f.page("Visible___Branch___Leaf.md", "- Leaf content\n");
-    f.page("Visible___Empty.md", "");
+    f.page("Visible___Empty.md", "-\n");
     assert_eq!(f.publish(None), 2);
     let generated = f.html("Visible/Branch");
     assert!(generated.contains("<p class=\"namespace-notice\">Namespace"));

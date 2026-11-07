@@ -191,6 +191,10 @@ pub fn load_garden_timed(
         let path = root.join(&relative_path);
         let source = fs::read_to_string(&path).map_err(|error| io_error(&path, error))?;
         stopwatch.lap("read");
+        // Logseq's file parser reads no page from a file that holds only whitespace.
+        if source.trim().is_empty() {
+            continue;
+        }
         let parsed = parse_document(&source);
         stopwatch.lap("parse");
         documents.push(GardenDocument {
