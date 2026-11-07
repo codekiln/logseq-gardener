@@ -63,6 +63,7 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/Ref/Logseq Published Site/Out
 		- Linked References contexts keep their own bullets; only root outlines carry Logseq's outline style.
 		- Referenced blocks show no reference count at their right.
 		- `:LOGBOOK:` drawers show as the literal word `logbook`, and the build reports each one as a diagnostic.
+		- A properties block whose names Logseq rejects shows Logseq's "Invalid property names" warning, as in Logseq, and the build also reports it as a diagnostic, such as ``Invalid property names: `logseq-entity``.
 		- When the match-logseq-page-outline change closed on 2026-10-25, a `collapsed:: true` written after a block's first child, at the parent's indentation, attached to the child, so `lsg` showed two of `rw-cli`'s four collapsed blocks open; Logseq attaches the property to the parent.
 		- Page properties show only when the garden sets `:publishing/page-properties? true`; [[lsg/Ref/Published Pages]] describes them.
 		- `lsg` publishes a read-only site: it has no title renaming, marker or priority changes, or saved collapse state.
