@@ -11,6 +11,7 @@ mod graph_layout;
 mod hierarchy;
 mod journals;
 mod media;
+mod old_urls;
 mod outline;
 mod page_diagnostics;
 mod page_status;
@@ -87,6 +88,11 @@ pub struct SiteOptions {
     /// its `p-<digest>.html` file and gets a diagnostic; colliding paths fail before output is
     /// created.
     pub page_urls: PageUrls,
+    /// Redirect old page addresses to the pages this build publishes: `index.html` opens the
+    /// page that a Logseq `#/page/<name>` link names, and with [`PageUrls::Readable`] each page
+    /// gets a file at its old `p-<digest>.html` name that opens its readable URL. A redirect
+    /// file whose name another generated file has fails before output is created.
+    pub old_url_redirects: bool,
 }
 
 /// A selected-source construct that could not be published faithfully.
@@ -468,7 +474,7 @@ pub fn publish_site_with_options(
         journal_dates,
         journal_formats,
         names,
-        aliases: _,
+        aliases: alias_keys,
         spellings,
         alias_spellings,
         folders,
@@ -738,6 +744,22 @@ pub fn publish_site_with_options(
             copied.insert(route.clone(), (resolved.relative_path, resolved.contents));
         }
         Ok(route)
+    };
+    // Releases before lsg spelled a page's title as Logseq does named its digest file after
+    // the title its file name or `title::` gives.
+    let earlier_titles: Vec<(String, String)> = if options.old_url_redirects && readable {
+        selected
+            .iter()
+            .filter(|(_, _, document)| document.kind == crate::garden::DocumentKind::Page)
+            .filter_map(|(title, route, document)| {
+                crate::page_titles::written_title(document, format)
+                    .ok()
+                    .filter(|written| written != title)
+                    .map(|written| (written, route.clone()))
+            })
+            .collect()
+    } else {
+        Vec::new()
     };
     let mut page_diagnostics = page_diagnostics::PageDiagnostics::new(
         selected
@@ -1179,6 +1201,32 @@ pub fn publish_site_with_options(
             }
         }
         documents.insert(derived::STYLES_ROUTE.to_owned(), derived::STYLES.to_owned());
+    }
+    if options.old_url_redirects {
+        let redirects = old_urls::plan(
+            routes
+                .iter()
+                .map(|(route, title)| (title.as_str(), route.as_str()))
+                .chain(
+                    generated
+                        .values()
+                        .map(|(title, route)| (title.as_str(), route.as_str())),
+                ),
+            earlier_titles
+                .iter()
+                .map(|(title, route)| (title.as_str(), route.as_str())),
+            alias_keys
+                .iter()
+                .map(|alias| (alias.clone(), names.candidates(alias))),
+            readable,
+            index_route,
+            graph::PAGE_ROUTE,
+            |route| documents.contains_key(route),
+        )?;
+        if let Some(html) = documents.get_mut("index.html") {
+            *html = html.replacen("</head>", &(redirects.script + "</head>"), 1);
+        }
+        documents.extend(redirects.files);
     }
     if readable {
         let script = readable::script();
