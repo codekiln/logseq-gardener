@@ -1039,11 +1039,14 @@ pub fn publish_site_with_options(
             &mut asset,
         );
         documents.extend(sections.files);
-        let hierarchy_section = if page.journal.is_some() {
-            hierarchy::Section::default()
-        } else {
-            hierarchy.bottom_view(&page.title, &page.route, settings.show_brackets)
-        };
+        // `MacOS ` keeps its space, so the namespace `MacOS`, which the hierarchy finds by
+        // the trimmed name, is not its hierarchy.
+        let hierarchy_section =
+            if page.journal.is_some() || crate::page_names::has_outer_space(&page.title) {
+                hierarchy::Section::default()
+            } else {
+                hierarchy.bottom_view(&page.title, &page.route, settings.show_brackets)
+            };
         documents.extend(hierarchy_section.files);
         if feed.lists(&page.route) {
             feed_bodies.insert(

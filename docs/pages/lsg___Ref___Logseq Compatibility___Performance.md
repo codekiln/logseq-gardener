@@ -7,7 +7,7 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 	- measured: 2026-10-26
 	- garden commit: 0ce74d6
 	- gh-pages commit: 8132c95
-	- lsg: 0.0.0 (b490d68); the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only; the search sections: search format version 2 on a2284e0 with garden commit 75ef84c and `gh-pages` b491e00 on 2026-10-27, both builds, from `parity:perf --search-site` (see [[lsg/Ref/Logseq Compatibility/Search Performance]]); the graph view and Page graph sections: the graph view change on 73d9c2f with garden commit cc1bb2e, `lsg` only, from `parity:perf --graph`
+	- lsg: 0.0.0 (b490d68); `Deno Deploy`: the reference-only pages change on 0.0.41 (244935d) against garden commit 66b81e9 and Logseq's 2026-10-25 build, three loads for both builds; the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only; the search sections: search format version 2 on a2284e0 with garden commit 75ef84c and `gh-pages` b491e00 on 2026-10-27, both builds, from `parity:perf --search-site` (see [[lsg/Ref/Logseq Compatibility/Search Performance]]); the graph view and Page graph sections: the graph view change on 73d9c2f with garden commit cc1bb2e, `lsg` only, from `parity:perf --graph`
 	- profiles: desktop, phone
 	- loads per page, logseq: 1
 	- loads per page, lsg: 3
@@ -47,6 +47,10 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | Contrando | desktop | lsg | 22.0 | 28.0 | 10.7 | 14.6 | 1.8 |
 		  | Contrando | phone | logseq | 191,461 | 191,484 | 22,067 | 8,087 | 1,959 |
 		  | Contrando | phone | lsg | 253 | 212 | 10.7 | 14.6 | 1.8 |
+		  | Deno Deploy | desktop | logseq | 14,570 | 14,576 | 18,699 | 8,087 | 2,561 |
+		  | Deno Deploy | desktop | lsg | 17.9 | 28.0 | 13.0 | 11.6 | 1.8 |
+		  | Deno Deploy | phone | logseq | 144,040 | 144,060 | 18,124 | 8,087 | 1,548 |
+		  | Deno Deploy | phone | lsg | 412 | 436 | 13.0 | 11.6 | 1.8 |
 		  | AI/E/WS/25/d1 | desktop | logseq | 17,595 | 17,612 | 22,643 | 8,087 | 2,002 |
 		  | AI/E/WS/25/d1 | desktop | lsg | 25.4 | 36.0 | 12.3 | 14.6 | 1.8 |
 		  | AI/E/WS/25/d1 | phone | logseq | 190,372 | 190,412 | 22,067 | 8,087 | 1,961 |
