@@ -4,7 +4,9 @@
 Builds the garden without plugins and with each no-op fixture: the in-process example with blocks,
 and the Node process fixture without and with blocks. Each variant is compared with a build of the
 same binary without plugins: added time per published page, the lsg process's peak memory, and
-identical output.
+identical output. It also builds a copy of the garden with each first-party plugin turned on alone
+in its logseq/config.edn, and checks the added time per page against [plugins.<id>]
+build_ms_per_page.
 """
 import argparse
 import hashlib
@@ -23,6 +25,7 @@ import common  # noqa: E402
 import metrics  # noqa: E402
 
 FIXTURES = common.REPO / 'tests' / 'fixtures' / 'plugins'
+FIRST_PARTY = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'plugins'
 EXAMPLE = 'build_plugin'
 
 
@@ -52,6 +55,32 @@ def tree_digest(site):
     return digest.hexdigest()
 
 
+def first_party_plugins():
+    """The first-party plugins this lsg ships: one folder each under the SDK's plugins/."""
+    return sorted(path.name for path in FIRST_PARTY.iterdir() if (path / 'lsg-plugin.json').is_file())
+
+
+def link_or_copy(source, target):
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
+
+
+def garden_with_plugin(garden, folder, plugin):
+    """A copy of `garden`, hard-linked where possible and with its git history, whose config.edn
+    turns on one first-party plugin. The original garden is not changed."""
+    shutil.copytree(garden, folder, symlinks=True, copy_function=link_or_copy)
+    config = folder / 'logseq' / 'config.edn'
+    text = config.read_text(encoding='utf-8').rstrip()
+    if not text.endswith('}'):
+        raise SystemExit(f'{config}: expected an EDN map')
+    # Replace the hard link rather than writing through it.
+    config.unlink()
+    config.write_text(f'{text[:-1]} :lsg/plugins [:{plugin}]}}\n', encoding='utf-8')
+    return folder
+
+
 def published_pages(site):
     manifest = json.loads((Path(site) / 'lsg-site.json').read_text(encoding='utf-8'))
     return sum(1 for page in manifest['pages'] if page['kind'] in ('page', 'journal', 'namespace'))
@@ -70,10 +99,13 @@ def main():
     lsg, example = str(common.lsg_binary()), str(example_binary())
     roots, _ = build.roots(garden / 'pages')
     selection = [option for root in roots for option in ('--include', root)]
-    limits = metrics.load_budgets()['build_plugins']
+    budgets = metrics.load_budgets()
+    limits = budgets['build_plugins']
+    temp_root = tempfile.TemporaryDirectory(prefix='lsg-build-bench-')
+    temp = Path(temp_root.name)
 
-    def lsg_build(output, *extra):
-        return [lsg, 'publish', '--graph', str(garden), '--output', str(output),
+    def lsg_build(output, *extra, graph=garden):
+        return [lsg, 'publish', '--graph', str(graph), '--output', str(output),
                 '--filename-format', 'triple-lowbar', '--journals', *selection, *extra]
 
     def example_build(output, *extra):
@@ -96,9 +128,14 @@ def main():
         'process no-op with blocks': limits['process_blocks_ms_per_page'],
         'in-process no-op with blocks': limits['in_process_blocks_ms_per_page'],
     }
+    for plugin in first_party_plugins():
+        name = f'first-party {plugin}'
+        copy = garden_with_plugin(garden, temp / f'garden-{plugin}', plugin)
+        variants[name] = lambda out, copy=copy: lsg_build(out, graph=copy)
+        baseline_of[name] = 'lsg without plugins'
+        budget_of[name] = budgets['plugins'][plugin]['build_ms_per_page']
     results = {name: {'seconds': [], 'peak_bytes': []} for name in variants}
-    with tempfile.TemporaryDirectory(prefix='lsg-build-bench-') as temp:
-        temp = Path(temp)
+    with temp_root:
         # Interleave the variants so that a slow moment of the machine affects all of them.
         for attempt in range(args.runs):
             for name, command in variants.items():
@@ -124,7 +161,7 @@ def main():
             line += f', {added:+.4f} ms per page (budget {budget_of[name]})'
             if added > budget_of[name]:
                 failures.append(f'{name}: adds {added:.4f} ms per page, over {budget_of[name]}')
-            if result['digest'] != base['digest']:
+            if not name.startswith('first-party') and result['digest'] != base['digest']:
                 failures.append(f'{name}: output differs from {baseline_of[name]}')
         print(line)
     growth = (results['process no-op with blocks']['peak_mb'] / results['lsg without plugins']['peak_mb'] - 1) * 100

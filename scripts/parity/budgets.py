@@ -47,6 +47,14 @@ SOURCE_ANCHOR = re.compile(r'<span id="source-block-\d+"></span>')
 PLUGIN_TAGS = re.compile(r'<script type="application/json" data-lsg-page>.*?</script>'
                          r'|<script type="module" data-lsg-host>.*?</script>', re.S)
 GROWN_BASE = 200
+# First-party plugins (first-party-plugins): the page without a plugin entry that page_overhead_gzip_kb
+# measures, the fixture episodes, and the page whose type parity:budgets hides in one copy.
+FIRST_PARTY_SOURCES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'plugins'
+FIRST_PARTY_OVERHEAD_PAGE = 'Tools/Queries'
+FIRST_PARTY_EPISODES = {'podcast-episode': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two',
+                                            'Tools/Plugins/Show/Hidden Type']}
+FIRST_PARTY_HIDDEN_PAGE = 'Tools/Plugins/Show/Hidden Type'
+PAGE_METADATA = re.compile(r'<script type="application/json" data-lsg-page>(.*?)</script>', re.S)
 
 
 
@@ -825,6 +833,102 @@ def check_plugins(plain, site, budgets):
     return failures
 
 
+def shipped_first_party():
+    """The first-party plugins this lsg ships: one folder each under the SDK's plugins/. `mise run
+    test` checks that each has a [plugins.<id>] table."""
+    return sorted(path.name for path in FIRST_PARTY_SOURCES.iterdir() if (path / 'lsg-plugin.json').is_file())
+
+
+def with_plugins_key(garden, ids, extra=''):
+    """Add `:lsg/plugins [...]` and `extra` to the top-level map of a garden copy's config.edn."""
+    config = garden / 'logseq' / 'config.edn'
+    text = config.read_text(encoding='utf-8').rstrip()
+    assert text.endswith('}'), config
+    keywords = ' '.join(f':{plugin}' for plugin in ids)
+    config.write_text(f'{text[:-1]} :lsg/plugins [{keywords}] {extra}}}\n', encoding='utf-8')
+
+
+def page_files_by_title(site):
+    manifest = json.loads((site / 'lsg-site.json').read_text(encoding='utf-8'))
+    return {page['title']: page['url'] for page in manifest['pages']}
+
+
+def page_entries(site, url):
+    match = PAGE_METADATA.search((site / url).read_text(encoding='utf-8'))
+    return json.loads(match.group(1))['plugins'] if match else {}
+
+
+def search_files(site):
+    """Every file except pages, the site manifest, the plugin host and plugin files."""
+    return {str(path.relative_to(site)): path.read_bytes() for path in sorted(site.rglob('*'))
+            if path.is_file() and path.suffix != '.html' and path.name != 'lsg-site.json'
+            and not path.name.startswith('lsg-host-') and path.relative_to(site).parts[0] != 'plugins'}
+
+
+def added_bytes(plain, site, url):
+    """Bytes the plugins add to a page's first paint: raw and gzip."""
+    before, after = page_sizes(plain, url), page_sizes(site, url)
+    return after[0] - before[0], after[1] - before[1]
+
+
+def check_first_party(plain, site, plain_large, site_large, hidden, budgets):
+    """Return failure messages for first-party plugins on the fixture garden: each plugin's
+    script and styles, the largest page with its entry, the overhead on a page without an entry,
+    growth with the garden, plugin files linked from pages, search files and the hidden type."""
+    limits = budgets['plugins']
+    failures = []
+    titles = page_files_by_title(site)
+    listed = {plugin['id']: plugin for plugin in
+              json.loads((site / 'lsg-site.json').read_text(encoding='utf-8')).get('plugins', [])}
+    for plugin in shipped_first_party():
+        rows = limits[plugin]
+        if plugin not in listed:
+            failures.append(f'{plugin}: not listed in lsg-site.json with :lsg/plugins turned on')
+            continue
+        files = [listed[plugin]['module'], *listed[plugin]['styles']]
+        size = metrics.gzip_size(b''.join((site / name).read_bytes() for name in files))
+        print(f'{plugin}: script and styles {size:,} gzip')
+        if size > rows['script_styles_gzip_kb'] * 1000:
+            failures.append(f'{plugin}: script_styles_gzip_kb: {size:,} gzip exceeds {rows["script_styles_gzip_kb"] * 1000:,.0f}')
+        with_entry = sorted(title for title, url in titles.items()
+                            if url.endswith('.html') and plugin in page_entries(site, url))
+        expected = sorted(FIRST_PARTY_EPISODES.get(plugin, []))
+        if with_entry != expected:
+            failures.append(f'{plugin}: entries on {with_entry}, expected {expected}')
+        growth = [(added_bytes(plain, site, titles[title])[1], title) for title in with_entry]
+        if growth:
+            largest = max(growth)
+            print(f'{plugin}: largest page growth {largest[0]:,} gzip ({largest[1]})')
+            if largest[0] > rows['page_growth_gzip_kb'] * 1000:
+                failures.append(f'{plugin}: page_growth_gzip_kb: {largest[1]} grows {largest[0]:,} gzip, over {rows["page_growth_gzip_kb"] * 1000:,.0f}')
+    overhead_url = titles[FIRST_PARTY_OVERHEAD_PAGE]
+    overhead = added_bytes(plain, site, overhead_url)[1]
+    print(f'first-party plugins: {FIRST_PARTY_OVERHEAD_PAGE} grows {overhead:,} gzip without a plugin entry')
+    if overhead > limits['page_overhead_gzip_kb'] * 1000:
+        failures.append(f'page_overhead_gzip_kb: {FIRST_PARTY_OVERHEAD_PAGE} grows {overhead:,} gzip, over {limits["page_overhead_gzip_kb"] * 1000:,.0f}')
+    for title in [FIRST_PARTY_OVERHEAD_PAGE, *FIRST_PARTY_EPISODES['podcast-episode'][:1]]:
+        url = titles[title]
+        small, large = added_bytes(plain, site, url)[0], added_bytes(plain_large, site_large, url)[0]
+        if abs(large - small) > limits['garden_growth_kb'] * 1000:
+            failures.append(f'garden_growth_kb: plugins add {small:,} bytes to {title}, '
+                            f'and {large:,} when the garden gains {FILLER_PAGES:,} pages')
+    for page in site_pages(site):
+        text = (site / page).read_text(encoding='utf-8')
+        if 'plugins/' in ' '.join(re.findall(r'(?:src|href)="([^"]*)"', text)):
+            failures.append(f'{page}: links a plugin file; only the host may load one, after first paint')
+    sizes = {page: page_sizes(site, page) for page in site_pages(site) if page != 'graph.html'}
+    failures += [f'with first-party plugins, {message}' for message in check(sizes, sizes, budgets)]
+    if search_files(plain) != search_files(site):
+        failures.append('search files differ from the build without :lsg/plugins')
+    hidden_titles = page_files_by_title(hidden)
+    if 'podcast-episode' not in page_entries(hidden, hidden_titles[FIRST_PARTY_HIDDEN_PAGE]):
+        failures.append(f'{FIRST_PARTY_HIDDEN_PAGE}: no podcast-episode entry when logseq-entity is hidden')
+    for page in site_pages(hidden):
+        if 'Fixture Hidden' in (hidden / page).read_text(encoding='utf-8'):
+            failures.append(f'{page}: shows the hidden logseq-entity value')
+    return failures
+
+
 def derived_rows(text):
     """The markup of every derived row list in a page, each closed at its matching </ul>."""
     lists = []
@@ -966,6 +1070,23 @@ def main():
         publish(lsg, FIXTURE_GARDEN, temp / 'build-plugins', FIXTURE_ROOTS,
                 extra=('--plugin', str(BUILD_PLUGIN_FIXTURE)))
         plugin_failures += check_build_plugins(temp / 'small', temp / 'build-plugins', budgets)
+        first_party = shipped_first_party()
+        variants = {}
+        # Each build reads a copy outside git, so all of them date pages the same way.
+        for name, key, filler, extra in (('fp-plain', False, False, ''), ('fp-plain-large', False, True, ''),
+                                         ('fp', True, False, ''),
+                                         ('fp-large', True, True, ''),
+                                         ('fp-hidden', True, False, ':block-hidden-properties #{:logseq-entity}')):
+            copy = temp / f'{name}-garden'
+            shutil.copytree(FIXTURE_GARDEN, copy)
+            if key:
+                with_plugins_key(copy, first_party, extra)
+            if filler:
+                add_filler(copy, FILLER_PAGES)
+            publish(lsg, copy, temp / name, [*FIXTURE_ROOTS, *([FILLER_ROOT] if filler else [])], search=True)
+            variants[name] = temp / name
+        plugin_failures += check_first_party(variants['fp-plain'], variants['fp'], variants['fp-plain-large'],
+                                             variants['fp-large'], variants['fp-hidden'], budgets)
         search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets))
         index = search_index_sizes(temp / 'search')
         search_failures += check_search_index(index, budgets['search'])

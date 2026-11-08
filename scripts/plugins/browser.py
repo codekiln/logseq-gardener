@@ -9,8 +9,12 @@ Builds a small garden with the fixture plugins in tests/fixtures/plugins and thr
 ones (a probe, one whose setup throws, one whose export does not match its manifest), then checks
 playback across navigation and Back, on-demand loading, stale responses, fragments, setup
 failure, a new build during a visit, fetch failure, collapse and the remembered Properties choice
-after navigation, and that listener counts stay flat over 20 navigations. Prints one JSON line of results; --screenshots DIR also
-saves the recording playing on each page.
+after navigation, and that listener counts stay flat over 20 navigations. It then builds a garden
+that turns on the first-party podcast-episode plugin in its config.edn and checks that a page
+without an episode requests no plugin code, that the recording keeps playing across navigation and
+Back, that another episode takes over only when started, that dialogue timestamps seek the player,
+and that a page whose module fails keeps its own recording. Prints one JSON line of results;
+--screenshots DIR also saves the recording playing on each page.
 """
 import argparse
 import functools
@@ -20,6 +24,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+import struct
 import threading
 from playwright.sync_api import sync_playwright, expect
 
@@ -54,6 +59,154 @@ GENERATED = {
     'mismatch': ('after-load', '''export default { id: 'something-else', apiVersion: 1, setup() { window.__mismatchSetup = true; } };
 '''),
 }
+
+EPISODE_PAGES = {
+    'Show___One.md': ('logseq-entity:: [[Logseq/Entity/Podcast/Episode/Fixture]], [[Logseq/Entity/Podcast/Episode]]\n\n'
+                      '- # The first episode\n\t- ![Episode recording](../assets/one.wav)\n'
+                      '\t- See [[Show/Plain]] and [[Show/Two]].\n\t- Transcript\n'
+                      '\t\t- **Host** · 00:00:12 — Twelve seconds in.\n'),
+    'Show___Two.md': ('logseq-entity:: [[Logseq/Entity/Podcast/Episode]]\n\n'
+                      '- # The second episode\n\t- ![Episode recording](../assets/two.wav)\n'
+                      '\t- Back to [[Show/One]].\n\t- Transcript\n'
+                      '\t\t- **Host** · 00:00:05 — Five seconds in.\n'),
+    'Show___Plain.md': '- A page that is no episode. [[Show/One]] and [[Show/Two]].\n',
+}
+
+
+def tone(frequency, seconds=40, rate=8000):
+    """A sine tone as 8-bit mono WAV bytes."""
+    import math
+    samples = bytes(128 + round(40 * math.sin(2 * math.pi * frequency * i / rate)) for i in range(rate * seconds))
+    header = b'RIFF' + struct.pack('<I', 36 + len(samples)) + b'WAVEfmt ' + struct.pack('<IHHIIHH', 16, 1, 1, rate, rate, 1, 8)
+    return header + b'data' + struct.pack('<I', len(samples)) + samples
+
+
+def build_episodes(binary, temp):
+    """A garden that turns on podcast-episode in its config.edn, published to temp/site-episodes."""
+    garden = temp / 'episodes'
+    (garden / 'pages').mkdir(parents=True)
+    (garden / 'assets').mkdir()
+    (garden / 'logseq').mkdir()
+    (garden / 'logseq' / 'config.edn').write_text(
+        '{:publishing/all-pages-public? true :lsg/plugins [:podcast-episode]}\n', encoding='utf-8')
+    for name, text in EPISODE_PAGES.items():
+        (garden / 'pages' / name).write_text(text, encoding='utf-8')
+    (garden / 'assets' / 'one.wav').write_bytes(tone(330))
+    (garden / 'assets' / 'two.wav').write_bytes(tone(440))
+    output = temp / 'site-episodes'
+    subprocess.run([str(binary), 'publish', '--graph', str(garden), '--output', str(output),
+                    '--filename-format', 'triple-lowbar', '--include', 'Show'],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return output
+
+
+def player(page):
+    return page.evaluate('''() => {
+      const audio = document.querySelector('.lsg-episode-player audio');
+      return audio && { kept: audio.__kept === true, paused: audio.paused, time: audio.currentTime,
+        src: audio.getAttribute('src'), title: document.querySelector('.lsg-episode-player-title')?.textContent,
+        inline: document.querySelectorAll('main audio').length };
+    }''')
+
+
+def wait_player(page, after=0.0):
+    page.wait_for_function('''(after) => {
+      const audio = document.querySelector('.lsg-episode-player audio');
+      return audio && !audio.paused && audio.currentTime > after;
+    }''', arg=after)
+
+
+def check_podcast_episode(browser, site, prefix, screenshots, results):
+    """The first-party podcast-episode plugin: loading, playback across pages, takeover and seeking."""
+    one, two, plain = (route(f'Show/{name}') for name in ('One', 'Two', 'Plain'))
+    module = 'plugins/podcast-episode/podcast-episode.mjs'
+
+    # A page without an episode, opened directly, requests no plugin file.
+    context = browser.new_context()
+    page = context.new_page()
+    requests = []
+    page.on('request', lambda request: requests.append(request.url))
+    page.goto(prefix + plain, wait_until='load')
+    page.wait_for_function("performance.getEntriesByType('resource').some((r) => r.name.includes('lsg-host-'))")
+    page.wait_for_timeout(300)
+    assert not [u for u in requests if '/plugins/podcast-episode/' in u], requests
+    context.close()
+    results['podcast_no_plugin_request_without_episode'] = True
+
+    context = browser.new_context(viewport={'width': 1280, 'height': 800})
+    page = context.new_page()
+    errors, requests = [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: requests.append(request.url))
+    page.goto(prefix + one, wait_until='load')
+    page.wait_for_function("document.querySelector('.lsg-episode-player audio')")
+    state = player(page)
+    assert state['inline'] == 0 and state['src'].endswith('.wav') and state['title'] == 'The first episode', state
+    page.evaluate("document.querySelector('.lsg-episode-player audio').__kept = true")
+    page.evaluate("document.querySelector('.lsg-episode-player audio').play()")
+    wait_player(page, 0.3)
+    first_src = player(page)['src']
+    if screenshots:
+        screenshots.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(screenshots / 'podcast-1-episode-one-playing.png'))
+
+    # Following a link and going Back keep the same element playing; the module loads once.
+    start = player(page)['time']
+    follow(page, plain)
+    assert title(page) == 'Show/Plain'
+    now = player(page)
+    assert now['kept'] and not now['paused'] and now['src'] == first_src, now
+    wait_player(page, start + 0.2)
+    if screenshots:
+        page.screenshot(path=str(screenshots / 'podcast-2-plain-page-still-playing.png'))
+    page.go_back()
+    page.wait_for_function("document.querySelector('main h1')?.textContent === 'Show/One'")
+    back = player(page)
+    assert back['kept'] and not back['paused'] and back['time'] > start and back['inline'] == 0, back
+    assert len([u for u in requests if u.endswith(module)]) == 1, requests
+    results['podcast_playback_across_navigation_and_back'] = {'start_s': round(start, 2), 'after_back_s': round(back['time'], 2)}
+
+    # A dialogue timestamp seeks the player.
+    page.locator('main a[data-lsg-dialogue-time="12"]').click()
+    page.wait_for_function("document.querySelector('.lsg-episode-player audio').currentTime >= 11.5")
+    now = player(page)
+    assert now['kept'] and not now['paused'] and now['src'] == first_src, now
+    results['podcast_dialogue_seeks_player'] = round(now['time'], 2)
+
+    # Another episode leaves the playing recording in place until the reader starts it.
+    follow(page, two)
+    now = player(page)
+    assert now['kept'] and not now['paused'] and now['src'] == first_src, now
+    button = page.locator('main button.lsg-episode-play')
+    expect(button).to_have_count(1)
+    button.click()
+    page.wait_for_function("(src) => document.querySelector('.lsg-episode-player audio').getAttribute('src') !== src", arg=first_src)
+    wait_player(page)
+    now = player(page)
+    assert now['kept'] and now['time'] < 3 and now['title'] == 'The second episode', now
+    assert page.locator('main button.lsg-episode-play').count() == 0
+    page.locator('main a[data-lsg-dialogue-time="5"]').click()
+    page.wait_for_function("document.querySelector('.lsg-episode-player audio').currentTime >= 4.5")
+    if screenshots:
+        page.screenshot(path=str(screenshots / 'podcast-3-second-episode-playing.png'))
+    results['podcast_second_episode_takes_over_when_started'] = True
+    assert not errors, errors
+    context.close()
+
+    # When the module fails, the page keeps its own recording and dialogue lines seek it.
+    context = browser.new_context()
+    page = context.new_page()
+    page.route('**/' + module, lambda request: request.abort())
+    page.goto(prefix + one, wait_until='load')
+    page.wait_for_function("performance.getEntriesByType('resource').some((r) => r.name.includes('lsg-host-'))")
+    page.wait_for_timeout(500)
+    assert page.locator('.lsg-episode-player').count() == 0
+    assert page.locator('main audio').count() == 1
+    page.locator('main a[data-lsg-dialogue-time="12"]').click()
+    page.wait_for_function("document.querySelector('main audio').currentTime >= 11.5 && !document.querySelector('main audio').paused")
+    context.close()
+    results['podcast_module_failure_keeps_inline_recording'] = True
+
 
 def route(title):
     digest = 0xcbf29ce484222325
@@ -148,6 +301,7 @@ def main():
         temp = Path(temp)
         site = build(args.binary, temp, ['recorder', 'badge', 'probe', 'broken', 'mismatch'])
         plain = build(args.binary, temp, [])
+        episodes = build_episodes(args.binary, temp)
         server, base = serve(temp)
         one, two, three, plain_page = (route(f'Episode/{n}') for n in ('One', 'Two', 'Three', 'Plain'))
         prefix = f'{base}/{site.name}/'
@@ -335,6 +489,7 @@ def main():
                 results['fetch_failure_full_load'] = True
                 assert not errors, errors
                 context.close()
+                check_podcast_episode(browser, episodes, f'{base}/{episodes.name}/', args.screenshots, results)
                 browser.close()
         finally:
             server.shutdown()
