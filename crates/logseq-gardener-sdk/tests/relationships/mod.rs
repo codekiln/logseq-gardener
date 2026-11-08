@@ -150,7 +150,9 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
         index: &index,
         journals: &journals,
         hidden: &BTreeSet::new(),
-        is_journal_name: &|name| parse_journal_reference(name, &formats).is_some(),
+        journal_title: &|name| {
+            parse_journal_reference(name, &formats).map(|date| formats.title.format(date))
+        },
     });
     let namespace = |title: &str| graph_index.namespace_parent(title).map(reference_key);
 
@@ -222,7 +224,11 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
         .collect();
     fileless.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let documents = garden.documents.iter().map(document).collect();
+    let documents = garden
+        .documents
+        .iter()
+        .map(|source| document(source, &formats))
+        .collect();
     Derived {
         pages,
         aliases,
@@ -232,7 +238,7 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
 }
 
 /// A file's blocks as the reference index reads them, with every written name kept.
-fn document(document: &GardenDocument) -> Document {
+fn document(document: &GardenDocument, formats: &JournalFormats) -> Document {
     let ast = &document.parsed.blocks;
     let leading = match ast.first() {
         Some(Block::Properties { props, .. }) => props
@@ -244,7 +250,12 @@ fn document(document: &GardenDocument) -> Document {
     let contribution = Contribution::from_document(
         path(document),
         document,
-        &|name| Some(reference_key(name)),
+        // A name that spells a date is the journal with its real weekday, as in Logseq.
+        &|name| {
+            let title =
+                parse_journal_reference(name, formats).map(|date| formats.title.format(date));
+            Some(reference_key(title.as_deref().unwrap_or(name)))
+        },
         None,
     );
     let blocks = contribution

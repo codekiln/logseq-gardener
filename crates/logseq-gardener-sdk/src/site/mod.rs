@@ -618,14 +618,16 @@ pub fn publish_site_with_options(
         published.extend(hierarchy.entries().map(|node| lookup_key(&node.title)));
         let hidden = graph::hidden_names(&garden_titles, &published);
         let journal_routes: BTreeSet<String> = journal_dates.keys().cloned().collect();
-        let is_journal_name =
-            |name: &str| parse_journal_reference(name, &journal_formats).is_some();
+        let journal_title = |name: &str| {
+            parse_journal_reference(name, &journal_formats)
+                .map(|date| journal_formats.title.format(date))
+        };
         graph::Pending::start(
             &crate::graph::GraphSource {
                 index: reference_index.index(),
                 journals: &journal_routes,
                 hidden: &hidden,
-                is_journal_name: &is_journal_name,
+                journal_title: &journal_title,
             },
             !journal_routes.is_empty(),
             settings.forces,

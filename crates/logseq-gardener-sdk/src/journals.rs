@@ -270,11 +270,12 @@ impl DateFormat {
 
     /// Read a whole string in this format. Month and weekday names match without
     /// regard to case, and a weekday may be its full or short name whatever the
-    /// pattern's width, as in Logseq. Impossible dates and contradicting weekdays
-    /// give `None`.
+    /// pattern's width, as in Logseq. The weekday must be a weekday name but is not checked
+    /// against the date: Logseq reads `1967-09-03 Fri` as 1967-09-03, a Sunday. An
+    /// impossible date gives `None`.
     pub fn read(&self, text: &str) -> Option<JournalDate> {
         let mut rest = text;
-        let (mut year, mut month, mut day, mut weekday) = (None, None, None, None);
+        let (mut year, mut month, mut day) = (None, None, None);
         for token in &self.tokens {
             match token {
                 Token::Year => {
@@ -306,9 +307,8 @@ impl DateFormat {
                     rest = tail;
                 }
                 Token::Weekday { .. } => {
-                    let (index, tail) =
+                    let (_, tail) =
                         name(rest, &WEEKDAYS, true).or_else(|| name(rest, &WEEKDAYS, false))?;
-                    weekday = Some(index as u8);
                     rest = tail;
                 }
                 Token::Literal(literal) => rest = rest.strip_prefix(literal.as_str())?,
@@ -317,10 +317,7 @@ impl DateFormat {
         if !rest.is_empty() {
             return None;
         }
-        let date = JournalDate::new(year?, month?, day?)?;
-        weekday
-            .is_none_or(|weekday| weekday == date.weekday())
-            .then_some(date)
+        JournalDate::new(year?, month?, day?)
     }
 }
 
@@ -532,7 +529,8 @@ mod tests {
     fn reads_dates_strictly() {
         let encode = format("yyyy-MM-dd EEE");
         assert_eq!(encode.read("2026-10-23 fri"), Some(date(2026, 10, 23)));
-        assert_eq!(encode.read("2026-10-23 Mon"), None);
+        // A wrong weekday still reads as the date, as in Logseq.
+        assert_eq!(encode.read("2026-10-23 Mon"), Some(date(2026, 10, 23)));
         assert_eq!(encode.read("2026-10-23 Fri "), None);
         assert_eq!(format("yyyy_MM_dd").read("2025_02_30"), None);
         assert_eq!(
@@ -576,7 +574,12 @@ mod tests {
             format("EEEE, MM/dd/yyyy").read("FRI, 10/23/2026"),
             Some(friday)
         );
-        assert_eq!(format("E, MM/dd/yyyy").read("Mon, 10/23/2026"), None);
+        // The weekday is not checked against the date, as in Logseq.
+        assert_eq!(
+            format("E, MM/dd/yyyy").read("Mon, 10/23/2026"),
+            Some(friday)
+        );
+        assert_eq!(format("E, MM/dd/yyyy").read("Someday, 10/23/2026"), None);
         for days in 20_000..20_007 {
             let day = JournalDate::from_unix_days(days);
             for pattern in ["E, MM/dd/yyyy", "EEE, MM/dd/yyyy", "EEEE, MM/dd/yyyy"] {
@@ -676,7 +679,8 @@ mod tests {
             ("2026-10-23 fri", Some(date(2026, 10, 23))),
             ("2026-10-23", Some(date(2026, 10, 23))),
             ("2026_10_23", Some(date(2026, 10, 23))),
-            ("2026-10-23 Mon", None),
+            ("2026-10-23 Mon", Some(date(2026, 10, 23))),
+            ("2026-10-23 Someday", None),
             ("tmux", None),
         ] {
             assert_eq!(parse_journal_reference(name, &formats), expected, "{name}");

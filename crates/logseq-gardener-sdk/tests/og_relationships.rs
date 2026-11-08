@@ -197,3 +197,28 @@ fn a_boundary_slash_is_not_part_of_a_page_name() {
         ]
     );
 }
+
+#[test]
+fn a_date_name_takes_the_weekday_the_date_has() {
+    // `Notes` links to `1967-09-03 Fri` under the journal title format `yyyy-MM-dd EEE`.
+    // Logseq reads the date and spells it with its real weekday: 1967-09-03 was a Sunday, so
+    // the page without a file is `1967-09-03 Sun` and no page is named `1967-09-03 Fri`. The
+    // property name `date-created` is a page without a file too.
+    let root = fixtures().with_file_name("wrong-weekday-date-name");
+    let derived = derive(&root, FilenameFormat::TripleLowbar);
+    assert_eq!(
+        derived.fileless,
+        [
+            FilelessPage {
+                name: "1967-09-03 sun".into(),
+                title: "1967-09-03 Sun".into(),
+                namespace: None,
+            },
+            FilelessPage {
+                name: "date-created".into(),
+                title: "date-created".into(),
+                namespace: None,
+            },
+        ]
+    );
+}
