@@ -70,16 +70,26 @@ pub fn page_aliases(document: &GardenDocument, title: &str) -> Vec<String> {
         .collect()
 }
 
-/// Aliases as the author spelled them, in property order, one per lookup key.
+/// Aliases as the author spelled them, one per lookup key.
 ///
 /// Uses the same property rules as [`page_aliases`], omitting blanks and the page itself.
+/// An alias written twice in different case keeps its first position and, as in Logseq, its
+/// last spelling: `alias:: [[homebrew]], [[Homebrew]]` gives `Homebrew`.
 pub fn page_alias_spellings(document: &GardenDocument, title: &str) -> Vec<String> {
-    let mut seen = BTreeSet::from([lookup_key(title)]);
-    alias_names(document)
-        .into_iter()
-        .map(|name| name.trim().to_owned())
-        .filter(|name| !lookup_key(name).is_empty() && seen.insert(lookup_key(name)))
-        .collect()
+    let title = lookup_key(title);
+    let mut spellings: Vec<String> = Vec::new();
+    for name in alias_names(document) {
+        let name = name.trim().to_owned();
+        let key = lookup_key(&name);
+        if key.is_empty() || key == title {
+            continue;
+        }
+        match spellings.iter().position(|seen| lookup_key(seen) == key) {
+            Some(position) => spellings[position] = name,
+            None => spellings.push(name),
+        }
+    }
+    spellings
 }
 
 fn alias_names(document: &GardenDocument) -> Vec<String> {

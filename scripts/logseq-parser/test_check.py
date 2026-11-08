@@ -7,18 +7,29 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
-class AliasSpellingCaseFixture(unittest.TestCase):
+class AliasSpellingReferenceFixture(unittest.TestCase):
     def test_check_names_the_file_and_the_alias(self):
-        # fixtures/alias-spelling-case holds Brew.md, whose alias property writes homebrew and
-        # Homebrew. Logseq spells the alias with the last of them, Homebrew, while the SDK
-        # keeps the first. Issue #509 tracks the difference.
-        result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'alias-spelling-case'],
+        # fixtures/alias-spelling-reference holds Run.md, whose alias property writes Runtime,
+        # and Notes.md, whose block references [[runtime]]. Logseq spells the alias with the
+        # reference, runtime, while the SDK keeps the alias's own spelling. Issue #515 tracks
+        # the difference.
+        result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'alias-spelling-reference'],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         lines = result.stdout.splitlines()
         self.assertEqual(lines[1:], [
-            'pages/Brew.md: alias name "homebrew" title: Logseq reads "Homebrew", the SDK reads "homebrew"',
+            'pages/Run.md: alias name "runtime" title: Logseq reads "runtime", the SDK reads "Runtime"',
         ])
+
+
+class AliasSpellingCaseFixture(unittest.TestCase):
+    def test_check_passes_when_an_alias_is_written_twice(self):
+        # fixtures/alias-spelling-case holds Brew.md, whose alias property writes homebrew and
+        # Homebrew. Logseq and the SDK both spell the alias with the last of them, Homebrew
+        # (issue #509).
+        result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'alias-spelling-case'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class WrongWeekdayDateNameFixture(unittest.TestCase):
