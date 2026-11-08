@@ -493,6 +493,141 @@ fn a_turned_on_first_party_plugin_writes_its_files_and_episode_entries() {
     }
 }
 
+/// Episode One of `tests/fixtures/parity-garden`, the fixture episode.
+const FIXTURE_EPISODE: &str = include_str!(
+    "../../../tests/fixtures/parity-garden/pages/Tools___Plugins___Show___Episode One.md"
+);
+
+fn page_html(site: &Path, title: &str) -> String {
+    let manifest = site_manifest(site);
+    let url = manifest["pages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|page| page["title"] == title)
+        .unwrap()["url"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    fs::read_to_string(site.join(url)).unwrap()
+}
+
+/// A page with `count` timestamped chapter headings, each `title_words` words long: one H3
+/// in ten, the rest H4 under it.
+fn long_episode(count: usize, title_words: usize) -> String {
+    let mut page = String::from(
+        "logseq-entity:: [[Logseq/Entity/Podcast/Episode]]\n\n- # Long\n\t- ![r](https://example.com/long.mp3)\n\t- ## Chapters\n",
+    );
+    let words = vec!["word"; title_words].join(" ");
+    for number in 0..count {
+        let (minutes, seconds) = (number * 47 / 60, number * 47 % 60);
+        let stamp = if minutes >= 60 {
+            format!("{:02}:{:02}:{seconds:02}", minutes / 60, minutes % 60)
+        } else {
+            format!("{minutes:02}:{seconds:02}")
+        };
+        if number % 10 == 0 {
+            page.push_str(&format!("\t\t- ### {stamp} Part {number} {words}\n"));
+        } else {
+            page.push_str(&format!("\t\t\t- #### {stamp} Step {number} {words}\n"));
+        }
+    }
+    page
+}
+
+#[test]
+fn episode_chapters_come_from_timestamped_headings_and_their_blocks_are_anchored() {
+    let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");
+    fixture.write("pages/Show___Fixture Episode.md", FIXTURE_EPISODE);
+    fixture.write("assets/plugins-episode-one.mp3", "ID3");
+    fixture.write("pages/Show___Long Episode.md", &long_episode(120, 6));
+    let report = fixture.publish_report("site", Vec::new()).unwrap();
+    let site = fixture.0.join("site");
+    let entry = &page_metadata(&site, "Show/Fixture Episode")["plugins"]["podcast-episode"];
+    let chapters = entry["chapters"].as_array().unwrap();
+    let summary: Vec<(u64, &str, &Value)> = chapters
+        .iter()
+        .map(|c| {
+            (
+                c["seconds"].as_u64().unwrap(),
+                c["title"].as_str().unwrap(),
+                &c["parent"],
+            )
+        })
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            (0, "Opening", &Value::Null),
+            (90, "The middle", &Value::Null),
+            (3723, "An hour in", &Value::Null),
+        ]
+    );
+    // Each chapter's anchor is on its heading's block, so the module can find the heading.
+    let html = page_html(&site, "Show/Fixture Episode");
+    for (chapter, heading) in
+        chapters
+            .iter()
+            .zip(["00:00 Opening", "01:30 The middle", "1:02:03 An hour in"])
+    {
+        let anchor = chapter["anchor"].as_str().unwrap();
+        let tag = format!(
+            "<span id=\"{anchor}\"></span><a class=\"bullet\" href=\"#\"></a><h3>{heading}</h3>"
+        );
+        assert_eq!(html.matches(&tag).count(), 1, "{tag}");
+    }
+    // About as many timestamps as the largest GitP/A episode stay in one entry.
+    let long = &page_metadata(&site, "Show/Long Episode")["plugins"]["podcast-episode"];
+    let chapters = long["chapters"].as_array().unwrap();
+    assert_eq!(chapters.len(), 120);
+    assert_eq!(chapters[11]["parent"], 10);
+    assert_eq!(chapters[119]["seconds"], 119 * 47);
+    assert!(serde_json::to_string(long).unwrap().len() < 64_000);
+    assert!(
+        !report
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("chapters and only")),
+        "{:?}",
+        report.diagnostics
+    );
+    // Without the key the same pages carry neither the entry nor the anchors.
+    fixture.config("");
+    let plain = fixture.publish("plain", Vec::new()).unwrap();
+    assert!(!page_html(&plain, "Show/Fixture Episode").contains("source-block-"));
+}
+
+#[test]
+fn chapters_past_the_entry_limit_are_left_out_with_one_diagnostic() {
+    let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");
+    fixture.write("pages/Show___Long Episode.md", &long_episode(1200, 12));
+    let report = fixture.publish_report("site", Vec::new()).unwrap();
+    let site = fixture.0.join("site");
+    let entry = &page_metadata(&site, "Show/Long Episode")["plugins"]["podcast-episode"];
+    let kept = entry["chapters"].as_array().unwrap().len();
+    let size = serde_json::to_string(entry).unwrap().len();
+    assert!(kept > 100 && kept < 1200, "{kept}");
+    assert!(size <= 64_000 && size > 60_000, "{size}");
+    let diagnostics: Vec<&str> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.message.contains("chapters and only"))
+        .map(|d| d.message.as_str())
+        .collect();
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert!(
+        diagnostics[0].contains(&format!("has 1200 chapters and only the first {kept} fit")),
+        "{diagnostics:?}"
+    );
+    // Only the kept chapters' blocks gain anchors.
+    assert_eq!(
+        page_html(&site, "Show/Long Episode")
+            .matches("id=\"source-block-")
+            .count(),
+        kept
+    );
+}
+
 #[test]
 fn a_hidden_entity_property_still_chooses_episode_pages() {
     let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");

@@ -16,12 +16,13 @@
 //! assert_eq!(manifest.version, logseq_gardener_sdk::VERSION);
 //! assert!(manifest.module.is_some());
 //! ```
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::{Map, Value};
 
-use crate::contributions::{BuildPlugin, Contribution};
+use crate::contributions::{BuildPlugin, Contribution, METADATA_LIMIT};
 use crate::entity_types::has_entity_type;
 use crate::garden::GardenDocument;
 use crate::page_names::lookup_key;
@@ -32,7 +33,7 @@ use crate::publication::PluginView;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FirstParty {
     /// `podcast-episode`: a player that keeps an episode's recording playing across pages, and
-    /// dialogue lines that seek it.
+    /// chapter headings and dialogue lines that seek it.
     PodcastEpisode,
 }
 
@@ -81,7 +82,7 @@ impl FirstParty {
     pub fn summary(self) -> &'static str {
         match self {
             Self::PodcastEpisode => {
-                "keeps a podcast episode's recording playing across pages; dialogue timestamps seek it"
+                "keeps a podcast episode's recording playing across pages; chapter headings and dialogue timestamps seek it"
             }
         }
     }
@@ -163,6 +164,9 @@ pub struct FirstPartyStep {
     pub plugin: Arc<dyn BuildPlugin>,
     /// `(garden-relative source, message)` for each page the plugin could not serve.
     pub diagnostics: Vec<(PathBuf, String)>,
+    /// The `source-block-<offset>` anchors that the step's metadata names, by page route, which
+    /// those pages must carry so the browser module can find the blocks.
+    pub anchors: BTreeMap<String, BTreeSet<usize>>,
 }
 
 /// A build step whose metadata is decided while it is prepared: it returns one metadata
@@ -190,12 +194,13 @@ impl BuildPlugin for PreparedMetadata {
 }
 
 /// `podcast-episode`: each published page typed [`crate::podcast::EPISODE_TYPE`] gets
-/// `recording` (a URL relative to the site root, or an `https` URL) and `title`. A typed page
-/// without a recording gets no entry and one diagnostic.
+/// `recording` (a URL relative to the site root, or an `https` URL), `title` and, when it has
+/// any, `chapters`. A typed page without a recording gets no entry and one diagnostic.
 fn podcast_episode(inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
     let mut entries = Vec::new();
     let mut diagnostics = Vec::new();
-    for (title, _, document) in inputs.pages {
+    let mut anchors: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
+    for (title, route, document) in inputs.pages {
         let properties = crate::query::leading_properties(document);
         if !has_entity_type(&properties, crate::podcast::EPISODE_TYPE, inputs.resolve) {
             continue;
@@ -231,6 +236,25 @@ fn podcast_episode(inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
         let mut values = Map::new();
         values.insert("recording".to_owned(), Value::String(url));
         values.insert("title".to_owned(), Value::String(recording.title));
+        let chapters = crate::podcast::chapters(&document.parsed.blocks);
+        let (kept, dropped) = chapter_values(&chapters, &values);
+        if dropped > 0 {
+            diagnostics.push((
+                source.clone(),
+                format!(
+                    "podcast-episode: the page has {} chapters and only the first {} fit in its {METADATA_LIMIT}-byte entry, so the last {dropped} have no seek control",
+                    chapters.len(),
+                    chapters.len() - dropped
+                ),
+            ));
+        }
+        if !kept.is_empty() {
+            anchors
+                .entry(route.clone())
+                .or_default()
+                .extend(chapters[..kept.len()].iter().map(|chapter| chapter.start));
+            values.insert("chapters".to_owned(), Value::Array(kept));
+        }
         entries.push((lookup_key(title), values));
     }
     FirstPartyStep {
@@ -239,7 +263,34 @@ fn podcast_episode(inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
             entries,
         }),
         diagnostics,
+        anchors,
     }
+}
+
+/// The `chapters` values that fit beside `values` in one entry, and how many chapters did not
+/// fit. Chapters are kept from the first, so every kept chapter's parent is kept too.
+fn chapter_values(
+    chapters: &[crate::podcast::Chapter],
+    values: &Map<String, Value>,
+) -> (Vec<Value>, usize) {
+    // `,"chapters":[]` around the list, and one comma between chapters.
+    let mut size = serde_json::to_string(values).map_or(0, |text| text.len()) + 14;
+    let mut kept = Vec::with_capacity(chapters.len());
+    for chapter in chapters {
+        let value = serde_json::json!({
+            "anchor": format!("source-block-{}", chapter.start),
+            "seconds": chapter.seconds,
+            "title": chapter.title,
+            "parent": chapter.parent,
+        });
+        size += value.to_string().len() + usize::from(!kept.is_empty());
+        if size > METADATA_LIMIT {
+            break;
+        }
+        kept.push(value);
+    }
+    let dropped = chapters.len() - kept.len();
+    (kept, dropped)
 }
 
 fn is_https(destination: &str) -> bool {

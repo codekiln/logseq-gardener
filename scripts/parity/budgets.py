@@ -51,8 +51,12 @@ GROWN_BASE = 200
 # measures, the fixture episodes, and the page whose type parity:budgets hides in one copy.
 FIRST_PARTY_SOURCES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'plugins'
 FIRST_PARTY_OVERHEAD_PAGE = 'Tools/Queries'
+# The long episode, added to each first-party copy, has as many chapter headings as the largest
+# GitP/A episode has timestamps, so page_growth_gzip_kb measures the largest entry.
+LONG_EPISODE = 'Tools/Plugins/Show/Long Episode'
+LONG_EPISODE_CHAPTERS = 120
 FIRST_PARTY_EPISODES = {'podcast-episode': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two',
-                                            'Tools/Plugins/Show/Hidden Type']}
+                                            'Tools/Plugins/Show/Hidden Type', LONG_EPISODE]}
 FIRST_PARTY_HIDDEN_PAGE = 'Tools/Plugins/Show/Hidden Type'
 PAGE_METADATA = re.compile(r'<script type="application/json" data-lsg-page>(.*?)</script>', re.S)
 
@@ -785,6 +789,22 @@ def add_filler(garden, count):
             f'- Filler page {number} with text that no fixture page refers to.\n', encoding='utf-8')
 
 
+def add_long_episode(garden):
+    """Write LONG_EPISODE: 12 timestamped H3 chapters with 9 timestamped H4 chapters each."""
+    lines = ['logseq-entity:: [[Logseq/Entity/Podcast/Episode]]', '',
+             '- # A long session with many chapters', '\t- ![Episode recording](../assets/plugins-episode-one.mp3)',
+             '\t- ## Chapters']
+    for number in range(LONG_EPISODE_CHAPTERS):
+        minutes, seconds = divmod(number * 47, 60)
+        stamp = f'{minutes // 60:02d}:{minutes % 60:02d}:{seconds:02d}' if minutes >= 60 else f'{minutes:02d}:{seconds:02d}'
+        if number % 10 == 0:
+            lines.append(f'\t\t- ### {stamp} Part {number // 10 + 1}: [[Tools/Notes]] and a longer chapter title')
+        else:
+            lines.append(f'\t\t\t- #### {stamp} Step {number} of the session, described in a few words')
+            lines.append(f'\t\t\t\t- Notes about step {number}.')
+    (garden / 'pages' / 'Tools___Plugins___Show___Long Episode.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+
 def check(small, large, budgets):
     """Return failure messages for budget overruns and pages that grew with the garden."""
     limit_data = min(b['data_before_title_kb'] for b in profiles(budgets).values()) * 1000
@@ -895,6 +915,13 @@ def check_first_party(plain, site, plain_large, site_large, hidden, budgets):
         expected = sorted(FIRST_PARTY_EPISODES.get(plugin, []))
         if with_entry != expected:
             failures.append(f'{plugin}: entries on {with_entry}, expected {expected}')
+        if plugin == 'podcast-episode' and LONG_EPISODE in with_entry:
+            entry = page_entries(site, titles[LONG_EPISODE])[plugin]
+            size = len(json.dumps(entry, separators=(',', ':')).encode('utf-8'))
+            print(f'{plugin}: {LONG_EPISODE} has {len(entry.get("chapters", []))} chapters in a {size:,}-byte entry')
+            if len(entry.get('chapters', [])) != LONG_EPISODE_CHAPTERS or size >= 64_000:
+                failures.append(f'{plugin}: {LONG_EPISODE} has {len(entry.get("chapters", []))} chapters in '
+                                f'{size:,} bytes, expected {LONG_EPISODE_CHAPTERS} under 64,000')
         growth = [(added_bytes(plain, site, titles[title])[1], title) for title in with_entry]
         if growth:
             largest = max(growth)
@@ -1079,6 +1106,7 @@ def main():
                                          ('fp-hidden', True, False, ':block-hidden-properties #{:logseq-entity}')):
             copy = temp / f'{name}-garden'
             shutil.copytree(FIXTURE_GARDEN, copy)
+            add_long_episode(copy)
             if key:
                 with_plugins_key(copy, first_party, extra)
             if filler:

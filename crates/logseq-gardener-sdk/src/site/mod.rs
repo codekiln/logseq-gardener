@@ -577,6 +577,7 @@ pub fn publish_site_with_options(
         })
         .collect();
     // First-party build steps choose their pages from the authored properties and outlines.
+    let mut first_party_anchors: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
     for manifest in &plugin_manifests {
         let Some(crate::plugins::BuildStep::InProcess(plugin)) = manifest.build else {
             continue;
@@ -596,6 +597,9 @@ pub fn publish_site_with_options(
                 .into_iter()
                 .map(|(source, message)| SiteDiagnostic { source, message }),
         );
+        for (route, starts) in step.anchors {
+            first_party_anchors.entry(route).or_default().extend(starts);
+        }
         build_plugins.push(BuildEntry {
             plugin: step.plugin,
             has_module: manifest.module.is_some(),
@@ -758,10 +762,17 @@ pub fn publish_site_with_options(
     let mut feed_bodies = BTreeMap::new();
     let mut site_pages = Vec::new();
     stopwatch.lap("index");
-    let contributions = match pending_plugins {
+    let mut contributions = match pending_plugins {
         None => crate::contributions::Resolved::default(),
         Some((view, threads)) => collect_contributions(&build_plugins, &view, threads)?,
     };
+    for (route, starts) in first_party_anchors {
+        contributions
+            .anchors
+            .entry(route)
+            .or_default()
+            .extend(starts);
+    }
     stopwatch.lap("plugins");
     selected.sort_by(|left, right| left.0.cmp(&right.0));
     code::prepare(selected.iter().map(|(_, _, document)| *document));
