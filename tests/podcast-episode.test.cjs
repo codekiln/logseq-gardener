@@ -44,7 +44,10 @@ test('episodeOf reads the entry, and a page without one is not an episode', asyn
     source: 'https://garden.example.org/site/assets/a-1.mp3',
     title: 'The Unstable over USB',
     url: 'https://garden.example.org/site/GitP/A/Session/26/10/24-Sat/',
+    chapters: [],
   });
+  const chapters = [{ anchor: 'source-block-9', seconds: 22, title: 'The Unstable', parent: null }];
+  assert.deepEqual(episodeOf({ page, metadata: { recording: 'assets/a-1.mp3', chapters } }, base).chapters, chapters);
   assert.equal(episodeOf({ page, metadata: { recording: 'assets/a-1.mp3' } }, base).title, page.title);
   assert.equal(episodeOf({ page, metadata: {} }, base), null);
   assert.equal(episodeOf({ page, metadata: { recording: 42 } }, base), null);
@@ -63,6 +66,76 @@ test('inlineAudio finds the page recording outside references and embeds', async
   assert.equal(inlineAudio(main, 'https://garden.example.org/site/assets/a-1.mp3', base), own);
   assert.equal(inlineAudio(main, 'https://garden.example.org/site/assets/a-3.mp3', base), null);
   assert.equal(inlineAudio(null, 'https://garden.example.org/site/assets/a-1.mp3', base), null);
+});
+
+test('chaptersOf keeps well-formed chapters and parents that come earlier', async () => {
+  const { chaptersOf } = await loaded;
+  assert.deepEqual(chaptersOf(undefined), []);
+  assert.deepEqual(chaptersOf({}), []);
+  assert.deepEqual(chaptersOf([
+    { anchor: 'source-block-1', seconds: 0, title: 'Enter', parent: null },
+    { anchor: 'source-block-2', seconds: 0, title: 'Launchpad', parent: 0 },
+    { anchor: 'source-block-3', seconds: -1, title: 'negative' },
+    { anchor: 4, seconds: 5, title: 'anchor not a string' },
+    { anchor: 'source-block-5', seconds: 1.5, title: 'fraction' },
+    { anchor: 'source-block-6', seconds: 312, parent: 7 },
+    { anchor: 'source-block-7', seconds: 1097, title: 'Self', parent: 3 },
+  ]), [
+    { anchor: 'source-block-1', seconds: 0, title: 'Enter', parent: null },
+    { anchor: 'source-block-2', seconds: 0, title: 'Launchpad', parent: 0 },
+    { anchor: 'source-block-6', seconds: 312, title: '', parent: null },
+    { anchor: 'source-block-7', seconds: 1097, title: 'Self', parent: null },
+  ]);
+});
+
+test('formatTime writes minutes and seconds, with hours only when needed', async () => {
+  const { formatTime } = await loaded;
+  assert.equal(formatTime(0), '0:00');
+  assert.equal(formatTime(315), '5:15');
+  assert.equal(formatTime(1097), '18:17');
+  assert.equal(formatTime(3723), '1:02:03');
+  assert.equal(formatTime(12.9), '0:12');
+});
+
+const sun = [
+  { anchor: 'a', seconds: 0, title: 'Enter Infini Pad', parent: null },
+  { anchor: 'b', seconds: 0, title: 'Launchpad playing', parent: 0 },
+  { anchor: 'c', seconds: 312, title: 'Infini Pad as bass', parent: 0 },
+  { anchor: 'd', seconds: 821, title: 'pointillist emergence', parent: 2 },
+  { anchor: 'e', seconds: 1097, title: 'Enter 8bitfi', parent: null },
+  { anchor: 'f', seconds: 1097, title: 'Same time, later in the page', parent: 4 },
+  { anchor: 'g', seconds: 600, title: 'Out of order', parent: null },
+];
+
+test('currentChapter takes the latest start, and the later chapter on a tie', async () => {
+  const { currentChapter } = await loaded;
+  assert.equal(currentChapter([], 10), -1);
+  assert.equal(currentChapter([{ seconds: 5 }], 4), -1);
+  assert.equal(currentChapter(sun, 0), 1);
+  assert.equal(currentChapter(sun, 311.9), 1);
+  assert.equal(currentChapter(sun, 312), 2);
+  assert.equal(currentChapter(sun, 700), 6);
+  assert.equal(currentChapter(sun, 900), 3);
+  assert.equal(currentChapter(sun, 5000), 5);
+});
+
+test('chapterTrail lists the enclosing chapters outermost first', async () => {
+  const { chapterTrail } = await loaded;
+  assert.deepEqual(chapterTrail(sun, 3).map((c) => c.anchor), ['a', 'c', 'd']);
+  assert.deepEqual(chapterTrail(sun, 4).map((c) => c.anchor), ['e']);
+  assert.deepEqual(chapterTrail(sun, -1), []);
+  assert.deepEqual(chapterTrail([], 0), []);
+});
+
+test('timestampLength finds the written timestamp only when it is the chapter start', async () => {
+  const { timestampLength } = await loaded;
+  assert.equal(timestampLength('18:17 Enter', 1097), 5);
+  assert.equal(timestampLength('5:15', 315), 4);
+  assert.equal(timestampLength('01:00:23 Recording', 3623), 8);
+  assert.equal(timestampLength('13:41 - pointillist', 821), 5);
+  assert.equal(timestampLength('18:17 Enter', 1096), 0);
+  assert.equal(timestampLength('Enter at 18:17', 1097), 0);
+  assert.equal(timestampLength('', 0), 0);
 });
 
 test('the default export is a host API 1 plugin with the manifest id', async () => {

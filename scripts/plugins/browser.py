@@ -12,8 +12,8 @@ failure, a new build during a visit, fetch failure, collapse and the remembered 
 after navigation, and that listener counts stay flat over 20 navigations. It then builds a garden
 that turns on the first-party podcast-episode plugin in its config.edn and checks that a page
 without an episode requests no plugin code, that the recording keeps playing across navigation and
-Back, that another episode takes over only when started, that dialogue timestamps seek the player,
-and that a page whose module fails keeps its own recording. Prints one JSON line of results;
+Back, that another episode takes over only when started, that chapter headings and dialogue
+timestamps seek the player, and that a page whose module fails keeps its own recording. Prints one JSON line of results;
 --screenshots DIR also saves the recording playing on each page.
 """
 import argparse
@@ -63,7 +63,8 @@ GENERATED = {
 EPISODE_PAGES = {
     'Show___One.md': ('logseq-entity:: [[Logseq/Entity/Podcast/Episode/Fixture]], [[Logseq/Entity/Podcast/Episode]]\n\n'
                       '- # The first episode\n\t- ![Episode recording](../assets/one.wav)\n'
-                      '\t- See [[Show/Plain]] and [[Show/Two]].\n\t- Transcript\n'
+                      '\t- See [[Show/Plain]] and [[Show/Two]].\n\t- ## Chapters\n'
+                      '\t\t- ### 00:00 Opening\n\t\t\t- #### 00:20 Twenty seconds in\n\t- Transcript\n'
                       '\t\t- **Host** · 00:00:12 — Twelve seconds in.\n'),
     'Show___Two.md': ('logseq-entity:: [[Logseq/Entity/Podcast/Episode]]\n\n'
                       '- # The second episode\n\t- ![Episode recording](../assets/two.wav)\n'
@@ -173,6 +174,21 @@ def check_podcast_episode(browser, site, prefix, screenshots, results):
     assert now['kept'] and not now['paused'] and now['src'] == first_src, now
     results['podcast_dialogue_seeks_player'] = round(now['time'], 2)
 
+    # A chapter heading's timestamp seeks the player, which shows the chapter and its parent.
+    trail = "() => [...document.querySelectorAll('.lsg-episode-player-chapter a')].map((a) => a.textContent).join(' > ')"
+    page.wait_for_function(f"({trail})() === 'Opening'")
+    seek = page.locator('main h4 a.lsg-episode-seek')
+    expect(seek).to_have_text('00:20')
+    assert page.locator('main h4').text_content() == '00:20 Twenty seconds in'
+    seek.click()
+    page.wait_for_function("document.querySelector('.lsg-episode-player audio').currentTime >= 19.5")
+    page.wait_for_function(f"({trail})() === 'Opening > Twenty seconds in'")
+    now = player(page)
+    assert now['kept'] and not now['paused'] and now['src'] == first_src, now
+    if screenshots:
+        page.screenshot(path=str(screenshots / 'podcast-chapter-heading-seek.png'))
+    results['podcast_chapter_heading_seeks_player'] = {'time_s': round(now['time'], 2), 'trail': page.evaluate(trail)}
+
     # Another episode leaves the playing recording in place until the reader starts it.
     follow(page, two)
     now = player(page)
@@ -202,6 +218,8 @@ def check_podcast_episode(browser, site, prefix, screenshots, results):
     page.wait_for_timeout(500)
     assert page.locator('.lsg-episode-player').count() == 0
     assert page.locator('main audio').count() == 1
+    assert page.locator('main .lsg-episode-seek').count() == 0
+    assert page.locator('main h4').text_content() == '00:20 Twenty seconds in'
     page.locator('main a[data-lsg-dialogue-time="12"]').click()
     page.wait_for_function("document.querySelector('main audio').currentTime >= 11.5 && !document.querySelector('main audio').paused")
     context.close()
