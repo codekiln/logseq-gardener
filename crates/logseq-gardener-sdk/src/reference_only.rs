@@ -24,7 +24,12 @@
 //!     parsed: lsdoc::parse_to_projection("- Deploy with [[Deno Deploy]]\n- TODO try [[Deno]]\n"),
 //!     title_spellings: Default::default(),
 //! };
-//! let pages = find(&[&deno], &|name| name.eq_ignore_ascii_case("deno"), &JournalFormats::default());
+//! let pages = find(
+//!     &[&deno],
+//!     &|name| name.eq_ignore_ascii_case("deno"),
+//!     &JournalFormats::default(),
+//!     &[],
+//! );
 //! // `Deno` has a file and the task marker `TODO` makes no page.
 //! assert_eq!(pages.len(), 1);
 //! assert_eq!(pages[0].title, "Deno Deploy");
@@ -67,7 +72,9 @@ pub struct ReferenceOnlyPage {
 /// property values, with their namespace parents, for which `answered` is false, sorted by
 /// key. `answered` says whether a page with a file, an alias, a journal or a generated
 /// namespace page answers to a name, published or not. Task markers and priorities add no
-/// name, and neither do block UUIDs and asset paths, which Logseq makes no page for.
+/// name, and neither do block UUIDs and asset paths, which Logseq makes no page for. A name a
+/// file writes only in the values of `hidden` properties (`:block-hidden-properties`, lower-cased)
+/// adds no name either, so no page shows what readers cannot see.
 ///
 /// A name takes the spelling that the first file Logseq reads writes it in, and within that
 /// file the spelling Logseq's parser keeps (see [`crate::title_spellings`]); one of the pages
@@ -77,13 +84,18 @@ pub fn find(
     published: &[&GardenDocument],
     answered: &dyn Fn(&str) -> bool,
     formats: &JournalFormats,
+    hidden: &[String],
 ) -> Vec<ReferenceOnlyName> {
     // Per key: the first file that writes it, its first spelling there, the date it spells,
     // and whether that file writes it in another spelling too.
     let mut found: HashMap<String, (usize, String, Option<JournalDate>, bool)> = HashMap::new();
     let mut checked: HashMap<String, bool> = HashMap::new();
     for index in parse_order_of(published.iter().copied()) {
+        let only_hidden = names_only_in_hidden_values(published[index], hidden);
         for_each_written_name(published[index], false, &mut |name| {
+            if only_hidden.contains(&reference_key(name)) {
+                return;
+            }
             let missing = *checked
                 .entry(name.to_owned())
                 .or_insert_with(|| !answered(name) && !crate::graph::uuid_or_asset(name));
@@ -144,6 +156,43 @@ pub fn find(
     names
 }
 
+/// The [`reference_key`]s of the names a file writes in the values of `hidden` properties and
+/// nowhere else.
+fn names_only_in_hidden_values(document: &GardenDocument, hidden: &[String]) -> HashSet<String> {
+    if hidden.is_empty() {
+        return HashSet::new();
+    }
+    let mut in_hidden = HashSet::new();
+    let mut visible = String::with_capacity(document.source.len());
+    for line in document.source.split_inclusive('\n') {
+        let property = line
+            .trim_start()
+            .trim_start_matches("- ")
+            .split_once("::")
+            .filter(|(key, _)| hidden.contains(&key.trim().to_lowercase()));
+        match property {
+            Some((_, value)) => {
+                in_hidden.extend(lsdoc::refs(value, "markdown").page);
+                visible.push('\n');
+            }
+            None => visible.push_str(line),
+        }
+    }
+    if in_hidden.is_empty() {
+        return HashSet::new();
+    }
+    let shown: HashSet<String> = lsdoc::refs(&visible, "markdown")
+        .page
+        .iter()
+        .map(|name| reference_key(name))
+        .collect();
+    in_hidden
+        .iter()
+        .map(|name| reference_key(name))
+        .filter(|key| !shown.contains(key))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,6 +219,7 @@ mod tests {
             &published,
             &|name| known.contains(&reference_key(name)),
             &JournalFormats::default(),
+            &[],
         )
         .into_iter()
         .map(|name| name.title)
@@ -261,6 +311,7 @@ mod tests {
             &published,
             &|name| lookup_key(name) == "mac",
             &JournalFormats::default(),
+            &[],
         );
         let titles: Vec<&str> = names.iter().map(|name| name.title.as_str()).collect();
         assert_eq!(
@@ -275,6 +326,23 @@ mod tests {
         let journal = names.iter().find(|name| name.journal.is_some()).unwrap();
         assert_eq!(journal.title, "Nov 18th, 2024");
         assert_eq!(journal.source, PathBuf::from("pages/Mac.md"));
+    }
+
+    #[test]
+    fn names_only_hidden_properties_write_make_no_page() {
+        let documents = [document(
+            "pages/a.md",
+            "entity:: [[Hidden Type]], [[Shown Type]]\n\n- [[Shown Type]]\n",
+        )];
+        let published: Vec<&GardenDocument> = documents.iter().collect();
+        let names = find(
+            &published,
+            &|name| lookup_key(name) == "a",
+            &JournalFormats::default(),
+            &["entity".to_owned()],
+        );
+        let titles: Vec<&str> = names.iter().map(|name| name.title.as_str()).collect();
+        assert_eq!(titles, ["Shown Type"]);
     }
 
     #[test]

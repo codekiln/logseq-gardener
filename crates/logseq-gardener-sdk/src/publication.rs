@@ -317,13 +317,18 @@ pub fn select_with_urls<'a>(
                 .is_some_and(|date| garden_dates.contains(&date))
     };
     let mut candidates: Vec<(crate::reference_only::ReferenceOnlyName, String)> =
-        crate::reference_only::find(&published, &answered, &journal_formats)
-            .into_iter()
-            .map(|name| {
-                let (route, _) = route_for(&name.title, urls);
-                (name, route)
-            })
-            .collect();
+        crate::reference_only::find(
+            &published,
+            &answered,
+            &journal_formats,
+            &settings.hidden_properties,
+        )
+        .into_iter()
+        .map(|name| {
+            let (route, _) = route_for(&name.title, urls);
+            (name, route)
+        })
+        .collect();
     let folders = if urls == PageUrls::Readable {
         folder_spellings(
             routes

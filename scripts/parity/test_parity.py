@@ -1,5 +1,6 @@
 """Unit tests for the parity harness; they need no garden, network or browser."""
 import gzip
+import json
 import os
 import subprocess
 import sys
@@ -371,8 +372,13 @@ class MetricsTest(unittest.TestCase):
         # Publication speed (publication-speed); the design's tolerances.
         self.assertEqual(loaded.pop('publication'), {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100})
         # Site size (published-site-size); the design's budgets.
-        self.assertEqual(loaded.pop('site'), {'site_mb': 550, 'page_html_mb': 200, 'refs_mb': 100,
+        self.assertEqual(loaded.pop('site'), {'site_mb': 600, 'page_html_mb': 260, 'refs_mb': 115,
                                               'inline_script_kb': 1.5, 'build_slowdown_pct': 10})
+        # Reference-only pages (published-reference-only-pages); the design's budgets.
+        self.assertEqual(loaded.pop('reference_only'), {
+            'page_kb': 11, 'page_gzip_kb': 4, 'unlinked_files_per_page': 1, 'unlinked_total_mb': 15,
+            'linked_total_mb': 10, 'search_engine_baseline_kb': 15.533, 'search_engine_growth_kb': 0.5,
+            'build_slowdown_pct': 10})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
                                        'slides', 'queries', 'flashcards', 'loading', 'advanced_queries'})
@@ -929,22 +935,45 @@ class BudgetCheckTest(unittest.TestCase):
             self.assertEqual(budgets.check_shell(small, small, ['p-1.html'], {'script_kb': 6, 'frame_kb': 6}), [])
 
     def search_site(self, temp, shard_text):
-        """A format version 3 search publication with one title, one shard and one chunk."""
+        """A format version 4 search publication with one title, one shard and one chunk."""
         site = Path(temp)
-        files = {'titles': '{"format_version": 3, "pages": [["tmux", "p-1.html", []]]}',
+        files = {'titles': '{"format_version": 4, "pages": [["tmux", [], "p-1.html"]]}',
                  'shard': shard_text,
-                 'chunk': '{"format_version": 3, "blocks": [["p-1.html", "source-block-1", "tmux", []]]}'}
+                 'chunk': '{"format_version": 4, "blocks": [["p-1.html", "source-block-1", "tmux", []]]}'}
         for kind, text in files.items():
             (site / f'lsg-search-{kind}-{kind}0000.json').write_text(text, encoding='utf-8')
         (site / 'lsg-search-manifest.json').write_text(
-            '{"format_version": 3, "revision": "r", "titles": "titles0000", "blocks": 1, "counts": [1], "chunk_starts": [0], '
+            '{"format_version": 4, "urls": "digest", "revision": "r", "titles": "titles0000", "blocks": 1, "counts": [1], "chunk_starts": [0], '
             '"chunks": ["chunk0000"], "shards": {"tm": "shard0000"}}', encoding='utf-8')
         return site
+
+    def test_reference_only_budgets_name_the_oversized_page(self):
+        limits = metrics.load_budgets()['reference_only']
+        with tempfile.TemporaryDirectory() as temp:
+            site, grown, search = (Path(temp) / name for name in ('small', 'grown', 'search'))
+            for folder in (site, grown, search):
+                (folder / '_refs').mkdir(parents=True)
+            pages = [{'title': 'Deno Deploy', 'url': 'p-1.html', 'kind': 'reference'}]
+            filler = [{'title': f'Reference Filler Name {n:04d}', 'url': f'p-f{n}.html', 'kind': 'reference'}
+                      for n in range(budgets.REFERENCE_FILLER_NAMES)]
+            (site / 'lsg-site.json').write_text(json.dumps({'pages': pages}), encoding='utf-8')
+            (grown / 'lsg-site.json').write_text(json.dumps({'pages': pages + filler}), encoding='utf-8')
+            big = os.urandom(6000).hex()
+            (site / 'p-1.html').write_text(big, encoding='utf-8')
+            (grown / 'p-1.html').write_text(big, encoding='utf-8')
+            for n in (1, 2):
+                (site / '_refs' / f'p-1-unlinked-{n}.html.gz').write_bytes(b'')
+            (search / 'lsg-search-engine-0.mjs').write_text('x' * 15_500, encoding='utf-8')
+            failures = budgets.check_reference_only(site, grown, search, limits)
+            self.assertTrue(any(f.startswith('Deno Deploy (p-1.html): ') and 'gzip exceeds 4,000' in f
+                                for f in failures), failures)
+            self.assertTrue(any('2 Unlinked References files exceed 1' in f for f in failures), failures)
+            self.assertFalse(any('changed when' in f or 'grew' in f for f in failures), failures)
 
     def test_search_index_within_budget(self):
         limits = metrics.load_budgets()['search']
         with tempfile.TemporaryDirectory() as temp:
-            site = self.search_site(temp, '{"format_version": 3, "words": [["tmux", [0, 0]]]}')
+            site = self.search_site(temp, '{"format_version": 4, "words": [["tmux", [0, 0]]]}')
             self.assertEqual(budgets.check_search_index(budgets.search_index_sizes(site), limits), [])
 
     def test_oversized_shard_fails_naming_the_shard(self):
@@ -952,7 +981,7 @@ class BudgetCheckTest(unittest.TestCase):
         # Random words compress poorly, so the shard is well over the gzip budget.
         words = ', '.join(f'["tm{os.urandom(12).hex()}", [0, 0]]' for _ in range(8000))
         with tempfile.TemporaryDirectory() as temp:
-            site = self.search_site(temp, '{"format_version": 3, "words": [' + words + ']}')
+            site = self.search_site(temp, '{"format_version": 4, "words": [' + words + ']}')
             failures = budgets.check_search_index(budgets.search_index_sizes(site), limits)
         self.assertEqual(len(failures), 1)
         self.assertIn("lsg-search-shard-shard0000.json (words starting 'tm'): largest shard", failures[0])
