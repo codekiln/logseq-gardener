@@ -23,7 +23,15 @@ body.lsg-has-episode-player { padding-bottom: 7rem; }
   overflow-wrap: anywhere;
 }
 .lsg-episode-player-title { font-weight: 600; color: var(--lsg-link); }
-.lsg-episode-player-chapter { flex: 1; }
+/* A chapter bullet's title can be a long note; the trail keeps to two lines. */
+.lsg-episode-player-chapter {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
 .lsg-episode-player-chapter > span { margin: 0 .35rem; color: var(--lsg-muted); }
 .lsg-episode-seek { font-variant-numeric: tabular-nums; }
 .lsg-episode-player-status { font-size: .8rem; color: var(--lsg-muted); }

@@ -30,8 +30,8 @@
 
 ## 4. podcast-episode: timestamp-led bullets (#489)
 
-- [ ] 4.1 Read bullets at any depth under `## Chapters` that start with a timestamp as chapters whose parent is the nearest chapter among their ancestors; unit-test a nested bullet, a mid-text timestamp, a timestamp in code and a bullet outside `## Chapters`
-- [ ] 4.2 Turn each bullet's timestamp into a seek control and show the chapter trail; add a browser scenario that seeks from a bullet and checks the trail, and run `mise run plugins:browser-test`
+- [x] 4.1 Read bullets at any depth under `## Chapters` that start with a timestamp as chapters whose parent is the nearest chapter among their ancestors; unit-test a nested bullet, a mid-text timestamp, a timestamp in code and a bullet outside `## Chapters`
+- [x] 4.2 Turn each bullet's timestamp into a seek control and show the chapter trail; add a browser scenario that seeks from a bullet and checks the trail, and run `mise run plugins:browser-test`
 
 ## 5. sequence-header (#490)
 

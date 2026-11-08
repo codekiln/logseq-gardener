@@ -34,7 +34,7 @@ use crate::publication::PluginView;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FirstParty {
     /// `podcast-episode`: a player that keeps an episode's recording playing across pages, and
-    /// chapter headings and dialogue lines that seek it.
+    /// chapter headings, timestamp-led chapter bullets and dialogue lines that seek it.
     PodcastEpisode,
     /// `sequence-header`: the previous and next pages that `prev::` and `next::` name, as links
     /// in the header.
@@ -94,7 +94,7 @@ impl FirstParty {
     pub fn summary(self) -> &'static str {
         match self {
             Self::PodcastEpisode => {
-                "keeps a podcast episode's recording playing across pages; chapter headings and dialogue timestamps seek it"
+                "keeps a podcast episode's recording playing across pages; chapter timestamps and dialogue timestamps seek it"
             }
             Self::SequenceHeader => {
                 "shows the previous and next pages that prev:: and next:: name as links in the header"
@@ -341,7 +341,7 @@ fn chapter_values(
         let value = serde_json::json!({
             "anchor": format!("source-block-{}", chapter.start),
             "seconds": chapter.seconds,
-            "title": chapter.title,
+            "title": entry_title(&chapter.title),
             "parent": chapter.parent,
         });
         size += value.to_string().len() + usize::from(!kept.is_empty());
@@ -352,6 +352,24 @@ fn chapter_values(
     }
     let dropped = chapters.len() - kept.len();
     (kept, dropped)
+}
+
+/// The most characters of a chapter title that an entry holds. A chapter bullet can be a long
+/// note or a spoken line; the player's trail shows a short title, and the page keeps the text.
+const TITLE_CHARS: usize = 48;
+
+/// `title` within [`TITLE_CHARS`] characters: cut at the last space that fits, with an ellipsis.
+fn entry_title(title: &str) -> std::borrow::Cow<'_, str> {
+    if title.chars().count() <= TITLE_CHARS {
+        return title.into();
+    }
+    let end = title
+        .char_indices()
+        .nth(TITLE_CHARS - 1)
+        .map_or(title.len(), |(index, _)| index);
+    let cut = &title[..end];
+    let cut = cut.rsplit_once(' ').map_or(cut, |(words, _)| words);
+    format!("{}…", cut.trim_end()).into()
 }
 
 fn is_https(destination: &str) -> bool {
@@ -367,6 +385,20 @@ fn is_https(destination: &str) -> bool {
 mod tests {
     use super::*;
     use crate::plugins::{Activation, BuildStep};
+
+    #[test]
+    fn long_chapter_titles_are_cut_at_a_space_with_an_ellipsis() {
+        assert_eq!(entry_title("the bass comes in"), "the bass comes in");
+        let exact = "é".repeat(TITLE_CHARS);
+        assert_eq!(entry_title(&exact), exact);
+        let spoken = "Alright, I'm on preset 174, Auster keys, and I've got the Novation MIDI out, going to the MIDI in";
+        let short = entry_title(spoken);
+        assert_eq!(short, "Alright, I'm on preset 174, Auster keys, and…");
+        assert!(short.chars().count() <= TITLE_CHARS);
+        // A title without a space is cut at the limit.
+        let word = "ä".repeat(200);
+        assert_eq!(entry_title(&word).chars().count(), TITLE_CHARS);
+    }
 
     #[test]
     fn every_embedded_manifest_passes_the_manifest_checks() {

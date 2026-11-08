@@ -1,6 +1,6 @@
 # Verification
 
-This file records the evidence for the tasks of #487 and #488. The tasks of #489 and #490, and the change-wide Verify step (6.1 to 6.3), add their own sections when they land.
+This file records the evidence for the tasks of #487 to #490. The change-wide Verify step (6.1 to 6.3) adds its own section when it lands.
 
 ## 1.10 Logseq ignores the key
 
@@ -59,6 +59,38 @@ The branch's `lsg` built the `GitP` namespace of logseq-encode-garden (`66b81e95
 The encode garden's `01-Sun` has five more timestamped headings than gitpa's copy of the page. Selecting `18:17` on `01-Sun` played the recording from 1,097 s and showed `Enter Microfreak/Preset/260 8bitfi`; selecting `14:51` on `29-Thu` played from 891 s and showed `pierced resonance`. No page raised an error.
 
 Built without the key, the encode garden's `GitP` namespace is byte-identical to `lsg` 0.0.38 (main at `b1773f9`). With the key, the files that differ from 0.0.38 with the key, apart from the build revision in each page's metadata, are the plugin's module and stylesheet, `lsg-site.json` and the ten episode pages with chapters. Their gzip size grows by 136 to 397 bytes over 0.0.38 and by 288 to 552 bytes over the build without the key.
+
+## 4.1 and 4.2 Timestamp-led bullets
+
+`cargo test -p logseq-gardener-sdk podcast` covers a bullet nested under a chapter heading and under a plain bullet, a bullet deeper than H6, a timestamp later in a bullet, one in inline code, in a code block or after emphasis, a task marker or a priority, and timestamp-led bullets outside `## Chapters`. `tests/site_plugins.rs` checks the fixture episode's six chapters, three of them bullets, and the anchor on each block.
+
+`mise run plugins:browser-test` passed with the new scenario: the `00:25` bullet under the `00:20` heading seeks the playing `<audio>` element to 25.2 s and the player shows `Opening › Twenty seconds in › the bass comes in`. A timestamp later in a bullet and one in code stay text, and when the module fails the bullet stays text.
+
+The branch's `lsg` built the `GitP` namespace of logseq-encode-garden (`66b81e9543`) and of gitpa's `gitp-garden` (`410f4d9`), each from a copy whose `logseq/config.edn` adds `:lsg/plugins [:podcast-episode]`, and the same copies with `lsg` from main (`14974d4`), on 2026-11-08. Chromium counted the seek links after the module loaded, on the desktop (1280×800) and phone (375×812) profiles alike, with the recordings loaded from Backblaze.
+
+| Page | Encode garden, main | Encode garden, branch | gitpa's copy, main | gitpa's copy, branch |
+| --- | --- | --- | --- | --- |
+| `GitP/A/Session/26/11/01-Sun` | 21 | 41 (20 bullets) | 16 | 36 (20 bullets) |
+| `GitP/A/Session/26/10/29-Thu` | 19 | 19 | 19 | 19 |
+| `GitP/A/Session/26/10/24-Sat` | 7 | 7 | 7 | 7 |
+| `GitP/A/Session/26/10/20-Tue` | 11 | 11 | 11 | 11 |
+| `GitP/A/Session/26/09/24-Thu`, `GitP/A`, `GitP/A/Session`, the `24-Sat` asset page | 0 | 0 | 0 | 0 |
+
+Selecting `05:15` in `05:15 - the bass comes in` on `01-Sun` played the recording from 315 s on both copies and both profiles. The encode garden's trail read `Enter Microfreak/Preset/259 Infini Pad › Infini Pad as bass › the bass comes in - Infini Pad works great as…`; gitpa's copy, which nests the page differently, read `Infini Pad as bass › the bass comes in - …`. No page raised an error.
+
+`29-Thu` has no bullet under `## Chapters` that starts with a timestamp in either garden: its hand-annotated chapter (`00:00 enter Voidom`) marks moments with headings, which seek since #488, so its count is unchanged. The `46:39 · …` bullet under `## Recording and Prep` stays text.
+
+Three episodes gained chapters. Their growth over main with the key on:
+
+| Page | Chapters | Entry | Page gzip growth |
+| --- | --- | --- | --- |
+| `GitP/A/Session/26/10/18-Sun` | 12 → 137 | 15,486 bytes | 3,648 bytes |
+| `GitP/A/Session/26/11/01-Sun` | 21 → 41 | 4,229 bytes | 449 bytes |
+| `GitP/A/Session/26/11/06-Fri` | 17 → 30 | 3,059 bytes | 279 bytes |
+
+`18-Sun` gains 125 chapters from its spoken-word lines, as the design's risk on spoken-word lines expects. Its chapter titles held whole transcript lines and grew the page by 11 KB gzip, so the entry cuts each title to 48 characters at a space; the page keeps the full text. Every other file of the encode garden's `GitP` namespace is the same as main's apart from the build revision.
+
+`mise run parity:budgets` passed: the module and stylesheet are 4,906 bytes gzip (budget 8,000), the 120-chapter Long Episode entry is 14,137 bytes, and its page grows by 1,856 bytes gzip (budget 4,000).
 
 ## 5.3 sequence-header in Chromium and in the budgets
 

@@ -3,8 +3,9 @@
 // `recording` (a URL relative to the site root), `title` and `chapters`. On the first episode
 // page the module moves that page's inline <audio> into a player outside <main>; on a later
 // episode with another recording, a button takes the player over only when the reader starts
-// it. Each chapter heading's timestamp and each dialogue timestamp (`lsg:media-seek`) seek the
-// player, which shows the current chapter. lsg/Ref/First-Party Plugins, in
+// it. The timestamp of each chapter (a heading, or a bullet under `## Chapters`) and each dialogue
+// timestamp (`lsg:media-seek`) seek the player, which shows the current chapter and the chapters
+// that enclose it. lsg/Ref/First-Party Plugins, in
 // docs/pages/lsg___Ref___First-Party Plugins.md, documents the plugin.
 
 /** `value` as an absolute URL without its fragment, or null. */
@@ -103,8 +104,17 @@ export function inlineAudio(main, source, base) {
   return null;
 }
 
-// A chapter heading sits directly in its block's item, or in the summary of a collapsed block.
-const HEADING = ['h3', 'h4', 'h5', 'h6'].flatMap((h) => [`:scope > ${h}`, `:scope > details > summary > ${h}`]).join(', ');
+// A block's bullet sits directly in its item, or in the summary of a collapsed block; the block's
+// text follows it, inside a heading element when the block is a heading.
+const BULLET = ':scope > .bullet, :scope > details > summary > .bullet';
+const HEADING = /^H[1-6]$/;
+
+/** The text node that starts the text of the block whose list item is `item`, or null. */
+export function leadingText(item) {
+  const after = item?.querySelector(BULLET)?.nextSibling;
+  const first = after?.nodeType === 1 && HEADING.test(after.tagName) ? after.firstChild : after;
+  return first?.nodeType === 3 ? first : null;
+}
 
 export default {
   id: 'podcast-episode',
@@ -212,13 +222,11 @@ export default {
       for (const [control, text] of controls) if (control.isConnected) control.replaceWith(text);
       controls = [];
     };
-    // Turn the timestamp that starts each chapter heading into a link that seeks the player.
+    // Turn the timestamp that starts each chapter's block into a link that seeks the player.
     function seekControls(episode) {
       for (const chapter of episode.chapters) {
-        const item = doc.getElementById(chapter.anchor)?.parentElement;
-        const heading = item?.querySelector(HEADING);
-        const first = heading?.firstChild;
-        if (first?.nodeType !== 3) continue;
+        const first = leadingText(doc.getElementById(chapter.anchor)?.parentElement);
+        if (!first) continue;
         const length = timestampLength(first.data, chapter.seconds);
         if (!length) continue;
         const text = length < first.data.length ? (first.splitText(length), first) : first;
