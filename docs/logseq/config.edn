@@ -11,4 +11,5 @@
              "lsg/Ref/Command Line"
              "lsg/Ref/Logseq Compatibility"]
  :hidden ["/parity/advanced-queries.md"
-          "/parity/gitp-a-shared-rendering.md"]}
+          "/parity/gitp-a-shared-rendering.md"
+          "/parity/reference-only-pages.md"]}
