@@ -261,7 +261,9 @@ fn document(document: &GardenDocument, formats: &JournalFormats) -> Document {
     let blocks = contribution
         .blocks
         .iter()
-        .map(|block| {
+        .enumerate()
+        .map(|(position, block)| {
+            let property_names = &contribution.graph_refs()[position].property_names;
             // Only a bullet has an anchor; the other unit is the content before the first bullet.
             let properties: Vec<(&str, &str)> = match block.anchor {
                 Some(_) => bullet_properties(ast, block.start).collect(),
@@ -277,6 +279,10 @@ fn document(document: &GardenDocument, formats: &JournalFormats) -> Document {
                         .refs
                         .iter()
                         .filter(|name| !matches!(BlockId::parse(name), Some(BlockId::Uuid(_))))
+                        // Logseq lists a property name as a page the block refers to, and
+                        // `check.py` compares those names as properties; the page reference
+                        // of the same name is the same page.
+                        .filter(|name| !property_names.contains(name.as_str()))
                         .cloned(),
                 ),
                 properties: properties
