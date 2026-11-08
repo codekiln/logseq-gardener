@@ -46,6 +46,7 @@ use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::page_names::{
     is_linkable_property, linkable_property_names, namespace_parent, reference_key,
+    remove_boundary_slashes,
 };
 use crate::property_names::rejected_property_line;
 
@@ -304,6 +305,11 @@ impl<K: Ord + Clone> Contribution<K> {
             }
             // Logseq drops a blank name, such as the one `[[ ]]` writes.
             names.retain(|name| !name.trim().is_empty());
+            // Logseq drops a slash at either end of a written name: `[[a/b/]]` is the page
+            // `a/b` with the namespace parent `a`.
+            for name in &mut names {
+                *name = remove_boundary_slashes(name).to_owned();
+            }
             // A written name keeps the spaces inside its brackets, as Logseq's parser keeps
             // them: `[[Release Notes ]]` refers to `Release Notes `, and `resolve` finds no
             // garden page for it. Logseq's parser also names each namespace parent, even when
