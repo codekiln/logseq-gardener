@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.41](https://github.com/codekiln/logseq-gardener/compare/v0.0.40...v0.0.41) - 2026-11-08
+
+### Added
+
+- seek the recording from timestamp-led bullets under Chapters (#549)
+
 ## [0.0.40](https://github.com/codekiln/logseq-gardener/compare/v0.0.39...v0.0.40) - 2026-11-08
 
 ### Added
