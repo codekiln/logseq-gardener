@@ -1,10 +1,11 @@
 tags:: [[Diataxis/How To]]
-see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg/Static Publishing]]
+see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg/Ref/First-Party Plugins]], [[lsg/Static Publishing]]
 
 - # How To Add a Site Plugin
 	- ## Overview
 		- A site plugin adds browser behaviour to a published site, such as a recording player that keeps playing while the reader moves between pages. A build plugin adds content to pages while `lsg` builds the site, such as a list of episodes under a heading of the homepage, or the chapter data an episode player reads; it replaces editing the generated HTML after the build. One plugin can do both.
 		- Each plugin is a folder with a JSON manifest, which you pass to `lsg publish` with `--plugin`.
+		- `lsg` also ships plugins, such as a podcast episode player, that a garden turns on in its `logseq/config.edn` without writing any code; see [[lsg/Ref/First-Party Plugins]].
 	- ## Prerequisites
 		- A garden you can publish, as [[lsg/How To/Publish Selected Namespaces]] shows.
 		- Trust in the plugin's code. A browser module runs in the reader's browser with the page's full access, and a build command runs on your machine with your file access. [[lsg/Static Publishing]] explains how far `lsg` limits what plugins receive.

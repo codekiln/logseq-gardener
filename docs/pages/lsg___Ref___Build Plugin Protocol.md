@@ -1,11 +1,12 @@
 tags:: [[Diataxis/Reference]]
-see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Plugin Host API]]
+see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Plugin Host API]], [[lsg/Ref/First-Party Plugins]]
 
 - # Build Plugin Protocol Reference
 	- ## Overview
 		- A build plugin adds content to pages while `lsg` builds the site, such as a list of episodes under a heading of the homepage, or the chapter data an episode player reads. It replaces editing the generated HTML after the build.
 		- A build plugin is a program that a plugin manifest's `build` section names. `lsg` runs it once per build, writes a JSON view of the published pages to its standard input, and reads a JSON list of contributions from its standard output. [[lsg/Ref/Plugin Host API]] describes the rest of the manifest.
 		- Without a `build` section and without in-process plugins, the build creates no view and runs no plugin code. [`tests/fixtures/plugins/episode-list`](https://github.com/codekiln/logseq-gardener/tree/main/tests/fixtures/plugins/episode-list) is a complete build plugin.
+		- A first-party plugin's build step ([[lsg/Ref/First-Party Plugins]]) is a build plugin that runs inside the `lsg` process. It shares the id namespace, receives the same view and returns contributions of the same kinds; because its manifest has a module, its `metadata` contributions reach that module.
 	- ## The build section
 		- | Field | Meaning |
 		  | --- | --- |

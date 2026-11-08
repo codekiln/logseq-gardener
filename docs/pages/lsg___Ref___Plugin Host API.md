@@ -1,11 +1,12 @@
 tags:: [[Diataxis/Reference]]
-see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Build Plugin Protocol]], [[lsg/Ref/Host Integration API]]
+see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Build Plugin Protocol]], [[lsg/Ref/First-Party Plugins]], [[lsg/Ref/Host Integration API]]
 
 - # Plugin Host API Reference
 	- ## Overview
 		- A site plugin adds browser behaviour to a published site, such as a recording player that keeps playing while the reader moves between pages. Each plugin has a JSON manifest, which `lsg publish --plugin PATH` reads, and a browser module, which the plugin host imports into published pages. The host API version is `1`.
 		- This page describes the manifest, the data each page carries for plugins, the `host` object a module receives, and the navigation the host performs. [[lsg/Ref/Build Plugin Protocol]] describes the `build` section, which adds content to pages at build time. [[lsg/How To/Add a Site Plugin]] shows a complete manifest and module.
 		- Rust callers set `SiteOptions::plugins` to the manifest paths.
+		- The plugins that ship inside `lsg` use this same API and share one id namespace with manifests; a garden turns them on with `:lsg/plugins` in `logseq/config.edn`, as [[lsg/Ref/First-Party Plugins]] describes.
 	- ## Manifest
 		- | Field | Meaning |
 		  | --- | --- |
@@ -30,7 +31,7 @@ see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Build Plugin Protocol]], 
 			- [`tests/fixtures/plugins/recorder`](https://github.com/codekiln/logseq-gardener/tree/main/tests/fixtures/plugins/recorder) is a complete example.
 		- Each plugin with a browser module is listed under `plugins` in [[lsg/Ref/Site Manifest]].
 	- ## What a page carries
-		- With at least one plugin that has a `module`, every page except the graph view gets two elements before the end of its head:
+		- With at least one plugin that has a `module`, from `--plugin` or from the garden's `:lsg/plugins` key, every page except the graph view gets two elements before the end of its head:
 			- A `<script type="application/json" data-lsg-page>` element with the page's `id`, `title` and `url`, the site `revision`, and `plugins`. For each plugin, `plugins` holds the values of its `pageProperties` that the page shows readers, as authored text, and the values its build command contributed for the page.
 			- A module script that imports `lsg-host-<digest>.mjs` after first paint.
 		- A property hidden by `:block-hidden-properties`, a page without page properties turned on (`:publishing/page-properties?`) and a withheld page give the plugin nothing. A page with none of a plugin's properties or contributions has no entry for it.
