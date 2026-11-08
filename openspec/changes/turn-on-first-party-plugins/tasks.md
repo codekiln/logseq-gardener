@@ -35,9 +35,9 @@
 
 ## 5. sequence-header (#490)
 
-- [ ] 5.1 Move page-sequence resolution from `site/sequence.rs` into the SDK's `page_sequence.rs` and draw the bottom region from it; run `cargo test -p logseq-gardener-sdk sequence` with the existing tests unchanged
-- [ ] 5.2 Add the `sequence-header` build step contributing `prev` and `next` with URL and title; test both neighbours, one neighbour, a withheld, ambiguous and self target, and a page without neighbours
-- [ ] 5.3 Write the module that draws the header links with `rel`, escaped titles, keyboard focus and wrapping, and updates them after each navigation; add browser scenarios for both links, one link, no links and Back, and run `mise run plugins:browser-test` and `mise run parity:budgets`
+- [x] 5.1 Move page-sequence resolution from `site/sequence.rs` into the SDK's `page_sequence.rs` and draw the bottom region from it; run `cargo test -p logseq-gardener-sdk sequence` with the existing tests unchanged
+- [x] 5.2 Add the `sequence-header` build step contributing `prev` and `next` with URL and title; test both neighbours, one neighbour, a withheld, ambiguous and self target, and a page without neighbours
+- [x] 5.3 Write the module that draws the header links with `rel`, escaped titles, keyboard focus and wrapping, and updates them after each navigation; add browser scenarios for both links, one link, no links and Back, and run `mise run plugins:browser-test` and `mise run parity:budgets`
 
 ## 6. Verification
 

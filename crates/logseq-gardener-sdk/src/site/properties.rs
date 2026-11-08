@@ -1,7 +1,7 @@
 //! Opt-in leading property display from selected source identities.
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{config::ReferenceConfig, render::escape, sequence};
+use super::{config::ReferenceConfig, render::escape};
 use crate::{
     ast::Block,
     garden::GardenDocument,
@@ -266,8 +266,9 @@ pub(super) fn view(
         {
             continue;
         }
-        if matches!(normalized.as_str(), "prev" | "next")
-            && sequence::resolve(document, &normalized, current_route, names, routes).is_none()
+        if let Some(direction) = crate::page_sequence::Direction::from_key(&normalized)
+            && crate::page_sequence::neighbour(document, direction, current_route, names, routes)
+                .is_none()
         {
             continue;
         }

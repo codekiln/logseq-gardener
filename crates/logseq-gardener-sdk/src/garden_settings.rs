@@ -565,7 +565,7 @@ mod tests {
         assert_eq!(
             unknown,
             format!(
-                "logseq/config.edn: :lsg/plugins names :podcast-epsiode, which {version} does not ship. It ships :podcast-episode."
+                "logseq/config.edn: :lsg/plugins names :podcast-epsiode, which {version} does not ship. It ships :podcast-episode and :sequence-header."
             )
         );
         let string = error(r#"{:lsg/plugins ["podcast-episode"]}"#);
