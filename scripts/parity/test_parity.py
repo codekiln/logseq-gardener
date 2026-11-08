@@ -236,6 +236,20 @@ class PublishBenchTest(unittest.TestCase):
             if '/' in title:
                 self.assertIn(title.rsplit('/', 1)[0], titles)
 
+    def test_the_sample_gardens_homepage_lists_fifteen_public_episodes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp) / 'garden'
+            sample_garden.generate(garden)
+            home = garden / 'pages' / sample_garden.file_name(sample_garden.HOMEPAGE)
+            self.assertIn('#+BEGIN_QUERY', home.read_text(encoding='utf-8'))
+            episodes = [p.read_text(encoding='utf-8') for p in (garden / 'pages').glob('*.md')
+                        if 'logseq-entity:: [[Logseq/Entity/Podcast/Episode]]' in p.read_text(encoding='utf-8')]
+            self.assertEqual(len(episodes), 15)
+            self.assertTrue(all('public:: true' in text for text in episodes))
+            dates = [line for text in episodes for line in text.splitlines() if line.startswith('podcast-published-at::')]
+            self.assertEqual(len(set(dates)), 15)
+        self.assertEqual(publish_bench.CORPUS_OPTIONS['gitpa-sized'], ['--homepage', sample_garden.HOMEPAGE])
+
 
 class SiteSizeTest(unittest.TestCase):
     def test_site_size_section_lists_both_builds_and_marks_parts_over_budget(self):
@@ -554,6 +568,36 @@ class PerformancePageTest(unittest.TestCase):
             self.assertIsNotNone(perf.section_span(lines, name))
         for line in lines[len(perf.PAGE_HEAD):]:
             self.assertRegex(line, r'^\t+(- |  \|)')
+
+
+class AdvancedQueriesPerfTest(unittest.TestCase):
+    BUILD = {'proxy_s': 16.0, 'all_pages_s': 16.1, 'repeat': 10, 'proxy_render_ms': 5000.0,
+             'all_pages_render_ms': 5100.0, 'repeat_render_ms': 6000.0, 'runaway_render_ms': 5500.0,
+             'baseline_s': 16.0, 'logseq_s': 150.0}
+
+    def report(self, **build):
+        page = {'page': perf.ADVANCED_PAGE, 'profile': 'phone', 'build': 'lsg', 'title_ms': 400, 'rows_ms': 200,
+                'rows': 6, 'data_before_title': 15_000, 'script_before_title': 13_000, 'peak_heap': 2e6, 'heap': 1e6}
+        search = {'profile': 'phone', 'build': 'lsg', 'keystrokes': 36, 'p50_ms': 28, 'p95_ms': 325,
+                  'cold_p95_ms': 416, 'warm_p95_ms': 47}
+        return {'loads': 3, 'pages': [page], 'search': [search], 'build': {**self.BUILD, **build}}
+
+    def test_a_querys_cost_is_the_render_growth_divided_by_the_repeats(self):
+        self.assertEqual(perf.advanced_costs(self.BUILD), (100.0, 50.0))
+
+    def test_values_within_budget_pass_and_a_slow_query_fails(self):
+        budgets = metrics.load_budgets()
+        self.assertEqual(perf.advanced_queries_failures(self.report(), budgets), [])
+        failures = perf.advanced_queries_failures(self.report(repeat_render_ms=11_000.0), budgets)
+        self.assertEqual(len(failures), 1)
+        self.assertIn('eval_ms', failures[0])
+        text = '\n'.join(perf.advanced_queries_markdown(self.report(repeat_render_ms=11_000.0), budgets))
+        self.assertIn('costs **600** ms', text)
+
+    def test_the_repeated_page_holds_one_description_and_ten_queries(self):
+        text = perf.repeated_queries(perf.ADVANCED_ALL_PAGE)
+        self.assertEqual(text.count('#+BEGIN_QUERY'), perf.ADVANCED_REPEAT)
+        self.assertEqual(text.count('Every page, sorted'), 1)
 
 
 class GraphTest(unittest.TestCase):

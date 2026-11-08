@@ -32,6 +32,10 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
 
     def send_head(self):
         path = Path(self.translate_path(self.path))
+        # A directory URL with a slash serves its index.html, compressed like any other page; Logseq's
+        # routes (`/#/page/…`) all load the site root this way.
+        if self.path.split('?', 1)[0].endswith('/') and (path / 'index.html').is_file():
+            path = path / 'index.html'
         content_type = self.guess_type(str(path))
         wants_gzip = 'gzip' in self.headers.get('Accept-Encoding', '')
         if not (path.is_file() and wants_gzip and content_type.startswith(COMPRESSED_TYPES)):

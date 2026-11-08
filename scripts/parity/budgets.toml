@@ -218,8 +218,10 @@ build_slowdown_pct = 10
 # code, view_max_kb (the view's HTML before gzip; the SDK stops a view at 128 * 1024 bytes) and
 # that step_limit_millions equals STEP_LIMIT in the SDK. script_added_kb and styles_added_gzip_kb
 # are zero because that comparison fails on any extra file. parity:perf --advanced-queries marks,
-# on a copy of the whole encode garden, eval_ms (the all-pages query), limit_hit_s (a runaway query
-# stopping at the step limit) and build_slowdown_pct against the --baseline-lsg binary.
+# on a copy of the whole encode garden, eval_ms (the all-pages query) and limit_hit_s (a runaway query
+# stopping at the step limit), each the growth of the build's render phase per query, and
+# build_slowdown_pct against the --baseline-lsg binary; it fails when one is over budget, or when a
+# query page or search is over the [desktop], [phone] or search budgets.
 [advanced_queries]
 page_growth_gzip_kb = 3
 script_added_kb = 0

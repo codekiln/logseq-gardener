@@ -37,6 +37,8 @@ import sample_garden  # noqa: E402
 ROWS = common.REPO / 'docs' / 'parity' / 'publication-speed.json'
 CORPORA = ('gitpa-sized', 'encode-garden')
 OPTIONS = ['--filename-format', 'triple-lowbar', '--journals', '--search', '--timings']
+# Options for one corpus only: the generated garden's homepage holds Gitpa's homepage query.
+CORPUS_OPTIONS = {'gitpa-sized': ['--homepage', sample_garden.HOMEPAGE]}
 
 
 def cpu_model():
@@ -119,9 +121,9 @@ def run(command):
     return elapsed, peak, json.loads(stdout)
 
 
-def measure(lsg, garden, runs, temp):
+def measure(lsg, garden, runs, temp, extra=()):
     roots, _ = build.roots(Path(garden) / 'pages')
-    selection = [option for root in roots for option in ('--include', root)]
+    selection = [option for root in roots for option in ('--include', root)] + list(extra)
     builds = []
     for attempt in range(runs + 1):
         output = Path(temp) / f'site-{attempt}'
@@ -247,8 +249,9 @@ def main():
                 garden = Path(args.garden) if args.garden else common.encode_garden()
                 identity = common.git_commit(garden)
             row = {'recorded': datetime.now(timezone.utc).strftime('%Y-%m-%d'), 'lsg': revision,
-                   'corpus': corpus_row(name, garden, identity), 'environment': env, 'options': OPTIONS[2:4],
-                   **measure(lsg, garden, args.runs, temp)}
+                   'corpus': corpus_row(name, garden, identity), 'environment': env,
+                   'options': OPTIONS[2:4] + CORPUS_OPTIONS.get(name, []),
+                   **measure(lsg, garden, args.runs, temp, CORPUS_OPTIONS.get(name, []))}
             rows.append(row)
             print(describe(row))
             if args.check:

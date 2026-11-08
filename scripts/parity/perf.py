@@ -8,12 +8,14 @@ import argparse
 import contextlib
 import gzip
 import html
+import io
 import json
 import math
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -1585,6 +1587,321 @@ def measure_queries_run(args, sync_playwright):
         record_sections(['Queries'], section)
 
 
+ADVANCED_PAGE = 'Parity/AdvancedQueries'
+ADVANCED_ALL_PAGE = 'Parity/AdvancedQueries/All Pages'
+ADVANCED_RUNAWAY_PAGE = 'Parity/AdvancedQueries/Runaway'
+TESTDATA = Path(__file__).resolve().parent / 'testdata'
+ADVANCED_SOURCES = {ADVANCED_PAGE: TESTDATA / 'advanced-queries-page.md',
+                    ADVANCED_ALL_PAGE: TESTDATA / 'advanced-queries-all-pages.md',
+                    ADVANCED_RUNAWAY_PAGE: TESTDATA / 'advanced-queries-runaway.md'}
+# The links a query's view drew, in either build's result box.
+ADVANCED_ROWS = '.custom-query .custom-query-results ul li a'
+# Records when the first view row appears; Logseq draws it only after it has loaded the graph.
+ADVANCED_PROBE = '''(() => {
+  window.__rows = null;
+  const check = () => {
+    if (window.__rows === null && document.querySelector(%s)) window.__rows = performance.now();
+  };
+  new MutationObserver(check).observe(document, {childList: true, subtree: true});
+})();'''
+
+
+# How many times the cost measurement repeats the all-pages query and the runaway query on one page.
+ADVANCED_REPEAT = 10
+
+
+def page_file(title):
+    return title.replace('/', '___') + '.md'
+
+
+def repeated_queries(title):
+    """A page with the description block of `title`'s source and its query block ADVANCED_REPEAT times."""
+    text = ADVANCED_SOURCES[title].read_text(encoding='utf-8')
+    start = text.index('- #+BEGIN_QUERY')
+    return text[:start] + text[start:] * ADVANCED_REPEAT
+
+
+def advanced_garden(garden, destination, titles):
+    """A copy of the garden without its git history, with the pages `titles` names added. A git
+    checkout is copied from its HEAD commit, so files git ignores, such as other tools' notes, stay out."""
+    if (Path(garden) / '.git').exists():
+        archive = subprocess.run(['git', '-C', str(garden), 'archive', 'HEAD'], capture_output=True, check=True).stdout
+        Path(destination).mkdir(parents=True)
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+            tar.extractall(destination, filter='data')
+    else:
+        shutil.copytree(garden, destination, ignore=shutil.ignore_patterns('.git'))
+    for title in titles:
+        (Path(destination) / 'pages' / page_file(title)).write_text(
+            ADVANCED_SOURCES[title].read_text(encoding='utf-8'), encoding='utf-8')
+    return Path(destination)
+
+
+def measure_advanced_load(browser, url, build, profile):
+    """measure_load, plus the time to the first row of the query's view and the rows shown."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS[build])
+    context.add_init_script(ADVANCED_PROBE % json.dumps(ADVANCED_ROWS))
+    timeout = PROFILES[profile]['timeout_ms']
+    try:
+        page.goto(url, wait_until='commit', timeout=timeout)
+        wait_loaded(page, profile)
+        page.wait_for_function('window.__rows !== null', timeout=timeout, polling=100)
+        page.wait_for_timeout(1000)
+        result = page.evaluate(COLLECT)
+        result['peak_heap'] = max(result['peak_heap'] or 0, heap_now(cdp))
+        result['rows_ms'] = page.evaluate('window.__rows')
+        result['rows'] = page.evaluate('(s) => document.querySelectorAll(s).length', ADVANCED_ROWS)
+        result['heap'] = collect_garbage(cdp)
+        return result
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def publish_timings(lsg, garden, output, options):
+    """The fastest of BUILD_RUNS publishes in seconds, and the fastest render phase among them in ms.
+
+    The render phase, where queries run, varies far less between builds than the whole build does."""
+    command = [str(lsg), '--format', 'json', 'publish', '--graph', str(garden), '--output', str(output),
+               *options, '--timings']
+    seconds, render = [], []
+    for _ in range(BUILD_RUNS):
+        shutil.rmtree(output, ignore_errors=True)
+        start = time.monotonic()
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        seconds.append(time.monotonic() - start)
+        render += [t['ms'] for t in json.loads(result.stdout)['timings'] if t['phase'] == 'render']
+    return min(seconds), min(render)
+
+
+def logseq_build(garden, output):
+    """Logseq 0.10.15's own export of `garden` into `output`, as parity:logseq-export builds it."""
+    import logseq_export
+    print(f"Building Logseq {logseq_export.SOURCE['tag']}'s export of {garden}", flush=True)
+    started = time.monotonic()
+    logseq_export.build_logseq(logseq_export.logseq_source(), logseq_export.frontend_folder(), garden, output,
+                               output.parent / 'logseq-export.log')
+    return time.monotonic() - started
+
+
+def advanced_costs(build):
+    """The render time in ms that one all-pages query and one runaway query each add."""
+    return ((build['repeat_render_ms'] - build['proxy_render_ms']) / build['repeat'],
+            (build['runaway_render_ms'] - build['proxy_render_ms']) / build['repeat'])
+
+
+def advanced_queries_markdown(report, budgets):
+    """The Advanced queries section of the Performance page."""
+    limits = budgets.get('advanced_queries', {})
+    lines = ['', '## Advanced queries', '',
+             f"`{ADVANCED_PAGE}` holds a query in the form of gitpa's homepage query (a `:result-transform` that "
+             f"sorts and a `:view` that draws links) over the encode garden's proxy pages, and `{ADVANCED_ALL_PAGE}` "
+             'the worst case: every page, sorted by a property, with a view of the first 1,000. Both pages are '
+             "added to a copy of the whole garden, which `lsg` and Logseq's own export "
+             f"(`parity:logseq-export`) each build. Rows is the time to the first row of the view; Logseq "
+             'runs the query in the browser after it loads the graph, which its export writes into a script '
+             "element of `index.html`, so Logseq's script before the title is mostly the graph. Values are medians of "
+             f"{report['loads']} loads; heap is read after garbage collection once the rows show. "
+             '**Bold** marks an `lsg` value over its `[desktop]` or `[phone]` budget.', '',
+             '| Page | Profile | Build | Title (ms) | Rows (ms) | Rows shown | Data before title (KB) '
+             '| Script before title (KB) | Peak heap (MB) | Heap with rows (MB) |',
+             '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
+    for row in report['pages']:
+        head = f"| `{row['page']}` | {row['profile']} | {row['build']} "
+        if 'error' in row:
+            lines.append(head + f"| {row['error']} | | | | | | |")
+            continue
+        page_limits = budgets.get(row['profile'], {})
+        lsg = row['build'] == 'lsg'
+
+        def cell(value, key, divisor=1, digits=0):
+            text = f'{value / divisor:,.{digits}f}'
+            limit = page_limits.get(key) if lsg else None
+            return _marked(text, value / divisor, limit)
+        lines.append(head + f"| {cell(row['title_ms'], 'title_ms')} | {row['rows_ms']:,.0f} | {row['rows']:,} "
+                     f"| {cell(row['data_before_title'], 'data_before_title_kb', 1000, 1)} "
+                     f"| {cell(row['script_before_title'], 'script_before_title_kb', 1000, 1)} "
+                     f"| {cell(row['peak_heap'], 'peak_heap_mb', 1e6, 1)} | {row['heap'] / 1e6:,.1f} |")
+    lines += ['', 'Search on the copy, from the home page, typing each query in '
+              '`scripts/parity/search-queries.txt` a key at a time. A cold keystroke fetched a search shard; '
+              '**bold** marks an `lsg` value over `cold_keystroke_ms` in `[search]` or, for warm keystrokes, '
+              'over `search_p95_ms` in `[desktop]` or `[phone]`:', '',
+              '| Profile | Build | Keystrokes | p50 (ms) | p95 (ms) | Cold p95 (ms) | Warm p95 (ms) |',
+              '| --- | --- | ---: | ---: | ---: | ---: | ---: |']
+    for row in report['search']:
+        if 'error' in row or 'note' in row:
+            lines.append(f"| {row['profile']} | {row['build']} | {row.get('error') or row.get('note')} | | | | |")
+            continue
+        lsg = row['build'] == 'lsg'
+        warm_limit = budgets.get(row['profile'], {}).get('search_p95_ms') if lsg else None
+        cold_limit = budgets.get('search', {}).get(f"cold_keystroke_ms_{row['profile']}") if lsg else None
+
+        def ms(value, limit=None):
+            return '' if value is None else _marked(f'{value:,.0f}', value, limit)
+        lines.append(f"| {row['profile']} | {row['build']} | {row['keystrokes']} | {ms(row['p50_ms'])} "
+                     f"| {ms(row['p95_ms'])} | {ms(row['cold_p95_ms'], cold_limit)} "
+                     f"| {ms(row['warm_p95_ms'], warm_limit)} |")
+    build = report['build']
+    query_ms, runaway_ms = advanced_costs(build)
+    lines += ['', "Builds of the copy with the run's options and `--include Parity`, fastest of three. A query's "
+              "cost is how much it grows the fastest render phase, where queries run, measured with the query "
+              f"{build['repeat']} times on one page and divided by {build['repeat']}, so that the cost stands out "
+              'from the variation between builds:', '',
+              f"- With `{ADVANCED_PAGE}` only: {build['proxy_s']:.2f} s, render {build['proxy_render_ms']:,.0f} ms. "
+              f"With `{ADVANCED_ALL_PAGE}` as well: {build['all_pages_s']:.2f} s, render "
+              f"{build['all_pages_render_ms']:,.0f} ms.",
+              f"- The all-pages query, {build['repeat']} times: render {build['repeat_render_ms']:,.0f} ms, so one "
+              f"costs {_marked(f'{query_ms:,.0f}', query_ms, limits.get('eval_ms'))} ms "
+              f"(budget {limits.get('eval_ms')} ms).",
+              f"- `{ADVANCED_RUNAWAY_PAGE}`, a transform that stops at the step limit, {build['repeat']} times: "
+              f"render {build['runaway_render_ms']:,.0f} ms, so stopping one costs "
+              f"{_marked(f'{runaway_ms / 1000:.2f}', runaway_ms / 1000, limits.get('limit_hit_s'))} s "
+              f"(budget {limits.get('limit_hit_s')} s). Logseq does not build this page.",
+              f"- Logseq's export of the copy with both pages: {build['logseq_s']:.0f} s."]
+    if 'baseline_s' in build:
+        slowdown = (build['all_pages_s'] / build['baseline_s'] - 1) * 100
+        lines.append(f"- The `--baseline-lsg` binary built the copy with both pages in {build['baseline_s']:.2f} s; "
+                     f"this build is {_marked(f'{slowdown:+.1f}', slowdown, limits.get('build_slowdown_pct'))}% "
+                     f"against it (budget {limits.get('build_slowdown_pct')}%).")
+    return lines
+
+
+def advanced_queries_failures(report, budgets):
+    """Messages for lsg values over the [desktop], [phone], [search] or [advanced_queries] budgets."""
+    failures = []
+    for row in report['pages']:
+        if row['build'] != 'lsg':
+            continue
+        if 'error' in row:
+            failures.append(f"{row['page']} ({row['profile']}): {row['error']}")
+            continue
+        for field in ('title_ms', 'data_before_title', 'script_before_title', 'peak_heap'):
+            over = metrics.over_budget('lsg', row['profile'], field, row[field], budgets)
+            if over:
+                failures.append(f"{row['page']} ({row['profile']}): {field} over {over}")
+    for row in report['search']:
+        limit = budgets.get(row['profile'], {}).get('search_p95_ms')
+        if row['build'] == 'lsg' and row.get('warm_p95_ms') is not None and row['warm_p95_ms'] > limit:
+            failures.append(f"search ({row['profile']}): warm p95 {row['warm_p95_ms']:.0f} ms over {limit} ms")
+        cold = budgets.get('search', {}).get(f"cold_keystroke_ms_{row['profile']}")
+        if row['build'] == 'lsg' and cold is not None and (row.get('cold_p95_ms') or 0) > cold:
+            failures.append(f"search ({row['profile']}): cold p95 {row['cold_p95_ms']:.0f} ms over {cold} ms")
+    limits = budgets['advanced_queries']
+    build = report['build']
+    query_ms, runaway_ms = advanced_costs(build)
+    if query_ms > limits['eval_ms']:
+        failures.append(f'the all-pages query costs {query_ms:,.0f} ms, over eval_ms')
+    if runaway_ms > limits['limit_hit_s'] * 1000:
+        failures.append('the runaway query takes more than limit_hit_s to stop')
+    if 'baseline_s' in build and build['all_pages_s'] > build['baseline_s'] * (1 + limits['build_slowdown_pct'] / 100):
+        failures.append('the build is more than build_slowdown_pct slower than the --baseline-lsg binary')
+    return failures
+
+
+def measure_advanced_queries_run(args, sync_playwright):
+    """Measure ADVANCED_PAGE and ADVANCED_ALL_PAGE on a copy of the run's garden in lsg and in
+    Logseq's own export of the copy; with --record, replace the Advanced queries section of the
+    Performance page. The copies and both builds stay in the run directory under advanced-queries/,
+    and a later run reuses Logseq's export when the copy has not changed."""
+    budgets = metrics.load_budgets()
+    run = common.latest_run(args.run)
+    settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    queries = serve.fixtures(args.search_queries)
+    work = run / 'advanced-queries'
+    for name in ('garden', 'garden-repeat', 'garden-runaway'):
+        shutil.rmtree(work / name, ignore_errors=True)
+    work.mkdir(exist_ok=True)
+    lsg = common.lsg_binary()
+    options = [*settings['lsg_options'], '--include', 'Parity']
+    # The render phase without the all-pages page, then with each measured query ADVANCED_REPEAT
+    # times, so a query's cost stands out from the render phase's variation between builds.
+    garden = advanced_garden(settings['garden'], work / 'garden', [ADVANCED_PAGE])
+    proxy_s, proxy_render = publish_timings(lsg, garden, work / 'lsg', options)
+    repeat = advanced_garden(garden, work / 'garden-repeat', [])
+    runaway = advanced_garden(garden, work / 'garden-runaway', [])
+    for copy, title in ((repeat, ADVANCED_ALL_PAGE), (runaway, ADVANCED_RUNAWAY_PAGE)):
+        (copy / 'pages' / page_file(title)).write_text(repeated_queries(title), encoding='utf-8')
+    _, repeat_render = publish_timings(lsg, repeat, work / 'lsg-repeat', options)
+    _, runaway_render = publish_timings(lsg, runaway, work / 'lsg-repeat', options)
+    shutil.rmtree(work / 'lsg-repeat')
+    shutil.rmtree(repeat)
+    shutil.rmtree(runaway)
+    (garden / 'pages' / page_file(ADVANCED_ALL_PAGE)).write_text(
+        ADVANCED_SOURCES[ADVANCED_ALL_PAGE].read_text(encoding='utf-8'), encoding='utf-8')
+    all_s, all_render = publish_timings(lsg, garden, work / 'lsg', options)
+    build = {'proxy_s': proxy_s, 'all_pages_s': all_s, 'repeat': ADVANCED_REPEAT, 'proxy_render_ms': proxy_render,
+             'all_pages_render_ms': all_render, 'repeat_render_ms': repeat_render,
+             'runaway_render_ms': runaway_render}
+    if args.baseline_lsg:
+        build['baseline_s'] = time_publish(args.baseline_lsg, str(garden), work / 'baseline', options)
+        shutil.rmtree(work / 'baseline')
+    stamp = json.dumps({'garden_commit': settings['garden_commit'],
+                        'pages': {t: ADVANCED_SOURCES[t].read_text(encoding='utf-8')
+                                  for t in (ADVANCED_PAGE, ADVANCED_ALL_PAGE)}}, sort_keys=True)
+    stamp_file = work / 'logseq-stamp.json'
+    if (work / 'logseq' / 'index.html').exists() and stamp_file.exists() \
+            and stamp_file.read_text(encoding='utf-8') == stamp:
+        build['logseq_s'] = json.loads((work / 'logseq-seconds.json').read_text(encoding='utf-8'))
+        print('Reusing the Logseq export of the same copy', flush=True)
+    else:
+        shutil.rmtree(work / 'logseq', ignore_errors=True)
+        build['logseq_s'] = logseq_build(garden, work / 'logseq')
+        stamp_file.write_text(stamp, encoding='utf-8')
+        (work / 'logseq-seconds.json').write_text(json.dumps(build['logseq_s']), encoding='utf-8')
+    print(json.dumps(build), flush=True)
+    import logseq_export
+    index_html = (work / 'logseq' / 'index.html').read_text(encoding='utf-8')
+    names = {common.normalize(p.name) for p in logseq_export.logseq_pages(index_html)}
+    lsg_index = common.lsg_index(work / 'lsg')
+    pages, search = [], []
+    with serve.Server(work / 'logseq') as logseq, serve.Server(work / 'lsg') as site, \
+            sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=['--enable-precise-memory-info'])
+        servers = {'logseq': logseq, 'lsg': site}
+        for title in (ADVANCED_PAGE, ADVANCED_ALL_PAGE):
+            target = serve.targets(title, names, lsg_index, work / 'lsg')
+            for profile in profiles:
+                for build_name, server in servers.items():
+                    row = {'page': title, 'profile': profile, 'build': build_name}
+                    if target[build_name] is None:
+                        pages.append({**row, 'error': 'page missing from the build'})
+                        continue
+                    loads = [measure_advanced_load(browser, server.url + target[build_name], build_name, profile)
+                             for _ in range(args.loads)]
+                    good = [load for load in loads if 'error' not in load]
+                    if good:
+                        row.update({field: metrics.median([load[field] for load in good])
+                                    for field in ('title_ms', 'rows_ms', 'rows', 'data_before_title',
+                                                  'script_before_title', 'peak_heap', 'heap')})
+                    else:
+                        row['error'] = loads[0]['error']
+                    pages.append(row)
+                    print(json.dumps(row, ensure_ascii=False), flush=True)
+        for profile in profiles:
+            for build_name, server in servers.items():
+                home = server.url + (serve.LOGSEQ_ROUTES['Home'] if build_name == 'logseq' else 'index.html')
+                row = {'profile': profile, 'build': build_name,
+                       **measure_search(browser, home, build_name, profile, queries)}
+                search.append(row)
+                print(json.dumps(row), flush=True)
+        browser.close()
+    report = {'measured': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+              'garden_commit': settings['garden_commit'][:7], 'lsg': common.git_commit(common.REPO)[:7],
+              'loads': args.loads, 'pages': pages, 'search': search, 'build': build}
+    (work / 'perf.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    section = advanced_queries_markdown(report, budgets)
+    section[3:3] = [f"Measured {report['measured']} on encode garden commit `{report['garden_commit']}` with "
+                    f"`lsg` `{report['lsg']}`.", '']
+    print('\n'.join(section))
+    if args.record:
+        record_sections(['Advanced queries'], section, before=['Flashcards', 'Plugins'])
+    failures = advanced_queries_failures(report, budgets)
+    if failures:
+        raise SystemExit('\n'.join(failures))
+
+
 FLASHCARDS_PAGE = 'Parity/Flashcards'
 FLASHCARDS_DECK = 'Parity/Flashcards Deck'
 FLASHCARDS_CARDS = 60
@@ -1990,6 +2307,10 @@ def main():
     parser.add_argument('--queries', action='store_true',
                         help=f"measure only {QUERIES_PAGE}, the queries analysis's test queries, on a copy of the "
                              "run's garden; with --record, replace its section of the Performance page")
+    parser.add_argument('--advanced-queries', action='store_true',
+                        help=f'measure only {ADVANCED_PAGE} and {ADVANCED_ALL_PAGE}, advanced queries added to a copy '
+                             "of the run's garden, in lsg and in Logseq's own export of the copy; with --record, "
+                             'replace its section of the Performance page')
     parser.add_argument('--flashcards', action='store_true',
                         help=f"measure only {FLASHCARDS_PAGE}, {FLASHCARDS_CARDS} cloze cards and a deck, on a copy of "
                              "the run's garden; with --record, replace its section of the Performance page")
@@ -2025,6 +2346,9 @@ def main():
         return
     if args.queries:
         measure_queries_run(args, sync_playwright)
+        return
+    if args.advanced_queries:
+        measure_advanced_queries_run(args, sync_playwright)
         return
     if args.flashcards:
         measure_flashcards_run(args, sync_playwright)
