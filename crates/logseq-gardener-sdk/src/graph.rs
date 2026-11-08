@@ -444,7 +444,13 @@ impl<K: Ord + Clone> GraphIndex<K> {
             let from_journal = builder.nodes[from as usize].journal;
             let mut direct = BTreeSet::new();
             let mut expanded = BTreeSet::new();
+            // The nodes this file creates; the file spells each of them, as the next loop notes.
+            let created_from = builder.nodes.len();
             for (block, graph) in contribution.graph_refs().iter().enumerate() {
+                // How this block spells the names it refers to. Logseq merges the pages a file
+                // refers to by name and the last block wins; within a block a property name
+                // comes after the names written in the text, so it wins.
+                let mut spelled: Vec<(u32, &str)> = Vec::new();
                 direct.extend(graph.direct.iter().filter_map(|page| ids.get(page)));
                 expanded.extend(
                     index.expanded_refs(document)[block]
@@ -452,7 +458,13 @@ impl<K: Ord + Clone> GraphIndex<K> {
                         .filter_map(|page| ids.get(page)),
                 );
                 for name in &graph.unresolved {
-                    direct.extend(builder.name(name));
+                    let node = builder.name(name);
+                    if let Some(node) = node
+                        && !spelled.iter().any(|(seen, _)| *seen == node)
+                    {
+                        spelled.push((node, name));
+                    }
+                    direct.extend(node);
                     let mut rest = name.as_str();
                     expanded.extend(builder.name(rest));
                     while let Some(parent) = namespace_parent(rest) {
@@ -469,6 +481,17 @@ impl<K: Ord + Clone> GraphIndex<K> {
                     if let Some(node) = builder.name(name) {
                         direct.insert(node);
                         expanded.insert(node);
+                        spelled.retain(|(seen, _)| *seen != node);
+                        spelled.push((node, name));
+                    }
+                }
+                for (node, name) in spelled {
+                    let info = &mut builder.nodes[node as usize];
+                    if node as usize >= created_from
+                        && !info.journal
+                        && built_in_page_title(name).is_none()
+                    {
+                        info.title = name.to_owned();
                     }
                 }
             }
@@ -1059,6 +1082,27 @@ mod tests {
             .collect();
         // `STARTED` is no built-in page in Logseq, so the first reference spells it.
         assert_eq!(titles, ["C", "TODO", "Favorites", "card", "started"]);
+    }
+
+    #[test]
+    fn a_page_without_a_file_takes_the_spelling_of_the_last_block_that_names_it() {
+        // Logseq merges the pages a file refers to by name, and the last block wins. A
+        // block's property name, in lower case, comes after the names written in its text.
+        // `scripts/logseq-parser/check.py` agrees on `fixtures/property-name-reference`
+        // (issue #521).
+        let garden = Garden::new(&[
+            ("Notes", "- Uses [[Gadget]]\n  gadget:: 1\n"),
+            ("Later", "- Uses [[Sprocket]]\n- Spins\n  sprocket:: 1\n"),
+            ("Earlier", "- Spins\n  cog:: 1\n- Uses [[Cog]]\n"),
+            ("Upper", "- Uses [[PULLEY]]\n  Pulley:: 1\n"),
+            ("Twice", "- Uses [[Lever]]\n- Uses [[lever]]\n"),
+        ]);
+        let graph = garden.graph(GraphSettings::everything(true));
+        let titles: Vec<&str> = ["gadget", "sprocket", "cog", "pulley", "lever"]
+            .iter()
+            .map(|name| graph.node(name).unwrap().title.as_str())
+            .collect();
+        assert_eq!(titles, ["gadget", "sprocket", "Cog", "pulley", "lever"]);
     }
 
     #[test]
