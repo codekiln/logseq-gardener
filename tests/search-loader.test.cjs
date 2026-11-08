@@ -11,11 +11,12 @@ const realEngine = import('data:text/javascript;base64,' + Buffer.from(engineSou
 // The shared fixture's published files, served beside a nested page.
 const { files, manifest: manifestName } = JSON.parse(readFileSync(path.join(__dirname, 'search-fixture.json'), 'utf8')).published;
 const revision = JSON.parse(files[manifestName]).revision;
+assert.equal(manifestName, 'lsg-search-manifest.json');
 const origin = 'https://garden.test';
 const base = origin + '/published/nested/page/';
 const published = origin + '/published/';
 const manifestURL = published + manifestName;
-const link = (rev = revision, href = manifestURL) => ({ getAttribute: key => key === 'href' ? href : rev });
+const link = (href = manifestURL) => ({ getAttribute: key => key === 'href' ? href : null });
 function fixture() {
   const served = { ...files };
   const calls = [], imports = [];
@@ -36,7 +37,7 @@ test('no eager work; manifest, engine and title index load once; shards per quer
   assert.deepEqual(f.calls, []); assert.deepEqual(f.imports, []);
   const [first, concurrent] = await Promise.all([loader.load(), loader.load()]);
   assert.equal(first, concurrent); assert.equal(await loader.load(), first);
-  assert.deepEqual(names(f.calls), ['lsg-search-manifest', 'lsg-search-titles']);
+  assert.deepEqual(names(f.calls), ['lsg-search-manifest.json', 'lsg-search-titles']);
   assert.deepEqual(f.imports, [published + 'lsg-search-engine-0000000000000000.mjs']);
   await Promise.all([loader.shards('tm'), loader.shards('tmux')]);
   await loader.shards('tmux');
@@ -44,18 +45,20 @@ test('no eager work; manifest, engine and title index load once; shards per quer
   const outcome = first.engine.query(first.index, 'tmux');
   await loader.chunks(outcome.blocks.results.map(r => r.block));
   assert.ok(outcome.blocks.results.every(r => first.engine.blockRow(first.index, r.block)));
-  assert.ok(f.calls.every(c => c.options.redirect === 'error'));
+  assert.ok(f.calls.every(c => c.options.redirect === 'error' && c.options.cache === 'no-cache'));
 });
 
-test('bad metadata, remote paths, version 1 and digest mismatch fail before evaluation', async () => {
+test('bad metadata, remote paths, version 2 and digest mismatch fail before evaluation', async () => {
   const { createSearchLoader, publicationFromLink } = await loaded;
-  for (const bad of [link('bad'), link(revision, 'https://evil.test/' + manifestName), link(revision, manifestURL + '?other'), link(revision, 'javascript:alert(1)')]) {
+  for (const bad of [link(published + 'lsg-search-manifest-' + revision + '.json'), link('https://evil.test/' + manifestName), link(manifestURL + '?other'), link('javascript:alert(1)')]) {
     assert.throws(() => publicationFromLink(bad, base, origin));
   }
   const manifest = () => JSON.parse(files[manifestName]);
   for (const mutate of [
     s => s[manifestName] = JSON.stringify({ ...manifest(), format_version: 1 }),
-    s => s[manifestName] = JSON.stringify({ ...manifest(), revision: 'fedcba9876543210' }),
+    s => s[manifestName] = JSON.stringify({ ...manifest(), format_version: 2 }),
+    s => s[manifestName] = JSON.stringify({ ...manifest(), revision: undefined }),
+    s => s[manifestName] = JSON.stringify({ ...manifest(), counts: manifest().counts.slice(1) }),
     s => s[manifestName] = JSON.stringify({ ...manifest(), engine: 'https://evil.test/engine.mjs' }),
     s => { const name = Object.keys(s).find(n => n.startsWith('lsg-search-titles-')); s[name] += ' '; },
   ]) {
@@ -80,7 +83,7 @@ test('close aborts and stale completions cannot populate a later publication', a
   const old = loader.load(); loader.cancel();
   assert.equal(f.calls[0].options.signal.aborted, true);
   release(); await assert.rejects(old, error => error.name === 'AbortError');
-  const fresh = await loader.load(); assert.equal(fresh.publication.revision, revision);
+  const fresh = await loader.load(); assert.equal(fresh.index.manifest.revision, revision);
   assert.equal(loader.setPublication(null), true); await assert.rejects(loader.load(), /unavailable/);
 });
 
@@ -90,14 +93,19 @@ test('failed request can retry and corrupt JSON never reaches engine', async () 
   f.fetchFile = async (...args) => bad ? { ok: false, text: async () => 'missing' } : normal(...args);
   const loader = createSearchLoader(f); loader.setPublication(publicationFromLink(link(), base, origin));
   await assert.rejects(loader.load()); bad = false; const data = await loader.load();
+  // A missing shard means the site may have been published again: the loader forgets the
+  // manifest, and a retry loads the manifest again before it fetches the shard.
   bad = true; await assert.rejects(loader.shards('tmux'));
-  bad = false; await loader.shards('tmux'); assert.equal(data.engine.missingShards(data.index, 'tmux').length, 0);
+  bad = false; await assert.rejects(loader.shards('tmux'), /publication/);
+  const again = await loader.load(); assert.notEqual(again, data);
+  assert.equal(names(f.calls).filter(name => name === 'lsg-search-manifest.json').length, 2);
+  await loader.shards('tmux'); assert.equal(again.engine.missingShards(again.index, 'tmux').length, 0);
   f.fetchFile = async url => ({ ok: true, url, text: async () => '{broken' });
   const corrupt = createSearchLoader(f); corrupt.setPublication(publicationFromLink(link(), base, origin));
   await assert.rejects(corrupt.load());
 });
 
-test('changed revision invalidates data even while an engine import completes', async () => {
+test('a page from another site invalidates data even while an engine import completes', async () => {
   const { createSearchLoader, publicationFromLink } = await loaded;
   const f = fixture(); let release, started;
   const ready = new Promise(resolve => started = resolve);
@@ -107,8 +115,7 @@ test('changed revision invalidates data even while an engine import completes', 
   const loader = createSearchLoader(f);
   loader.setPublication(publicationFromLink(link(), base, origin));
   const old = loader.load(); await ready;
-  const changed = 'fedcba9876543210';
-  assert.equal(loader.setPublication(publicationFromLink(link(changed, manifestURL.replace(revision, changed)), base, origin)), true);
+  assert.equal(loader.setPublication(publicationFromLink(link(published + 'other/lsg-search-manifest.json'), base, origin)), true);
   release(); await assert.rejects(old, error => error.name === 'AbortError');
   assert.equal(loader.setPublication(publicationFromLink(link(), base, origin)), true);
   const current = await loader.load(); assert.equal(current.index.manifest.revision, revision);

@@ -12,7 +12,7 @@ const { files, manifest: manifestName } = fixture.published;
 
 async function load() {
   const engine = await modulePromise;
-  const manifest = engine.prepareManifest(JSON.parse(files[manifestName]), JSON.parse(files[manifestName]).revision);
+  const manifest = engine.prepareManifest(JSON.parse(files[manifestName]));
   const index = engine.createIndex(manifest, files[engine.titlesFile(manifest)]);
   const fetchShards = input => { for (const key of engine.missingShards(index, input)) engine.addShard(index, key, files[engine.shardFile(manifest, key)]); };
   const fetchChunks = blocks => { for (const n of engine.missingChunks(index, blocks)) engine.addChunk(index, n, files[engine.chunkFile(manifest, n)]); };
@@ -63,12 +63,15 @@ test('Unicode normalization, bounded input and unchanged inputs', async () => {
   assert.deepEqual(engine.words(engine.normalize('tmux.conf: set -g mouse on')), ['tmux', 'conf', 'set', 'g', 'mouse', 'on']);
 });
 
-test('validation rejects version 1, revision and digest mismatch, and malformed records', async () => {
+test('validation rejects other versions, digest mismatch and malformed records', async () => {
   const { engine, manifest, index } = await load();
   const raw = JSON.parse(files[manifestName]);
   for (const mutate of [
     m => m.format_version = 1,
-    m => m.revision = 'fedcba9876543210',
+    m => m.format_version = 2,
+    m => m.revision = 'not a revision',
+    m => m.counts[0] += 1,
+    m => m.counts = m.counts.slice(1),
     m => m.chunks.pop(),
     m => m.chunk_starts[0] = 1,
     m => m.chunk_starts[2] = m.chunk_starts[1],
@@ -78,14 +81,23 @@ test('validation rejects version 1, revision and digest mismatch, and malformed 
     m => m.shards['../x'] = m.titles,
   ]) {
     const copy = structuredClone(raw); mutate(copy);
-    assert.throws(() => engine.prepareManifest(copy, raw.revision), /publication/);
+    assert.throws(() => engine.prepareManifest(copy), /publication/);
   }
-  assert.throws(() => engine.prepareManifest(raw, 'fedcba9876543210'), /publication/);
+  // A manifest whose page counts disagree with the title index.
+  const counts = engine.prepareManifest({ ...raw, counts: [...raw.counts, 0] });
+  assert.throws(() => engine.createIndex(counts, files[engine.titlesFile(counts)]), /publication/);
   const titles = files[engine.titlesFile(manifest)];
   assert.throws(() => engine.createIndex(manifest, titles + ' '), /publication/, 'digest mismatch');
   const shard = files[engine.shardFile(manifest, 'tm')];
   assert.throws(() => engine.addShard(index, 'tm', shard.replace('tmux', 'tmuy')), /publication/);
   assert.throws(() => engine.addShard(index, 'mo', shard), /publication/, 'a shard under another key');
+  // A shard names each block by page and block within it: a block past its page's count,
+  // a repeated block, an odd list and a page past the last fail.
+  for (const pairs of [[0, raw.counts[0]], [0, 0, 0, 0], [0], [raw.counts.length, 0]]) {
+    const text = JSON.stringify({ format_version: 3, words: [['tmux', pairs]] });
+    const forged = engine.createIndex({ ...manifest, shards: new Map([...manifest.shards, ['tm', engine.digest(text)]]) }, titles);
+    assert.throws(() => engine.addShard(forged, 'tm', text), /publication/, JSON.stringify(pairs));
+  }
   const chunk = files[engine.chunkFile(manifest, 0)];
   assert.throws(() => engine.addChunk(index, 1, chunk), /publication/);
   // A record that is well formed but names the wrong page fails even with a matching digest.

@@ -274,7 +274,7 @@ def main():
         nested = site / 'nested/page'
         nested.mkdir(parents=True)
         html = (site / 'index.html').read_text()
-        html = html.replace('href="lsg-search-manifest-', 'href="/lsg-search-manifest-').replace('src="lsg-search-ui-', 'src="/lsg-search-ui-').replace('src="lsg-search-start-', 'src="/lsg-search-start-')
+        html = html.replace('href="lsg-search-manifest.json"', 'href="/lsg-search-manifest.json"').replace('src="lsg-search-ui-', 'src="/lsg-search-ui-').replace('src="lsg-search-start-', 'src="/lsg-search-start-').replace('src="lsg-search-boot.js"', 'src="/lsg-search-boot.js"')
         (nested / 'index.html').write_text(html)
         class Quiet(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *_):
@@ -295,7 +295,7 @@ def main():
                 page.goto(base + '/index.html')
                 trigger = page.locator('[data-lsg-search]')
                 expect(trigger).to_be_visible()
-                assert not any('lsg-search-manifest-' in url or 'lsg-search-engine-' in url or ('lsg-search-' in url and url.endswith('.json')) for url in requests)
+                assert not any('lsg-search-manifest' in url or 'lsg-search-engine-' in url or ('lsg-search-' in url and url.endswith('.json')) for url in requests)
                 trigger.focus()
                 page.keyboard.press('Control+k')
                 field = page.locator('#lsg-search-input')
@@ -412,7 +412,7 @@ def main():
                 expect(field).to_be_focused()
                 print('search proof: SPA complete', flush=True)
                 # A changed identity closes the dialog and cannot reuse old results.
-                page.evaluate("""const metadata=document.head.querySelector('[rel=lsg-search]'); metadata.href=new URL('lsg-search-manifest-fedcba9876543210.json', metadata.href); metadata.dataset.revision='fedcba9876543210'; window.logseqGardenerInitSearch()""")
+                page.evaluate("""const metadata=document.head.querySelector('[rel=lsg-search]'); metadata.href=new URL('other/lsg-search-manifest.json', metadata.href); window.logseqGardenerInitSearch()""")
                 expect(page.locator('#lsg-search-dialog')).not_to_be_visible()
                 trigger.click()
                 expect(page.locator('#lsg-search-status')).to_contain_text('unavailable')
@@ -436,12 +436,12 @@ def main():
                 # A failed load is actionable, never an empty successful search or automatic reload.
                 context = browser.new_context()
                 page = context.new_page()
-                page.route('**/lsg-search-manifest-*.json', lambda route: route.fulfill(status=404, body='missing'))
+                page.route('**/lsg-search-manifest.json', lambda route: route.fulfill(status=404, body='missing'))
                 page.goto(base + '/index.html')
                 page.locator('[data-lsg-search]').click()
                 expect(page.locator('#lsg-search-status')).to_contain_text('unavailable')
                 expect(page.get_by_role('button', name='Retry search')).to_be_visible()
-                page.unroute('**/lsg-search-manifest-*.json')
+                page.unroute('**/lsg-search-manifest.json')
                 page.get_by_role('button', name='Retry search').click()
                 page.locator('#lsg-search-input').fill('needle')
                 expect(page.locator('#lsg-search-results a')).to_have_count(4)
@@ -450,7 +450,7 @@ def main():
                 # Corrupt corpus and offline opens stay actionable and recover on retry.
                 context = browser.new_context()
                 page = context.new_page()
-                page.route('**/lsg-search-*.json', lambda route: route.continue_() if 'manifest-' in route.request.url else route.fulfill(status=200, body='{broken'))
+                page.route('**/lsg-search-*.json', lambda route: route.continue_() if 'manifest' in route.request.url else route.fulfill(status=200, body='{broken'))
                 page.goto(base + '/index.html')
                 page.locator('[data-lsg-search]').click()
                 expect(page.locator('#lsg-search-status')).to_contain_text('unavailable')
@@ -472,6 +472,26 @@ def main():
                 context.set_offline(False)
                 page.get_by_role('button', name='Retry search').click()
                 expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                context.close()
+                # A shard that a later publication removed: the loader forgets the manifest it read,
+                # and Retry reads the manifest again before it fetches the shard.
+                context = browser.new_context()
+                page = context.new_page()
+                page.goto(base + '/index.html')
+                page.locator('[data-lsg-search]').click()
+                expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                page.route('**/lsg-search-shard-*.json', lambda route: route.fulfill(status=404, body='missing'))
+                page.locator('#lsg-search-input').fill('needle')
+                expect(page.get_by_role('button', name='Retry search')).to_be_visible()
+                page.unroute('**/lsg-search-shard-*.json')
+                manifests = []
+                page.on('request', lambda request: manifests.append(request.url) if request.url.endswith('/lsg-search-manifest.json') else None)
+                page.get_by_role('button', name='Retry search').click()
+                expect(page.locator('#lsg-search-dialog')).to_have_attribute('data-lsg-search-state', 'ready')
+                page.locator('#lsg-search-input').fill('')
+                page.locator('#lsg-search-input').fill('needle')
+                expect(page.locator('#lsg-search-results a')).to_have_count(4)
+                assert manifests, 'Retry reads the manifest again'
                 context.close()
                 # Closing during a deferred first fetch cannot publish stale results.
                 context = browser.new_context()

@@ -883,39 +883,39 @@ class BudgetCheckTest(unittest.TestCase):
             self.assertEqual(budgets.check_shell(small, small, ['p-1.html'], {'script_kb': 6, 'frame_kb': 6}), [])
 
     def search_site(self, temp, shard_text):
-        """A format version 2 search publication with one title, one shard and one chunk."""
+        """A format version 3 search publication with one title, one shard and one chunk."""
         site = Path(temp)
-        files = {'titles': '{"format_version": 2, "pages": [["tmux", "p-1.html", [], 1]]}',
+        files = {'titles': '{"format_version": 3, "pages": [["tmux", "p-1.html", []]]}',
                  'shard': shard_text,
-                 'chunk': '{"format_version": 2, "blocks": [["p-1.html", "source-block-1", "tmux", []]]}'}
+                 'chunk': '{"format_version": 3, "blocks": [["p-1.html", "source-block-1", "tmux", []]]}'}
         for kind, text in files.items():
             (site / f'lsg-search-{kind}-{kind}0000.json').write_text(text, encoding='utf-8')
-        (site / 'lsg-search-manifest-r.json').write_text(
-            '{"format_version": 2, "revision": "r", "titles": "titles0000", "blocks": 1, "chunk_starts": [0], '
+        (site / 'lsg-search-manifest.json').write_text(
+            '{"format_version": 3, "revision": "r", "titles": "titles0000", "blocks": 1, "counts": [1], "chunk_starts": [0], '
             '"chunks": ["chunk0000"], "shards": {"tm": "shard0000"}}', encoding='utf-8')
         return site
 
     def test_search_index_within_budget(self):
         limits = metrics.load_budgets()['search']
         with tempfile.TemporaryDirectory() as temp:
-            site = self.search_site(temp, '{"format_version": 2, "words": [["tmux", [0]]]}')
+            site = self.search_site(temp, '{"format_version": 3, "words": [["tmux", [0, 0]]]}')
             self.assertEqual(budgets.check_search_index(budgets.search_index_sizes(site), limits), [])
 
     def test_oversized_shard_fails_naming_the_shard(self):
         limits = metrics.load_budgets()['search']
         # Random words compress poorly, so the shard is well over the gzip budget.
-        words = ', '.join(f'["tm{os.urandom(12).hex()}", [0]]' for _ in range(8000))
+        words = ', '.join(f'["tm{os.urandom(12).hex()}", [0, 0]]' for _ in range(8000))
         with tempfile.TemporaryDirectory() as temp:
-            site = self.search_site(temp, '{"format_version": 2, "words": [' + words + ']}')
+            site = self.search_site(temp, '{"format_version": 3, "words": [' + words + ']}')
             failures = budgets.check_search_index(budgets.search_index_sizes(site), limits)
         self.assertEqual(len(failures), 1)
         self.assertIn("lsg-search-shard-shard0000.json (words starting 'tm'): largest shard", failures[0])
         self.assertIn('exceeds 64,000', failures[0])
 
-    def test_version_1_search_is_rejected(self):
+    def test_version_2_search_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
-            (Path(temp) / 'lsg-search-manifest-r.json').write_text('{"format_version": 1}', encoding='utf-8')
-            with self.assertRaisesRegex(ValueError, 'version 1'):
+            (Path(temp) / 'lsg-search-manifest.json').write_text('{"format_version": 2}', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'version 2'):
                 budgets.search_index_sizes(temp)
 
     def test_page_sizes_include_blocking_files(self):
