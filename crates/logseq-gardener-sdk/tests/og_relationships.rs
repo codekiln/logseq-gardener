@@ -239,3 +239,35 @@ fn an_alias_written_twice_takes_its_last_spelling() {
         }]
     );
 }
+
+#[test]
+fn an_alias_takes_the_spelling_of_the_first_file_that_refers_to_it() {
+    // `Run` lists `Runtime` as an alias. `Notes` refers to `[[runtime]]` and `Other` to
+    // `[[RUNTIME]]`; Logseq reads `Notes` first, so the alias name is spelled `runtime`. `Gear`
+    // lists `Gadget` and refers to `[[gadget]]` and then `[[GADGET]]`; within a file the last
+    // block wins, so it is spelled `GADGET`. `Tool` lists `Widget`, and `Meet`, read before it,
+    // has the property `widget::`, which refers to the page in lower case. `scripts/logseq-parser/check.py`
+    // agrees on this garden (issue #515).
+    let root = fixtures().with_file_name("alias-spelling-reference");
+    let derived = derive(&root, FilenameFormat::TripleLowbar);
+    assert_eq!(
+        derived.aliases,
+        [
+            AliasName {
+                name: "gadget".into(),
+                title: "GADGET".into(),
+                files: vec!["pages/Gear.md".into()],
+            },
+            AliasName {
+                name: "runtime".into(),
+                title: "runtime".into(),
+                files: vec!["pages/Run.md".into()],
+            },
+            AliasName {
+                name: "widget".into(),
+                title: "widget".into(),
+                files: vec!["pages/Tool.md".into()],
+            },
+        ]
+    );
+}

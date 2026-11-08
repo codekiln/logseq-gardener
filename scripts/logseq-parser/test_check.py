@@ -7,19 +7,30 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
-class AliasSpellingReferenceFixture(unittest.TestCase):
-    def test_check_names_the_file_and_the_alias(self):
-        # fixtures/alias-spelling-reference holds Run.md, whose alias property writes Runtime,
-        # and Notes.md, whose block references [[runtime]]. Logseq spells the alias with the
-        # reference, runtime, while the SDK keeps the alias's own spelling. Issue #515 tracks
-        # the difference.
-        result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'alias-spelling-reference'],
+class PropertyNameReferenceFixture(unittest.TestCase):
+    def test_check_names_the_file_and_the_page(self):
+        # fixtures/property-name-reference holds Notes.md, whose block references [[Gadget]]
+        # and has the property gadget::. Logseq spells the page with the property name, gadget,
+        # and lists one reference, while the SDK spells it Gadget and lists both. Issue #521
+        # tracks the difference.
+        result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'property-name-reference'],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         lines = result.stdout.splitlines()
         self.assertEqual(lines[1:], [
-            'pages/Run.md: alias name "runtime" title: Logseq reads "runtime", the SDK reads "Runtime"',
+            'pages/Notes.md: page without a file "gadget" title: Logseq reads "gadget", the SDK reads "Gadget"',
+            'pages/Notes.md:1: page reference "gadget": the SDK reads it, Logseq does not',
         ])
+
+
+class AliasSpellingReferenceFixture(unittest.TestCase):
+    def test_check_passes_when_a_block_references_an_alias_in_another_case(self):
+        # fixtures/alias-spelling-reference holds Run.md, whose alias property writes Runtime,
+        # and Notes.md, whose block references [[runtime]]. Logseq and the SDK both spell the
+        # alias with the reference, runtime, because Notes.md is read first (issue #515).
+        result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'alias-spelling-reference'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class AliasSpellingCaseFixture(unittest.TestCase):
