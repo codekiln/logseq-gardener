@@ -28,7 +28,7 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Plugin Host API]]
 			  | `id` | The page's lower-cased name, as Logseq identifies pages. Generated lists, All pages and the journals feed, have `null`. A homepage at `index.html` has its page's id. |
 			  | `title` | The page's title. |
 			  | `url` | The page's address relative to the output root: its file, or with `--readable-urls` its folder, such as `GitP/A/Session/`, whose file is that folder's `index.html`. |
-			  | `kind` | `page`, `journal`, `namespace` (a generated namespace page, which has no source file), `home` (`index.html`) or `list`. |
+			  | `kind` | `page`, `journal`, `namespace` (a generated namespace page, which has no source file), `reference` (a page with no source file that published blocks link or tag, such as `Deno Deploy`; a date name is a `journal`), `home` (`index.html`) or `list`. |
 		- ### assets
 			- The paths of the copied assets, sorted. Assets that only withheld or excluded pages use are absent.
 		- ### plugins

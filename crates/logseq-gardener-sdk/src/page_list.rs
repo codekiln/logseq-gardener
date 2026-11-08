@@ -231,6 +231,12 @@ mod tests {
                     kind: PageKind::Namespace,
                     document: None,
                 },
+                PageSource {
+                    id: "deploy".to_owned(),
+                    title: "Deno Deploy".to_owned(),
+                    kind: PageKind::Reference,
+                    document: None,
+                },
             ],
             &index,
             Some(&dates),
@@ -243,7 +249,12 @@ mod tests {
         let kinds: Vec<_> = list.iter().map(|entry| entry.kind).collect();
         assert_eq!(
             kinds,
-            [PageKind::Page, PageKind::Journal, PageKind::Namespace]
+            [
+                PageKind::Page,
+                PageKind::Journal,
+                PageKind::Namespace,
+                PageKind::Reference
+            ]
         );
         assert_eq!(list[0].icon.as_deref(), Some("🧭"));
         assert_eq!(list[1].icon, None);

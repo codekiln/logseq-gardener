@@ -662,3 +662,64 @@ impl<T: Ord + Clone> AliasGroups<T> {
         entries
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn page(source: &str) -> GardenDocument {
+        GardenDocument {
+            relative_path: "pages/x.md".into(),
+            kind: crate::garden::DocumentKind::Page,
+            source: source.to_owned(),
+            parsed: lsdoc::parse_to_projection(source),
+            title_spellings: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn links_reach_pages_with_no_file_while_candidates_keep_to_files() {
+        let mut names = PageNameIndex::default();
+        names.insert("p-deno.html".to_owned(), "Deno", &page("- text\n"));
+        names.insert_generated("p-ai.html".to_owned(), "AI", Generated::Namespace, None);
+        names.insert_generated(
+            "p-deploy.html".to_owned(),
+            "Deno Deploy",
+            Generated::Reference,
+            None,
+        );
+        names.insert_generated(
+            "p-macos.html".to_owned(),
+            "MacOS ",
+            Generated::Reference,
+            None,
+        );
+        names.insert_generated(
+            "p-nov.html".to_owned(),
+            "Nov 18th, 2024",
+            Generated::Reference,
+            JournalDate::new(2024, 11, 18),
+        );
+        assert_eq!(names.link("deno").target().unwrap(), "p-deno.html");
+        assert_eq!(
+            names.link("deno deploy"),
+            Link::Generated(
+                &"p-deploy.html".to_owned(),
+                Generated::Reference,
+                "Deno Deploy"
+            )
+        );
+        assert_eq!(
+            names.link("ai"),
+            Link::Generated(&"p-ai.html".to_owned(), Generated::Namespace, "AI")
+        );
+        // A space at an end keeps the name apart; another date spelling finds the journal.
+        assert_eq!(names.link("MacOS ").target().unwrap(), "p-macos.html");
+        assert_eq!(names.link("MacOS"), Link::Missing);
+        assert_eq!(names.link("2024-11-18").target().unwrap(), "p-nov.html");
+        // Homepage, alias and embed lookups see files only.
+        assert!(names.candidates("AI").is_empty() && names.candidates("Deno Deploy").is_empty());
+        names.retain_generated(|id| id != "p-nov.html");
+        assert_eq!(names.link("2024-11-18"), Link::Missing);
+    }
+}

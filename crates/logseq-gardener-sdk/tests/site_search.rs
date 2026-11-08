@@ -11,6 +11,15 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 static NEXT: AtomicUsize = AtomicUsize::new(0);
+fn digest(title: &str) -> String {
+    let hash = title
+        .as_bytes()
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    format!("{hash:016x}")
+}
 struct Fixture(PathBuf);
 impl Fixture {
     fn new() -> Self {
@@ -40,13 +49,13 @@ impl Fixture {
         .unwrap();
         output
     }
-    // The format version 3 files read back as the version 1 corpus view these
+    // The format version 4 files read back as the version 1 corpus view these
     // assertions use; `raw` holds every search file plus the destinations.
     fn corpus(output: &std::path::Path) -> (Value, String) {
         let manifest_path = output.join("lsg-search-manifest.json");
         let manifest_raw = fs::read_to_string(manifest_path).unwrap();
         let manifest: Value = serde_json::from_str(&manifest_raw).unwrap();
-        assert_eq!(manifest["format_version"], 3);
+        assert_eq!(manifest["format_version"], 4);
         let read = |kind: &str, digest: &Value| {
             let raw = fs::read_to_string(output.join(format!(
                 "lsg-search-{kind}-{}.json",
@@ -54,7 +63,7 @@ impl Fixture {
             )))
             .unwrap();
             let value: Value = serde_json::from_str(&raw).unwrap();
-            assert_eq!(value["format_version"], 3);
+            assert_eq!(value["format_version"], 4);
             (value, raw)
         };
         let (titles, mut raw) = read("titles", &manifest["titles"]);
@@ -63,7 +72,15 @@ impl Fixture {
             .as_array()
             .unwrap()
             .iter()
-            .map(|p| serde_json::json!({"id": p[1], "title": p[0], "href": p[1], "aliases": p[2]}))
+            .map(|p| {
+                // A route the title gives is left out of the entry.
+                let href = p
+                    .get(2)
+                    .cloned()
+                    .unwrap_or_else(|| format!("p-{}.html", digest(p[0].as_str().unwrap())).into());
+                let aliases = p.get(1).cloned().unwrap_or_else(|| serde_json::json!([]));
+                serde_json::json!({"id": href, "title": p[0], "href": href, "aliases": aliases})
+            })
             .collect();
         let mut content = Vec::new();
         for digest in manifest["chunks"].as_array().unwrap() {

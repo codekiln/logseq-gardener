@@ -1,4 +1,5 @@
 {:file/name-format :triple-lowbar
  :publishing/all-pages-public? true
  :journal/page-title-format "yyyy-MM-dd EEE"
+ :hidden ["/pages/Draft.md"]
  :favorites ["terminal multiplexer" "Tools/Editor" "Tools/Missing"]}

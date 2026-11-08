@@ -1,0 +1,6 @@
+- Deploy with [[Deno Deploy]], a page no file holds.
+- A chord spelled (C#/D♭) tags `D♭)`; [[TypeScript]] is spelled two ways.
+- Settings live under [[Tools/Settings/Developer/SSH Agent]], whose parents have no file.
+- The plugins namespace is [[Tools/Plugins]], a generated namespace page.
+- Noted on [[Nov 18th, 2024]], a date with no journal file.
+- [[Tools/Private]] is withheld and [[Draft]] is a hidden file.
