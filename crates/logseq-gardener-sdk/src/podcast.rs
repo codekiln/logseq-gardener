@@ -1,9 +1,9 @@
-//! A podcast episode page: the recording it plays and the title it shows.
+//! A podcast episode page: the recording it plays, the title it shows and its chapters.
 //!
 //! A page is an episode when its `logseq-entity::` value names [`EPISODE_TYPE`] (see
 //! [`crate::entity_types`]). Its recording is the first audio embed, `![label](url.mp3)`,
 //! among the descendants of the page's first heading block, and its title is that heading's
-//! text.
+//! text. Its chapters are the H3 to H6 headings that start with a timestamp ([`chapters`]).
 //!
 //! ```
 //! use logseq_gardener_sdk::podcast::recording;
@@ -65,6 +65,124 @@ pub fn recording(blocks: &[Block]) -> Option<Recording> {
         }
     }
     None
+}
+
+/// One chapter of an episode: an H3 to H6 heading whose text starts with a timestamp.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Chapter {
+    /// Byte offset of the heading's bullet in the page source, which the renderer anchors as
+    /// `source-block-<offset>`.
+    pub start: usize,
+    /// Where the chapter starts in the recording.
+    pub seconds: u32,
+    /// The heading's text after the timestamp and any dash that follows it.
+    pub title: String,
+    /// Index in the returned list of the nearest chapter among the heading's ancestors.
+    pub parent: Option<usize>,
+}
+
+/// The chapters of a page's outline in page order: each H3 to H6 heading whose text starts
+/// with a `M:SS`, `MM:SS` or `H:MM:SS` timestamp (see [`leading_timestamp`]). A timestamp
+/// later in the heading, or one inside code or emphasis, leaves the heading as text.
+///
+/// ```
+/// use logseq_gardener_sdk::podcast::chapters;
+///
+/// let parsed = lsdoc::parse_to_projection(
+///     "- # Episode\n\t- ### 18:17 Enter 8bitfi\n\t\t- #### 19:30 - Old warbling\n",
+/// );
+/// let found = chapters(&parsed.blocks);
+/// assert_eq!(found[0].seconds, 1097);
+/// assert_eq!(found[1].title, "Old warbling");
+/// assert_eq!(found[1].parent, Some(0));
+/// ```
+pub fn chapters(blocks: &[Block]) -> Vec<Chapter> {
+    let outline = Outline::from_blocks(blocks);
+    let mut found = Vec::new();
+    // The chapter each outline block opens, by outline index.
+    let mut opened: Vec<Option<usize>> = Vec::with_capacity(outline.blocks.len());
+    for block in &outline.blocks {
+        let chapter = chapter_of(blocks, block).map(|(start, seconds, title)| {
+            let parent = std::iter::successors(block.parent, |&index| outline.blocks[index].parent)
+                .find_map(|index| opened[index]);
+            found.push(Chapter {
+                start,
+                seconds,
+                title,
+                parent,
+            });
+            found.len() - 1
+        });
+        opened.push(chapter);
+    }
+    found
+}
+
+/// `(start, seconds, title)` when `block` is an H3 to H6 heading led by a timestamp.
+fn chapter_of(
+    blocks: &[Block],
+    block: &crate::outline::OutlineBlock,
+) -> Option<(usize, u32, String)> {
+    if !matches!(block.heading, Some(3..=6)) {
+        return None;
+    }
+    let start = block.start?;
+    let Block::Bullet { inline, .. } = &blocks[block.index] else {
+        return None;
+    };
+    let Some(Inline::Plain { text, .. }) = inline.first() else {
+        return None;
+    };
+    let (seconds, length) = leading_timestamp(text)?;
+    let first_line = inline
+        .iter()
+        .position(|node| matches!(node, Inline::Break { .. } | Inline::HardBreak { .. }))
+        .map_or(&inline[..], |end| &inline[..end]);
+    let mut title = String::new();
+    title.push_str(&text[length..]);
+    plain_text(&first_line[1..], &mut title, 0);
+    let title = title
+        .trim_start_matches(|c: char| c.is_whitespace() || matches!(c, '-' | '–' | '—'))
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    Some((start, seconds, title))
+}
+
+/// The timestamp that starts `text` as `(seconds, byte length)`: one or two digits, then one
+/// or two groups of a colon and two digits under 60, so `5:15`, `18:17`, `1:02:03` and
+/// `01:00:23`. The timestamp must end the text or be followed by whitespace or a dash, so
+/// `18:17pm` and `18:170` are not timestamps.
+///
+/// ```
+/// use logseq_gardener_sdk::podcast::leading_timestamp;
+///
+/// assert_eq!(leading_timestamp("18:17 Enter"), Some((1097, 5)));
+/// assert_eq!(leading_timestamp("01:00:23"), Some((3623, 8)));
+/// assert_eq!(leading_timestamp("at 18:17"), None);
+/// ```
+#[must_use]
+pub fn leading_timestamp(text: &str) -> Option<(u32, usize)> {
+    let bytes = text.as_bytes();
+    let digits = bytes.iter().take_while(|b| b.is_ascii_digit()).count();
+    if !(1..=2).contains(&digits) {
+        return None;
+    }
+    let mut value: u32 = text[..digits].parse().ok()?;
+    let mut length = digits;
+    let mut groups = 0;
+    while groups < 2
+        && let [b':', tens @ b'0'..=b'5', ones @ b'0'..=b'9', ..] = bytes[length..]
+    {
+        value = value * 60 + u32::from(tens - b'0') * 10 + u32::from(ones - b'0');
+        length += 3;
+        groups += 1;
+    }
+    let ends = text[length..]
+        .chars()
+        .next()
+        .is_none_or(|c| c.is_whitespace() || matches!(c, '-' | '–' | '—'));
+    (groups > 0 && ends).then_some((value, length))
 }
 
 /// Whether a destination names an audio file the published page plays: `.mp3`, `.wav` or
@@ -219,5 +337,92 @@ mod tests {
             "Infini Pad and Microfreak/Preset/260 8bitfi live"
         );
         assert_eq!(recording.destination, "https://example.com/r.mp3?x=1");
+    }
+
+    fn chapters_of(source: &str) -> Vec<(u32, String, Option<usize>)> {
+        chapters(&lsdoc::parse_to_projection(source).blocks)
+            .into_iter()
+            .map(|chapter| (chapter.seconds, chapter.title, chapter.parent))
+            .collect()
+    }
+
+    #[test]
+    fn timestamp_formats() {
+        assert_eq!(leading_timestamp("5:15"), Some((315, 4)));
+        assert_eq!(leading_timestamp("05:15 - the bass"), Some((315, 5)));
+        assert_eq!(leading_timestamp("18:17 Enter"), Some((1097, 5)));
+        assert_eq!(leading_timestamp("1:02:03 An hour in"), Some((3723, 7)));
+        assert_eq!(leading_timestamp("01:00:23 Recording"), Some((3623, 8)));
+        assert_eq!(leading_timestamp("13:41 – em dash"), Some((821, 5)));
+        assert_eq!(leading_timestamp("13:41—tight"), Some((821, 5)));
+        for text in [
+            "",
+            "18",
+            "18:",
+            "18:7",
+            "18:60",
+            "123:00",
+            "18:17pm",
+            "18:170",
+            "1:02:03:04",
+            "18:17:6",
+            " 18:17",
+            "at 18:17",
+            "Layer C capture",
+        ] {
+            assert_eq!(leading_timestamp(text), None, "{text:?}");
+        }
+    }
+
+    #[test]
+    fn chapter_headings_at_each_level() {
+        let page = "- # Episode\n\t- ![r](https://example.com/r.mp3)\n\t- ## 00:00 An H2 is not a chapter\n\t- ## Chapters\n\t\t- ### 00:00 Enter [[Microfreak/Preset/259 Infini Pad]]\n\t\t\t- #### 00:00 [[Launchpad]] playing\n\t\t\t- #### 05:12 Infini Pad as bass\n\t\t\t\t- Notes, not a chapter.\n\t\t\t\t\t- ##### 13:41 - pointillist emergence\n\t\t\t\t\t\t- ###### 1:02:03 deepest\n\t\t- ### 18:17 Enter 8bitfi\n";
+        assert_eq!(
+            chapters_of(page),
+            [
+                (0, "Enter Microfreak/Preset/259 Infini Pad".to_owned(), None),
+                (0, "Launchpad playing".to_owned(), Some(0)),
+                (312, "Infini Pad as bass".to_owned(), Some(0)),
+                (821, "pointillist emergence".to_owned(), Some(2)),
+                (3723, "deepest".to_owned(), Some(3)),
+                (1097, "Enter 8bitfi".to_owned(), None),
+            ]
+        );
+    }
+
+    #[test]
+    fn timestamp_in_code_or_later_in_the_heading_is_text() {
+        let page = "- ### `05:15` in code\n- ### the second voice joins at 01:28\n- ### **05:15** emphasised\n- ### Layer C capture\n\t- #### 05:20 Under a plain heading\n- 05:30 a bullet is not a heading chapter\n- ~~~\n  ### 05:40 in a code block\n  ~~~\n";
+        assert_eq!(
+            chapters_of(page),
+            [(320, "Under a plain heading".to_owned(), None)]
+        );
+    }
+
+    #[test]
+    fn two_headings_at_the_same_time_are_two_chapters_with_their_own_anchors() {
+        let page =
+            "- ### 00:00 Enter Voidom\n\t- #### 00:00 tentative invocation\n- ### 00:00 Again\n";
+        let found = chapters(&lsdoc::parse_to_projection(page).blocks);
+        assert_eq!(found.len(), 3);
+        assert!(found.iter().all(|chapter| chapter.seconds == 0));
+        assert_eq!(found[1].parent, Some(0));
+        assert_eq!(found[2].parent, None);
+        let starts: std::collections::BTreeSet<_> = found.iter().map(|c| c.start).collect();
+        assert_eq!(starts.len(), 3);
+        assert_eq!(&page[found[2].start..found[2].start + 1], "-");
+    }
+
+    #[test]
+    fn heading_property_and_a_second_line() {
+        let page =
+            "- 02:00 Set by property\n  heading:: 3\n- ### 03:00 First line\n  continued below\n";
+        assert_eq!(
+            chapters_of(page),
+            [
+                (120, "Set by property".to_owned(), None),
+                (180, "First line".to_owned(), None),
+            ]
+        );
     }
 }
