@@ -6,6 +6,10 @@ link and property, and `digest` identifies the result. Its shape follows Gitpa's
 2026-10-31: about 2,400 pages and 300,000 words, deep namespaces, about seven page links, seven
 blocks and eight properties per page, page embeds, a few code blocks and a few journals. Pages
 must say `public:: true` to be published, as in Gitpa; a few say `public:: false`.
+
+Fifteen pages are podcast episodes, and the homepage, `Ghost in the Patch`, lists them newest first
+with the advanced query Gitpa's homepage uses: a `:result-transform` that sorts and a `:view` that
+draws links. publish_bench.py publishes the garden with that page as `--homepage`, as Gitpa does.
 """
 import argparse
 import hashlib
@@ -15,16 +19,44 @@ import subprocess
 from pathlib import Path
 
 NAME = 'gitpa-sized'
-VERSION = 1
+VERSION = 2
 SEED = 259
 PAGES = 2400
+HOMEPAGE = 'Ghost in the Patch'
+# Every EPISODE_EVERY-th page, from the second, is an episode: 15 of 2,400, as on Gitpa's homepage.
+EPISODE_EVERY = 160
+# Gitpa's homepage query (gitpa 410f4d9), in the form tests/fixtures and parity:budgets use.
+HOMEPAGE_TEXT = """public:: true
+
+- Recent episodes, newest first.
+- #+BEGIN_QUERY
+  {:title [:h2 "Recent Ceremonies"]
+   :query [:find (pull ?p [*])
+           :where
+           [?p :block/name]
+           [?p :block/properties ?props]
+           [(get ?props :logseq-entity) ?entities]
+           [(contains? ?entities "Logseq/Entity/Podcast/Episode")]
+           [(get ?props :public) ?public]
+           [(= ?public true)]]
+   :result-transform (fn [rows] (sort-by (fn [row] (get-in row [:block/properties :podcast-published-at]))
+                                         (fn [a b] (compare b a)) rows))
+   :view (fn [rows]
+           (into ["ul"]
+                 (map (fn [row]
+                        ["li" ["a" {:href (str "#/page/" (clojure.string/replace (:block/name row) "/" "%2F"))}
+                               (:block/original-name row)]]) rows)))
+   :table-view? false}
+  #+END_QUERY
+"""
 JOURNALS = 10
 # Namespace depth of Gitpa's pages: depth -> share of pages, in percent.
 DEPTHS = {0: 1, 1: 1, 2: 19, 3: 11, 4: 22, 5: 27, 6: 6, 7: 5, 8: 4, 9: 2, 10: 2}
 CONFIG = '''{:meta/version 1
  :file/name-format :triple-lowbar
  :journal/page-title-format "MMM do, yyyy"
- :publishing/all-pages-public? false}
+ :publishing/all-pages-public? false
+ :default-home {:page "Ghost in the Patch"}}
 '''
 SYLLABLES = ['ka', 'lo', 'mi', 'ne', 'ru', 'sa', 'ti', 'vo', 'pe', 'da', 'go', 'hu', 'ji', 'be',
              'fa', 'ze', 'qu', 'xo', 'wi', 'yo', 'an', 'el', 'or', 'um', 'is', 'en', 'ar', 'ol']
@@ -78,8 +110,11 @@ def page(rng, pick, title, all_titles, index):
              f'created:: {2020 + index % 6}-{1 + index % 12:02d}-{1 + index % 28:02d}',
              f'rating:: {index % 5}',
              f'status:: {rng.choice(["draft", "done", "open"])}',
-             f'related:: [[{links[0]}]]',
-             '']
+             f'related:: [[{links[0]}]]']
+    if index % EPISODE_EVERY == 1:
+        lines += ['logseq-entity:: [[Logseq/Entity/Podcast/Episode]]',
+                  f'podcast-published-at:: 2026-{1 + index // 200:02d}-{1 + index % 28:02d}T10:00:00Z']
+    lines.append('')
     for block in range(rng.randint(4, 10)):
         indent = '\t' * (0 if block == 0 else rng.randint(0, 2))
         text = ' '.join(sentence(pick, rng) for _ in range(rng.randint(1, 2)))
@@ -112,6 +147,7 @@ def generate(destination):
     (root / 'logseq' / 'config.edn').write_text(CONFIG, encoding='utf-8')
     for index, title in enumerate(order):
         (root / 'pages' / file_name(title)).write_text(page(rng, pick, title, order, index), encoding='utf-8')
+    (root / 'pages' / file_name(HOMEPAGE)).write_text(HOMEPAGE_TEXT, encoding='utf-8')
     for day in range(1, JOURNALS + 1):
         text = f'public:: true\n\n- {sentence(pick, rng)} [[{rng.choice(order)}]]\n'
         (root / 'journals' / f'2026_10_{day:02d}.md').write_text(text, encoding='utf-8')

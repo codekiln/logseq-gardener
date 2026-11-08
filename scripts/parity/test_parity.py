@@ -236,6 +236,20 @@ class PublishBenchTest(unittest.TestCase):
             if '/' in title:
                 self.assertIn(title.rsplit('/', 1)[0], titles)
 
+    def test_the_sample_gardens_homepage_lists_fifteen_public_episodes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp) / 'garden'
+            sample_garden.generate(garden)
+            home = garden / 'pages' / sample_garden.file_name(sample_garden.HOMEPAGE)
+            self.assertIn('#+BEGIN_QUERY', home.read_text(encoding='utf-8'))
+            episodes = [p.read_text(encoding='utf-8') for p in (garden / 'pages').glob('*.md')
+                        if 'logseq-entity:: [[Logseq/Entity/Podcast/Episode]]' in p.read_text(encoding='utf-8')]
+            self.assertEqual(len(episodes), 15)
+            self.assertTrue(all('public:: true' in text for text in episodes))
+            dates = [line for text in episodes for line in text.splitlines() if line.startswith('podcast-published-at::')]
+            self.assertEqual(len(set(dates)), 15)
+        self.assertEqual(publish_bench.CORPUS_OPTIONS['gitpa-sized'], ['--homepage', sample_garden.HOMEPAGE])
+
 
 class SiteSizeTest(unittest.TestCase):
     def test_site_size_section_lists_both_builds_and_marks_parts_over_budget(self):
