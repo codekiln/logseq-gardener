@@ -114,6 +114,9 @@ pub struct SiteReport {
     pub pages: usize,
     /// Published journal files.
     pub journals: usize,
+    /// Pages with no file that published blocks name, journals among them; not counted in
+    /// `pages` or `journals`.
+    pub reference_only_pages: usize,
     /// Number of distinct copied asset files.
     pub assets: usize,
     /// Journals skipped because journals were not requested or their names are not dates.
@@ -439,6 +442,7 @@ pub fn publish_site_with_options(
     let mut report = SiteReport {
         pages: 0,
         journals: 0,
+        reference_only_pages: 0,
         assets: 0,
         skipped_journals: 0,
         withheld_pages: 0,
@@ -477,6 +481,7 @@ pub fn publish_site_with_options(
         routes,
         keys: pages,
         namespaces: generated,
+        reference_only,
         withheld: withheld_titles,
         garden_titles,
         garden_names,
@@ -501,8 +506,18 @@ pub fn publish_site_with_options(
         .transpose()?;
     let has_homepage = homepage_route.is_some();
     let build_date = options.build_date.unwrap_or_else(journals::build_date);
+    // The feed lists reference-only journals too, as Logseq's journals view lists every
+    // journal page up to today.
+    let mut feed_dates = journal_dates.clone();
+    if options.journals {
+        feed_dates.extend(
+            reference_only
+                .values()
+                .filter_map(|page| Some((page.route.clone(), page.journal?))),
+        );
+    }
     let feed = journals::Feed::plan(
-        &journal_dates,
+        &feed_dates,
         build_date,
         settings.features.journals,
         has_homepage,
@@ -616,6 +631,7 @@ pub fn publish_site_with_options(
             &selected,
             &journal_dates,
             &generated,
+            &reference_only,
             |route| {
                 property_views
                     .get(route)
@@ -650,16 +666,32 @@ pub fn publish_site_with_options(
         hierarchy
             .entries()
             .map(|node| (node.route.clone(), node.title.clone()))
+            .chain(
+                reference_only
+                    .values()
+                    .map(|page| (page.route.clone(), page.title.clone())),
+            )
             .collect(),
         journal_dates.clone(),
         settings.show_brackets,
-    );
+    )
+    .with_one_unlinked_file(reference_only.keys().cloned().collect());
     // The graph's layouts and neighbourhood files are computed while pages render.
     let mut graph_files = {
         let mut published: BTreeSet<String> = pages.keys().cloned().collect();
         published.extend(hierarchy.entries().map(|node| lookup_key(&node.title)));
         let hidden = graph::hidden_names(&garden_titles, &published);
-        let journal_routes: BTreeSet<String> = journal_dates.keys().cloned().collect();
+        let journal_routes: BTreeSet<String> = journal_dates
+            .keys()
+            .cloned()
+            .chain(
+                reference_only
+                    .values()
+                    .filter(|page| page.journal.is_some())
+                    .map(|page| page.route.clone()),
+            )
+            .collect();
+        let reference_routes: BTreeSet<String> = reference_only.keys().cloned().collect();
         let journal_title = |name: &str| {
             parse_journal_reference(name, &journal_formats)
                 .map(|date| journal_formats.title.format(date))
@@ -668,6 +700,7 @@ pub fn publish_site_with_options(
             &crate::graph::GraphSource {
                 index: reference_index.index(),
                 journals: &journal_routes,
+                reference_only: &reference_routes,
                 hidden: &hidden,
                 journal_title: &journal_title,
             },
@@ -758,7 +791,7 @@ pub fn publish_site_with_options(
     let mut search = options
         .search
         .as_ref()
-        .map(|options| search::Search::new(&selected, &names, &targets, options));
+        .map(|options| search::Search::new(&selected, &reference_only, &names, &targets, options));
     // Only selected source reaches the renderer and may request asset contents.
     let mut copied: BTreeMap<String, (PathBuf, Vec<u8>)> = BTreeMap::new();
     let mut documents = BTreeMap::new();
@@ -992,6 +1025,71 @@ pub fn publish_site_with_options(
             );
         }
     }
+    // Pages with no file that published blocks name: the title and the sections around the
+    // blocks, as Logseq shows a page with no blocks, without the Namespace notice.
+    for page in reference_only.values() {
+        let sections = reference_index.render(
+            &page.route,
+            &references::Context {
+                config: &reference_config,
+                names: &names,
+                targets: &targets,
+                documents: &selected_documents,
+            },
+            &mut asset,
+        );
+        documents.extend(sections.files);
+        // `MacOS ` keeps its space, so the namespace `MacOS`, which the hierarchy finds by
+        // the trimmed name, is not its hierarchy.
+        let hierarchy_section =
+            if page.journal.is_some() || crate::page_names::has_outer_space(&page.title) {
+                hierarchy::Section::default()
+            } else {
+                hierarchy.bottom_view(&page.title, &page.route, settings.show_brackets)
+            };
+        documents.extend(hierarchy_section.files);
+        if feed.lists(&page.route) {
+            feed_bodies.insert(
+                page.route.clone(),
+                (
+                    page.title.clone(),
+                    String::new(),
+                    reference_index.page_count(&page.route),
+                ),
+            );
+        }
+        site_pages.push(plugins::SitePage {
+            id: Some(crate::page_names::reference_key(&page.title)),
+            title: page.title.clone(),
+            url: page.route.clone(),
+            kind: if page.journal.is_some() {
+                "journal"
+            } else {
+                "reference"
+            },
+            properties: None,
+        });
+        documents.insert(
+            page.route.clone(),
+            html_document(
+                &page.title,
+                &(contributions
+                    .rows
+                    .get(&page.route)
+                    .map(|placed| derived::page_rows(placed).end)
+                    .unwrap_or_default()
+                    + &sections.tagged
+                    + &sections.linked
+                    + &hierarchy_section.html
+                    + &sections.unlinked),
+                stylesheet_route,
+                &shell,
+                &page.route,
+                false,
+            ),
+        );
+        report.reference_only_pages += 1;
+    }
     stopwatch.lap("render");
     let (dates, dates_diagnostic) = git_dates.get();
     stopwatch.lap("history");
@@ -1002,20 +1100,32 @@ pub fn publish_site_with_options(
         });
     }
     let list = page_list(
-        entries.iter().map(|node| PageSource {
-            id: node.route.clone(),
-            title: node.title.clone(),
-            kind: if node.generated {
-                PageKind::Namespace
-            } else if journal_dates.contains_key(&node.route) {
-                PageKind::Journal
-            } else {
-                PageKind::Page
-            },
-            document: selected_documents
-                .get(&node.route)
-                .map(|page: &crate::transclusion::EmbedPage| page.document),
-        }),
+        entries
+            .iter()
+            .map(|node| PageSource {
+                id: node.route.clone(),
+                title: node.title.clone(),
+                kind: if node.generated {
+                    PageKind::Namespace
+                } else if journal_dates.contains_key(&node.route) {
+                    PageKind::Journal
+                } else {
+                    PageKind::Page
+                },
+                document: selected_documents
+                    .get(&node.route)
+                    .map(|page: &crate::transclusion::EmbedPage| page.document),
+            })
+            .chain(reference_only.values().map(|page| PageSource {
+                id: page.route.clone(),
+                title: page.title.clone(),
+                kind: if page.journal.is_some() {
+                    PageKind::Journal
+                } else {
+                    PageKind::Reference
+                },
+                document: None,
+            })),
         reference_index.index(),
         dates.as_ref(),
     );

@@ -149,6 +149,7 @@ pub fn derive(root: &Path, format: FilenameFormat) -> Derived {
     let graph_index = GraphIndex::new(&GraphSource {
         index: &index,
         journals: &journals,
+        reference_only: &BTreeSet::new(),
         hidden: &BTreeSet::new(),
         journal_title: &|name| {
             parse_journal_reference(name, &formats).map(|date| formats.title.format(date))

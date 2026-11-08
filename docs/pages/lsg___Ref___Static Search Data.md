@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 - # Static Search Data Reference
 	- ## Overview
 		- `lsg publish --search` writes a search index beside the generated HTML, and every page reads it through the shared search dialog. Rust callers set `SiteOptions.search = Some(SearchOptions::default())`.
-		- Search format version 3 publishes the stored titles, unique aliases and original bullet inline text of the selected pages as a small title index, word-prefix shards and record chunks.
+		- Search format version 4 publishes the stored titles, the titles of reference-only pages, unique aliases and original bullet inline text of the selected pages as a small title index, word-prefix shards and record chunks.
 		- Each page names the manifest at a fixed address, `<link rel="lsg-search" href="lsg-search-manifest.json">`, so a garden edit leaves every other page's HTML unchanged.
 		- A small startup module loads with the page. The dialog controller, the manifest, the engine and the title index load when a reader points at or focuses the search button, presses Cmd/Ctrl+K or opens search. Each query loads only the shards its words need and the chunks of the rows it draws. [[lsg/Ref/Search Dialog]] describes the dialog.
 		- The SDK's `search` module builds the records, the word index and the files, and answers the same queries in Rust; the publisher only writes the files.
@@ -14,9 +14,10 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			- Page identities and alias ambiguity come from `PageNameIndex`.
 			- An ambiguous alias supplies no search key. A stored title stays its page's own searchable title even when another page claims it as an alias.
 			- An alias match returns the stored page once.
+			- A reference-only page, a page with no file that published blocks link or tag, is found by its title and has no block records. [[lsg/Ref/Selection and Visibility]] says which names become reference-only pages.
 		- ### Searchable text
-			- Searchable bullet text includes plain prose, inline code, emphasis, subscript and superscript, unique selected page references and the labels of explicit HTTP and HTTPS links. A `{{youtube-timestamp}}` macro contributes its displayed time, such as `10:20`.
-			- A tag contributes text only when its name resolves to a unique selected page.
+			- Searchable bullet text includes plain prose, inline code, emphasis, subscript and superscript, references and tags to selected pages, reference-only pages and generated namespace pages, and the labels of explicit HTTP and HTTPS links. A `{{youtube-timestamp}}` macro contributes its displayed time, such as `10:20`.
+			- A reference or tag to a withheld, unselected or ambiguous name contributes no text.
 			- Search leaves out property values, comments, paragraphs outside bullets, code fences, tables, custom containers, unsupported inline constructs, raw HTML, query arguments, the arguments of other macros, block reference expansions and asset metadata.
 			- A page or block embed contributes no copied target text. The selected target's original bullets are searchable on their own.
 			- Generated namespace titles and searching property content are not supported yet.
@@ -27,14 +28,15 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			- These controls affect search only. Excluded prose stays visible on its published page.
 	- ## Files
 		- Every file lives beside the generated HTML. The manifest has a fixed name; every other file is named by a 16-hex-digit content digest. Adding, removing or editing one block changes only the manifest, the shards that hold the words of the changed block and the chunks that hold that page's records. Adding, removing or renaming a page still changes most shards, because shards number pages in title order.
-		- Every file declares `"format_version": 3`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
+		- Every file declares `"format_version": 4`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
 		- ### Manifest
 			- The manifest, `lsg-search-manifest.json`, names every other file and gives each page's number of block records, in title index order:
 			- ```json
 			  {
-			    "format_version": 3,
+			    "format_version": 4,
 			    "revision": "748cf8298f8a51ad",
 			    "engine": "lsg-search-engine-fbe9260cd1846dc8.mjs",
+			    "urls": "digest",
 			    "titles": "13397893c1b620fe",
 			    "blocks": 2,
 			    "counts": [2],
@@ -44,19 +46,20 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			               "se": "3df4bbf267d766b5", "tm": "940cb93093aa6634", "wi": "3f5f1cb136e5145e"}
 			  }
 			  ```
-			- The revision digests the manifest's other fields with a `search-v3` marker, using the publisher's FNV-1a digest. It identifies the publication and gives no cryptographic integrity guarantee.
+			- `urls` names the page URL scheme, `digest` or `readable`. The engine computes a page's route from its title: `p-<FNV-1a 64 of the title>.html`, or each slash-separated segment with every byte outside `A`–`Z`, `a`–`z`, `0`–`9` and `-._~` percent-encoded, then a final `/`. A title index entry carries a route only when the page is published elsewhere, such as a title that cannot form a readable path.
+			- The revision digests the manifest's other fields with a `search-v4` marker, using the publisher's FNV-1a digest. It identifies the publication and gives no cryptographic integrity guarantee.
 		- ### Other files
 			- | File | Name | Holds |
 			  | --- | --- | --- |
-			  | Title index | `lsg-search-titles-<titles>.json` | For each page, in title order: its title, route and aliases. |
+			  | Title index | `lsg-search-titles-<titles>.json` | For each page, in title order: `[title]`, `[title, aliases]`, or `[title, aliases, route]` when the page is published at another route than its title gives under the manifest's `urls` scheme. |
 			  | Shard | `lsg-search-shard-<digest>.json` | Each normalized word under the shard's key, with the blocks that contain it as page and block pairs. |
 			  | Chunk | `lsg-search-chunk-<digest>.json` | Up to 256 consecutive block records, at most 32 KB (32,000 bytes) gzipped: page route, fragment, text and up to three parents, nearest last. |
 			  | Engine | the manifest's `engine` | The pure evaluator, named by its own digest. |
 			- The title index, a shard and a chunk from the example build:
 			- ```json
-			  {"format_version": 3, "pages": [["Music/Session", "p-a33d85f823d4a0a3.html", ["Session"]]]}
-			  {"format_version": 3, "words": [["tmux", [0, 1]]]}
-			  {"format_version": 3, "blocks": [
+			  {"format_version": 4, "pages": [["Music/Session", ["Session"]]]}
+			  {"format_version": 4, "words": [["tmux", [0, 1]]]}
+			  {"format_version": 4, "blocks": [
 			    ["p-a33d85f823d4a0a3.html", "source-block-17", "Session notes", []],
 			    ["p-a33d85f823d4a0a3.html", "source-block-33", "Recording with tmux.conf", ["Session notes"]]]}
 			  ```
@@ -107,7 +110,7 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 		  }
 		  ```
 		- ### Loading and validation
-			- `prepareManifest` rejects every format version other than 3, page counts that do not add up to `blocks`, and malformed fields.
+			- `prepareManifest` rejects every format version other than 4, a `urls` value other than `digest` or `readable`, page counts that do not add up to `blocks`, and malformed fields.
 			- `createIndex`, `addShard` and `addChunk` reject text whose digest differs from the manifest's, and records of the wrong shape or page.
 			- Invalid input throws a `TypeError` with a reload or retry message.
 			- The loader must check for successful HTTP responses itself, and keep loading and error states separate from an empty result.

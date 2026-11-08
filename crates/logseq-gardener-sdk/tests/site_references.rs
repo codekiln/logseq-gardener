@@ -322,9 +322,11 @@ fn leading_bare_tags_match_and_missing_or_ambiguous_targets_do_not_supply_option
             .contains("<h2>2 Linked References</h2>")
     );
     let titles = titles(&f.data("Notes/Target"));
-    for name in ["Missing sentinel", "Shared", "Notes/One", "Notes/Two"] {
+    for name in ["Shared", "Notes/One", "Notes/Two"] {
         assert!(!titles.contains(&name.to_owned()), "{name}");
     }
+    // A name with no file is a reference-only page, so it is a filter option like any page.
+    assert!(titles.contains(&"Missing sentinel".to_owned()));
 }
 
 #[test]
@@ -703,10 +705,11 @@ fn fragments_are_gzip_with_an_empty_header_and_the_same_groups_give_the_same_fil
 fn a_listed_block_reports_its_diagnostics_once_under_its_own_file() {
     let f = Fixture::new();
     f.write("pages/Notes___Start.md", "- START\n");
+    f.write("pages/Notes___Absent.md", "public:: false\n\n- Private\n");
     // Notes/Start lists this block in its Linked References.
     f.write(
         "pages/Notes___Other.md",
-        "- [[Notes/Start]] and [[Absent]] and [help](../../src/help.rs)\n",
+        "- [[Notes/Start]] and [[Notes/Absent]] and [help](../../src/help.rs)\n",
     );
     let report = f.publish();
     let problems: Vec<_> = report
@@ -720,7 +723,7 @@ fn a_listed_block_reports_its_diagnostics_once_under_its_own_file() {
         [
             (
                 "pages/Notes___Other.md".to_owned(),
-                "Unresolved or excluded page reference: Absent".to_owned()
+                "Unresolved or excluded page reference: Notes/Absent".to_owned()
             ),
             (
                 "pages/Notes___Other.md".to_owned(),

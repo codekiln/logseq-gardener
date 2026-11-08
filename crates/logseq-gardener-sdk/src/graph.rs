@@ -31,6 +31,7 @@
 //! let graph = GraphIndex::new(&GraphSource {
 //!     index: &index,
 //!     journals: &none,
+//!     reference_only: &none,
 //!     hidden: &BTreeSet::new(),
 //!     journal_title: &|_| None,
 //! })
@@ -193,7 +194,7 @@ pub(crate) fn property_page(name: &str) -> bool {
 }
 
 /// Names Logseq never draws: block UUIDs and asset paths.
-fn uuid_or_asset(name: &str) -> bool {
+pub(crate) fn uuid_or_asset(name: &str) -> bool {
     let uuid = name.len() == 36
         && name.char_indices().all(|(i, c)| match i {
             8 | 13 | 18 | 23 => c == '-',
@@ -212,7 +213,7 @@ fn uuid_or_asset(name: &str) -> bool {
 pub struct GraphNode<K> {
     /// The page's title as its file or first reference spells it.
     pub title: String,
-    /// The published page; `None` for a reference-only page.
+    /// The published page; `None` for a page with no published page, such as a task marker's.
     pub page: Option<K>,
     /// Logseq's link count for the node: every relation that touches it, counted with
     /// repeats, which sizes the node.
@@ -322,6 +323,9 @@ pub struct GraphSource<'a, K> {
     pub index: &'a ReferenceIndex<K>,
     /// The published journal pages.
     pub journals: &'a BTreeSet<K>,
+    /// The published pages that have no file and exist because published blocks name them;
+    /// their nodes carry their route and the [`REFERENCE_ONLY`] flag.
+    pub reference_only: &'a BTreeSet<K>,
     /// [`lookup_key`]s of pages that exist but are not published, such as private pages or
     /// pages outside the selected namespaces. They are never nodes.
     pub hidden: &'a BTreeSet<String>,
@@ -336,6 +340,8 @@ struct NodeInfo<K> {
     page: Option<K>,
     journal: bool,
     excluded: bool,
+    /// The page has no file: it exists because published blocks name it.
+    reference_only: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -397,6 +403,7 @@ impl<K: Ord + Clone> Builder<'_, '_, K> {
             page: None,
             journal: journal_title.is_some(),
             excluded: false,
+            reference_only: true,
         });
         self.by_key.insert(key, index);
         Some(index)
@@ -430,6 +437,7 @@ impl<K: Ord + Clone> GraphIndex<K> {
                 page: Some(page.clone()),
                 journal: source.journals.contains(page),
                 excluded: excluded.contains(page),
+                reference_only: source.reference_only.contains(page),
             });
             builder.by_key.insert(key, at);
             ids.insert(page.clone(), at);
@@ -570,7 +578,7 @@ impl<K: Ord + Clone> GraphIndex<K> {
         if info.excluded {
             flags |= EXCLUDED;
         }
-        if info.page.is_none() {
+        if info.reference_only {
             flags |= REFERENCE_ONLY;
         }
         if BUILT_IN_PAGES.contains(&lookup_key(&info.title).as_str()) {
@@ -867,6 +875,7 @@ mod tests {
             GraphIndex::new(&GraphSource {
                 index,
                 journals: &journals,
+                reference_only: &BTreeSet::new(),
                 hidden: &self.hidden,
                 journal_title: &|name| name.starts_with("J ").then(|| name.to_owned()),
             })
@@ -1054,6 +1063,7 @@ mod tests {
         let graph_index = GraphIndex::new(&GraphSource {
             index: &index,
             journals: &none,
+            reference_only: &none,
             hidden: &none,
             journal_title: &|_| None,
         });
@@ -1294,6 +1304,7 @@ mod tests {
         let graph = GraphIndex::new(&GraphSource {
             index: &index,
             journals: &BTreeSet::new(),
+            reference_only: &BTreeSet::new(),
             hidden: &BTreeSet::new(),
             journal_title: &|_| None,
         })

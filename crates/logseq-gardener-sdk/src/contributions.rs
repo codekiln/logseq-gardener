@@ -523,6 +523,7 @@ mod tests {
             &[("Episode".to_owned(), "p-e.html".to_owned(), &document)],
             &BTreeMap::new(),
             &BTreeMap::new(),
+            &BTreeMap::new(),
             |_| visible.as_slice(),
             true,
         )

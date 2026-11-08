@@ -320,12 +320,33 @@ peak_memory_growth_pct = 15
 # page whose inline scripts, other than the dialogue and page-property start-ups, exceed
 # inline_script_kb. parity:perf --baseline-lsg marks a whole encode garden build more than
 # build_slowdown_pct slower than the baseline binary's. GitHub Pages serves at most 1 GB, and
-# Logseq's gh-pages build of the same garden was 218 MB in 506 files on 2026-10-27.
+# Logseq's gh-pages build of the same garden was 218 MB in 506 files on 2026-10-27. 550, 200 and
+# 100 MB before reference-only pages, which add one page of about 10 KB per name with no file
+# (publish-reference-only-pages).
 [site]
-site_mb = 550
-page_html_mb = 200
-refs_mb = 100
+site_mb = 600
+page_html_mb = 260
+refs_mb = 115
 inline_script_kb = 1.5
+build_slowdown_pct = 10
+
+# Pages that exist only because published blocks name them (published-reference-only-pages).
+# parity:budgets checks page_kb and page_gzip_kb on every reference-only page of the fixture garden,
+# that it writes at most unlinked_files_per_page Unlinked References file per reference-only page,
+# that 2,000 more reference-only names linked from one added page leave every other page file
+# unchanged, and that the search engine, comments and indentation left out, grows by at most
+# search_engine_growth_kb over search_engine_baseline_kb (its size before format version 4).
+# unlinked_total_mb and linked_total_mb cap those files of the reference-only pages on the whole
+# encode garden, recorded in the change's verification.md; parity:perf --baseline-lsg marks a
+# whole-garden build more than build_slowdown_pct slower than the baseline binary's.
+[reference_only]
+page_kb = 11
+page_gzip_kb = 4
+unlinked_files_per_page = 1
+unlinked_total_mb = 15
+linked_total_mb = 10
+search_engine_baseline_kb = 15.533
+search_engine_growth_kb = 0.5
 build_slowdown_pct = 10
 
 # Publication speed (publication-speed). parity:publish-bench --check compares the fastest warm

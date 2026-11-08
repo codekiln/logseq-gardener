@@ -2,6 +2,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{config::ReferenceConfig, render::escape};
+use crate::page_names::{Generated, Link};
 use crate::{
     ast::Block,
     garden::GardenDocument,
@@ -159,8 +160,8 @@ fn value(
         if name.contains(['[', ']']) {
             return None;
         }
-        match names.candidates(name) {
-            [route] => {
+        match names.link(name) {
+            Link::Page(route) => {
                 let title = routes.get(route)?;
                 html.push_str(&format!(
                     "<a class=\"page-ref\" href=\"{}\">{}</a>",
@@ -169,7 +170,22 @@ fn value(
                 ));
                 targets.insert(route.clone());
             }
-            [] if !garden_names.contains(&lookup_key(name)) => html.push_str(&format!(
+            Link::Generated(route, kind, title) => {
+                let namespace = kind == Generated::Namespace;
+                html.push_str(&format!(
+                    "<a class=\"page-ref{}\"{} href=\"{}\">{}</a>",
+                    if namespace { " namespace-link" } else { "" },
+                    if namespace {
+                        format!(" aria-label=\"{} (Namespace)\"", escape(title))
+                    } else {
+                        String::new()
+                    },
+                    escape(route),
+                    escape(reference_label(name, title))
+                ));
+                targets.insert(route.clone());
+            }
+            Link::Missing if !garden_names.contains(&lookup_key(name)) => html.push_str(&format!(
                 "<span class=\"page-reference unresolved no-brackets\"><span>{}</span></span>",
                 escape(name)
             )),

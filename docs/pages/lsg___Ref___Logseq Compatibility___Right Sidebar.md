@@ -109,7 +109,7 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/Ref/Logseq Published Site/Cli
 		- The card menu is a keyboard menu with focusable items, arrow keys and Escape. Logseq's menu items are not focusable.
 		- Below 640px, `t r` does nothing and Shift-click follows the link. Logseq ignores the Shift-click there and opens a 156px column on `t r`, which is too narrow to read.
 		- The saved state records cards by route and block identifier and includes collapsed flags and width, written on every change. Logseq stores database ids, which a static site does not have, and does not save a collapse on its own.
-		- Pages that exist only because something references them, such as `VSCode/Terminal`, are not published, so `lsg` has no card for them. Logseq opens a card for such a page.
+		- A page that exists only because published blocks name it, such as `VSCode/Terminal`, is a published reference-only page, so Shift-click opens its card, as in Logseq. The card shows no `Click here to edit...` bullet.
 		- Cards cannot be edited or dragged to reorder them, blocks cannot be dragged into or out of the sidebar, and there is no History card.
 		- Search results do not open in the sidebar: Shift+Enter, Shift-click on a result and search cards (Cmd+Enter) are Logseq features `lsg` has no equivalent for.
 		- Logseq's dark-theme values were not measured; the sidebar uses `lsg`'s theme tokens.

@@ -69,6 +69,8 @@ test('validation rejects other versions, digest mismatch and malformed records',
   for (const mutate of [
     m => m.format_version = 1,
     m => m.format_version = 2,
+    m => m.format_version = 3,
+    m => m.urls = 'other',
     m => m.revision = 'not a revision',
     m => m.counts[0] += 1,
     m => m.counts = m.counts.slice(1),
@@ -94,7 +96,7 @@ test('validation rejects other versions, digest mismatch and malformed records',
   // A shard names each block by page and block within it: a block past its page's count,
   // a repeated block, an odd list and a page past the last fail.
   for (const pairs of [[0, raw.counts[0]], [0, 0, 0, 0], [0], [raw.counts.length, 0]]) {
-    const text = JSON.stringify({ format_version: 3, words: [['tmux', pairs]] });
+    const text = JSON.stringify({ format_version: 4, words: [['tmux', pairs]] });
     const forged = engine.createIndex({ ...manifest, shards: new Map([...manifest.shards, ['tm', engine.digest(text)]]) }, titles);
     assert.throws(() => engine.addShard(forged, 'tm', text), /publication/, JSON.stringify(pairs));
   }
@@ -168,4 +170,12 @@ test('long-block snippets explain a late match and preserve Unicode graphemes', 
   assert.ok([...result].length <= 240);
   assert.ok(!result.includes('�'));
   assert.equal(snippet('short text', 'short'), 'short text');
+});
+
+test('title entries leave out the route the title gives, under either URL scheme', async () => {
+  const engine = await modulePromise;
+  assert.equal(engine.titleRoute('Deno Deploy', 'digest'), `p-${engine.digest('Deno Deploy')}.html`);
+  assert.equal(engine.titleRoute('Deno Deploy', 'readable'), 'Deno%20Deploy/');
+  assert.equal(engine.titleRoute('Notes/Q&A: 2026', 'readable'), 'Notes/Q%26A%3A%202026/');
+  assert.equal(engine.titleRoute('a~b_c.d-e/名', 'readable'), 'a~b_c.d-e/%E5%90%8D/');
 });

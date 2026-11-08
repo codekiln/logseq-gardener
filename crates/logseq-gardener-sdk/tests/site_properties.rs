@@ -319,17 +319,16 @@ fn page_property_rows_show_names_of_pages_with_no_file() {
     f.publish();
     let html = f.html("Visible/Source");
     let props = properties(&html);
-    let missing = |name: &str| {
-        format!("<span class=\"page-reference unresolved no-brackets\"><span>{name}</span></span>")
-    };
+    // A name with no file links to its reference-only page.
+    let link = |name: &str| format!("<a class=\"page-ref\" href=\"{}\">{name}</a>", route(name));
     for row in [
-        format!("<dt>tags</dt><dd>{}</dd>", missing("No File")),
-        format!("<dt>see-also</dt><dd>{}</dd>", missing("Other Page")),
+        format!("<dt>tags</dt><dd>{}</dd>", link("No File")),
+        format!("<dt>see-also</dt><dd>{}</dd>", link("Other Page")),
         "<dt>foo</dt><dd>bar</dd>".to_owned(),
         format!(
-            "<dt>mixed</dt><dd><a class=\"page-ref\" href=\"{}\">Visible/Target</a>, {}</dd>",
-            route("Visible/Target"),
-            missing("No File")
+            "<dt>mixed</dt><dd>{}, {}</dd>",
+            link("Visible/Target"),
+            link("No File")
         ),
     ] {
         assert!(props.contains(&row), "{row} missing from {props}");

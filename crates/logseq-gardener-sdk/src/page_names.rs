@@ -237,6 +237,11 @@ fn reference_name(inline: &Inline) -> Option<String> {
 /// (`get-redirect-page-name` in Logseq's `frontend.db.model`). Pages that share a title, or
 /// that share an alias no page has as its title, remain distinct candidates; repeated
 /// claims by one identifier are unique.
+///
+/// Pages with no source file, generated namespace pages and reference-only pages, form a
+/// second layer that only [`Self::link`] reads, so page references, tags and page-valued
+/// properties reach them while alias, embed, block reference and homepage lookups, which use
+/// [`Self::candidates`], keep to pages with a file.
 #[derive(Debug, Clone)]
 pub struct PageNameIndex<T> {
     titles: BTreeMap<String, Vec<T>>,
@@ -245,6 +250,10 @@ pub struct PageNameIndex<T> {
     empty: BTreeSet<T>,
     journals: BTreeMap<JournalDate, Vec<T>>,
     journal_formats: JournalFormats,
+    /// Pages with no file, by [`reference_key`] of their title: identifier, kind and title.
+    generated: BTreeMap<String, (T, Generated, String)>,
+    /// Reference-only journals, by date: the key of their entry in `generated`.
+    generated_journals: BTreeMap<JournalDate, String>,
 }
 
 impl<T> Default for PageNameIndex<T> {
@@ -255,6 +264,48 @@ impl<T> Default for PageNameIndex<T> {
             empty: BTreeSet::new(),
             journals: BTreeMap::new(),
             journal_formats: JournalFormats::default(),
+            generated: BTreeMap::new(),
+            generated_journals: BTreeMap::new(),
+        }
+    }
+}
+
+/// What a page with no source file is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Generated {
+    /// A namespace page for a prefix of published titles.
+    Namespace,
+    /// A page that exists because published blocks name it.
+    Reference,
+}
+
+/// Where a page reference, tag or page-valued property leads.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Link<'a, T> {
+    /// A page with a file, by its title, alias or journal date.
+    Page(&'a T),
+    /// A page with no file, with its kind and title.
+    Generated(&'a T, Generated, &'a str),
+    /// Two or more pages with a file answer to the name.
+    Ambiguous,
+    /// No published page answers to the name.
+    Missing,
+}
+
+impl<T> Clone for Link<'_, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for Link<'_, T> {}
+
+impl<'a, T> Link<'a, T> {
+    /// The page the name leads to, when exactly one does.
+    pub fn target(self) -> Option<&'a T> {
+        match self {
+            Self::Page(id) | Self::Generated(id, _, _) => Some(id),
+            Self::Ambiguous | Self::Missing => None,
         }
     }
 }
@@ -310,6 +361,70 @@ impl<T: Ord + Clone> PageNameIndex<T> {
         parse_journal_reference(query, &self.journal_formats)
             .and_then(|date| self.journals.get(&date))
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// Let page references find a page with no file by `title`, and a reference-only journal
+    /// by its date when `date` is given.
+    pub fn insert_generated(
+        &mut self,
+        id: T,
+        title: &str,
+        kind: Generated,
+        date: Option<JournalDate>,
+    ) {
+        let key = reference_key(title);
+        if key.is_empty() {
+            return;
+        }
+        if let Some(date) = date {
+            self.generated_journals
+                .entry(date)
+                .or_insert_with(|| key.clone());
+        }
+        self.generated
+            .entry(key)
+            .or_insert_with(|| (id, kind, title.to_owned()));
+    }
+
+    /// Forget every page with no file that `keep` rejects.
+    pub fn retain_generated(&mut self, mut keep: impl FnMut(&T) -> bool) {
+        self.generated.retain(|_, (id, _, _)| keep(id));
+        let generated = &self.generated;
+        self.generated_journals
+            .retain(|_, key| generated.contains_key(key));
+    }
+
+    /// The pages with no file: identifier, kind and title, by lookup key.
+    pub fn generated(&self) -> impl Iterator<Item = (&T, Generated, &str)> {
+        self.generated
+            .values()
+            .map(|(id, kind, title)| (id, *kind, title.as_str()))
+    }
+
+    /// Where a page reference, tag or page-valued property written as `query` leads: a page
+    /// with a file as [`Self::candidates`] finds it, else a page with no file by
+    /// [`reference_key`] or, for a name that spells a date, by that date. A name with a space
+    /// at either end names no page with a file, as in Logseq.
+    pub fn link(&self, query: &str) -> Link<'_, T> {
+        let candidates = if has_outer_space(query) {
+            &[]
+        } else {
+            self.candidates(query)
+        };
+        match candidates {
+            [page] => Link::Page(page),
+            [] => {
+                let found = self.generated.get(&reference_key(query)).or_else(|| {
+                    let date = parse_journal_reference(query, &self.journal_formats)?;
+                    self.generated.get(self.generated_journals.get(&date)?)
+                });
+                match found {
+                    Some((id, kind, title)) => Link::Generated(id, *kind, title),
+                    None => Link::Missing,
+                }
+            }
+            _ => Link::Ambiguous,
+        }
     }
 }
 
@@ -545,5 +660,66 @@ impl<T: Ord + Clone> AliasGroups<T> {
             }
         }
         entries
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn page(source: &str) -> GardenDocument {
+        GardenDocument {
+            relative_path: "pages/x.md".into(),
+            kind: crate::garden::DocumentKind::Page,
+            source: source.to_owned(),
+            parsed: lsdoc::parse_to_projection(source),
+            title_spellings: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn links_reach_pages_with_no_file_while_candidates_keep_to_files() {
+        let mut names = PageNameIndex::default();
+        names.insert("p-deno.html".to_owned(), "Deno", &page("- text\n"));
+        names.insert_generated("p-ai.html".to_owned(), "AI", Generated::Namespace, None);
+        names.insert_generated(
+            "p-deploy.html".to_owned(),
+            "Deno Deploy",
+            Generated::Reference,
+            None,
+        );
+        names.insert_generated(
+            "p-macos.html".to_owned(),
+            "MacOS ",
+            Generated::Reference,
+            None,
+        );
+        names.insert_generated(
+            "p-nov.html".to_owned(),
+            "Nov 18th, 2024",
+            Generated::Reference,
+            JournalDate::new(2024, 11, 18),
+        );
+        assert_eq!(names.link("deno").target().unwrap(), "p-deno.html");
+        assert_eq!(
+            names.link("deno deploy"),
+            Link::Generated(
+                &"p-deploy.html".to_owned(),
+                Generated::Reference,
+                "Deno Deploy"
+            )
+        );
+        assert_eq!(
+            names.link("ai"),
+            Link::Generated(&"p-ai.html".to_owned(), Generated::Namespace, "AI")
+        );
+        // A space at an end keeps the name apart; another date spelling finds the journal.
+        assert_eq!(names.link("MacOS ").target().unwrap(), "p-macos.html");
+        assert_eq!(names.link("MacOS"), Link::Missing);
+        assert_eq!(names.link("2024-11-18").target().unwrap(), "p-nov.html");
+        // Homepage, alias and embed lookups see files only.
+        assert!(names.candidates("AI").is_empty() && names.candidates("Deno Deploy").is_empty());
+        names.retain_generated(|id| id != "p-nov.html");
+        assert_eq!(names.link("2024-11-18"), Link::Missing);
     }
 }

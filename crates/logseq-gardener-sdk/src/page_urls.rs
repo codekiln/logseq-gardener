@@ -194,7 +194,7 @@ pub(crate) fn base_href(route: &str) -> String {
 }
 
 /// How case-insensitive file systems compare names: NFC normalization and lower case.
-fn folded(path: &str) -> String {
+pub(crate) fn folded(path: &str) -> String {
     path.nfc().collect::<String>().to_lowercase()
 }
 
@@ -308,6 +308,42 @@ pub fn check_collisions<'t>(titles: impl IntoIterator<Item = &'t str>) -> Result
         }
     }
     Ok(())
+}
+
+/// The files and folders `lsg publish` may write at the output root whose names do not depend
+/// on the garden's titles, other than the shared `lsg-` files and the digest page files.
+const RESERVED_ROOTS: [&str; 10] = [
+    "assets",
+    "_refs",
+    "_graph",
+    "_pages",
+    "flashcards",
+    "plugins",
+    "index.html",
+    "pages.html",
+    "graph.html",
+    "custom.css",
+];
+
+/// The file or folder the build may write at the output root that a readable page whose first
+/// segment is `segment` would collide with, comparing folded names: one of the fixed names,
+/// a shared `lsg-` file, a journals feed batch or a `p-<digest>.html` page file.
+pub(crate) fn reserved_root(segment: &str) -> Option<String> {
+    let folded = folded(segment);
+    let fixed = RESERVED_ROOTS.iter().find(|name| **name == folded);
+    if let Some(name) = fixed {
+        return Some((*name).to_owned());
+    }
+    let feed = folded == "journals.html"
+        || folded
+            .strip_prefix("journals-")
+            .and_then(|rest| rest.strip_suffix(".html"))
+            .is_some_and(|number| !number.is_empty() && number.bytes().all(|b| b.is_ascii_digit()));
+    let digest_file = folded
+        .strip_prefix("p-")
+        .and_then(|rest| rest.strip_suffix(".html"))
+        .is_some_and(|hex| hex.len() == 16 && hex.bytes().all(|b| b.is_ascii_hexdigit()));
+    (feed || digest_file || folded.starts_with("lsg-")).then(|| segment.to_owned())
 }
 
 /// Check that no readable page's first segment is a file or folder the build writes at the

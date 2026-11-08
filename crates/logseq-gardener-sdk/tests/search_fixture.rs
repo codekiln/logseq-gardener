@@ -115,6 +115,7 @@ fn shared_fixture_matches_the_rust_query_and_files() {
             chunk_size: options["chunk_size"].as_u64().unwrap() as usize,
             chunk_budget: options["chunk_budget"].as_u64().unwrap() as usize,
             cut_blocks: options["cut_blocks"].as_u64().unwrap(),
+            ..FileOptions::default()
         },
     );
     let published = json!({"manifest": files.manifest, "files": files.files});

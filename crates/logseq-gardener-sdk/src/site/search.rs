@@ -1,9 +1,10 @@
-//! Writes the SDK's search index as format version 2 files beside the generated HTML.
+//! Writes the SDK's search index as format version 4 files beside the generated HTML.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::garden::GardenDocument;
 use crate::page_names::PageNameIndex;
-use crate::search::{FileOptions, Records, SearchIndex, SearchOptions};
+use crate::reference_only::ReferenceOnlyPage;
+use crate::search::{FileOptions, PageRecord, Records, SearchIndex, SearchOptions};
 use crate::transclusion::ReferenceTargets;
 
 /// The marker in `search.mjs` and `all-pages.js` that the shared fuzzy score replaces.
@@ -23,11 +24,20 @@ pub(super) struct Search {
 impl Search {
     pub fn new(
         selected: &[(String, String, &GardenDocument)],
+        reference_only: &BTreeMap<String, ReferenceOnlyPage>,
         names: &PageNameIndex<String>,
         targets: &ReferenceTargets<String>,
         options: &SearchOptions,
     ) -> Self {
-        let records = Records::build(selected, names, targets, options);
+        let mut records = Records::build(selected, names, targets, options);
+        // Reference-only pages are found by title; they hold no blocks.
+        records
+            .pages
+            .extend(reference_only.values().map(|page| PageRecord {
+                id: page.route.clone(),
+                title: page.title.clone(),
+                aliases: Vec::new(),
+            }));
         let mut anchors: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
         for block in &records.blocks {
             anchors
@@ -60,7 +70,17 @@ impl Search {
             engine()
         };
         let engine_route = format!("lsg-search-engine-{}.mjs", super::digest(&engine));
-        let files = SearchIndex::new(self.records).files(&engine_route, &FileOptions::default());
+        let files = SearchIndex::new(self.records).files(
+            &engine_route,
+            &FileOptions {
+                page_urls: if readable {
+                    crate::page_urls::PageUrls::Readable
+                } else {
+                    crate::page_urls::PageUrls::Digest
+                },
+                ..FileOptions::default()
+            },
+        );
         let mut artifacts = files.files;
         artifacts.insert(engine_route, engine);
         artifacts
