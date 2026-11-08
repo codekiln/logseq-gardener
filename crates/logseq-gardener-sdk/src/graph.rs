@@ -32,7 +32,7 @@
 //!     index: &index,
 //!     journals: &none,
 //!     hidden: &BTreeSet::new(),
-//!     is_journal_name: &|_| false,
+//!     journal_title: &|_| None,
 //! })
 //! .graph(GraphSettings::default());
 //! // Obsidian and Tool have no file: they are reference-only nodes.
@@ -325,8 +325,10 @@ pub struct GraphSource<'a, K> {
     /// [`lookup_key`]s of pages that exist but are not published, such as private pages or
     /// pages outside the selected namespaces. They are never nodes.
     pub hidden: &'a BTreeSet<String>,
-    /// Whether a name without a page names a journal, such as `Oct 23rd, 2026`.
-    pub is_journal_name: &'a dyn Fn(&str) -> bool,
+    /// The title Logseq gives a name without a page that spells a journal date, such as
+    /// `Oct 23rd, 2026`: the date in the journal title format, with the weekday the date
+    /// has. `None` for a name that is no date.
+    pub journal_title: &'a dyn Fn(&str) -> Option<String>,
 }
 
 struct NodeInfo<K> {
@@ -377,6 +379,9 @@ impl<K: Ord + Clone> Builder<'_, '_, K> {
     /// its ends, as in Logseq: `Release Notes ` from `[[Release Notes ]]` and `MacOS ` from
     /// `MacOS /Applications Folder` are nodes apart from `Release Notes` and `MacOS`.
     fn name(&mut self, name: &str) -> Option<u32> {
+        // A name that spells a date is the journal with that date, as Logseq makes it.
+        let journal_title = (self.source.journal_title)(name);
+        let name = journal_title.as_deref().unwrap_or(name);
         let key = reference_key(name);
         if let Some(&found) = self.by_key.get(&key) {
             return Some(found);
@@ -390,7 +395,7 @@ impl<K: Ord + Clone> Builder<'_, '_, K> {
         self.nodes.push(NodeInfo {
             title: title.to_owned(),
             page: None,
-            journal: (self.source.is_journal_name)(name),
+            journal: journal_title.is_some(),
             excluded: false,
         });
         self.by_key.insert(key, index);
@@ -840,7 +845,7 @@ mod tests {
                 index,
                 journals: &journals,
                 hidden: &self.hidden,
-                is_journal_name: &|name| name.starts_with("J "),
+                journal_title: &|name| name.starts_with("J ").then(|| name.to_owned()),
             })
         }
 
@@ -1027,7 +1032,7 @@ mod tests {
             index: &index,
             journals: &none,
             hidden: &none,
-            is_journal_name: &|_| false,
+            journal_title: &|_| None,
         });
         let graph = graph_index.graph(GraphSettings::everything(true));
         // Logseq creates the parents as pages without a file, joined by their namespace.
@@ -1246,7 +1251,7 @@ mod tests {
             index: &index,
             journals: &BTreeSet::new(),
             hidden: &BTreeSet::new(),
-            is_journal_name: &|_| false,
+            journal_title: &|_| None,
         })
         .graph(GraphSettings::default());
         assert!(graph.has_edge("Foam", "Obsidian"));
