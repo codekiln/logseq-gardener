@@ -74,7 +74,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 	- ## Link metadata
 		- | Element | Purpose |
 		  | --- | --- |
-		  | `link[rel="lsg-search"]` | The page's search manifest, in `href`, and its revision, in `data-revision`. [[lsg/Ref/Static Search Data]] describes it. |
+		  | `link[rel="lsg-search"]` | The search manifest's fixed address, in `href`. The manifest carries the publication's revision. [[lsg/Ref/Static Search Data]] describes it. |
 		  | `link[rel=lsg-properties]` | The Properties script. Its folder sets the scope of the saved Properties choice. |
 		  | `link[rel="lsg-dialogue"]` | The dialogue timestamp helper. |
 		- A host that repackages routes rewrites the `href` of the `link[rel="lsg-dialogue"]` element along with the other local resources. The loader reads that resolved URL before navigation.

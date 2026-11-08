@@ -1159,7 +1159,7 @@ pub fn publish_site_with_options(
     documents.insert(references::SCRIPT_ROUTE.to_owned(), references::script());
     stopwatch.lap("render");
     if let Some(search) = search {
-        let (artifacts, manifest_route, revision) = search.artifacts(readable);
+        let artifacts = search.artifacts(readable);
         let controller = include_str!("search-ui.mjs");
         let controller_route = format!("lsg-search-ui-{}.mjs", digest(controller));
         let startup = include_str!("search-start.mjs")
@@ -1175,7 +1175,8 @@ pub fn publish_site_with_options(
             .collect::<String>()
             .replace("__STARTUP__", &startup_route);
         let link = format!(
-            "<link rel=\"lsg-search\" href=\"{manifest_route}\" data-revision=\"{revision}\"><link rel=\"stylesheet\" href=\"{SEARCH_STYLES_ROUTE}\"><script defer src=\"{SEARCH_BOOT_ROUTE}\"></script>"
+            "<link rel=\"lsg-search\" href=\"{}\"><link rel=\"stylesheet\" href=\"{SEARCH_STYLES_ROUTE}\"><script defer src=\"{SEARCH_BOOT_ROUTE}\"></script>",
+            crate::search::MANIFEST_ROUTE
         );
         for (route, html) in &mut documents {
             if is_html(route) && !route.starts_with("_refs/") && !route.starts_with("_graph/") {

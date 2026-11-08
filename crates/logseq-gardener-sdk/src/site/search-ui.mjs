@@ -1,6 +1,5 @@
 // Shared search controller. The engine and search data load when a visitor points at or
 // focuses the search button, presses Cmd/Ctrl+K or opens search.
-const revisionPattern = /^[a-f0-9]{16}$/u;
 const fail = () => { throw new Error('Search data is unavailable or from another publication. Retry, or reload this page.'); };
 function staticURL(href, base, origin) {
   const url = new URL(href, base);
@@ -8,17 +7,21 @@ function staticURL(href, base, origin) {
       url.username || url.password || url.search || url.hash) fail();
   return url;
 }
+// Every page names the manifest at one fixed address; the manifest names every other file by
+// its contents and carries the publication's revision.
 export function publicationFromLink(link, base, origin) {
   if (!link) return null;
-  const revision = link.getAttribute('data-revision');
-  if (!revisionPattern.test(revision || '')) fail();
   const manifest = staticURL(link.getAttribute('href'), base, origin);
-  if (!manifest.pathname.endsWith(`/lsg-search-manifest-${revision}.json`)) fail();
-  return Object.freeze({ revision, manifest: manifest.href, origin, key: manifest.href + ':' + revision });
+  if (!manifest.pathname.endsWith('/lsg-search-manifest.json')) fail();
+  return Object.freeze({ manifest: manifest.href, origin, key: manifest.href });
 }
 
 // Loads the manifest, engine and title index on first use, then the shards each query
-// needs and the chunks of the rows it draws. Fetched files stay for the publication.
+// needs and the chunks of the rows it draws. Every fetch revalidates with the server
+// (cache: 'no-cache'), so the manifest is the one published now; the files it names change
+// name whenever their contents change. When a named file is missing or wrong, the site was
+// published again since the manifest loaded: the loader forgets the publication's files,
+// and the next load, such as Retry, starts again from the new manifest.
 export function createSearchLoader({ fetchFile = (...args) => fetch(...args), importEngine = url => import(url) } = {}) {
   let current = null, cache = null, pending = null, controller = null, generation = 0, parts = new Map();
   function cancel() {
@@ -50,14 +53,17 @@ export function createSearchLoader({ fetchFile = (...args) => fetch(...args), im
     pending = (async () => {
       const manifest = JSON.parse(await textFile(publication.manifest, run.signal));
       run.check();
-      if (manifest?.format_version !== 2 || manifest.revision !== publication.revision ||
-          !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '')) fail();
-      const engineURL = staticURL(manifest.engine, publication.manifest, publication.origin);
-      const engine = await importEngine(engineURL.href);
+      if (manifest?.format_version !== 3 || !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '') ||
+          !/^[a-f0-9]{16}$/u.test(manifest.titles || '')) fail();
+      // The engine and the title index load together; the engine checks the index's digest.
+      const titlesName = `lsg-search-titles-${manifest.titles}.json`;
+      const [engine, titles] = await Promise.all([
+        importEngine(staticURL(manifest.engine, publication.manifest, publication.origin).href),
+        textFile(staticURL(titlesName, publication.manifest, publication.origin).href, run.signal),
+      ]);
       run.check();
-      const prepared = engine.prepareManifest(manifest, publication.revision);
-      const titles = await textFile(staticURL(engine.titlesFile(prepared), publication.manifest, publication.origin).href, run.signal);
-      run.check();
+      const prepared = engine.prepareManifest(manifest);
+      if (engine.titlesFile(prepared) !== titlesName) fail();
       const index = engine.createIndex(prepared, titles);
       cache = Object.freeze({ engine, index, publication });
       return cache;
@@ -72,20 +78,27 @@ export function createSearchLoader({ fetchFile = (...args) => fetch(...args), im
         const part = { done: false };
         part.promise = textFile(staticURL(name, publication.manifest, publication.origin).href, run.signal)
           .then(source => { run.check(); add(number, source); part.done = true; })
-          .catch(problem => { if (parts.get(key) === part) parts.delete(key); throw problem; });
+          .catch(problem => {
+            if (parts.get(key) === part) parts.delete(key);
+            if (problem?.name !== 'AbortError' && cache?.publication === publication) { cache = null; parts = new Map(); }
+            throw problem;
+          });
         parts.set(key, part);
       }
       return parts.get(key).promise;
     })).then(() => run.check());
   }
+  // After a failed fetch forgets the publication's files, only a new load can continue.
   /** Load the shards `input` needs into the cached index. */
-  function shards(input) {
+  async function shards(input) {
+    if (!cache) fail();
     const { engine, index } = cache;
     return fetchParts(engine.missingShards(index, input).map(key => ['shard:' + key, engine.shardFile(index.manifest, key), key]),
       (key, source) => engine.addShard(index, key, source));
   }
   /** Load the chunks that hold these block numbers into the cached index. */
-  function chunks(blocks) {
+  async function chunks(blocks) {
+    if (!cache) fail();
     const { engine, index } = cache;
     return fetchParts(engine.missingChunks(index, blocks).map(n => ['chunk:' + n, engine.chunkFile(index.manifest, n), n]),
       (n, source) => engine.addChunk(index, n, source));

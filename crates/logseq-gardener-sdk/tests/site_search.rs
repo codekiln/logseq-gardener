@@ -40,23 +40,13 @@ impl Fixture {
         .unwrap();
         output
     }
-    // The format version 2 files read back as the version 1 corpus view these
+    // The format version 3 files read back as the version 1 corpus view these
     // assertions use; `raw` holds every search file plus the destinations.
     fn corpus(output: &std::path::Path) -> (Value, String) {
-        let manifest_path = fs::read_dir(output)
-            .unwrap()
-            .flatten()
-            .find(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with("lsg-search-manifest-")
-            })
-            .unwrap()
-            .path();
+        let manifest_path = output.join("lsg-search-manifest.json");
         let manifest_raw = fs::read_to_string(manifest_path).unwrap();
         let manifest: Value = serde_json::from_str(&manifest_raw).unwrap();
-        assert_eq!(manifest["format_version"], 2);
+        assert_eq!(manifest["format_version"], 3);
         let read = |kind: &str, digest: &Value| {
             let raw = fs::read_to_string(output.join(format!(
                 "lsg-search-{kind}-{}.json",
@@ -64,7 +54,7 @@ impl Fixture {
             )))
             .unwrap();
             let value: Value = serde_json::from_str(&raw).unwrap();
-            assert_eq!(value["format_version"], 2);
+            assert_eq!(value["format_version"], 3);
             (value, raw)
         };
         let (titles, mut raw) = read("titles", &manifest["titles"]);
@@ -161,8 +151,8 @@ fn selected_originals_safe_projection_aliases_and_anchor_destinations() {
     for page in corpus["pages"].as_array().unwrap() {
         let html = fs::read_to_string(output.join(page["href"].as_str().unwrap())).unwrap();
         assert!(
-            html.contains("rel=\"lsg-search\"")
-                && html.contains(corpus["revision"].as_str().unwrap())
+            html.contains("<link rel=\"lsg-search\" href=\"lsg-search-manifest.json\">")
+                && !html.contains(corpus["revision"].as_str().unwrap())
         );
         assert!(!html.contains("src=\"lsg-search.mjs\""));
     }
@@ -265,8 +255,8 @@ fn shared_files_and_their_links_survive_a_garden_edit() {
 #[test]
 fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
     let words = [
-        "river", "mountain", "lantern", "harbor", "meadow", "copper", "willow", "ember",
-        "glacier", "orchard", "falcon", "quartz", "thistle", "velvet", "canyon", "saffron",
+        "river", "mountain", "lantern", "harbor", "meadow", "copper", "willow", "ember", "glacier",
+        "orchard", "falcon", "quartz", "thistle", "velvet", "canyon", "saffron",
     ];
     let f = Fixture::new();
     f.write("Public.md", "- Home of the public pages\n");
@@ -295,7 +285,11 @@ fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
                 if path.is_dir() {
                     stack.push(path);
                 } else {
-                    let name = path.strip_prefix(site).unwrap().to_string_lossy().into_owned();
+                    let name = path
+                        .strip_prefix(site)
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned();
                     out.insert(name, fs::read(&path).unwrap());
                 }
             }
@@ -309,13 +303,22 @@ fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
         .filter(|(name, contents)| old.get(*name) != Some(contents))
         .map(|(name, _)| name)
         .collect();
-    let search = |name: &str| name.starts_with("lsg-search-shard-") || name.starts_with("lsg-search-chunk-");
+    let search =
+        |name: &str| name.starts_with("lsg-search-shard-") || name.starts_with("lsg-search-chunk-");
     // Outside search data, only the edited page, the search manifest and the site manifest
     // (whose revision follows every file) change.
     let others: Vec<_> = written.iter().filter(|name| !search(name)).collect();
     assert_eq!(others.len(), 3, "{others:?}");
-    assert!(others.iter().any(|name| name.as_str() == "lsg-site.json"), "{others:?}");
-    assert!(others.iter().any(|name| name.as_str() == "lsg-search-manifest.json"), "{others:?}");
+    assert!(
+        others.iter().any(|name| name.as_str() == "lsg-site.json"),
+        "{others:?}"
+    );
+    assert!(
+        others
+            .iter()
+            .any(|name| name.as_str() == "lsg-search-manifest.json"),
+        "{others:?}"
+    );
     let page = others
         .iter()
         .find(|name| name.ends_with(".html"))
@@ -325,6 +328,7 @@ fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
     assert!(removed.iter().all(|name| search(name)), "{removed:?}");
     assert!(!removed.is_empty() && removed.len() < 12, "{removed:?}");
     let added = ["an", "added", "block", "for", "a", "churn", "test"];
+    let old_manifest: Value = serde_json::from_slice(&old["lsg-search-manifest.json"]).unwrap();
     for name in removed {
         let json: Value = serde_json::from_slice(&old[name]).unwrap();
         if name.starts_with("lsg-search-chunk-") {
@@ -335,12 +339,18 @@ fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
                 .any(|record| record[0].as_str() == Some(page.as_str()));
             assert!(holds_page, "{name} does not hold the edited page");
         } else {
-            let holds_word = json["words"]
-                .as_array()
+            // The shard's key is the start of an added word: the shard holds edited text.
+            let key = old_manifest["shards"]
+                .as_object()
                 .unwrap()
                 .iter()
-                .any(|entry| added.contains(&entry[0].as_str().unwrap()));
-            assert!(holds_word, "{name} holds none of the added words");
+                .find(|(_, digest)| name.contains(digest.as_str().unwrap()))
+                .map(|(key, _)| key.clone())
+                .unwrap();
+            assert!(
+                added.iter().any(|word| word.starts_with(&key)),
+                "{name} ({key}) holds none of the added words"
+            );
         }
     }
 }

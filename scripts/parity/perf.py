@@ -2445,7 +2445,7 @@ def main():
             'lsg': f"{settings['lsg_version']} ({settings['lsg_commit'][:7]})",
             'profiles': ', '.join(profiles),
         },
-        'search_index': index_summary(run / 'site') if list((run / 'site').glob('lsg-search-manifest-*.json')) else None,
+        'search_index': index_summary(run / 'site') if (run / 'site' / 'lsg-search-manifest.json').is_file() else None,
         'pages': pages,
         'search': search,
         'feed': feed,
