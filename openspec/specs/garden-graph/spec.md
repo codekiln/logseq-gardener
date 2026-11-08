@@ -125,3 +125,17 @@ The graph index SHALL return, for a node title matched without regard to case, t
 
 - **WHEN** a page links `[[MacOS /Applications Folder]]` and a file holds `MacOS`
 - **THEN** the namespace parent of `MacOS /Applications Folder` is `MacOS `, a reference-only node, and the graph has no edge from either page to `MacOS`
+
+### Requirement: Name a page without its boundary slashes
+
+A page name that a block writes SHALL lose one slash at its start and one at its end, as Logseq does, before the SDK titles the page or finds its namespace parents. The page SHALL take the shortened name as its title, and its namespace parent SHALL be the text before the last remaining slash.
+
+#### Scenario: Trailing slash
+
+- **WHEN** a published page links `[[a/b/]]`, and neither `a/b` nor `a` has a file
+- **THEN** `a/b` is a reference-only node titled `a/b`, it has an edge to its namespace parent `a`, and no node is titled `a/b/`
+
+#### Scenario: Leading slash
+
+- **WHEN** a published page links `[[/D♭)]]`, and `D♭)` has no file
+- **THEN** `D♭)` is a reference-only node, and no node is titled `/D♭)`
