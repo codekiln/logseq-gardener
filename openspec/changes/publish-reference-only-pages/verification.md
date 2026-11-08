@@ -84,3 +84,7 @@ The median is 4.8% slower and the fastest 7.4% slower, within the 10% `build_slo
 | Phone | lsg | 412 | 13.0 KB | 11.6 KB | 1.8 MB |
 
 The `lsg` values are within the `[desktop]` and `[phone]` budgets: 100 KB of data and 16 KB of script before the title, 300 ms on desktop, 1,500 ms on the phone profile and 10 MB of heap.
+
+## Search on the encode garden
+
+The same `parity:perf` run measured search in the `lsg` build with the 4,656 new titles, desktop profile, over the queries in `scripts/parity/search-queries.txt`: first results 137 ms, keystroke p95 23 ms (warm 12 ms, cold 48 ms), heap growth 5.9 MB and at most 115 KB downloaded for one keystroke, within the `[search]` and `[desktop]` budgets. The phone profile's search and a `deno deploy` query were not measured.
