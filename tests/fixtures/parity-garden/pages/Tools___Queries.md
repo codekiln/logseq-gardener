@@ -61,6 +61,7 @@
 	           [(contains? ?kinds "Typed/Kind B")]]
 	   :result-transform (fn [rows] (reverse rows))}
 	  #+END_QUERY
+	  query-properties:: [:page :typed-kind :typed-public :typed-at]
 - An advanced query that matches nothing
 	- #+BEGIN_QUERY
 	  {:title "Matches nothing"
@@ -82,6 +83,7 @@
 	           [(get ?props :typed-public) ?public]]
 	   :result-transform (fn [rows] (sort-by (fn [row] (get-in row [:block/properties :typed-public])) (fn [a b] (compare 1 "a")) rows))}
 	  #+END_QUERY
+	  query-properties:: [:page :typed-kind :typed-public :typed-at]
 - An advanced query whose view throws
 	- #+BEGIN_QUERY
 	  {:title "Throws"
