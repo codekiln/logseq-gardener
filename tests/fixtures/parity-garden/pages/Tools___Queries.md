@@ -30,3 +30,71 @@
 	- #+BEGIN_QUERY
 	  {:title "Query target" :query [[Tools/Query Target]]}
 	  #+END_QUERY
+- An advanced query over page properties, sorted newest first
+	- #+BEGIN_QUERY
+	  {:title [:h3 "Typed pages"]
+	   :query [:find (pull ?p [*])
+	           :where
+	           [?p :block/name]
+	           [?p :block/properties ?props]
+	           [(get ?props :typed-kind) ?kinds]
+	           [(contains? ?kinds "Typed/Kind A")]
+	           [(get ?props :typed-public) ?public]
+	           [(= ?public true)]]
+	   :result-transform (fn [rows]
+	                       (sort-by (fn [row] (get-in row [:block/properties :typed-at]))
+	                                (fn [a b] (compare b a)) rows))
+	   :view (fn [rows]
+	           (into ["ul"]
+	                 (map (fn [row]
+	                        ["li" ["a" {:href (str "#/page/" (clojure.string/replace (:block/name row) "/" "%2F"))}
+	                               (:block/original-name row)]]) rows)))}
+	  #+END_QUERY
+- An advanced query without a view
+	- #+BEGIN_QUERY
+	  {:title "Pages of the second kind"
+	   :query [:find (pull ?p [*])
+	           :where
+	           [?p :block/name]
+	           [?p :block/properties ?props]
+	           [(get ?props :typed-kind) ?kinds]
+	           [(contains? ?kinds "Typed/Kind B")]]
+	   :result-transform (fn [rows] (reverse rows))}
+	  #+END_QUERY
+- An advanced query that matches nothing
+	- #+BEGIN_QUERY
+	  {:title "Matches nothing"
+	   :query [:find (pull ?p [*])
+	           :where
+	           [?p :block/name]
+	           [?p :block/properties ?props]
+	           [(get ?props :typed-kind) ?kinds]
+	           [(contains? ?kinds "typed/kind a")]]
+	   :view (fn [rows] ["ul" (map (fn [row] ["li" (:block/original-name row)]) rows)])}
+	  #+END_QUERY
+- An advanced query whose transform throws
+	- #+BEGIN_QUERY
+	  {:title "Untransformed"
+	   :query [:find (pull ?p [*])
+	           :where
+	           [?p :block/name]
+	           [?p :block/properties ?props]
+	           [(get ?props :typed-public) ?public]]
+	   :result-transform (fn [rows] (sort-by (fn [row] (get-in row [:block/properties :typed-public])) (fn [a b] (compare 1 "a")) rows))}
+	  #+END_QUERY
+- An advanced query whose view throws
+	- #+BEGIN_QUERY
+	  {:title "Throws"
+	   :query [:find (pull ?p [*])
+	           :where
+	           [?p :block/name "tools/queries/typed/one"]]
+	   :view (fn [rows] (compare "a" 1))}
+	  #+END_QUERY
+- An advanced query with a function the build does not support
+	- #+BEGIN_QUERY
+	  {:title "Unsupported"
+	   :query [:find (pull ?p [*])
+	           :where
+	           [?p :block/name "tools/queries/typed/one"]]
+	   :result-transform (fn [rows] (partition 2 rows))}
+	  #+END_QUERY

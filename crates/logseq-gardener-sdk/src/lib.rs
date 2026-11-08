@@ -85,6 +85,12 @@ pub mod page_list;
 
 /// Logseq's simple query language and advanced query maps, evaluated at build time.
 pub mod query;
+pub mod query_advanced;
+pub mod query_datalog;
+pub mod query_form;
+pub mod query_hiccup;
+pub mod query_page;
+pub mod query_script;
 
 /// Namespace hierarchy rows from page titles and aliases, shared by every caller.
 pub mod namespaces;

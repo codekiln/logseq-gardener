@@ -270,6 +270,99 @@ def check_queries(site, pages, queries):
     return failures
 
 
+ADVANCED_PAGE = 'Tools/Queries/Advanced'
+ADVANCED_ROWS = 18
+ADVANCED_SOURCE = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src'
+ADVANCED_QUERY = """- #+BEGIN_QUERY
+  {:title [:h2 "Recent Ceremonies"]
+   :query [:find (pull ?p [*])
+           :where
+           [?p :block/name]
+           [?p :block/properties ?props]
+           [(get ?props :logseq-entity) ?entities]
+           [(contains? ?entities "Logseq/Entity/Podcast/Episode")]
+           [(get ?props :public) ?public]
+           [(= ?public true)]]
+   :result-transform (fn [rows] (sort-by (fn [row] (get-in row [:block/properties :podcast-published-at]))
+                                         (fn [a b] (compare b a)) rows))
+   :view (fn [rows]
+           (into ["ul"]
+                 (map (fn [row]
+                        ["li" ["a" {:href (str "#/page/" (clojure.string/replace (:block/name row) "/" "%2F"))}
+                               (:block/original-name row)]]) rows)))
+   :table-view? false}
+  #+END_QUERY
+"""
+
+
+def add_advanced_page(garden, with_query):
+    """Write ADVANCED_ROWS episode pages and the page that lists them, with or without its query."""
+    for number in range(ADVANCED_ROWS):
+        (garden / 'pages' / f'Tools___Queries___Episodes___Ep{number:02d}.md').write_text(
+            'logseq-entity:: [[Logseq/Entity/Podcast/Episode]]\npublic:: true\n'
+            f'podcast-published-at:: 2026-01-{number + 1:02d}T10:00:00Z\n\n- Episode {number}.\n',
+            encoding='utf-8')
+    text = '- The episodes, newest first.\n' + (ADVANCED_QUERY if with_query else '')
+    (garden / 'pages' / 'Tools___Queries___Advanced.md').write_text(text, encoding='utf-8')
+
+
+def linked_files(text):
+    """The local scripts and styles a page links, sorted."""
+    parser = _BlockingResources(all_scripts=True)
+    parser.feed(text)
+    return sorted(parser.files)
+
+
+def source_constant(path, name):
+    """The number a Rust source file assigns to a constant, with its underscores removed."""
+    match = re.search(rf'\b{name}\b[^=]*=\s*([\d_]+)', (ADVANCED_SOURCE / path).read_text(encoding='utf-8'))
+    return int(match.group(1).replace('_', '')) if match else None
+
+
+def check_advanced_queries(with_query, without_query, reference, limits):
+    """Return failure messages for the gitpa-form query page: 18 rows in the box, no script or
+    stylesheet beyond what a page with a query already links, no element that runs code, the
+    view's size, and its gzip growth over the same page without the query."""
+    with_query, without_query, reference = Path(with_query), Path(without_query), Path(reference)
+    failures = []
+    page = with_query / common.lsg_route(ADVANCED_PAGE)
+    plain = without_query / common.lsg_route(ADVANCED_PAGE)
+    if not page.exists() or not plain.exists():
+        return [f'{ADVANCED_PAGE}: missing from the build']
+    text = page.read_text(encoding='utf-8')
+    # query_boxes also finds the box's own title and results elements; the first is the box.
+    boxes = query_boxes(text)
+    if text.count('data-lsg-query=') != 1:
+        return [f'{ADVANCED_PAGE}: {text.count("data-lsg-query=")} query boxes, expected 1']
+    box = boxes[0]
+    if 'Query failed:' in box or 'Custom view failed:' in box:
+        failures.append(f'{ADVANCED_PAGE}: the query failed: {re.sub("<[^>]+>", " ", box)[:200]}')
+    rows = len(re.findall(r'<li><a href="[^"]+">Tools/Queries/Episodes/Ep\d\d</a></li>', box))
+    if rows != ADVANCED_ROWS:
+        failures.append(f'{ADVANCED_PAGE}: {rows} rows in the view, expected {ADVANCED_ROWS}')
+    if f'{ADVANCED_ROWS} results' not in box:
+        failures.append(f'{ADVANCED_PAGE}: the box does not show {ADVANCED_ROWS} results')
+    if re.search(r'<(script|style)\b|\bon[a-z]+=', box):
+        failures.append(f'{ADVANCED_PAGE}: the view wrote an element or attribute that runs code')
+    expected = linked_files((reference / common.lsg_route('Tools/Queries')).read_text(encoding='utf-8'))
+    if linked_files(text) != expected:
+        failures.append(f'{ADVANCED_PAGE}: links {linked_files(text)}, but a page with a query links {expected}')
+    inline = len(re.findall(r'<script\b(?![^>]*\bsrc=)', text)) - len(re.findall(r'<script\b(?![^>]*\bsrc=)', (reference / common.lsg_route('Tools/Queries')).read_text(encoding='utf-8')))
+    if inline > 0:
+        failures.append(f'{ADVANCED_PAGE}: {inline} inline scripts more than a page with a query')
+    view = re.search(r'<ul>.*</ul>', box, re.S)
+    view_size = len(view.group().encode('utf-8')) if view else 0
+    if view_size > limits['view_max_kb'] * 1000:
+        failures.append(f'{ADVANCED_PAGE}: the view is {view_size:,} bytes, over {limits["view_max_kb"] * 1000:,.0f}')
+    growth = metrics.gzip_size(text.encode('utf-8')) - metrics.gzip_size(plain.read_bytes())
+    if growth > limits['page_growth_gzip_kb'] * 1000:
+        failures.append(f'{ADVANCED_PAGE}: the query adds {growth:,} gzip, over {limits["page_growth_gzip_kb"] * 1000:,.0f}')
+    if source_constant('query_script.rs', 'STEP_LIMIT') != limits['step_limit_millions'] * 1_000_000:
+        failures.append('step_limit_millions differs from STEP_LIMIT in query_script.rs')
+    print(f'{ADVANCED_PAGE}: {rows} rows, view {view_size:,} bytes, page grows {growth:,} gzip')
+    return failures
+
+
 FLASHCARDS_SCRIPT = 'lsg-flashcards.js'
 FLASHCARDS_STYLES = 'lsg-flashcards.css'
 FLASHCARDS_ALL = 'flashcards/decks/all.json'
@@ -889,6 +982,14 @@ def main():
         queries_failures = check_queries(temp / 'small', small, budgets['queries'])
         print(f"{QUERIES_SCRIPT}: {(temp / 'small' / QUERIES_SCRIPT).stat().st_size:,}; {QUERIES_STYLES}: "
               f"{metrics.gzip_size((temp / 'small' / QUERIES_STYLES).read_bytes()):,} gzip")
+        advanced = temp / 'advanced-garden'
+        shutil.copytree(FIXTURE_GARDEN, advanced)
+        add_advanced_page(advanced, True)
+        publish(lsg, advanced, temp / 'advanced', FIXTURE_ROOTS)
+        add_advanced_page(advanced, False)
+        publish(lsg, advanced, temp / 'advanced-plain', FIXTURE_ROOTS)
+        advanced_failures = check_advanced_queries(temp / 'advanced', temp / 'advanced-plain', temp / 'small',
+                                                   budgets['advanced_queries'])
         flashcards_failures = check_flashcards(temp / 'small', small, budgets['flashcards'])
         if not any('missing from the build' in f or 'no deck page' in f for f in flashcards_failures):
             print(flashcards_summary(temp / 'small', budgets['flashcards']))
@@ -925,7 +1026,7 @@ def main():
                 + inline_failures + code_failures + transclusion_failures + references_failures
                 + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
                 + search_failures + all_pages_failures + media_failures + queries_failures + flashcards_failures
-                + plugin_failures + site_failures)
+                + plugin_failures + site_failures + advanced_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

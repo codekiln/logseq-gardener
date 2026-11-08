@@ -211,6 +211,25 @@ open_ms_phone = 1500
 open_heap_mb = 20
 build_slowdown_pct = 10
 
+# Advanced queries (published-queries, garden-advanced-queries). parity:budgets builds the fixture
+# garden with a page that holds the gitpa-form query over 18 episode pages, and again without the
+# query, and checks page_growth_gzip_kb (the page's gzip growth), that the page links no script or
+# stylesheet beyond what Tools/Queries links, that the box holds 18 rows and no element that runs
+# code, view_max_kb (the view's HTML before gzip; the SDK stops a view at 128 * 1024 bytes) and
+# that step_limit_millions equals STEP_LIMIT in the SDK. script_added_kb and styles_added_gzip_kb
+# are zero because that comparison fails on any extra file. parity:perf --advanced-queries marks,
+# on a copy of the whole encode garden, eval_ms (the all-pages query), limit_hit_s (a runaway query
+# stopping at the step limit) and build_slowdown_pct against the --baseline-lsg binary.
+[advanced_queries]
+page_growth_gzip_kb = 3
+script_added_kb = 0
+styles_added_gzip_kb = 0
+view_max_kb = 128
+step_limit_millions = 20
+eval_ms = 500
+limit_hit_s = 2
+build_slowdown_pct = 10
+
 # Flashcards (published-flashcards). parity:budgets checks lsg-flashcards.js (uncompressed),
 # lsg-flashcards.css, the all-cards deck file and every card batch (gzip), that no page links the
 # review script (it loads on first use), and that the fixture deck page grows by at most

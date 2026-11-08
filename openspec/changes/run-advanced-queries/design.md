@@ -111,7 +111,7 @@ An `href` of the form `#/page/<name>` names a page the way Logseq's router does.
 
 The box keeps its existing header, title and error boxes. For an advanced query with a view:
 
-- the count is the number of rows after the transform, formatted as `18 results`, and an empty result shows no count and no body;
+- the count is the number of rows after the transform, formatted as `18 results`, and an empty result shows no count and `No matched result`, as Logseq 0.10.15 does;
 - the table and list toggle is hidden, because a view takes the place of both;
 - a collapsed query (`:collapsed? true`) puts the view's HTML in a fragment, as other collapsed queries do.
 
@@ -229,7 +229,7 @@ Decided by the agent without codekiln: the publisher rewrites them to the page's
 
 ### 12 - What does the header show for a view?
 
-Decided by the agent without codekiln: the title, the count of rows after the transform, and no table toggle, because Logseq draws a custom view in place of both. An empty result runs no view and shows no count and no body, as the analysis recorded for Logseq.
+Decided by the agent without codekiln: the title, the count of rows after the transform, and no table toggle, because Logseq draws a custom view in place of both. An empty result runs no view and shows no count and `No matched result`. The analysis expected an empty body; the Apply step compared Logseq 0.10.15's own export of the fixture garden and saw `No matched result`, so the build matches that.
 
 ### 13 - What does a transform without a view return?
 

@@ -34,7 +34,7 @@ A simple query that does not parse SHALL replace the box with a bordered block e
 
 ### Requirement: Show a view's result in the query box
 
-An advanced query with a Datalog `:query` and a `:view` SHALL show its title, `N results` for the rows left after the transform, and the view's Hiccup written as HTML in the body, with text and attribute values escaped and no table or list toggle. An empty result SHALL call no view and show no count and an empty body. A Datalog query without a view SHALL show its rows as the page table. A collapsed query SHALL load the view's HTML from a fragment when opened. The page SHALL link no script and no stylesheet that a page without the query lacks.
+An advanced query with a Datalog `:query` and a `:view` SHALL show its title, `N results` for the rows left after the transform, and the view's Hiccup written as HTML in the body, with text and attribute values escaped and no table or list toggle. An empty result SHALL call no view and show no count and `No matched result`. A Datalog query without a view SHALL show its rows as the page table. A collapsed query SHALL load the view's HTML from a fragment when opened. The page SHALL link no script and no stylesheet that a page without the query lacks.
 
 #### Scenario: Episode list
 - **WHEN** the fixture page holds a gitpa-form query with a transform that sorts on a property newest first and a view that returns a list of links, over 18 matching pages
@@ -46,7 +46,7 @@ An advanced query with a Datalog `:query` and a `:view` SHALL show its title, `N
 
 #### Scenario: Empty result
 - **WHEN** no page matches
-- **THEN** the box shows the title, no count and an empty body
+- **THEN** the box shows the title, no count and `No matched result`
 
 #### Scenario: No script
 - **WHEN** a page holds the gitpa-form query
