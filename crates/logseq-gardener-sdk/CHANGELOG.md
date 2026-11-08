@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.34](https://github.com/codekiln/logseq-gardener/compare/v0.0.33...v0.0.34) - 2026-11-08
+
+### Fixed
+
+- spell a repeated alias name as Logseq does (#516)
+
 ## [0.0.33](https://github.com/codekiln/logseq-gardener/compare/v0.0.32...v0.0.33) - 2026-11-08
 
 ### Fixed
