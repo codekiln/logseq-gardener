@@ -19,6 +19,13 @@ pub fn lookup_key(name: &str) -> String {
     name.to_lowercase().nfc().collect()
 }
 
+/// A page name without the one slash Logseq drops from each end: `[[a/b/]]` names `a/b`.
+/// Spaces are kept, so `a /` becomes `a `.
+pub fn remove_boundary_slashes(name: &str) -> &str {
+    let name = name.strip_prefix('/').unwrap_or(name);
+    name.strip_suffix('/').unwrap_or(name)
+}
+
 /// The namespace parent of a page name, as Logseq's file parser splits it: the text before
 /// the last `/`. A space before that slash stays, so the parent of
 /// `MacOS /Applications Folder` is `MacOS `, which Logseq keeps apart from `MacOS`.

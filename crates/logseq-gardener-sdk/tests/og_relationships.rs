@@ -173,3 +173,27 @@ fn an_alias_in_a_namespace_names_its_namespace_parents() {
         ]
     );
 }
+
+#[test]
+fn a_boundary_slash_is_not_part_of_a_page_name() {
+    // `Notes` links to `a/b/`. Logseq drops the trailing slash: the page is `a/b`, and its
+    // namespace parent `a` is a page without a file too,
+    // titled `A` as Logseq spells its built-in priority page.
+    let root = fixtures().with_file_name("trailing-slash-name");
+    let derived = derive(&root, FilenameFormat::TripleLowbar);
+    assert_eq!(
+        derived.fileless,
+        [
+            FilelessPage {
+                name: "a".into(),
+                title: "A".into(),
+                namespace: None,
+            },
+            FilelessPage {
+                name: "a/b".into(),
+                title: "a/b".into(),
+                namespace: Some("a".into()),
+            },
+        ]
+    );
+}
