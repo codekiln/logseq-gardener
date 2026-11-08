@@ -249,3 +249,54 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | desktop | 47 | 2.6 | 16.3 | Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton | 30 | 30 |
 		  | phone | 47 | 11.4 | **80.8** | Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton | 30 | 30 |
 		- Host module `lsg-host-739a578f944fb016.mjs`: 7,759 bytes, 2,924 gzip (budget 4,000). Largest fixture page first paint with the plugin: 81,815 gzip (Person/Gergely Orosz/Pod/26/09 Design Engineering with Maggie Appleton, 545,147 bytes of HTML).
+	- ## First-party plugins
+		- Measured 2026-11-08 on a copy of encode garden commit `66b81e9` whose `logseq/config.edn` holds `:lsg/plugins [:podcast-episode :sequence-header]`, built by `lsg` `f64db09` and by Logseq's own export of the same copy, which ignores the key. Each value is the median of 3 loads. **Bold** marks an `lsg` value over its `[desktop]` or `[phone]` budget.
+		- | Page | Profile | Build | Title (ms) | Data before title (KB) | Script before title (KB) | Peak heap (MB) |
+		  | --- | --- | --- | --- | --- | --- | --- |
+		  | GitP/A/Session/26/11/01-Sun | desktop | logseq | 31759 | 24,266.3 | 246,852.4 | 2,126.8 |
+		  | GitP/A/Session/26/11/01-Sun | desktop | lsg | 19 | 22.2 | 11.7 | 1.7 |
+		  | GitP/A/Session/26/11/01-Sun | phone | logseq | 205017 | 23,690.9 | 246,852.4 | 2,102.9 |
+		  | GitP/A/Session/26/11/01-Sun | phone | lsg | 396 | 22.2 | 11.7 | 2.2 |
+		  | GitP/A/Session/26/10/29-Thu | desktop | logseq | 29754 | 24,266.3 | 246,852.4 | 2,123.8 |
+		  | GitP/A/Session/26/10/29-Thu | desktop | lsg | 32 | 18.9 | 11.7 | 2.1 |
+		  | GitP/A/Session/26/10/29-Thu | phone | logseq | 205235 | 23,690.9 | 246,852.4 | 2,114.7 |
+		  | GitP/A/Session/26/10/29-Thu | phone | lsg | 395 | 18.9 | 11.7 | 2.1 |
+		  | GitP/A/Session/26/10/24-Sat | desktop | logseq | 29000 | 24,266.3 | 246,852.4 | 2,129.4 |
+		  | GitP/A/Session/26/10/24-Sat | desktop | lsg | 26 | 19.8 | 12.2 | 2.0 |
+		  | GitP/A/Session/26/10/24-Sat | phone | logseq | 208858 | 23,690.9 | 246,852.4 | 2,113.9 |
+		  | GitP/A/Session/26/10/24-Sat | phone | lsg | 413 | 19.8 | 12.2 | 2.0 |
+		  | GitP/A/Session/26/10/20-Tue | desktop | logseq | 29549 | 24,266.3 | 246,852.4 | 2,117.2 |
+		  | GitP/A/Session/26/10/20-Tue | desktop | lsg | 29 | 32.9 | 12.2 | 1.6 |
+		  | GitP/A/Session/26/10/20-Tue | phone | logseq | 211239 | 23,690.9 | 246,852.4 | 2,121.1 |
+		  | GitP/A/Session/26/10/20-Tue | phone | lsg | 406 | 32.9 | 12.2 | 2.3 |
+		  | GitP/A/Session/26/10/18-Sun | desktop | logseq | 28700 | 24,266.3 | 246,852.4 | 2,123.1 |
+		  | GitP/A/Session/26/10/18-Sun | desktop | lsg | 17 | 31.2 | 11.7 | 2.4 |
+		  | GitP/A/Session/26/10/18-Sun | phone | logseq | 196465 | 23,690.9 | 246,852.4 | 2,107.2 |
+		  | GitP/A/Session/26/10/18-Sun | phone | lsg | 402 | 31.2 | 11.7 | 2.4 |
+		  | GitP/A/Session/26/09/24-Thu | desktop | logseq | 29359 | 24,266.3 | 246,852.4 | 2,100.7 |
+		  | GitP/A/Session/26/09/24-Thu | desktop | lsg | 17 | 14.4 | 11.7 | 1.9 |
+		  | GitP/A/Session/26/09/24-Thu | phone | logseq | 205996 | 23,690.9 | 246,852.4 | 2,120.4 |
+		  | GitP/A/Session/26/09/24-Thu | phone | lsg | 411 | 14.4 | 11.7 | 2.0 |
+		  | GitP/A | desktop | logseq | 31060 | 24,266.3 | 246,852.4 | 2,161.0 |
+		  | GitP/A | desktop | lsg | 20 | 19.1 | 11.7 | 1.6 |
+		  | GitP/A | phone | logseq | 203803 | 24,266.3 | 246,852.4 | 2,124.9 |
+		  | GitP/A | phone | lsg | 404 | 19.1 | 11.7 | 1.8 |
+		  | GitP/A/Session | desktop | logseq | 28670 | 24,266.3 | 246,852.4 | 2,159.2 |
+		  | GitP/A/Session | desktop | lsg | 19 | 19.0 | 11.7 | 1.6 |
+		  | GitP/A/Session | phone | logseq | 208819 | 24,266.3 | 246,852.4 | 2,136.9 |
+		  | GitP/A/Session | phone | lsg | 403 | 19.0 | 11.7 | 1.8 |
+		  | GitP/A/Session/26/10/24-Sat/Asset/Audio/Full/mp3 | desktop | logseq | 27158 | 24,266.3 | 246,852.4 | 2,109.7 |
+		  | GitP/A/Session/26/10/24-Sat/Asset/Audio/Full/mp3 | desktop | lsg | 18 | 13.9 | 11.7 | 1.8 |
+		  | GitP/A/Session/26/10/24-Sat/Asset/Audio/Full/mp3 | phone | logseq | 204224 | 23,690.9 | 246,852.4 | 2,110.5 |
+		  | GitP/A/Session/26/10/24-Sat/Asset/Audio/Full/mp3 | phone | lsg | 409 | 13.9 | 11.7 | 1.9 |
+		  | Home | desktop | logseq | 27632 | 24,266.3 | 246,852.4 | 2,123.3 |
+		  | Home | desktop | lsg | 21 | 16.8 | 11.7 | 1.9 |
+		  | Home | phone | logseq | 201995 | 23,690.9 | 246,852.4 | 2,099.7 |
+		  | Home | phone | lsg | 417 | 16.8 | 11.7 | 1.9 |
+		- Phone heap after starting `GitP/A/Session/26/10/24-Sat` and following 20 links in place, the median of 3 visits each. A plugin's growth is the heap with its module against the heap with its module blocked. Recordings were served as a local tone. **Bold** marks a value over its budget.
+		- Heap: 1.55 MB with every plugin on and the recording playing, 1.41 MB with `podcast-episode` blocked and nothing playing, 1.39 MB with every plugin blocked.
+		- | Plugin | Phone heap growth (MB) | Budget (MB) | Module and stylesheet (gzip bytes) | Budget (bytes) |
+		  | --- | --- | --- | --- | --- |
+		  | `podcast-episode` | 0.14 | 1 | 4,906 | 8,000 |
+		  | `sequence-header` | 0.03 | 0.2 | 1,465 | 1,500 |
+		- Pages that load plugin code before the title: 0.

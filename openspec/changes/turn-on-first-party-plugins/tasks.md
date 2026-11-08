@@ -20,7 +20,7 @@
 - [x] 2.2 Add the `podcast-episode` build step contributing `recording` and `title`, with one diagnostic for a typed page without a recording; test the fixture episode's entry, the typed page without a recording, a withheld episode and the hidden-type page
 - [x] 2.3 Write the module's player: one `<audio>` in a persistent region, the title linked to the episode, playback kept across navigation and Back, and another episode taking over only when the reader starts it; add Node tests in `tests/` for the module's pure functions and run `node --test tests/*.test.cjs`
 - [x] 2.4 Handle `lsg:media-seek` on episode pages by cancelling the event and seeking the player; add `plugins:browser-test` scenarios for playing across navigation, Back, a second episode, a dialogue line, no plugin request on a page without an entry and the fallback when the module fails; run `mise run plugins:browser-test`
-- [ ] 2.5 Add `parity:perf --first-party` with the fixture pages from the design, measured in `lsg` and in Logseq's `gh-pages` build of the same garden commit, including the heap after playing across 20 navigations; record the rows with `--record`
+- [x] 2.5 Add `parity:perf --first-party` with the fixture pages from the design, measured in `lsg` and in Logseq's `gh-pages` build of the same garden commit, including the heap after playing across 20 navigations; record the rows with `--record`
 
 ## 3. podcast-episode: chapter headings (#488)
 
@@ -41,9 +41,9 @@
 
 ## 6. Verification
 
-- [ ] 6.1 Build logseq-encode-garden and gitpa with the branch's `lsg` and the key added in local copies of their `config.edn`, then check every fixture page from the design in Chromium on the desktop and phone profiles; record the results in `verification.md`
-- [ ] 6.2 Run `mise run parity:perf --first-party --record` on the whole encode garden and check every row against the budgets; record the figures in `verification.md`
-- [ ] 6.3 Run `mise run ci`
+- [x] 6.1 Build logseq-encode-garden and gitpa with the branch's `lsg` and the key added in local copies of their `config.edn`, then check every fixture page from the design in Chromium on the desktop and phone profiles; record the results in `verification.md`
+- [x] 6.2 Run `mise run parity:perf --first-party --record` on the whole encode garden and check every row against the budgets; record the figures in `verification.md`
+- [x] 6.3 Run `mise run ci`
 
 ## Workflow follow-up
 
