@@ -185,7 +185,7 @@ const BUILT_IN_PROPERTIES: [&str; 48] = [
 ];
 
 /// Whether a property name becomes a page, as in Logseq's file graphs.
-fn property_page(name: &str) -> bool {
+pub(crate) fn property_page(name: &str) -> bool {
     !name.is_empty()
         && !BUILT_IN_PROPERTIES.contains(&name)
         && !crate::cards::is_hidden_property(name)

@@ -1,0 +1,3 @@
+alias:: [[Widget]]
+
+- A part

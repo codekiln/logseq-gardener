@@ -39,8 +39,13 @@ pub struct GardenDocument {
     /// spelling. [`load_garden`] fills it for both filename formats, and
     /// [`page_title`] uses it; empty for a journal and for a page that keeps its title.
     ///
+    /// It also holds, by lookup key, the spelling Logseq gives each name in the file's `alias::`
+    /// value that is no page's title, when a file writes that name in another case.
+    /// [`page_alias_spellings`] uses it.
+    ///
     /// [`lookup_key`]: crate::page_names::lookup_key
     /// [`page_title`]: crate::page_titles::page_title
+    /// [`page_alias_spellings`]: crate::page_names::page_alias_spellings
     pub title_spellings: BTreeMap<String, String>,
 }
 

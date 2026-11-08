@@ -75,6 +75,11 @@ pub fn page_aliases(document: &GardenDocument, title: &str) -> Vec<String> {
 /// Uses the same property rules as [`page_aliases`], omitting blanks and the page itself.
 /// An alias written twice in different case keeps its first position and, as in Logseq, its
 /// last spelling: `alias:: [[homebrew]], [[Homebrew]]` gives `Homebrew`.
+///
+/// When the garden's files write the name in another case, the spelling is the one Logseq
+/// gives the name, which [`crate::garden::load_garden`] records in
+/// [`GardenDocument::title_spellings`]: that of the first file Logseq reads that refers to the
+/// name.
 pub fn page_alias_spellings(document: &GardenDocument, title: &str) -> Vec<String> {
     let title = lookup_key(title);
     let mut spellings: Vec<String> = Vec::new();
@@ -89,10 +94,16 @@ pub fn page_alias_spellings(document: &GardenDocument, title: &str) -> Vec<Strin
             None => spellings.push(name),
         }
     }
+    for spelling in &mut spellings {
+        if let Some(respelled) = document.title_spellings.get(&lookup_key(spelling)) {
+            spelling.clone_from(respelled);
+        }
+    }
     spellings
 }
 
-fn alias_names(document: &GardenDocument) -> Vec<String> {
+/// The names of the leading `alias` value as written, in written order.
+pub(crate) fn alias_names(document: &GardenDocument) -> Vec<String> {
     let Some(Block::Properties { props, .. }) = document.parsed.blocks.first() else {
         return Vec::new();
     };
