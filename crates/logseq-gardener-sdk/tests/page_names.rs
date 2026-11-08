@@ -1,6 +1,6 @@
 use logseq_gardener_sdk::garden::{DocumentKind, GardenDocument};
 use logseq_gardener_sdk::page_names::{
-    AliasEntry, AliasGroups, PageNameIndex, lookup_key, page_aliases,
+    AliasEntry, AliasGroups, PageNameIndex, lookup_key, page_alias_spellings, page_aliases,
 };
 
 fn document(source: &str) -> GardenDocument {
@@ -165,4 +165,10 @@ fn a_title_names_its_page_unless_the_page_is_empty() {
     assert_eq!(index.candidates("Kegs"), ["brew"]);
     // Two pages list the name, so the empty page keeps it.
     assert_eq!(index.candidates("Empty"), ["empty"]);
+}
+
+#[test]
+fn a_repeated_alias_takes_its_last_spelling_at_its_first_position() {
+    let page = document("alias:: [[b]], [[a]], [[B]], [[page]]\n\n- Body\n");
+    assert_eq!(page_alias_spellings(&page, "Page"), ["B", "a"]);
 }

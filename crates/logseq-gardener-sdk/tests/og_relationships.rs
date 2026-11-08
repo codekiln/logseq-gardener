@@ -222,3 +222,20 @@ fn a_date_name_takes_the_weekday_the_date_has() {
         ]
     );
 }
+
+#[test]
+fn an_alias_written_twice_takes_its_last_spelling() {
+    // `Brew` writes `alias:: [[homebrew]], [[Homebrew]]`. Logseq spells the alias name with the
+    // last spelling, `Homebrew`; `scripts/logseq-parser/check.py` agrees on this garden
+    // (issue #509).
+    let root = fixtures().with_file_name("alias-spelling-case");
+    let derived = derive(&root, FilenameFormat::TripleLowbar);
+    assert_eq!(
+        derived.aliases,
+        [AliasName {
+            name: "homebrew".into(),
+            title: "Homebrew".into(),
+            files: vec!["pages/Brew.md".into()],
+        }]
+    );
+}
