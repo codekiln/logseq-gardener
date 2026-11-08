@@ -27,7 +27,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 		- An entry in the page metadata of each page the plugin applies to. Each first-party plugin uses `on-demand` activation, so a page without its entry loads none of its files, unless the reader arrived from a page that had one.
 		- Search files are the same as without the plugin.
 	- ## podcast-episode
-		- A player that keeps an episode's recording playing while the reader moves between pages, and dialogue timestamps that seek it.
+		- A player that keeps an episode's recording playing while the reader moves between pages, and chapter headings and dialogue timestamps that seek it.
 		- ### Pages it applies to
 			- A published page whose `logseq-entity::` value names `[[Logseq/Entity/Podcast/Episode]]`. The name matches without case and through aliases, as Logseq matches page names. A subtype such as `[[Logseq/Entity/Podcast/Episode/GitP/A]]` alone does not match, so a page lists the base type beside it:
 			- ~~~markdown
@@ -40,11 +40,21 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 			  | --- | --- |
 			  | `recording` | The recording's URL: an `https` URL as written, or the published asset's path relative to the site root. |
 			  | `title` | The text of the page's first heading. |
+			  | `chapters` | The page's chapters in page order, left out when it has none. Each is `{anchor, seconds, title, parent}`: the `source-block-<offset>` id that the page carries on the chapter's block, the start in seconds, the heading's text after the timestamp, and the index in the list of the nearest enclosing chapter, or `null`. |
+			- A chapter is an H3 to H6 heading whose text starts with a timestamp: one or two digits, then one or two groups of a colon and two digits, such as `5:15`, `18:17`, `1:02:03` or `01:00:23`, followed by a space, a dash or the end of the heading. A timestamp later in the heading, or inside code or emphasis, leaves the heading as text:
+			- ~~~markdown
+			  - ## Chapters
+			  	- ### 18:17 Enter [[Microfreak/Preset/260 8bitfi]]
+			  		- #### 19:30 - Old warbling
+			  ~~~
+			- The entry stays within the 64,000-byte page entry limit. When an episode's chapters do not all fit, the entry keeps them from the first, and the build lists one diagnostic naming the page and how many chapters it kept.
 		- ### In the browser
 			- On the first episode page, the module moves the page's `<audio>` element into a player fixed to the bottom of the window, with the native controls and the episode's title linked to its page. The player stays while the reader follows links, goes Back or goes Forward.
 			- On another episode page, the page's recording becomes a Play button. The playing recording stays until the reader presses it; the player then plays the new recording from its start.
+			- Each chapter heading's timestamp becomes a link that plays the episode's recording in the player from the chapter's start. A link opened in a new tab or with a modifier key opens the recording itself at that time.
+			- While a recording plays, the player shows its current chapter after the episode's title, with the chapters that enclose it, each linked to its heading. The current chapter is the one with the latest start at or before the playing time.
 			- A dialogue timestamp on the episode page that the reader is on plays its recording in the player from that time. The module cancels the `lsg:media-seek` event, so the page's own `<audio>` stays paused.
-			- When the module is absent or fails, the page shows its own `<audio>` element and dialogue timestamps seek it, as without the plugin.
+			- When the module is absent or fails, the page shows its own `<audio>` element, chapter timestamps stay text and dialogue timestamps seek the page's recording, as without the plugin.
 		- ### Budget
 			- The `[plugins.podcast-episode]` table of [`scripts/parity/budgets.toml`](https://github.com/codekiln/logseq-gardener/blob/main/scripts/parity/budgets.toml): at most 8 KB gzip of module and stylesheet, 4 KB gzip of added page size on the largest fixture episode, 1 MB of added phone heap after playing across 20 navigations, and 0.05 ms of added build time per published page. `mise run parity:budgets` and `mise run parity:build-bench` check the size and build rows in CI.
 	- ## Budget rows for every first-party plugin
