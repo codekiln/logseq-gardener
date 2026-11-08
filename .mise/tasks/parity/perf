@@ -16,6 +16,7 @@
 #USAGE flag "--media" help="Measure only the video pages in the run's site (with --record, their section)"
 #USAGE flag "--sidebar" help="Measure only the right sidebar on tmux in the run's site (with --record, its section)"
 #USAGE flag "--queries" help="Measure only Parity/Queries, the queries analysis's test queries, on a copy of the run's garden (with --record, its section)"
+#USAGE flag "--advanced-queries" help="Measure only Parity/AdvancedQueries and its All Pages child, added to a copy of the run's garden, in lsg and in Logseq's own export of the copy (with --record, its section)"
 #USAGE flag "--flashcards" help="Measure only Parity/Flashcards, 60 cloze cards and a deck, on a copy of the run's garden (with --record, its section)"
 #USAGE flag "--plugins" help="Build the run's garden with the recorder fixture plugin and measure only same-document navigation (with --record, its section)"
 #USAGE flag "--baseline-lsg <path>" help="Also time a whole-garden build with this lsg binary, such as one built before a feature"
@@ -33,6 +34,7 @@ if [ -n "${usage_search_queries:-}" ]; then args+=(--search-queries "$usage_sear
 if [ "${usage_record:-false}" = "true" ]; then args+=(--record); fi
 if [ "${usage_graph:-false}" = "true" ]; then args+=(--graph); fi
 if [ "${usage_queries:-false}" = "true" ]; then args+=(--queries); fi
+if [ "${usage_advanced_queries:-false}" = "true" ]; then args+=(--advanced-queries); fi
 if [ "${usage_flashcards:-false}" = "true" ]; then args+=(--flashcards); fi
 if [ "${usage_site_size:-false}" = "true" ]; then args+=(--site-size); fi
 if [ "${usage_slides:-false}" = "true" ]; then args+=(--slides); fi

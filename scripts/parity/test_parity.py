@@ -570,6 +570,36 @@ class PerformancePageTest(unittest.TestCase):
             self.assertRegex(line, r'^\t+(- |  \|)')
 
 
+class AdvancedQueriesPerfTest(unittest.TestCase):
+    BUILD = {'proxy_s': 16.0, 'all_pages_s': 16.1, 'repeat': 10, 'proxy_render_ms': 5000.0,
+             'all_pages_render_ms': 5100.0, 'repeat_render_ms': 6000.0, 'runaway_render_ms': 5500.0,
+             'baseline_s': 16.0, 'logseq_s': 150.0}
+
+    def report(self, **build):
+        page = {'page': perf.ADVANCED_PAGE, 'profile': 'phone', 'build': 'lsg', 'title_ms': 400, 'rows_ms': 200,
+                'rows': 6, 'data_before_title': 15_000, 'script_before_title': 13_000, 'peak_heap': 2e6, 'heap': 1e6}
+        search = {'profile': 'phone', 'build': 'lsg', 'keystrokes': 36, 'p50_ms': 28, 'p95_ms': 325,
+                  'cold_p95_ms': 416, 'warm_p95_ms': 47}
+        return {'loads': 3, 'pages': [page], 'search': [search], 'build': {**self.BUILD, **build}}
+
+    def test_a_querys_cost_is_the_render_growth_divided_by_the_repeats(self):
+        self.assertEqual(perf.advanced_costs(self.BUILD), (100.0, 50.0))
+
+    def test_values_within_budget_pass_and_a_slow_query_fails(self):
+        budgets = metrics.load_budgets()
+        self.assertEqual(perf.advanced_queries_failures(self.report(), budgets), [])
+        failures = perf.advanced_queries_failures(self.report(repeat_render_ms=11_000.0), budgets)
+        self.assertEqual(len(failures), 1)
+        self.assertIn('eval_ms', failures[0])
+        text = '\n'.join(perf.advanced_queries_markdown(self.report(repeat_render_ms=11_000.0), budgets))
+        self.assertIn('costs **600** ms', text)
+
+    def test_the_repeated_page_holds_one_description_and_ten_queries(self):
+        text = perf.repeated_queries(perf.ADVANCED_ALL_PAGE)
+        self.assertEqual(text.count('#+BEGIN_QUERY'), perf.ADVANCED_REPEAT)
+        self.assertEqual(text.count('Every page, sorted'), 1)
+
+
 class GraphTest(unittest.TestCase):
     LIMITS ={'data_gzip_kb': 1, 'script_kb': 1, 'worker_kb': 1, 'page_graph_fragment_gzip_kb': 1}
 
