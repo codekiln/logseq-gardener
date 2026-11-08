@@ -589,6 +589,9 @@ pub fn publish_site_with_options(
         let asset_url = |source: &Path, url: &str| assets::published_route(&root, source, url);
         let step = plugin.build_step(&crate::first_party::FirstPartyInputs {
             pages: &selected,
+            names: &names,
+            routes: &routes,
+            hidden_properties: &reference_config.hidden_properties,
             resolve: &resolve,
             asset_url: &asset_url,
         });

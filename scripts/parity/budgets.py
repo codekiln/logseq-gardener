@@ -55,8 +55,10 @@ FIRST_PARTY_OVERHEAD_PAGE = 'Tools/Queries'
 # GitP/A episode has timestamps, so page_growth_gzip_kb measures the largest entry.
 LONG_EPISODE = 'Tools/Plugins/Show/Long Episode'
 LONG_EPISODE_CHAPTERS = 120
-FIRST_PARTY_EPISODES = {'podcast-episode': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two',
-                                            'Tools/Plugins/Show/Hidden Type', LONG_EPISODE]}
+# The fixture pages that get each first-party plugin's entry; the two episodes also form a sequence.
+FIRST_PARTY_ENTRIES = {'podcast-episode': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two',
+                                           'Tools/Plugins/Show/Hidden Type', LONG_EPISODE],
+                       'sequence-header': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two']}
 FIRST_PARTY_HIDDEN_PAGE = 'Tools/Plugins/Show/Hidden Type'
 PAGE_METADATA = re.compile(r'<script type="application/json" data-lsg-page>(.*?)</script>', re.S)
 
@@ -912,7 +914,7 @@ def check_first_party(plain, site, plain_large, site_large, hidden, budgets):
             failures.append(f'{plugin}: script_styles_gzip_kb: {size:,} gzip exceeds {rows["script_styles_gzip_kb"] * 1000:,.0f}')
         with_entry = sorted(title for title, url in titles.items()
                             if url.endswith('.html') and plugin in page_entries(site, url))
-        expected = sorted(FIRST_PARTY_EPISODES.get(plugin, []))
+        expected = sorted(FIRST_PARTY_ENTRIES.get(plugin, []))
         if with_entry != expected:
             failures.append(f'{plugin}: entries on {with_entry}, expected {expected}')
         if plugin == 'podcast-episode' and LONG_EPISODE in with_entry:
@@ -933,7 +935,7 @@ def check_first_party(plain, site, plain_large, site_large, hidden, budgets):
     print(f'first-party plugins: {FIRST_PARTY_OVERHEAD_PAGE} grows {overhead:,} gzip without a plugin entry')
     if overhead > limits['page_overhead_gzip_kb'] * 1000:
         failures.append(f'page_overhead_gzip_kb: {FIRST_PARTY_OVERHEAD_PAGE} grows {overhead:,} gzip, over {limits["page_overhead_gzip_kb"] * 1000:,.0f}')
-    for title in [FIRST_PARTY_OVERHEAD_PAGE, *FIRST_PARTY_EPISODES['podcast-episode'][:1]]:
+    for title in [FIRST_PARTY_OVERHEAD_PAGE, *FIRST_PARTY_ENTRIES['podcast-episode'][:1]]:
         url = titles[title]
         small, large = added_bytes(plain, site, url)[0], added_bytes(plain_large, site_large, url)[0]
         if abs(large - small) > limits['garden_growth_kb'] * 1000:

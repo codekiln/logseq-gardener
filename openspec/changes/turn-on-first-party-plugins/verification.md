@@ -59,3 +59,31 @@ The branch's `lsg` built the `GitP` namespace of logseq-encode-garden (`66b81e95
 The encode garden's `01-Sun` has five more timestamped headings than gitpa's copy of the page. Selecting `18:17` on `01-Sun` played the recording from 1,097 s and showed `Enter Microfreak/Preset/260 8bitfi`; selecting `14:51` on `29-Thu` played from 891 s and showed `pierced resonance`. No page raised an error.
 
 Built without the key, the encode garden's `GitP` namespace is byte-identical to `lsg` 0.0.38 (main at `b1773f9`). With the key, the files that differ from 0.0.38 with the key, apart from the build revision in each page's metadata, are the plugin's module and stylesheet, `lsg-site.json` and the ten episode pages with chapters. Their gzip size grows by 136 to 397 bytes over 0.0.38 and by 288 to 552 bytes over the build without the key.
+
+## 5.3 sequence-header in Chromium and in the budgets
+
+`mise run plugins:browser-test` passed with the new sequence-header scenarios: a page outside the sequence requests no file under `plugins/sequence-header/` and shows no links; a page with both neighbours shows a Previous link before the header's spacer and a Next link after it, with `rel`, the page titles and the title `Seq/Three & <b>bold</b>` shown as text; Tab reaches both links with a visible outline; following a link to a page without an entry removes the links and Back brings them back; the last page shows only its Previous link; the module is requested once; on a 375-pixel phone each link is a 36-pixel arrow and the header does not overflow.
+
+`mise run parity:budgets` passed:
+
+| Row | Measured | Budget |
+| --- | --- | --- |
+| `sequence-header` script and styles | 1,465 gzip | 1,500 |
+| Largest page growth (`Tools/Plugins/Show/Episode One`, both plugins' entries) | 282 gzip | 500 |
+| Fixture pages with an entry | `Episode One` and `Episode Two`, the two pages whose neighbours are published | |
+
+## sequence-header on both gardens
+
+The branch's `lsg` built the `GitP` namespace of logseq-encode-garden (`66b81e9543`) and of gitpa's `gitp-garden` (`410f4d9`), each from a copy whose `logseq/config.edn` adds `:lsg/plugins [:podcast-episode :sequence-header]`, with readable URLs, on 2026-11-08. Gitpa's site today was built with its own `scripts/build_site.py` and its pinned `lsg` 0.0.29, which draws the header links with `site/header-sequence.js`. Chromium read the header links on the desktop (1280×800) and phone (375×812) profiles, served locally.
+
+| Page | Encode garden | Gitpa's copy | Gitpa's site today |
+| --- | --- | --- | --- |
+| `GitP/A/Session/26/11/01-Sun` | Previous `26/10/29-Thu` | the same | the same |
+| `GitP/A/Session/26/10/29-Thu` | Previous `26/10/26-Mon` | the same | the same |
+| `GitP/A/Session/26/10/24-Sat` | Previous `26/10/22-Thu`, Next `26/10/26-Mon` | the same | the same |
+| `GitP/A/Session/26/10/20-Tue` | Previous `26/10/18-Sun`, Next `26/10/22-Thu` | the same | the same |
+| `GitP/A/Session/26/09/24-Thu` | Previous `26/09/25-Fri`, Next `24/11/19-Tue` | the same | the same |
+| `GitP/A`, `GitP/A/Session`, the asset page `26/10/24-Sat/Asset/Audio/Full/mp3` | no links, no plugin request | the same | no links |
+| Homepage (journals; `Ghost in the Patch`) | no links, no plugin request | the same | no links |
+
+Each link has the same width as gitpa's on the desktop (for example 236 and 241 pixels on `24-Sat`) and is a 36-pixel arrow on the phone, where the title is visually hidden, as on gitpa. No header overflowed and no page raised an error. On both `lsg` builds, following a link from `24-Sat` to `GitP/A` removed the links and Back showed `24-Sat`'s two links again.

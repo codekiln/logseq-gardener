@@ -110,6 +110,9 @@ pub mod entity_types;
 /// A podcast episode page's recording and title.
 pub mod podcast;
 
+/// The previous and next pages a page names with `prev::` and `next::`.
+pub mod page_sequence;
+
 /// The pages a publication contains, and the read-only view build plugins receive.
 pub mod publication;
 
