@@ -216,6 +216,32 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | desktop | 121 | 57,390 | 12,392 | 20 | 568 | 1.2 |
 		  | phone | 374 | 57,390 | 12,392 | 618 | 568 | 1.2 |
 		- Whole-garden build with `Parity/Queries`: 14.48 s against 14.25 s for the baseline binary (+1.6%, budget 10%).
+	- ## Advanced queries
+		- Measured 2026-11-08 on encode garden commit `a7d948e` with `lsg` `154e0ef`.
+		- `Parity/AdvancedQueries` holds a query in the form of gitpa's homepage query (a `:result-transform` that sorts and a `:view` that draws links) over the encode garden's proxy pages, and `Parity/AdvancedQueries/All Pages` the worst case: every page, sorted by a property, with a view of the first 1,000. Both pages are added to a copy of the whole garden, which `lsg` and Logseq's own export (`parity:logseq-export`) each build. Rows is the time to the first row of the view; Logseq runs the query in the browser after it loads the graph, which its export writes into a script element of `index.html`, so Logseq's script before the title is mostly the graph. Values are medians of 3 loads; heap is read after garbage collection once the rows show. **Bold** marks an `lsg` value over its `[desktop]` or `[phone]` budget.
+		- | Page | Profile | Build | Title (ms) | Rows (ms) | Rows shown | Data before title (KB) | Script before title (KB) | Peak heap (MB) | Heap with rows (MB) |
+		  | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+		  | `Parity/AdvancedQueries` | desktop | logseq | 28,881 | 29,090 | 6 | 24,185.5 | 245,832.8 | 2,106.5 | 727.7 |
+		  | `Parity/AdvancedQueries` | desktop | lsg | 19 | 13 | 6 | 15.0 | 13.6 | 1.8 | 1.2 |
+		  | `Parity/AdvancedQueries` | phone | logseq | 191,193 | 191,782 | 6 | 23,610.2 | 245,832.8 | 2,085.4 | 727.1 |
+		  | `Parity/AdvancedQueries` | phone | lsg | 414 | 227 | 6 | 15.0 | 13.6 | 1.9 | 1.2 |
+		  | `Parity/AdvancedQueries/All Pages` | desktop | logseq | 22,455 | 23,250 | 1,000 | 24,185.5 | 245,832.8 | 2,144.5 | 754.3 |
+		  | `Parity/AdvancedQueries/All Pages` | desktop | lsg | 30 | 24 | 1,000 | 34.4 | 13.6 | 2.1 | 1.2 |
+		  | `Parity/AdvancedQueries/All Pages` | phone | logseq | 198,196 | 200,656 | 1,000 | 23,610.2 | 245,832.8 | 2,127.8 | 753.6 |
+		  | `Parity/AdvancedQueries/All Pages` | phone | lsg | 402 | 217 | 1,000 | 34.4 | 13.6 | 2.1 | 1.3 |
+		- Search on the copy, from the home page, typing each query in `scripts/parity/search-queries.txt` a key at a time. A cold keystroke fetched a search shard; **bold** marks an `lsg` value over `cold_keystroke_ms` in `[search]` or, for warm keystrokes, over `search_p95_ms` in `[desktop]` or `[phone]`:
+		- | Profile | Build | Keystrokes | p50 (ms) | p95 (ms) | Cold p95 (ms) | Warm p95 (ms) |
+		  | --- | --- | ---: | ---: | ---: | ---: | ---: |
+		  | desktop | logseq | 36 | 793 | 1,727 |  | 1,727 |
+		  | desktop | lsg | 36 | 16 | 34 | 45 | 23 |
+		  | phone | logseq | 36 | 2,854 | 13,692 |  | 13,692 |
+		  | phone | lsg | 36 | 28 | 325 | 416 | 47 |
+		- Builds of the copy with the run's options and `--include Parity`, fastest of three. A query's cost is how much it grows the fastest render phase, where queries run, measured with the query 10 times on one page and divided by 10, so that the cost stands out from the variation between builds:
+		- With `Parity/AdvancedQueries` only: 16.79 s, render 5,736 ms. With `Parity/AdvancedQueries/All Pages` as well: 16.69 s, render 5,860 ms.
+		- The all-pages query, 10 times: render 6,689 ms, so one costs 95 ms (budget 500 ms).
+		- `Parity/AdvancedQueries/Runaway`, a transform that stops at the step limit, 10 times: render 6,583 ms, so stopping one costs 0.08 s (budget 2 s). Logseq does not build this page.
+		- Logseq's export of the copy with both pages: 159 s.
+		- The `--baseline-lsg` binary built the copy with both pages in 16.67 s; this build is +0.1% against it (budget 10%).
 	- ## Plugins
 		- The whole encode garden built with the recorder fixture plugin (`tests/fixtures/plugins/recorder`), same-document navigations: one to every fixture page, then 20 more. Navigation is the time from the fetched page's response end to the adopted page: `<main>` swapped, lsg's page initializers run, plugins notified and the fragment revealed. Listeners are the document's and window's event listeners after every page has been visited once, when scripts that only some pages load are in, and after the 20 more navigations. **Bold** marks a value over its `[plugins]` budget.
 		- | Profile | Navigations | Median (ms) | Slowest (ms) | Slowest page | Listeners after one visit each | Listeners 20 navigations later |

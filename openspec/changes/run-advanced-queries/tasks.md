@@ -28,11 +28,11 @@
 
 - [x] 4.1 Add `Tools/Queries/Typed/…` pages and an advanced query to `tests/fixtures/parity-garden` covering the typed values, the zones and the error boxes; run `mise run parity:logseq-export` and check the rows match Logseq 0.10.15
 - [x] 4.2 Add the `[advanced_queries]` table to `scripts/parity/budgets.toml` and make `parity:budgets` check growth, no script, no stylesheet and the view size; run `mise run parity:budgets`
-- [ ] 4.3 Add `parity:perf --advanced-queries` with the two pages from the design, measured in `lsg` and in a Logseq build of the same copy; record the rows in the Performance page with `--record`
-- [ ] 4.4 Add the gitpa-form query to the `gitpa-sized` corpus homepage, record a row with `parity:publish-bench --record`, and confirm `--check` runs in CI
+- [x] 4.3 Add `parity:perf --advanced-queries` with the two pages from the design, measured in `lsg` and in a Logseq build of the same copy; record the rows in the Performance page with `--record`
+- [x] 4.4 Add the gitpa-form query to the `gitpa-sized` corpus homepage, record a row with `parity:publish-bench --record`, and confirm `--check` runs in CI
 
 ## 5. Verification
 
 - [x] 5.1 Build gitpa's `Ghost in the Patch` with plain `lsg publish`; compare its list with `mise run site:query:check` in gitpa and record the result in `verification.md`
-- [ ] 5.2 Check the whole-garden build, the all-pages query time, the phone heap and the search latency against the budgets; record them in `verification.md`
-- [ ] 5.3 Run `mise run ci`
+- [x] 5.2 Check the whole-garden build, the all-pages query time, the phone heap and the search latency against the budgets; record them in `verification.md`
+- [x] 5.3 Run `mise run ci`

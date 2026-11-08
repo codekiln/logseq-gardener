@@ -38,6 +38,13 @@ see-also:: [[lsg/How To/Measure Performance]], [[lsg/Ref/Logseq Compatibility/Pe
 		  | Everything else | 73 before, 79 after | 3.9 | 3.9 |
 		  | Whole site | 46,767 before, 46,774 after | 1,216.8 | 470.2 |
 		- The fastest of five interleaved warm builds took 15.7 seconds before and 16.6 seconds after, 6% slower, within the `[site]` budget of 10%. Compression adds about 5 seconds of processor time, spread across the writing threads.
+	- ## Gitpa's homepage query
+		- Since generator version 2 ([issue 530](https://github.com/codekiln/logseq-gardener/issues/530)), the generated Gitpa-sized garden has 15 episode pages and a homepage, `Ghost in the Patch`, that lists them with Gitpa's homepage query, an advanced query with a `:result-transform` and a `:view`. The benchmark publishes it with `--homepage "Ghost in the Patch"`, as Gitpa does, so the CI check covers the query. The change gave the garden a new digest, so its rows start again:
+		- | Machine | Generator version 1 warm (s) | Generator version 2 warm (s) |
+		  | --- | --- | --- |
+		  | Apple M2 Pro | 2.98 | 2.98 |
+		  | GitHub runner, AMD EPYC 9V74 | no row | 4.29 |
+		- On the laptop the query costs nothing measurable: the render phase took 1.17 seconds against 1.21 seconds before.
 	- ## Rendering each reference copy once
 		- The publisher renders each copy of a referring block and its breadcrumb once per build, and fills in the parts that depend on the listing page: the bullet's row number in that page's reference data and the bullet's link. Before [issue 290](https://github.com/codekiln/logseq-gardener/issues/290), it copied each referring block and rendered the copy again for every page that listed it. The published files did not change: the encode garden at `4d37b9f` and the generated Gitpa-sized garden, published with the binaries from before and after the change, gave the same 46,767 and 9,900 files byte for byte and the same diagnostics.
 		- On the Apple M2 Pro, fastest of five warm builds, in seconds:
