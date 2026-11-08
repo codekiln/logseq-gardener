@@ -675,9 +675,9 @@ fn search_flag_emits_only_opt_in_external_artifacts() {
     let emitted = files(&output);
     let manifests: Vec<_> = emitted
         .keys()
-        .filter(|path| path.to_string_lossy().starts_with("lsg-search-manifest-"))
+        .filter(|path| path.to_string_lossy().starts_with("lsg-search-manifest"))
         .collect();
-    assert_eq!(manifests.len(), 1);
+    assert_eq!(manifests, [Path::new("lsg-search-manifest.json")]);
     assert!(
         emitted
             .keys()

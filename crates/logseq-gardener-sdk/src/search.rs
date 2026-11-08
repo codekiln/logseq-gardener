@@ -6,7 +6,8 @@
 //! block under its normalized words; [`SearchIndex::query`] answers a query with the
 //! groups and order the published browser engine returns. [`SearchIndex::files`] splits
 //! the index into the title index, word-prefix shards and record chunks the browser
-//! loads, each named by its content digest.
+//! loads, each named by its content digest, and the manifest at [`MANIFEST_ROUTE`] that
+//! lists them.
 //!
 //! ```
 //! use logseq_gardener_sdk::search::{BlockRecord, PageRecord, QueryOptions, Records, SearchIndex};
@@ -44,7 +45,10 @@ use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings};
 use crate::transclusion::{ReferenceTargets, page_targets};
 
 /// The published search format; the browser engine rejects every other version.
-pub const FORMAT_VERSION: u64 = 2;
+pub const FORMAT_VERSION: u64 = 3;
+/// The search manifest's fixed name. Every page names it, so it keeps this name while the
+/// files it lists are named by their contents.
+pub const MANIFEST_ROUTE: &str = "lsg-search-manifest.json";
 /// Results per group, as Logseq's search returns at most 100 of each kind.
 pub const MAX_RESULTS: usize = 100;
 /// Longest accepted query, in Unicode scalar values.
@@ -449,14 +453,17 @@ pub struct SearchIndex {
 }
 
 /// Where the publisher splits the index: the largest gzip size of a shard before it
-/// splits by the next character, the most block records in a chunk, and the largest gzip
-/// size of a chunk. The default budgets are `shard_gzip_kb` and `chunk_gzip_kb` in
+/// splits by the next character, the most block records in a chunk, the largest gzip
+/// size of a chunk, and how often a block starts a new chunk: a block whose page and
+/// fragment digest is a multiple of `cut_blocks` does, so chunks average about that many
+/// records. The default budgets are `shard_gzip_kb` and `chunk_gzip_kb` in
 /// `scripts/parity/budgets.toml`, where a KB is 1,000 bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileOptions {
     pub shard_budget: usize,
     pub chunk_size: usize,
     pub chunk_budget: usize,
+    pub cut_blocks: u64,
 }
 
 impl Default for FileOptions {
@@ -465,6 +472,7 @@ impl Default for FileOptions {
             shard_budget: 64_000,
             chunk_size: 256,
             chunk_budget: 32_000,
+            cut_blocks: 64,
         }
     }
 }
@@ -477,14 +485,18 @@ pub struct SearchFiles {
     pub files: BTreeMap<String, String>,
 }
 
-/// 64-bit FNV-1a over UTF-8 bytes: the publisher's non-security content digest.
-pub(crate) fn digest(value: &str) -> String {
+fn fnv(value: &str) -> u64 {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in value.as_bytes() {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x100000001b3);
     }
-    format!("{hash:016x}")
+    hash
+}
+
+/// 64-bit FNV-1a over UTF-8 bytes: the publisher's non-security content digest.
+pub(crate) fn digest(value: &str) -> String {
+    format!("{:016x}", fnv(value))
 }
 
 fn gzip_len(text: &str) -> usize {
@@ -493,20 +505,29 @@ fn gzip_len(text: &str) -> usize {
     encoder.finish().expect("in-memory gzip").len()
 }
 
-fn shard_json(words: &[(&str, &[u32])]) -> String {
+// A block's page number in title order and its number among that page's blocks.
+type BlockRef = (u32, u32);
+
+// Each word lists its blocks as pairs: the first pair is a page number and a block number
+// within that page; each later pair is the step to its page and, on a new page, the block
+// number there, or on the same page the step from the previous block. Naming blocks by
+// page keeps a shard unchanged when another page gains or loses blocks.
+fn shard_json(words: &[(&str, &[u32])], refs: &[BlockRef]) -> String {
     let words: Vec<_> = words
         .iter()
         .map(|(word, blocks)| {
-            let mut previous = 0;
-            let deltas: Vec<_> = blocks
-                .iter()
-                .map(|n| {
-                    let delta = n - previous;
-                    previous = *n;
-                    delta
-                })
-                .collect();
-            json!([word, deltas])
+            let mut pairs = Vec::with_capacity(blocks.len() * 2);
+            let mut previous: Option<BlockRef> = None;
+            for n in blocks.iter() {
+                let (page, block) = refs[*n as usize];
+                match previous {
+                    None => pairs.extend([page, block]),
+                    Some((last, before)) if last == page => pairs.extend([0, block - before]),
+                    Some((last, _)) => pairs.extend([page - last, block]),
+                }
+                previous = Some((page, block));
+            }
+            json!([word, pairs])
         })
         .collect();
     json!({"format_version": FORMAT_VERSION, "words": words}).to_string()
@@ -526,11 +547,35 @@ fn chunk_json(blocks: &[BlockRecord]) -> String {
     json!({"format_version": FORMAT_VERSION, "blocks": blocks}).to_string()
 }
 
-// Record chunks with the number of their first block. Blocks are cut into groups of
-// `chunk_size` records; a group over `chunk_budget` gzip splits into the longest runs that
-// fit, so an edit can move chunk boundaries only inside its own group. A single record over
-// the budget still gets a chunk of its own.
+// Record chunks with the number of their first block. A block whose page and fragment
+// digest is a multiple of `cut_blocks` starts a segment, so where segments start depends
+// only on those blocks: adding, removing or editing a block moves no boundary outside its
+// own segment. Each segment is cut into groups of `chunk_size` records; a group over
+// `chunk_budget` gzip splits into the longest runs that fit, so an edit can move chunk
+// boundaries only inside its own group. A single record over the budget still gets a chunk
+// of its own.
 fn chunk_files(blocks: &[BlockRecord], options: &FileOptions) -> Vec<(usize, String)> {
+    let cuts = |block: &BlockRecord| {
+        fnv(&format!("{}#{}", block.page, block.fragment)).is_multiple_of(options.cut_blocks.max(1))
+    };
+    let mut out = Vec::new();
+    let mut start = 0;
+    while start < blocks.len() {
+        let mut end = start + 1;
+        while end < blocks.len() && !cuts(&blocks[end]) {
+            end += 1;
+        }
+        out.extend(
+            segment_chunks(&blocks[start..end], options)
+                .into_iter()
+                .map(|(first, json)| (start + first, json)),
+        );
+        start = end;
+    }
+    out
+}
+
+fn segment_chunks(blocks: &[BlockRecord], options: &FileOptions) -> Vec<(usize, String)> {
     let mut out = Vec::new();
     for (group, records) in blocks.chunks(options.chunk_size.max(1)).enumerate() {
         let mut start = 0;
@@ -566,11 +611,12 @@ fn chunk_files(blocks: &[BlockRecord], options: &FileOptions) -> Vec<(usize, Str
 fn place<'a>(
     key: &'a str,
     words: Vec<(&'a str, &'a [u32])>,
+    refs: &[BlockRef],
     budget: usize,
     out: &mut BTreeMap<String, String>,
 ) {
     let depth = key.chars().count();
-    let json = shard_json(&words);
+    let json = shard_json(&words, refs);
     if gzip_len(&json) <= budget || words.iter().all(|(w, _)| w.chars().count() <= depth) {
         out.insert(key.to_owned(), json);
         return;
@@ -588,10 +634,10 @@ fn place<'a>(
         }
     }
     if !terminal.is_empty() {
-        out.insert(key.to_owned(), shard_json(&terminal));
+        out.insert(key.to_owned(), shard_json(&terminal, refs));
     }
     for (key, words) in groups {
-        place(key, words, budget, out);
+        place(key, words, refs, budget, out);
     }
 }
 
@@ -761,10 +807,10 @@ impl SearchIndex {
         Ok(results)
     }
 
-    /// The format version 2 files: the title index, the word-prefix shards and the
-    /// record chunks, each named `lsg-search-<kind>-<digest>.json`, and the manifest
-    /// `lsg-search-manifest-<revision>.json` that lists them for the engine at `engine`.
-    /// Page ids must be routes beside the manifest.
+    /// The format version 3 files: the title index, the word-prefix shards and the
+    /// record chunks, each named `lsg-search-<kind>-<digest>.json`, and the manifest at
+    /// [`MANIFEST_ROUTE`] that lists them and each page's block count for the engine at
+    /// `engine`. Page ids must be routes beside the manifest.
     pub fn files(&self, engine: &str, options: &FileOptions) -> SearchFiles {
         let mut files = BTreeMap::new();
         let mut add = |kind: &str, content: String| {
@@ -779,14 +825,17 @@ impl SearchIndex {
             .enumerate()
             .map(|(n, p)| (p.id.as_str(), n))
             .collect();
+        let mut refs = Vec::with_capacity(self.blocks.len());
         for block in &self.blocks {
-            counts[order[block.page.as_str()]] += 1;
+            let page = order[block.page.as_str()];
+            refs.push((page as u32, counts[page] as u32));
+            counts[page] += 1;
         }
+        // Block counts live in the manifest, so the title index changes only with pages.
         let titles: Vec<_> = self
             .pages
             .iter()
-            .zip(&counts)
-            .map(|(p, count)| json!([p.title, p.id, p.aliases, count]))
+            .map(|p| json!([p.title, p.id, p.aliases]))
             .collect();
         let titles = add(
             "titles",
@@ -801,7 +850,7 @@ impl SearchIndex {
                 .push((word, blocks));
         }
         for (key, words) in groups {
-            place(key, words, options.shard_budget, &mut shards);
+            place(key, words, &refs, options.shard_budget, &mut shards);
         }
         let shards: serde_json::Map<_, _> = shards
             .into_iter()
@@ -818,14 +867,15 @@ impl SearchIndex {
             "engine": engine,
             "titles": titles,
             "blocks": self.blocks.len(),
+            "counts": counts,
             "chunks": chunks,
             "chunk_starts": starts,
             "shards": shards,
         });
-        // The revision names this exact set of files, so any change to one renames it.
-        let revision = digest(&format!("search-v2:{manifest}"));
+        // The revision names this exact set of files, so any change to one changes it.
+        let revision = digest(&format!("search-v3:{manifest}"));
         manifest["revision"] = revision.clone().into();
-        let manifest_name = format!("lsg-search-manifest-{revision}.json");
+        let manifest_name = MANIFEST_ROUTE.to_owned();
         files.insert(manifest_name.clone(), manifest.to_string());
         SearchFiles {
             revision,
@@ -1033,6 +1083,7 @@ mod tests {
                 shard_budget: 100,
                 chunk_size: 256,
                 chunk_budget: 32_000,
+                cut_blocks: u64::MAX,
             },
         );
         let manifest: serde_json::Value =
@@ -1061,6 +1112,7 @@ mod tests {
                     shard_budget: 64 * 1024,
                     chunk_size: 256,
                     chunk_budget: 32_000,
+                    cut_blocks: u64::MAX,
                 },
             )
         };
@@ -1070,12 +1122,12 @@ mod tests {
             .iter()
             .filter(|(name, content)| after.files.get(*name) != Some(content))
             .map(|(name, content)| {
-                let kind = name.split('-').nth(2).unwrap().to_owned();
+                let kind = name.split('-').nth(2).unwrap().trim_end_matches(".json");
                 if kind == "shard" {
                     let shard: serde_json::Value = serde_json::from_str(content).unwrap();
                     format!("shard {}", shard["words"][0][0].as_str().unwrap())
                 } else {
-                    kind
+                    kind.to_owned()
                 }
             })
             .collect();
@@ -1085,6 +1137,68 @@ mod tests {
         );
         assert_eq!(before.files.len(), after.files.len());
         assert_ne!(before.revision, after.revision);
+    }
+
+    #[test]
+    fn an_added_block_keeps_other_pages_shards_and_chunks() {
+        // `aa` sorts first, so its added block would renumber every later block if shards
+        // named blocks by their place in the whole index.
+        let titles: Vec<String> = std::iter::once("aa".to_owned())
+            .chain((0..30).map(|n| format!("page {n:02}")))
+            .collect();
+        let build = |extra: bool| {
+            let mut records = Records::default();
+            for (n, title) in titles.iter().enumerate() {
+                let id = format!("p-{}.html", digest(title));
+                records.pages.push(PageRecord {
+                    id: id.clone(),
+                    title: title.clone(),
+                    aliases: vec![],
+                });
+                let mut texts: Vec<String> = (0..10)
+                    .map(|m| format!("word{} other{} filler", n % 7, m % 5))
+                    .collect();
+                if extra && n == 0 {
+                    texts.push("zebra".into());
+                }
+                for (position, text) in texts.into_iter().enumerate() {
+                    records.blocks.push(BlockRecord {
+                        page: id.clone(),
+                        position,
+                        fragment: format!("source-block-{position}"),
+                        text,
+                        parents: vec![],
+                    });
+                }
+            }
+            SearchIndex::new(records).files(
+                "engine.mjs",
+                &FileOptions {
+                    chunk_size: 32,
+                    cut_blocks: 8,
+                    ..FileOptions::default()
+                },
+            )
+        };
+        let (before, after) = (build(false), build(true));
+        let removed: Vec<_> = before
+            .files
+            .keys()
+            .filter(|name| !after.files.contains_key(*name))
+            .collect();
+        // Only the chunk holding `aa`'s last block changes, and the new `ze` shard appears.
+        assert_eq!(removed.len(), 1, "{removed:?}");
+        let chunk: serde_json::Value = serde_json::from_str(&before.files[removed[0]]).unwrap();
+        let aa = format!("p-{}.html", digest("aa"));
+        assert!(
+            chunk["blocks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|b| b[0] == aa.as_str())
+        );
+        assert_eq!(after.files.len(), before.files.len() + 1);
+        assert_ne!(before.files[MANIFEST_ROUTE], after.files[MANIFEST_ROUTE]);
     }
 
     // Text that gzip cannot shrink much: `count` pseudo-random words.
@@ -1124,6 +1238,7 @@ mod tests {
             shard_budget: 64_000,
             chunk_size: 16,
             chunk_budget: 2_000,
+            cut_blocks: u64::MAX,
         };
         let files = index.files("engine.mjs", &options);
         let chunks = chunks(&files);
@@ -1168,6 +1283,7 @@ mod tests {
                     shard_budget: 64_000,
                     chunk_size: 16,
                     chunk_budget: 1_500,
+                    cut_blocks: u64::MAX,
                 },
             )
         };

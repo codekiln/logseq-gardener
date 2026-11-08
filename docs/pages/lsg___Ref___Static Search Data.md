@@ -4,8 +4,8 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 - # Static Search Data Reference
 	- ## Overview
 		- `lsg publish --search` writes a search index beside the generated HTML, and every page reads it through the shared search dialog. Rust callers set `SiteOptions.search = Some(SearchOptions::default())`.
-		- Search format version 2 publishes the stored titles, unique aliases and original bullet inline text of the selected pages as a small title index, word-prefix shards and record chunks.
-		- Each page advertises the manifest through `<link rel="lsg-search" href="lsg-search-manifest-REVISION.json" data-revision="REVISION">`.
+		- Search format version 3 publishes the stored titles, unique aliases and original bullet inline text of the selected pages as a small title index, word-prefix shards and record chunks.
+		- Each page names the manifest at a fixed address, `<link rel="lsg-search" href="lsg-search-manifest.json">`, so a garden edit leaves every other page's HTML unchanged.
 		- A small startup module loads with the page. The dialog controller, the manifest, the engine and the title index load when a reader points at or focuses the search button, presses Cmd/Ctrl+K or opens search. Each query loads only the shards its words need and the chunks of the rows it draws. [[lsg/Ref/Search Dialog]] describes the dialog.
 		- The SDK's `search` module builds the records, the word index and the files, and answers the same queries in Rust; the publisher only writes the files.
 	- ## Publication boundary
@@ -26,47 +26,49 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			- The SDK also accepts `SearchOptions.excluded_page_bodies`, a set of stored page titles compared with the normal page-name lookup rules. Those pages keep their title and alias records.
 			- These controls affect search only. Excluded prose stays visible on its published page.
 	- ## Files
-		- Every file lives beside the generated HTML and is named by a 16-hex-digit content digest, so a rebuild after one edit changes only the manifest, the shards whose words changed and the chunk that holds the edited block. When the edit moves a chunk boundary, it changes the chunks among the same 256 records.
-		- Every file declares `"format_version": 2`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
+		- Every file lives beside the generated HTML. The manifest has a fixed name; every other file is named by a 16-hex-digit content digest. Adding, removing or editing one block changes only the manifest, the shards that hold the words of the changed block and the chunks that hold that page's records. Adding, removing or renaming a page still changes most shards, because shards number pages in title order.
+		- Every file declares `"format_version": 3`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
 		- ### Manifest
-			- The manifest, `lsg-search-manifest-REVISION.json`, names every other file:
+			- The manifest, `lsg-search-manifest.json`, names every other file and gives each page's number of block records, in title index order:
 			- ```json
 			  {
-			    "format_version": 2,
-			    "revision": "023f35471723cefd",
-			    "engine": "lsg-search-engine-d2ca70f1c216ba6b.mjs",
-			    "titles": "448cd43839cb21ad",
+			    "format_version": 3,
+			    "revision": "748cf8298f8a51ad",
+			    "engine": "lsg-search-engine-fbe9260cd1846dc8.mjs",
+			    "titles": "13397893c1b620fe",
 			    "blocks": 2,
-			    "chunks": ["bfdbc9154aefca1e"],
+			    "counts": [2],
+			    "chunks": ["63a837fcbf60ce81"],
 			    "chunk_starts": [0],
-			    "shards": {"co": "e1d3cd6f73b473f3", "no": "6c944b207d31af25", "re": "0dd4f0eb1365fc18",
-			               "se": "8c53ae9376251ad8", "tm": "3b338af9f70ea5e3", "wi": "f10a62484c870901"}
+			    "shards": {"co": "eb2591f1851fc1bc", "no": "d0e0dce3c696e91c", "re": "2d10a166f5eb8295",
+			               "se": "3df4bbf267d766b5", "tm": "940cb93093aa6634", "wi": "3f5f1cb136e5145e"}
 			  }
 			  ```
-			- The revision digests the manifest's other fields with a `search-v2` marker, using the publisher's FNV-1a digest. It serves as a cache identity and gives no cryptographic integrity guarantee.
+			- The revision digests the manifest's other fields with a `search-v3` marker, using the publisher's FNV-1a digest. It identifies the publication and gives no cryptographic integrity guarantee.
 		- ### Other files
 			- | File | Name | Holds |
 			  | --- | --- | --- |
-			  | Title index | `lsg-search-titles-<titles>.json` | For each page, in title order: its title, route, aliases and number of block records. |
-			  | Shard | `lsg-search-shard-<digest>.json` | Each normalized word under the shard's key, with its block record numbers, delta-encoded. |
+			  | Title index | `lsg-search-titles-<titles>.json` | For each page, in title order: its title, route and aliases. |
+			  | Shard | `lsg-search-shard-<digest>.json` | Each normalized word under the shard's key, with the blocks that contain it as page and block pairs. |
 			  | Chunk | `lsg-search-chunk-<digest>.json` | Up to 256 consecutive block records, at most 32 KB (32,000 bytes) gzipped: page route, fragment, text and up to three parents, nearest last. |
 			  | Engine | the manifest's `engine` | The pure evaluator, named by its own digest. |
 			- The title index, a shard and a chunk from the example build:
 			- ```json
-			  {"format_version": 2, "pages": [["Music/Session", "p-a33d85f823d4a0a3.html", ["Session"], 2]]}
-			  {"format_version": 2, "words": [["tmux", [1]]]}
-			  {"format_version": 2, "blocks": [
-			    ["p-a33d85f823d4a0a3.html", "source-block-16", "Session notes", []],
-			    ["p-a33d85f823d4a0a3.html", "source-block-32", "Recording with tmux.conf", ["Session notes"]]]}
+			  {"format_version": 3, "pages": [["Music/Session", "p-a33d85f823d4a0a3.html", ["Session"]]]}
+			  {"format_version": 3, "words": [["tmux", [0, 1]]]}
+			  {"format_version": 3, "blocks": [
+			    ["p-a33d85f823d4a0a3.html", "source-block-17", "Session notes", []],
+			    ["p-a33d85f823d4a0a3.html", "source-block-33", "Recording with tmux.conf", ["Session notes"]]]}
 			  ```
 		- ### Block records and chunks
-			- Block records are ordered by page, in title index order, then by source position, so a page's records are consecutive and the title index's counts give each block's page before its chunk loads. A block's number is its place in that order.
+			- Block records are ordered by page, in title index order, then by source position, so a page's records are consecutive and the manifest's `counts` give each block's page before its chunk loads. A block's number is its place in that order; the engine computes it, and no file stores it.
 			- `chunk_starts[n]` is the number of the first block in chunk `n`, which holds the blocks up to the next chunk's start, or up to `blocks` for the last chunk. The chunk that holds a block is the last one that starts at or before it.
-			- The publisher cuts the records into groups of 256, and closes a chunk at the end of a group or before the record that would take its gzip size past 32 KB. A single record over 32 KB gets a chunk of its own. Because groups always start at multiples of 256, an edit that moves a chunk boundary changes only the chunks of its own group.
+			- A block starts a new segment when the digest of its page route and fragment, joined by `#`, is a multiple of 64, so segments average about 64 records and where one starts depends only on that block. The publisher cuts each segment into groups of 256 records, and closes a chunk at the end of a group or before the record that would take its gzip size past 32 KB. A single record over 32 KB gets a chunk of its own. An edit can move chunk boundaries only inside its own segment.
 		- ### Shards
 			- A word belongs to the shard keyed by its first two characters; a one-character word has its own shard.
 			- A shard larger than 64 KB (64,000 bytes) gzipped splits by the next character, and the words no longer than its key stay in a terminal shard under the key.
 			- A terminal shard, one with a one-character key or a key that a longer key extends, holds only the word equal to its key.
+			- Each word lists its blocks in record order as pairs of numbers. The first pair is a page number, in title index order, and the block's number among that page's records. Each later pair is the step to the block's page and, on a new page, the block's number there, or, when the step is 0, the step from the previous block on the same page. Naming blocks by page keeps a shard's bytes unchanged when another page gains or loses blocks.
 		- ### Destinations
 			- A record's destination fragment is `block-UUID` when the authored UUID is unique among the selected original blocks, and otherwise `source-block-POSITION`, the block's UTF-8 offset in its source file.
 			- Every indexed destination is requested from the renderer and admitted only after its original anchor is emitted.
@@ -88,7 +90,7 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 		- Import the manifest's engine URL on first use. The engine has no DOM, network, storage or navigation side effects. The caller fetches the files relative to the manifest, and passes the parsed manifest and the text of every other file.
 		- ```javascript
 		  const engine = await import(engineURL);
-		  const manifest = engine.prepareManifest(JSON.parse(manifestText), expectedRevision);
+		  const manifest = engine.prepareManifest(JSON.parse(manifestText));
 		  const index = engine.createIndex(manifest, await text(engine.titlesFile(manifest)));
 		  for (const key of engine.missingShards(index, input)) {
 		    engine.addShard(index, key, await text(engine.shardFile(manifest, key)));
@@ -105,8 +107,7 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 		  }
 		  ```
 		- ### Loading and validation
-			- `expectedRevision` comes from the currently loaded page's manifest link.
-			- `prepareManifest` rejects every format version other than 2, a revision mismatch and malformed fields.
+			- `prepareManifest` rejects every format version other than 3, page counts that do not add up to `blocks`, and malformed fields.
 			- `createIndex`, `addShard` and `addChunk` reject text whose digest differs from the manifest's, and records of the wrong shape or page.
 			- Invalid input throws a `TypeError` with a reload or retry message.
 			- The loader must check for successful HTTP responses itself, and keep loading and error states separate from an empty result.
@@ -125,8 +126,8 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			- Results contain plain text. Render them with text nodes.
 	- ## Caching and host routes
 		- Resolve file URLs relative to the manifest link's folder, also under a static host's subpath.
-		- Keep fetched files for the publication, keyed by revision. Keep older search files available while older HTML may still be cached; digest names let browsers cache unchanged shards and chunks across builds.
-		- A page and manifest revision mismatch, or a file digest mismatch, requires a fresh page or a retry against that page's advertised files. Reusing old records with current source-offset anchors can navigate to unrelated content.
+		- Fetch every file with `cache: 'no-cache'`, so the browser checks each one with the server; a cached file that is still current costs a 304 response. The manifest then always describes the current publication, and the digest names let browsers keep unchanged shards and chunks across builds.
+		- Keep fetched files while the page stays open. A missing file or a digest mismatch means the site was published again after the manifest loaded: forget the manifest and every file it named, and load the manifest again on retry. Reusing old records with current source-offset anchors can navigate to unrelated content.
 		- ### Readable routes
 			- A host with readable URLs can pass a resolver: `resolveResult(result, (title, publishedHref) => readableHref)`. `resolveResult` calls the resolver with the stored title, keeps the original fragment, and expects a route without a fragment.
 			- Adapt only navigation. Rewriting the JSON without recomputing its digests breaks the files.
@@ -144,4 +145,4 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 		- [[lsg/Ref/Search Dialog]] describes the browser test of the dialog.
 		- ### Performance
 			- [Issue 96, Validate static search loading, performance, failure handling and privacy](https://github.com/codekiln/logseq-gardener/issues/96), covered browser transfer, parsing, query latency and the failure and loading states. `scripts/parity/perf.py` and `scripts/parity/budgets.toml` take those measurements; [[lsg/How To/Measure Performance]] shows how to run them.
-			- [[lsg/Ref/Logseq Compatibility/Search Performance]] records the file sizes, first open, keystroke latency and downloads of format version 2 on the whole encode garden, next to Logseq's build and Pagefind.
+			- [[lsg/Ref/Logseq Compatibility/Search Performance]] records the file sizes, first open, keystroke latency and downloads of format version 2 on the whole encode garden, next to Logseq's build and Pagefind. The verification of the `stable-search-addresses` OpenSpec change compares format version 3 with it.

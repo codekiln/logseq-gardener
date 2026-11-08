@@ -1,5 +1,5 @@
 let o=window.logseqGardenerInitSearch?.options||{},p=0,h=0,w,c,a=0,q='';
-const d=document,s='[data-lsg-search]',B=()=>d.querySelectorAll(s),L=()=>d.head.querySelector('[rel=lsg-search]'),id=()=>L()?.href+':'+L()?.dataset.revision,E=['click','pointerover','focusin'];
+const d=document,s='[data-lsg-search]',B=()=>d.querySelectorAll(s),L=()=>d.head.querySelector('[rel=lsg-search]'),id=()=>L()?.href,E=['click','pointerover','focusin'];
 function i(r,u={}){o={...o,...u};const v=id();if(v!==c){h=0;q='';}c=v;for(const b of B())b.hidden=!L()||location.protocol==='file:'||!window.HTMLDialogElement?.prototype.showModal;}
 window.logseqGardenerInitSearch=i;i();
 const t=d.createElement('span');t.id='lsg-search-load';t.role='status';

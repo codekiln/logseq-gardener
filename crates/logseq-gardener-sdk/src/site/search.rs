@@ -46,9 +46,9 @@ impl Search {
         self.admitted.insert(route.to_owned(), emitted.clone());
     }
 
-    /// Every search file by route, and the manifest route and revision. A block is
+    /// Every search file by route, the manifest at its fixed route among them. A block is
     /// indexed only when the renderer emitted its anchor.
-    pub fn artifacts(mut self, readable: bool) -> (BTreeMap<String, String>, String, String) {
+    pub fn artifacts(mut self, readable: bool) -> BTreeMap<String, String> {
         self.records.blocks.retain(|record| {
             self.admitted
                 .get(&record.page)
@@ -63,6 +63,6 @@ impl Search {
         let files = SearchIndex::new(self.records).files(&engine_route, &FileOptions::default());
         let mut artifacts = files.files;
         artifacts.insert(engine_route, engine);
-        (artifacts, files.manifest, files.revision)
+        artifacts
     }
 }

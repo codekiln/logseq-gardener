@@ -1,9 +1,9 @@
-// Pure search v2. Import lazily; this module performs no fetch or DOM work. The caller
+// Pure search v3. Import lazily; this module performs no fetch or DOM work. The caller
 // fetches the manifest, the title index, the shards a query needs and the chunks of the
 // rows it draws, and hands their text to the prepare functions, which check digests.
 // Matching and ranking mirror the SDK's search::SearchIndex::query; the shared fixture
 // tests/search-fixture.json keeps the two the same.
-export const FORMAT_VERSION = 2;
+export const FORMAT_VERSION = 3;
 export const LIMITS = Object.freeze({ query: 256, terms: 16, results: 100, snippet: 240, parents: 3 });
 // __LSG_FUZZY__
 export const score = (query, name) => fuzzyScore(query, name);
@@ -54,13 +54,13 @@ export const titlesFile = manifest => `lsg-search-titles-${manifest.titles}.json
 export const shardFile = (manifest, key) => `lsg-search-shard-${manifest.shards.get(key)}.json`;
 export const chunkFile = (manifest, number) => `lsg-search-chunk-${manifest.chunks[number]}.json`;
 
-// expectedRevision comes from the page's manifest link, not cached index data.
-// Validation establishes publication identity/shape, not cryptographic integrity.
-export function prepareManifest(manifest, expectedRevision) {
-  if (!manifest || !hex(expectedRevision) || manifest.format_version !== FORMAT_VERSION ||
-      manifest.revision !== expectedRevision || !hex(manifest.titles) ||
+// The revision identifies the publication; every other file is checked against the digest
+// the manifest lists. Validation establishes publication identity/shape, not cryptographic integrity.
+export function prepareManifest(manifest) {
+  if (!manifest || manifest.format_version !== FORMAT_VERSION || !hex(manifest.revision) || !hex(manifest.titles) ||
       !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '') ||
-      !count(manifest.blocks) || !Array.isArray(manifest.chunks) || !manifest.chunks.every(hex) ||
+      !count(manifest.blocks) || !Array.isArray(manifest.counts) || !manifest.counts.every(count) ||
+      manifest.counts.reduce((sum, n) => sum + n, 0) !== manifest.blocks || !Array.isArray(manifest.chunks) || !manifest.chunks.every(hex) ||
       !Array.isArray(manifest.chunk_starts) || manifest.chunk_starts.length !== manifest.chunks.length ||
       !manifest.chunks.length !== !manifest.blocks ||
       !manifest.chunk_starts.every((start, at, starts) => count(start) && start < manifest.blocks && (at ? start > starts[at - 1] : start === 0)) ||
@@ -72,27 +72,26 @@ export function prepareManifest(manifest, expectedRevision) {
   // words left behind when a shard split by its next character.
   const terminal = new Set(keys.filter(key => single(key) || keys.some(other => other.length > key.length && other.startsWith(key))));
   return Object.freeze({ revision: manifest.revision, engine: manifest.engine, titles: manifest.titles,
-    blocks: manifest.blocks, chunks: Object.freeze([...manifest.chunks]), chunkStarts: Object.freeze([...manifest.chunk_starts]),
+    blocks: manifest.blocks, counts: Object.freeze([...manifest.counts]), chunks: Object.freeze([...manifest.chunks]), chunkStarts: Object.freeze([...manifest.chunk_starts]),
     shards, terminal });
 }
 
 /** Validate the title index text and start an index that collects shards and chunks. */
 export function createIndex(manifest, titlesSource) {
   const titles = parse(titlesSource, manifest.titles);
-  if (!Array.isArray(titles.pages)) invalid();
+  if (!Array.isArray(titles.pages) || titles.pages.length !== manifest.counts.length) invalid();
   const byId = new Map();
   let start = 0;
   const pages = titles.pages.map((record, number) => {
     if (!Array.isArray(record) || !text(record[0]) || !route(record[1]) || byId.has(record[1]) ||
-        !Array.isArray(record[2]) || !record[2].every(text) || !count(record[3])) invalid();
+        !Array.isArray(record[2]) || !record[2].every(text)) invalid();
     const page = Object.freeze({ number, id: record[1], title: record[0], href: record[1],
       aliases: Object.freeze([...record[2]]), titleKey: normalize(record[0]),
-      aliasKeys: Object.freeze(record[2].map(normalize)), start, blocks: record[3] });
-    start += record[3];
+      aliasKeys: Object.freeze(record[2].map(normalize)), start, blocks: manifest.counts[number] });
+    start += page.blocks;
     byId.set(page.id, page);
     return page;
   });
-  if (start !== manifest.blocks) invalid();
   return { manifest, pages: Object.freeze(pages), byId, shards: new Map(), chunks: new Map() };
 }
 
@@ -106,9 +105,14 @@ export function pageOf(index, number) {
   return index.pages[low];
 }
 
-/** Validate a shard's text and keep its words with their block numbers. */
+/**
+ * Validate a shard's text and keep its words with their block numbers. A shard names each
+ * block as a page and a block within it, in pairs: the first pair is a page number and a
+ * block number; a later pair steps to a new page and gives the block number there, or
+ * steps zero pages and gives the step from the previous block.
+ */
 export function addShard(index, key, source) {
-  const { manifest } = index;
+  const { manifest, pages } = index;
   if (!manifest.shards.has(key)) invalid();
   const shard = parse(source, manifest.shards.get(key));
   if (!Array.isArray(shard.words)) invalid();
@@ -116,15 +120,16 @@ export function addShard(index, key, source) {
   for (const entry of shard.words) {
     if (!Array.isArray(entry) || typeof entry[0] !== 'string' || words(entry[0])[0] !== entry[0] ||
         !(manifest.terminal.has(key) ? entry[0] === key : entry[0].startsWith(key)) ||
-        entries.has(entry[0]) || !Array.isArray(entry[1]) || !entry[1].length) invalid();
-    const blocks = new Uint32Array(entry[1].length);
-    let previous = 0;
-    entry[1].forEach((delta, at) => {
-      if (!count(delta) || (at && !delta)) invalid();
-      previous += delta;
-      if (previous >= manifest.blocks) invalid();
-      blocks[at] = previous;
-    });
+        entries.has(entry[0]) || !Array.isArray(entry[1]) || !entry[1].length || entry[1].length % 2) invalid();
+    const pairs = entry[1], blocks = new Uint32Array(pairs.length / 2);
+    let page = 0, block = 0;
+    for (let at = 0; at < pairs.length; at += 2) {
+      const step = pairs[at], value = pairs[at + 1];
+      if (!count(step) || !count(value)) invalid();
+      if (!at || step) { page += step; block = value; } else if (value) block += value; else invalid();
+      if (page >= pages.length || block >= pages[page].blocks) invalid();
+      blocks[at / 2] = pages[page].start + block;
+    }
     entries.set(entry[0], blocks);
   }
   index.shards.set(key, entries);
