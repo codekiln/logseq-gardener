@@ -1,9 +1,9 @@
-// Pure search v3. Import lazily; this module performs no fetch or DOM work. The caller
+// Pure search v4. Import lazily; this module performs no fetch or DOM work. The caller
 // fetches the manifest, the title index, the shards a query needs and the chunks of the
 // rows it draws, and hands their text to the prepare functions, which check digests.
 // Matching and ranking mirror the SDK's search::SearchIndex::query; the shared fixture
 // tests/search-fixture.json keeps the two the same.
-export const FORMAT_VERSION = 3;
+export const FORMAT_VERSION = 4;
 export const LIMITS = Object.freeze({ query: 256, terms: 16, results: 100, snippet: 240, parents: 3 });
 // __LSG_FUZZY__
 export const score = (query, name) => fuzzyScore(query, name);
@@ -35,6 +35,15 @@ export function digest(text) {
   return [h3, h2, h1, h0].map(h => h.toString(16).padStart(4, '0')).join('');
 }
 
+// The route a title gives when nothing moves its page: its digest file, or its readable URL
+// with each segment's bytes outside A-Z, a-z, 0-9 and -._~ percent-encoded, as the SDK's
+// readable_url writes it.
+export function titleRoute(title, urls) {
+  if (urls !== 'readable') return `p-${digest(title)}.html`;
+  const byte = b => /[\w.~-]/u.test(String.fromCharCode(b)) && b < 128 ? String.fromCharCode(b) : '%' + b.toString(16).toUpperCase().padStart(2, '0');
+  return title.split('/').map(part => Array.from(encoder.encode(part), byte).join('')).join('/') + '/';
+}
+
 const hex = value => typeof value === 'string' && /^[a-f0-9]{16}$/u.test(value);
 const route = value => typeof value === 'string' && /^p-[a-f0-9]{16}\.html$/u.test(value);
 const text = value => typeof value === 'string' && value.trim().length > 0;
@@ -58,6 +67,7 @@ export const chunkFile = (manifest, number) => `lsg-search-chunk-${manifest.chun
 // the manifest lists. Validation establishes publication identity/shape, not cryptographic integrity.
 export function prepareManifest(manifest) {
   if (!manifest || manifest.format_version !== FORMAT_VERSION || !hex(manifest.revision) || !hex(manifest.titles) ||
+      !['digest', 'readable'].includes(manifest.urls) ||
       !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '') ||
       !count(manifest.blocks) || !Array.isArray(manifest.counts) || !manifest.counts.every(count) ||
       manifest.counts.reduce((sum, n) => sum + n, 0) !== manifest.blocks || !Array.isArray(manifest.chunks) || !manifest.chunks.every(hex) ||
@@ -71,7 +81,7 @@ export function prepareManifest(manifest) {
   // A terminal shard holds only the word equal to its key: one-character words, and the
   // words left behind when a shard split by its next character.
   const terminal = new Set(keys.filter(key => single(key) || keys.some(other => other.length > key.length && other.startsWith(key))));
-  return Object.freeze({ revision: manifest.revision, engine: manifest.engine, titles: manifest.titles,
+  return Object.freeze({ revision: manifest.revision, engine: manifest.engine, titles: manifest.titles, urls: manifest.urls,
     blocks: manifest.blocks, counts: Object.freeze([...manifest.counts]), chunks: Object.freeze([...manifest.chunks]), chunkStarts: Object.freeze([...manifest.chunk_starts]),
     shards, terminal });
 }
@@ -82,12 +92,15 @@ export function createIndex(manifest, titlesSource) {
   if (!Array.isArray(titles.pages) || titles.pages.length !== manifest.counts.length) invalid();
   const byId = new Map();
   let start = 0;
+  // An entry is [title], [title, aliases] or [title, aliases, route]; the route a title gives is
+  // left out.
   const pages = titles.pages.map((record, number) => {
-    if (!Array.isArray(record) || !text(record[0]) || !route(record[1]) || byId.has(record[1]) ||
-        !Array.isArray(record[2]) || !record[2].every(text)) invalid();
-    const page = Object.freeze({ number, id: record[1], title: record[0], href: record[1],
-      aliases: Object.freeze([...record[2]]), titleKey: normalize(record[0]),
-      aliasKeys: Object.freeze(record[2].map(normalize)), start, blocks: manifest.counts[number] });
+    if (!Array.isArray(record) || !record.length || record.length > 3 || !text(record[0])) invalid();
+    const [title, aliases = [], id = titleRoute(title, manifest.urls)] = record;
+    if (!route(id) || byId.has(id) || !Array.isArray(aliases) || !aliases.every(text)) invalid();
+    const page = Object.freeze({ number, id, title, href: id,
+      aliases: Object.freeze([...aliases]), titleKey: normalize(title),
+      aliasKeys: Object.freeze(aliases.map(normalize)), start, blocks: manifest.counts[number] });
     start += page.blocks;
     byId.set(page.id, page);
     return page;

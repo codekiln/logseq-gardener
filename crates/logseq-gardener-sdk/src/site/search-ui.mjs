@@ -53,7 +53,7 @@ export function createSearchLoader({ fetchFile = (...args) => fetch(...args), im
     pending = (async () => {
       const manifest = JSON.parse(await textFile(publication.manifest, run.signal));
       run.check();
-      if (manifest?.format_version !== 3 || !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '') ||
+      if (manifest?.format_version !== 4 || !/^lsg-search-engine-[a-f0-9]{16}\.mjs$/u.test(manifest.engine || '') ||
           !/^[a-f0-9]{16}$/u.test(manifest.titles || '')) fail();
       // The engine and the title index load together; the engine checks the index's digest.
       const titlesName = `lsg-search-titles-${manifest.titles}.json`;

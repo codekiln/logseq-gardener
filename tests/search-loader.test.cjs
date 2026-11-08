@@ -57,6 +57,7 @@ test('bad metadata, remote paths, version 2 and digest mismatch fail before eval
   for (const mutate of [
     s => s[manifestName] = JSON.stringify({ ...manifest(), format_version: 1 }),
     s => s[manifestName] = JSON.stringify({ ...manifest(), format_version: 2 }),
+    s => s[manifestName] = JSON.stringify({ ...manifest(), format_version: 3 }),
     s => s[manifestName] = JSON.stringify({ ...manifest(), revision: undefined }),
     s => s[manifestName] = JSON.stringify({ ...manifest(), counts: manifest().counts.slice(1) }),
     s => s[manifestName] = JSON.stringify({ ...manifest(), engine: 'https://evil.test/engine.mjs' }),

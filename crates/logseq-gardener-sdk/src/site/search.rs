@@ -1,4 +1,4 @@
-//! Writes the SDK's search index as format version 2 files beside the generated HTML.
+//! Writes the SDK's search index as format version 4 files beside the generated HTML.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::garden::GardenDocument;
@@ -70,7 +70,17 @@ impl Search {
             engine()
         };
         let engine_route = format!("lsg-search-engine-{}.mjs", super::digest(&engine));
-        let files = SearchIndex::new(self.records).files(&engine_route, &FileOptions::default());
+        let files = SearchIndex::new(self.records).files(
+            &engine_route,
+            &FileOptions {
+                page_urls: if readable {
+                    crate::page_urls::PageUrls::Readable
+                } else {
+                    crate::page_urls::PageUrls::Digest
+                },
+                ..FileOptions::default()
+            },
+        );
         let mut artifacts = files.files;
         artifacts.insert(engine_route, engine);
         artifacts
