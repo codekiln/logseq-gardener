@@ -44,6 +44,7 @@ see-also:: [[lsg/How To/Measure Performance]], [[lsg/Ref/Logseq Compatibility/Pe
 		  | --- | --- | --- |
 		  | Apple M2 Pro | 2.98 | 2.98 |
 		  | GitHub runner, AMD EPYC 9V74 | no row | 4.29 |
+		  | GitHub runner, Intel Xeon 6973P-C | no row | 3.71 |
 		- On the laptop the query costs nothing measurable: the render phase took 1.17 seconds against 1.21 seconds before.
 	- ## Rendering each reference copy once
 		- The publisher renders each copy of a referring block and its breadcrumb once per build, and fills in the parts that depend on the listing page: the bullet's row number in that page's reference data and the bullet's link. Before [issue 290](https://github.com/codekiln/logseq-gardener/issues/290), it copied each referring block and rendered the copy again for every page that listed it. The published files did not change: the encode garden at `4d37b9f` and the generated Gitpa-sized garden, published with the binaries from before and after the change, gave the same 46,767 and 9,900 files byte for byte and the same diagnostics.

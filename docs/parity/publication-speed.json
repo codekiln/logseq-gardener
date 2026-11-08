@@ -1038,6 +1038,155 @@
           }
         }
       }
+    },
+    {
+      "recorded": "2026-11-08",
+      "lsg": "9f0d7269f181bc99aae0c155bb11e448140e0516",
+      "corpus": {
+        "name": "gitpa-sized",
+        "digest": "05e8e08a25bc78c8da782943dd0cd8b5ac6b36b6374a5e1097136a9d30a9159a",
+        "source_files": 2411,
+        "source_mb": 3.0,
+        "generator_version": 2
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1019-azure",
+        "machine": "x86_64",
+        "cpu": "Intel(R) Xeon(R) 6973P-C",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search",
+        "--homepage",
+        "Ghost in the Patch"
+      ],
+      "cold_s": 4.054,
+      "warm_s": 3.705,
+      "warm_median_s": 3.733,
+      "runs": 5,
+      "phases_ms": {
+        "read": 14.3,
+        "parse": 88.4,
+        "index": 388.0,
+        "plugins": 0.0,
+        "render": 1963.9,
+        "history": 0.0,
+        "search": 414.3,
+        "graph": 172.4,
+        "write": 601.9
+      },
+      "peak_mb": 380,
+      "published": {
+        "pages": 2376,
+        "journals": 10,
+        "withheld_pages": 25,
+        "assets": 0
+      },
+      "output": {
+        "files": 9914,
+        "mb": 80.0,
+        "parts": {
+          "page_html": {
+            "files": 2450,
+            "mb": 32.5
+          },
+          "_refs": {
+            "files": 4951,
+            "mb": 26.2
+          },
+          "assets": {
+            "files": 0,
+            "mb": 0.0
+          },
+          "search": {
+            "files": 104,
+            "mb": 5.9
+          },
+          "_graph": {
+            "files": 2385,
+            "mb": 14.8
+          },
+          "other": {
+            "files": 24,
+            "mb": 0.6
+          }
+        }
+      }
+    },
+    {
+      "recorded": "2026-11-08",
+      "lsg": "9f0d7269f181bc99aae0c155bb11e448140e0516",
+      "corpus": {
+        "name": "encode-garden",
+        "commit": "5095bdf6e569607d806ef89b8be8e5c5e69853fd",
+        "source_files": 9246,
+        "source_mb": 16.0
+      },
+      "environment": {
+        "runner": "github-actions",
+        "os": "Linux 7.0.0-1019-azure",
+        "machine": "x86_64",
+        "cpu": "Intel(R) Xeon(R) 6973P-C",
+        "cpus": 4
+      },
+      "options": [
+        "--journals",
+        "--search"
+      ],
+      "cold_s": 21.493,
+      "warm_s": 21.187,
+      "warm_median_s": 21.533,
+      "runs": 5,
+      "phases_ms": {
+        "read": 64.3,
+        "parse": 473.5,
+        "index": 2379.5,
+        "plugins": 0.0,
+        "render": 9934.2,
+        "history": 0.0,
+        "search": 2521.3,
+        "graph": 3278.6,
+        "write": 2221.5
+      },
+      "peak_mb": 2195,
+      "published": {
+        "pages": 8728,
+        "journals": 512,
+        "withheld_pages": 2,
+        "assets": 111
+      },
+      "output": {
+        "files": 46808,
+        "mb": 471.0,
+        "parts": {
+          "page_html": {
+            "files": 13925,
+            "mb": 171.2
+          },
+          "_refs": {
+            "files": 17528,
+            "mb": 83.3
+          },
+          "assets": {
+            "files": 111,
+            "mb": 164.5
+          },
+          "search": {
+            "files": 1641,
+            "mb": 29.0
+          },
+          "_graph": {
+            "files": 13524,
+            "mb": 19.1
+          },
+          "other": {
+            "files": 79,
+            "mb": 3.9
+          }
+        }
+      }
     }
   ]
 }
