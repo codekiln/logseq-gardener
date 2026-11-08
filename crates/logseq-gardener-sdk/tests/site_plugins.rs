@@ -359,3 +359,253 @@ fn invalid_manifests_fail_before_output_exists() {
     );
     assert!(!fixture.0.join("duplicate").exists());
 }
+
+const EPISODE_PAGE: &str = "logseq-entity:: [[Logseq/Entity/Podcast/Episode/Show]], [[Logseq/Entity/Podcast/Episode]]\n\n- # The First Episode\n\t- Notes about the session.\n\t- ![Episode recording](../assets/episode-one.mp3)\n";
+
+impl Fixture {
+    /// The fixture with podcast episodes and `extra` added to its `config.edn` map.
+    fn with_episodes(extra: &str) -> Self {
+        let fixture = Self::new();
+        fixture.config(extra);
+        fixture.write("pages/Show___Podcast One.md", EPISODE_PAGE);
+        fixture.write(
+            "pages/Show___Podcast Two.md",
+            "logseq-entity:: [[logseq/entity/podcast/episode]]\n\n- # Second\n\t- ![Remote](https://example.com/two.mp3)\n",
+        );
+        fixture.write(
+            "pages/Show___Typed Without Recording.md",
+            "logseq-entity:: [[Logseq/Entity/Podcast/Episode]]\n\n- # A show page\n\t- No audio.\n",
+        );
+        fixture.write(
+            "pages/Show___Withheld Episode.md",
+            "public:: false\nlogseq-entity:: [[Logseq/Entity/Podcast/Episode]]\n\n- # Withheld\n\t- ![r](https://example.com/WITHHELD_EPISODE.mp3)\n",
+        );
+        fixture.write("assets/episode-one.mp3", "ID3");
+        fixture
+    }
+
+    fn config(&self, extra: &str) {
+        let config = CONFIG.strip_suffix('}').unwrap().to_owned() + " " + extra + "}";
+        fs::write(self.0.join("garden/logseq/config.edn"), config).unwrap();
+    }
+
+    fn publish_report(
+        &self,
+        site: &str,
+        plugins: Vec<PathBuf>,
+    ) -> Result<logseq_gardener_sdk::site::SiteReport, SiteError> {
+        publish_site_with_options(
+            self.0.join("garden"),
+            self.0.join(site),
+            FilenameFormat::TripleLowbar,
+            &NamespaceSelection::new(&["Show"], &[]).unwrap(),
+            &SiteOptions {
+                journals: true,
+                build_date: JournalDate::new(2026, 10, 25),
+                plugins,
+                ..SiteOptions::default()
+            },
+        )
+    }
+}
+
+fn recorder() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/plugins/recorder/lsg-plugin.json")
+}
+
+fn page_metadata(site: &Path, title: &str) -> Value {
+    let manifest = site_manifest(site);
+    let url = manifest["pages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|page| page["title"] == title)
+        .unwrap_or_else(|| panic!("{title} is published"))["url"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    metadata(&fs::read_to_string(site.join(url)).unwrap())
+}
+
+#[test]
+fn a_turned_on_first_party_plugin_writes_its_files_and_episode_entries() {
+    let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");
+    let report = fixture.publish_report("site", Vec::new()).unwrap();
+    let site = fixture.0.join("site");
+    let output = files(&site);
+    let embedded = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins/podcast-episode");
+    for file in ["podcast-episode.mjs", "podcast-episode.css"] {
+        assert_eq!(
+            output[&format!("plugins/podcast-episode/{file}")],
+            fs::read(embedded.join(file)).unwrap(),
+            "{file}"
+        );
+    }
+    assert!(!output.contains_key("plugins/podcast-episode/lsg-plugin.json"));
+    assert_eq!(
+        site_manifest(&site)["plugins"],
+        serde_json::json!([{
+            "id": "podcast-episode",
+            "version": logseq_gardener_sdk::VERSION,
+            "module": "plugins/podcast-episode/podcast-episode.mjs",
+            "styles": ["plugins/podcast-episode/podcast-episode.css"],
+            "activation": "on-demand",
+        }])
+    );
+    let one = &page_metadata(&site, "Show/Podcast One")["plugins"]["podcast-episode"];
+    assert_eq!(one["title"], "The First Episode");
+    let recording = one["recording"].as_str().unwrap();
+    assert!(
+        recording.starts_with("assets/a-") && recording.ends_with(".mp3"),
+        "{recording}"
+    );
+    assert_eq!(output[recording], b"ID3");
+    assert_eq!(
+        page_metadata(&site, "Show/Podcast Two")["plugins"],
+        serde_json::json!({"podcast-episode": {"recording": "https://example.com/two.mp3", "title": "Second"}})
+    );
+    // Pages without the episode type, or without a recording, get no entry, so the browser
+    // imports no plugin code there.
+    for title in ["Show/Episode 1", "Show/Typed Without Recording", "Show"] {
+        assert_eq!(
+            page_metadata(&site, title)["plugins"],
+            serde_json::json!({}),
+            "{title}"
+        );
+    }
+    let diagnostics: Vec<String> = report
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.message.starts_with("podcast-episode"))
+        .map(|diagnostic| format!("{}: {}", diagnostic.source.display(), diagnostic.message))
+        .collect();
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert!(
+        diagnostics[0].contains("Show___Typed Without Recording.md"),
+        "{diagnostics:?}"
+    );
+    for (name, contents) in &output {
+        assert!(
+            !String::from_utf8_lossy(contents).contains("WITHHELD_EPISODE"),
+            "withheld recording in {name}"
+        );
+    }
+}
+
+#[test]
+fn a_hidden_entity_property_still_chooses_episode_pages() {
+    let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");
+    fixture.config(
+        ":lsg/plugins [:podcast-episode] :block-hidden-properties #{:secret :logseq-entity}",
+    );
+    fixture.write(
+        "pages/Show___Podcast One.md",
+        &EPISODE_PAGE.replace("Podcast/Episode/Show", "Podcast/Episode/HIDDEN_TYPE_VALUE"),
+    );
+    let site = fixture.publish("site", Vec::new()).unwrap();
+    let entry = &page_metadata(&site, "Show/Podcast One")["plugins"]["podcast-episode"];
+    assert_eq!(entry["title"], "The First Episode");
+    // The graph view draws the hidden property's page reference, as Logseq's does, with or
+    // without plugins; the plugin adds the hidden value to no file.
+    let holding = |site: &Path| -> Vec<String> {
+        files(site)
+            .into_iter()
+            .filter(|(_, contents)| String::from_utf8_lossy(contents).contains("HIDDEN_TYPE_VALUE"))
+            .map(|(name, _)| name)
+            .collect()
+    };
+    let with_plugin = holding(&site);
+    assert!(
+        with_plugin.iter().all(|name| name.starts_with("_graph/")),
+        "{with_plugin:?}"
+    );
+    fixture.config(":block-hidden-properties #{:secret :logseq-entity}");
+    let without = fixture.publish("without", Vec::new()).unwrap();
+    assert_eq!(with_plugin, holding(&without));
+}
+
+#[test]
+fn an_empty_plugins_key_builds_the_same_site_as_no_key() {
+    let fixture = Fixture::with_episodes("");
+    let without = files(&fixture.publish("without", Vec::new()).unwrap());
+    fixture.config(":lsg/plugins []");
+    let empty = files(&fixture.publish("empty", Vec::new()).unwrap());
+    assert_eq!(without, empty);
+    assert!(!without.keys().any(|name| name.starts_with("plugins/")));
+    assert!(
+        without
+            .values()
+            .all(|contents| !String::from_utf8_lossy(contents).contains("data-lsg-page"))
+    );
+}
+
+#[test]
+fn first_party_and_manifest_plugins_give_the_same_output_in_any_order() {
+    let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");
+    let forward = fixture
+        .publish("forward", vec![recorder(), fixture.manifest("other")])
+        .unwrap();
+    let backward = fixture
+        .publish("backward", vec![fixture.manifest("other"), recorder()])
+        .unwrap();
+    assert_eq!(files(&forward), files(&backward));
+    let ids: Vec<Value> = site_manifest(&forward)["plugins"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|plugin| plugin["id"].clone())
+        .collect();
+    assert_eq!(ids, ["badge", "fixture-recorder", "podcast-episode"]);
+}
+
+#[test]
+fn a_manifest_with_a_first_party_id_stops_before_output() {
+    let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");
+    fixture.write("clash/clash.mjs", "export default {};\n");
+    fixture.write(
+        "clash/lsg-plugin.json",
+        r#"{"id":"podcast-episode","apiVersion":1,"version":"1","module":"clash.mjs","activation":"on-demand"}"#,
+    );
+    let error = fixture
+        .publish("clash-site", vec![fixture.manifest("clash")])
+        .unwrap_err();
+    let message = error.to_string();
+    assert!(matches!(error, SiteError::InvalidPlugin(_)), "{message}");
+    for part in [
+        "\"podcast-episode\"",
+        "logseq/config.edn",
+        "lsg-plugin.json",
+    ] {
+        assert!(message.contains(part), "{part} in {message}");
+    }
+    assert!(!fixture.0.join("clash-site").exists());
+    // Without the key, the manifest may use the id.
+    fixture.config("");
+    fixture
+        .publish("clash-free", vec![fixture.manifest("clash")])
+        .unwrap();
+}
+
+#[test]
+fn a_malformed_plugins_key_stops_before_output() {
+    let fixture = Fixture::with_episodes("");
+    for (case, value, expected) in [
+        ("misspelled", "[:podcast-epsiode]", ":podcast-epsiode"),
+        ("string", r#"["podcast-episode"]"#, "must be a keyword"),
+        ("repeated", "[:podcast-episode :podcast-episode]", "twice"),
+        ("not-vector", ":podcast-episode", "must be a vector"),
+    ] {
+        fixture.config(&format!(":lsg/plugins {value}"));
+        let error = fixture.publish(case, Vec::new()).unwrap_err();
+        let message = error.to_string();
+        assert!(matches!(error, SiteError::PluginKey(_)), "{message}");
+        assert!(
+            message.starts_with("logseq/config.edn: :lsg/plugins"),
+            "{message}"
+        );
+        assert!(message.contains(expected), "{message}");
+        assert!(message.contains(":podcast-episode"), "{message}");
+        assert!(!fixture.0.join(case).exists(), "{case} output");
+    }
+}

@@ -3,8 +3,9 @@
 //! A plugin manifest is a JSON file that names an ES module, optional stylesheets, when the
 //! browser host loads the module, which page properties the plugin reads and, optionally, a
 //! command that runs once per build (see [`ProcessPlugin`]). Every caller (the CLI, the
-//! publisher, an editor integration) checks manifests through [`read_manifests`], so each one
-//! accepts and rejects the same files.
+//! publisher, an editor integration) checks manifests through [`read_plugins`], so each one
+//! accepts and rejects the same files. The first-party plugins that ship inside `lsg`
+//! ([`crate::first_party`]) pass the same checks and share one id namespace with manifests.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -20,6 +21,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::contributions::{BuildPlugin, Contribution, parse_response};
+use crate::first_party::FirstParty;
 use crate::publication::PluginView;
 
 /// The host API major version this build supports.
@@ -54,11 +56,40 @@ pub struct PluginFile {
     pub contents: Vec<u8>,
 }
 
+/// Where a checked manifest came from.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PluginSource {
+    /// A manifest file the caller named with `--plugin`.
+    File(PathBuf),
+    /// A first-party plugin that the garden's `:lsg/plugins` key turns on.
+    FirstParty(FirstParty),
+}
+
+impl fmt::Display for PluginSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::File(path) => write!(f, "{}", path.display()),
+            Self::FirstParty(plugin) => {
+                write!(f, "logseq/config.edn (:lsg/plugins :{})", plugin.id())
+            }
+        }
+    }
+}
+
+/// What a plugin runs once per build.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BuildStep {
+    /// A manifest's `build` section: a program run without a shell.
+    Command(BuildCommand),
+    /// A first-party plugin's build step, which runs inside the `lsg` process.
+    InProcess(FirstParty),
+}
+
 /// A checked plugin manifest with its files read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginManifest {
-    /// The manifest file the caller named.
-    pub source: PathBuf,
+    /// The manifest file the caller named, or the first-party plugin.
+    pub source: PluginSource,
     /// Lower-case letters, digits and single hyphens; unique within a publication.
     pub id: String,
     /// The plugin's own version string.
@@ -71,8 +102,8 @@ pub struct PluginManifest {
     pub activation: Option<Activation>,
     /// Page property names the plugin reads, lower-cased, in manifest order without repeats.
     pub page_properties: Vec<String>,
-    /// The command that runs once per build, when the plugin has one.
-    pub build: Option<BuildCommand>,
+    /// What runs once per build, when the plugin has a build step.
+    pub build: Option<BuildStep>,
 }
 
 /// A manifest's `build` section.
@@ -163,20 +194,53 @@ impl std::error::Error for PluginError {}
 /// Returns the first manifest that fails [`read_manifest`], or a duplicate id naming both
 /// manifest paths. Nothing is written.
 pub fn read_manifests(paths: &[PathBuf]) -> Result<Vec<PluginManifest>, PluginError> {
+    read_plugins(paths, &[])
+}
+
+/// Read and check every manifest, add the turned-on first-party plugins, then order them all
+/// by id. Manifests and first-party plugins share one id namespace.
+///
+/// # Errors
+///
+/// Returns the first manifest that fails [`read_manifest`], or a repeated id naming both
+/// sources; a manifest that repeats a first-party id names `logseq/config.edn`. Nothing is
+/// written.
+pub fn read_plugins(
+    paths: &[PathBuf],
+    first_party: &[FirstParty],
+) -> Result<Vec<PluginManifest>, PluginError> {
     let mut manifests = paths
         .iter()
         .map(|path| read_manifest(path))
         .collect::<Result<Vec<_>, _>>()?;
+    manifests.extend(first_party.iter().map(|plugin| plugin.manifest()));
     manifests.sort_by(|left, right| left.id.cmp(&right.id).then(left.source.cmp(&right.source)));
     for pair in manifests.windows(2) {
         if pair[0].id == pair[1].id {
-            return Err(PluginError {
-                source: pair[1].source.clone(),
-                problem: format!(
-                    "id {:?} is also declared by {}",
-                    pair[1].id,
-                    pair[0].source.display()
+            let (file, other) = match (&pair[0].source, &pair[1].source) {
+                (other, PluginSource::File(file)) | (PluginSource::File(file), other) => {
+                    (file.clone(), other)
+                }
+                (PluginSource::FirstParty(_), PluginSource::FirstParty(_)) => {
+                    unreachable!("first-party ids are distinct")
+                }
+            };
+            let problem = match other {
+                PluginSource::File(other) => {
+                    format!(
+                        "id {:?} is also declared by {}",
+                        pair[1].id,
+                        other.display()
+                    )
+                }
+                PluginSource::FirstParty(_) => format!(
+                    "id {:?} is also the id of a first-party plugin that :lsg/plugins in logseq/config.edn turns on",
+                    pair[1].id
                 ),
+            };
+            return Err(PluginError {
+                source: file,
+                problem,
             });
         }
     }
@@ -209,26 +273,46 @@ const FIELDS: [&str; 8] = [
 ///
 /// Returns the manifest path and the first problem found.
 pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
-    let fail = |problem: String| PluginError {
+    let text = fs::read_to_string(path).map_err(|error| PluginError {
+        source: path.to_owned(),
+        problem: error.to_string(),
+    })?;
+    let folder = path.parent().unwrap_or(Path::new(""));
+    check_manifest(
+        &text,
+        PluginSource::File(path.to_owned()),
+        &|relative: &str, extensions: &[&str]| plugin_file(folder, relative, extensions),
+    )
+    .map_err(|problem| PluginError {
         source: path.to_owned(),
         problem,
-    };
-    let text = fs::read_to_string(path).map_err(|error| fail(error.to_string()))?;
+    })
+}
+
+/// Reads a module, stylesheet or build program that a manifest names, checking its path.
+pub(crate) type FileReader<'a> = dyn Fn(&str, &[&str]) -> Result<PluginFile, String> + 'a;
+
+/// Check manifest text whose named files `file` reads, as [`read_manifest`] describes.
+pub(crate) fn check_manifest(
+    text: &str,
+    source: PluginSource,
+    file: &FileReader<'_>,
+) -> Result<PluginManifest, String> {
     let value: Value =
-        serde_json::from_str(&text).map_err(|error| fail(format!("invalid JSON: {error}")))?;
+        serde_json::from_str(text).map_err(|error| format!("invalid JSON: {error}"))?;
     let Value::Object(fields) = value else {
-        return Err(fail("expected a JSON object".to_owned()));
+        return Err("expected a JSON object".to_owned());
     };
     if let Some(unknown) = fields.keys().find(|key| !FIELDS.contains(&key.as_str())) {
-        return Err(fail(format!(
+        return Err(format!(
             "unknown field {unknown:?}; expected {}",
             FIELDS.join(", ")
-        )));
+        ));
     }
     let string = |name: &str| match fields.get(name) {
         Some(Value::String(text)) => Ok(text.clone()),
-        Some(_) => Err(fail(format!("{name} must be a string"))),
-        None => Err(fail(format!("missing field {name}"))),
+        Some(_) => Err(format!("{name} must be a string")),
+        None => Err(format!("missing field {name}")),
     };
     let strings = |name: &str| match fields.get(name) {
         None => Ok(Vec::new()),
@@ -236,50 +320,46 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
             .iter()
             .map(|item| match item {
                 Value::String(text) => Ok(text.clone()),
-                _ => Err(fail(format!("{name} must be a list of strings"))),
+                _ => Err(format!("{name} must be a list of strings")),
             })
             .collect(),
-        Some(_) => Err(fail(format!("{name} must be a list of strings"))),
+        Some(_) => Err(format!("{name} must be a list of strings")),
     };
     match fields.get("apiVersion") {
-        None => return Err(fail("missing field apiVersion".to_owned())),
+        None => return Err("missing field apiVersion".to_owned()),
         Some(Value::Number(number)) if number.as_u64() == Some(API_VERSION) => {}
         Some(other) => {
-            return Err(fail(format!(
+            return Err(format!(
                 "unsupported apiVersion {other}; this lsg supports apiVersion {API_VERSION}"
-            )));
+            ));
         }
     }
     let id = string("id")?;
     if !valid_id(&id) {
-        return Err(fail(format!(
+        return Err(format!(
             "id {id:?} must be 1 to 64 lower-case letters, digits and single hyphens, starting and ending with a letter or digit"
-        )));
+        ));
     }
     let version = string("version")?;
     if version.trim().is_empty() || version.chars().any(char::is_control) {
-        return Err(fail(
-            "version must be a nonempty string without control characters".to_owned(),
-        ));
+        return Err("version must be a nonempty string without control characters".to_owned());
     }
     let has_build = fields.contains_key("build");
     if !has_build && !fields.contains_key("module") {
-        return Err(fail(
-            "a manifest needs a module, a build section or both".to_owned(),
-        ));
+        return Err("a manifest needs a module, a build section or both".to_owned());
     }
     let activation = match (fields.get("activation"), fields.contains_key("module")) {
         (None, false) if has_build => None,
         (Some(_), false) if has_build => {
-            return Err(fail("activation needs a module".to_owned()));
+            return Err("activation needs a module".to_owned());
         }
         _ => Some(match string("activation")?.as_str() {
             "after-load" => Activation::AfterLoad,
             "on-demand" => Activation::OnDemand,
             other => {
-                return Err(fail(format!(
+                return Err(format!(
                     "unknown activation {other:?}; expected \"after-load\" or \"on-demand\""
-                )));
+                ));
             }
         }),
     };
@@ -291,18 +371,17 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
                 .chars()
                 .any(|c| c.is_whitespace() || c.is_control() || c == ':')
         {
-            return Err(fail(format!(
+            return Err(format!(
                 "page property {name:?} must be a property name without spaces or colons"
-            )));
+            ));
         }
         if !page_properties.contains(&normalized) {
             page_properties.push(normalized);
         }
     }
-    let folder = path.parent().unwrap_or(Path::new(""));
     let module = if activation.is_some() {
         let module = string("module")?;
-        Some(plugin_file(folder, &module, &[".js", ".mjs"]).map_err(fail)?)
+        Some(file(&module, &[".js", ".mjs"])?)
     } else {
         None
     };
@@ -313,25 +392,29 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
         .collect();
     let style_names = strings("styles")?;
     if module.is_none() && !style_names.is_empty() {
-        return Err(fail("styles need a module".to_owned()));
+        return Err("styles need a module".to_owned());
     }
     for style in style_names {
         // Compare names without case, before reading: two names that differ only in case are
         // one file on macOS and Windows, and two files elsewhere.
         if !seen.insert(style.to_lowercase()) {
-            return Err(fail(format!(
+            return Err(format!(
                 "{style:?} collides with another file of this plugin in plugins/{id}/"
-            )));
+            ));
         }
-        styles.push(plugin_file(folder, &style, &[".css"]).map_err(fail)?);
+        styles.push(file(&style, &[".css"])?);
     }
-    let build = fields
-        .get("build")
-        .map(|value| build_command(folder, value))
-        .transpose()
-        .map_err(fail)?;
+    let build = match (&source, fields.get("build")) {
+        (_, None) => None,
+        (PluginSource::File(_), Some(value)) => {
+            Some(BuildStep::Command(build_command(file, value)?))
+        }
+        (PluginSource::FirstParty(_), Some(_)) => {
+            return Err("a first-party manifest has no build section".to_owned());
+        }
+    };
     Ok(PluginManifest {
-        source: path.to_owned(),
+        source,
         id,
         version,
         module,
@@ -342,7 +425,7 @@ pub fn read_manifest(path: &Path) -> Result<PluginManifest, PluginError> {
     })
 }
 
-fn build_command(folder: &Path, value: &Value) -> Result<BuildCommand, String> {
+fn build_command(file: &FileReader<'_>, value: &Value) -> Result<BuildCommand, String> {
     let Value::Object(fields) = value else {
         return Err("build must be an object".to_owned());
     };
@@ -368,7 +451,7 @@ fn build_command(folder: &Path, value: &Value) -> Result<BuildCommand, String> {
     if command[0].contains('/') {
         // `./build.mjs` and `build.mjs` name the same file in the manifest's folder.
         let relative = command[0].strip_prefix("./").unwrap_or(&command[0]);
-        plugin_file(folder, relative, &[""])?;
+        file(relative, &[""])?;
     }
     let blocks = match fields.get("blocks") {
         None => false,
@@ -418,9 +501,13 @@ impl ProcessPlugin {
     /// The build plugin of a manifest with a `build` section.
     #[must_use]
     pub fn new(manifest: &PluginManifest) -> Option<Self> {
-        let build = manifest.build.clone()?;
-        let folder = manifest
-            .source
+        let Some(BuildStep::Command(build)) = manifest.build.clone() else {
+            return None;
+        };
+        let PluginSource::File(source) = &manifest.source else {
+            return None;
+        };
+        let folder = source
             .parent()
             .filter(|folder| !folder.as_os_str().is_empty())
             .unwrap_or(Path::new("."));
@@ -558,7 +645,9 @@ pub(crate) fn valid_id(id: &str) -> bool {
         && !id.contains("--")
 }
 
-fn plugin_file(folder: &Path, relative: &str, extensions: &[&str]) -> Result<PluginFile, String> {
+/// Check a path that a manifest names: relative to the manifest's folder, `/`-separated,
+/// without `..`, ending in one of `extensions`.
+pub(crate) fn check_relative(relative: &str, extensions: &[&str]) -> Result<(), String> {
     let shown = format!("{relative:?}");
     if relative.is_empty() || relative.contains('\\') || relative.chars().any(char::is_control) {
         return Err(format!(
@@ -591,6 +680,12 @@ fn plugin_file(folder: &Path, relative: &str, extensions: &[&str]) -> Result<Plu
             extensions.join(" or ")
         ));
     }
+    Ok(())
+}
+
+fn plugin_file(folder: &Path, relative: &str, extensions: &[&str]) -> Result<PluginFile, String> {
+    check_relative(relative, extensions)?;
+    let shown = format!("{relative:?}");
     let mut current = folder.to_path_buf();
     for segment in relative.split('/') {
         current.push(segment);
@@ -819,7 +914,9 @@ mod tests {
         let manifest = read_manifest(&folder.manifest("lsg-plugin.json", BUILD_ONLY)).unwrap();
         assert_eq!(manifest.module, None);
         assert_eq!(manifest.activation, None);
-        let build = manifest.build.unwrap();
+        let Some(BuildStep::Command(build)) = manifest.build else {
+            panic!("expected a command");
+        };
         assert_eq!(build.command, ["./build.sh", "--flag"]);
         assert!(build.blocks);
         assert_eq!(build.timeout, Duration::from_secs(5));
@@ -827,10 +924,13 @@ mod tests {
             r#""build":{"command":["./build.sh","--flag"],"blocks":true,"timeoutSeconds":5}"#,
             r#""build":{"command":["node","build.mjs"]}"#,
         );
-        let build = read_manifest(&folder.manifest("lsg-plugin.json", &path_command))
-            .unwrap()
-            .build
-            .unwrap();
+        let Some(BuildStep::Command(build)) =
+            read_manifest(&folder.manifest("lsg-plugin.json", &path_command))
+                .unwrap()
+                .build
+        else {
+            panic!("expected a command");
+        };
         assert!(!build.blocks);
         assert_eq!(build.timeout, Duration::from_secs(60));
         let both = VALID.replace(

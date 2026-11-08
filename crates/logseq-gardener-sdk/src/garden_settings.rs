@@ -12,8 +12,10 @@
 //! ```
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::path::Path;
 
+use crate::first_party::FirstParty;
 use crate::garden_config::{self, Form};
 use crate::graph::{ForceSettings, GraphSettings};
 use crate::journals::{DEFAULT_FILE_NAME_FORMAT, DEFAULT_TITLE_FORMAT, DateFormat};
@@ -201,7 +203,7 @@ impl GardenSettings {
                         }
                         let names = match value {
                             Form::Str(name) => Some(vec![name]),
-                            Form::Collection(items) => items
+                            Form::Collection { items, .. } => items
                                 .into_iter()
                                 .map(|item| match item {
                                     Form::Str(name) => Some(name),
@@ -241,7 +243,7 @@ impl GardenSettings {
                 }
                 ":favorites" => {
                     let entries = match value {
-                        Form::Collection(items) => items
+                        Form::Collection { items, .. } => items
                             .into_iter()
                             .map(|item| match item {
                                 Form::Str(name) => Some(name),
@@ -326,6 +328,144 @@ fn read_force_settings(value: Form, forces: &mut ForceSettings, diagnostics: &mu
     }
 }
 
+/// The `:lsg/plugins` key, which turns on plugins that ship inside `lsg`.
+pub const PLUGINS_KEY: &str = ":lsg/plugins";
+
+/// A `:lsg/plugins` value that cannot be used. The build stops before it writes output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginKeyError {
+    /// What is wrong with the value, naming the entry, the `lsg` version and the plugins it
+    /// ships.
+    pub problem: String,
+}
+
+impl fmt::Display for PluginKeyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "logseq/config.edn: {PLUGINS_KEY} {}", self.problem)
+    }
+}
+
+impl std::error::Error for PluginKeyError {}
+
+/// The first-party plugins a garden's `logseq/config.edn` turns on with its top-level
+/// `:lsg/plugins` key, in id order.
+///
+/// A garden without `config.edn`, a config without the key and `:lsg/plugins []` turn on none.
+/// A config that cannot be read or parsed also turns on none; [`GardenSettings::read`]
+/// reports it.
+///
+/// # Errors
+///
+/// Returns an error when the value is not a vector, an entry is not a keyword, an entry names
+/// a plugin this `lsg` does not ship, or a plugin is named twice.
+pub fn read_first_party(root: impl AsRef<Path>) -> Result<Vec<FirstParty>, PluginKeyError> {
+    match garden_config::read_text(root.as_ref()) {
+        Ok(Some(text)) => parse_first_party(&text),
+        Ok(None) | Err(_) => Ok(Vec::new()),
+    }
+}
+
+/// [`read_first_party`] from `config.edn` text.
+///
+/// ```
+/// use logseq_gardener_sdk::first_party::FirstParty;
+/// use logseq_gardener_sdk::garden_settings::parse_first_party;
+///
+/// let plugins = parse_first_party("{:lsg/plugins [:podcast-episode]}").unwrap();
+/// assert_eq!(plugins, [FirstParty::PodcastEpisode]);
+/// let error = parse_first_party("{:lsg/plugins [:podcast-epsiode]}").unwrap_err();
+/// assert!(error.to_string().contains(":podcast-epsiode"));
+/// ```
+///
+/// # Errors
+///
+/// As [`read_first_party`].
+pub fn parse_first_party(text: &str) -> Result<Vec<FirstParty>, PluginKeyError> {
+    let Ok(pairs) = garden_config::top_level(text) else {
+        return Ok(Vec::new());
+    };
+    let Some(value) = pairs
+        .into_iter()
+        .filter_map(|(key, value)| {
+            matches!(key, Form::Atom(ref k) if k == PLUGINS_KEY).then_some(value)
+        })
+        .next_back()
+    else {
+        return Ok(Vec::new());
+    };
+    let fail = |problem: String| PluginKeyError {
+        problem: format!(
+            "{problem}. lsg {} ships {}.",
+            crate::VERSION,
+            shipped_names()
+        ),
+    };
+    let Form::Collection {
+        items,
+        vector: true,
+    } = value
+    else {
+        return Err(fail(format!(
+            "must be a vector of keywords, such as [:{}], not {}",
+            FirstParty::ALL[0].id(),
+            describe(&value)
+        )));
+    };
+    let mut plugins = Vec::new();
+    for item in items {
+        let name = match &item {
+            Form::Atom(atom) if atom.len() > 1 && atom.starts_with(':') => &atom[1..],
+            other => {
+                return Err(fail(format!(
+                    "entry {} must be a keyword, such as :{}",
+                    describe(other),
+                    FirstParty::ALL[0].id()
+                )));
+            }
+        };
+        let Some(plugin) = FirstParty::from_id(name) else {
+            return Err(PluginKeyError {
+                problem: format!(
+                    "names :{name}, which lsg {} does not ship. It ships {}.",
+                    crate::VERSION,
+                    shipped_names()
+                ),
+            });
+        };
+        if plugins.contains(&plugin) {
+            return Err(fail(format!("names :{name} twice")));
+        }
+        plugins.push(plugin);
+    }
+    plugins.sort();
+    Ok(plugins)
+}
+
+/// `:a`, `:a and :b` or `:a, :b and :c`.
+fn shipped_names() -> String {
+    let names: Vec<String> = FirstParty::ALL
+        .iter()
+        .map(|plugin| format!(":{}", plugin.id()))
+        .collect();
+    match names.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} and {last}", rest.join(", ")),
+        Some((last, _)) => last.clone(),
+        None => "no plugins".to_owned(),
+    }
+}
+
+/// How an error message shows a config value.
+fn describe(form: &Form) -> String {
+    match form {
+        Form::Atom(atom) => atom.clone(),
+        Form::Str(text) => format!("{text:?}"),
+        Form::Map(_) => "a map".to_owned(),
+        Form::Collection { vector: true, .. } => "a vector".to_owned(),
+        Form::Collection { .. } => "a list or set".to_owned(),
+        Form::Other => "a tagged or symbolic value".to_owned(),
+    }
+}
+
 /// Resolve favorites through page titles and aliases, keeping config order.
 ///
 /// `spellings` maps each title's and alias's [`lookup_key`] to the author's spelling,
@@ -397,6 +537,74 @@ pub fn resolve_sidebar<T: Clone + Ord>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plugins_key_turns_on_first_party_plugins() {
+        assert_eq!(
+            parse_first_party("{:lsg/plugins [:podcast-episode]}"),
+            Ok(vec![FirstParty::PodcastEpisode])
+        );
+        for text in [
+            "{}",
+            "{:lsg/plugins []}",
+            "{:favorites [\"a\"]}",
+            // The key inside a nested map is not the top-level key.
+            "{:default-home {:lsg/plugins [:podcast-episode]}}",
+            "{:lsg/plugins [:podcast-episode] :lsg/plugins []}",
+            "not edn {",
+        ] {
+            assert_eq!(parse_first_party(text), Ok(Vec::new()), "{text}");
+        }
+    }
+
+    #[test]
+    fn plugins_key_errors_name_the_file_entry_version_and_shipped_plugins() {
+        let error = |text: &str| parse_first_party(text).unwrap_err().to_string();
+        let version = format!("lsg {}", crate::VERSION);
+        let unknown = error("{:lsg/plugins [:podcast-epsiode]}");
+        assert_eq!(
+            unknown,
+            format!(
+                "logseq/config.edn: :lsg/plugins names :podcast-epsiode, which {version} does not ship. It ships :podcast-episode."
+            )
+        );
+        let string = error(r#"{:lsg/plugins ["podcast-episode"]}"#);
+        assert!(
+            string.starts_with(
+                "logseq/config.edn: :lsg/plugins entry \"podcast-episode\" must be a keyword"
+            ) && string.contains(&version)
+                && string.contains(":podcast-episode."),
+            "{string}"
+        );
+        let symbol = error("{:lsg/plugins [podcast-episode]}");
+        assert!(
+            symbol.contains("entry podcast-episode must be a keyword"),
+            "{symbol}"
+        );
+        let repeated = error("{:lsg/plugins [:podcast-episode :podcast-episode]}");
+        assert!(
+            repeated.contains("names :podcast-episode twice") && repeated.contains(&version),
+            "{repeated}"
+        );
+        for (text, shown) in [
+            ("{:lsg/plugins :podcast-episode}", ":podcast-episode"),
+            ("{:lsg/plugins #{:podcast-episode}}", "a list or set"),
+            ("{:lsg/plugins {:podcast-episode true}}", "a map"),
+        ] {
+            let message = error(text);
+            assert!(
+                message.contains("must be a vector of keywords")
+                    && message.contains(&format!("not {shown}"))
+                    && message.starts_with("logseq/config.edn: "),
+                "{message}"
+            );
+        }
+        let nested = error("{:lsg/plugins [[:podcast-episode]]}");
+        assert!(
+            nested.contains("entry a vector must be a keyword"),
+            "{nested}"
+        );
+    }
 
     #[test]
     fn reads_favorites_in_order_and_feature_flags() {

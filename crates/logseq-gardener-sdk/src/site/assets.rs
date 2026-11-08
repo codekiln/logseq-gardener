@@ -14,6 +14,40 @@ pub(super) fn resolve_asset(
     source_relative: &Path,
     url: &str,
 ) -> Result<ResolvedAsset, String> {
+    let (relative, extension) = asset_path(source_relative, url)?;
+    check_file(root, &relative)?;
+    let path = root.join(&relative);
+    let contents = fs::read(&path).map_err(|error| format!("cannot read asset file: {error}"))?;
+    Ok(ResolvedAsset {
+        relative_path: relative,
+        contents,
+        extension,
+    })
+}
+
+/// The output route of an asset at `relative`, a garden-relative path under `assets/`.
+pub(super) fn asset_route(relative: &Path, extension: &str) -> Result<String, String> {
+    let path = relative
+        .to_str()
+        .ok_or("asset path is not UTF-8")?
+        .replace('\\', "/");
+    Ok(format!(
+        "assets/a-{}.{extension}",
+        crate::search::digest(&path)
+    ))
+}
+
+/// The output route of the asset a document links to, when the link names a regular file
+/// beneath `assets/` with a supported extension. Reads no file contents.
+pub(super) fn published_route(root: &Path, source_relative: &Path, url: &str) -> Option<String> {
+    let (relative, extension) = asset_path(source_relative, url).ok()?;
+    check_file(root, &relative).ok()?;
+    asset_route(&relative, &extension).ok()
+}
+
+/// The garden-relative path and lower-case extension of the asset `url` names from the
+/// document at `source_relative`, checked without touching the filesystem.
+fn asset_path(source_relative: &Path, url: &str) -> Result<(PathBuf, String), String> {
     let decoded = decode_url(url)?;
     if decoded.is_empty()
         || decoded.starts_with('/')
@@ -72,6 +106,11 @@ pub(super) fn resolve_asset(
     ) {
         return Err(format!("unsupported asset extension: {extension}"));
     }
+    Ok((relative, extension))
+}
+
+/// Check that `relative` names a regular file beneath `root` without symlinks.
+fn check_file(root: &Path, relative: &Path) -> Result<(), String> {
     // Removing a trailing separator keeps symlink_metadata from following a
     // symlink supplied as the root itself.
     let mut path: PathBuf = root.components().collect();
@@ -89,12 +128,7 @@ pub(super) fn resolve_asset(
             }
         }
     }
-    let contents = fs::read(&path).map_err(|error| format!("cannot read asset file: {error}"))?;
-    Ok(ResolvedAsset {
-        relative_path: relative,
-        contents,
-        extension,
-    })
+    Ok(())
 }
 
 fn require_directory(path: &Path) -> Result<(), String> {

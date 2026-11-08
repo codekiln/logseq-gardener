@@ -34,7 +34,11 @@ pub(crate) enum Form {
     Atom(String),
     Str(String),
     Map(Vec<(Form, Form)>),
-    Collection(Vec<Form>),
+    /// A vector, list or set; `vector` is true for `[...]`.
+    Collection {
+        items: Vec<Form>,
+        vector: bool,
+    },
     Other,
 }
 struct Reader<'a> {
@@ -115,7 +119,10 @@ impl Reader<'_> {
             return Err("map has an unmatched key");
         }
         if !map && (depth == 1 || depth == 2) {
-            return Ok(Form::Collection(values));
+            return Ok(Form::Collection {
+                items: values,
+                vector: close == b']',
+            });
         }
         if !map || depth > 1 {
             return Ok(Form::Other);
@@ -261,7 +268,7 @@ pub(crate) fn parse(text: &str) -> (ReferenceConfig, Vec<String>) {
             continue;
         }
         if key == ":block-hidden-properties" {
-            if let Form::Collection(values) = value {
+            if let Form::Collection { items: values, .. } = value {
                 let mut keys = Vec::new();
                 let mut valid = true;
                 for item in values {
@@ -349,7 +356,7 @@ pub(crate) fn hidden_patterns(root: &Path) -> Vec<String> {
     pairs
         .into_iter()
         .filter_map(|(key, value)| match (key, value) {
-            (Form::Atom(key), Form::Collection(values)) if key == ":hidden" => Some(values),
+            (Form::Atom(key), Form::Collection { items, .. }) if key == ":hidden" => Some(items),
             _ => None,
         })
         .next_back()

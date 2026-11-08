@@ -792,6 +792,97 @@ fn cli_failing_build_plugin_exits_one_without_output() {
 }
 
 #[test]
+fn cli_first_party_plugins_come_from_config_edn_and_key_errors_fail_without_output() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- Visible\n");
+    f.write(
+        "pages/Notes___Episode.md",
+        "logseq-entity:: [[Logseq/Entity/Podcast/Episode]]\n\n- # Pilot\n\t- ![r](https://example.com/pilot.mp3)\n",
+    );
+    let config = |plugins: &str| {
+        f.write(
+            "logseq/config.edn",
+            &format!("{{:publishing/all-pages-public? true {plugins}}}"),
+        );
+    };
+    let report = |output: &Path| {
+        let result = f.publish(output, &["--include", "Notes", "--format", "json"]);
+        assert!(result.status.success(), "{result:?}");
+        let mut report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+        report
+            .as_object_mut()
+            .unwrap()
+            .retain(|key, _| !key.contains("path") && !key.contains("directory"));
+        report
+    };
+    config("");
+    let plain = report(&f.0.join("plain"));
+    config(":lsg/plugins [:podcast-episode]");
+    let output = f.0.join("with-plugin");
+    assert_eq!(report(&output), plain, "report fields are unchanged");
+    assert!(
+        output
+            .join("plugins/podcast-episode/podcast-episode.mjs")
+            .is_file()
+    );
+    let site: serde_json::Value =
+        serde_json::from_slice(&fs::read(output.join("lsg-site.json")).unwrap()).unwrap();
+    assert_eq!(site["plugins"][0]["id"], "podcast-episode");
+    assert_eq!(site["plugins"][0]["version"], env!("CARGO_PKG_VERSION"));
+
+    config(":lsg/plugins [:podcast-epsiode]");
+    let failed = f.0.join("failed");
+    let result = f.publish(&failed, &["--include", "Notes"]);
+    assert_eq!(result.status.code(), Some(1));
+    assert!(result.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    for part in ["logseq/config.edn", ":podcast-epsiode", ":podcast-episode"] {
+        assert!(stderr.contains(part), "{part} in {stderr}");
+    }
+    assert!(!failed.exists());
+
+    config(":lsg/plugins [:podcast-episode]");
+    let folder = f.0.join("clash");
+    fs::create_dir_all(&folder).unwrap();
+    fs::write(folder.join("clash.mjs"), "export default {};\n").unwrap();
+    let manifest = folder.join("lsg-plugin.json");
+    fs::write(
+        &manifest,
+        r#"{"id":"podcast-episode","apiVersion":1,"version":"1","module":"clash.mjs","activation":"on-demand"}"#,
+    )
+    .unwrap();
+    let result = f.publish(
+        &failed,
+        &["--include", "Notes", "--plugin", manifest.to_str().unwrap()],
+    );
+    assert_eq!(result.status.code(), Some(1));
+    assert!(result.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    for part in [
+        "\"podcast-episode\"",
+        "logseq/config.edn",
+        manifest.to_str().unwrap(),
+    ] {
+        assert!(stderr.contains(part), "{part} in {stderr}");
+    }
+    assert!(!failed.exists());
+
+    let help = Command::new(env!("CARGO_BIN_EXE_lsg"))
+        .args(["publish", "help", "section", "first-party-plugins"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help = String::from_utf8_lossy(&help.stdout);
+    for part in [
+        ":lsg/plugins [:podcast-episode]",
+        ":podcast-episode keeps",
+        "lsg/Ref/First-Party Plugins (https://codekiln.github.io/logseq-gardener/lsg/Ref/First-Party%20Plugins/)",
+    ] {
+        assert!(help.contains(part), "{part} in {help}");
+    }
+}
+
+#[test]
 fn publish_help_limitations_describe_journal_skipping_accurately() {
     let help = Command::new(env!("CARGO_BIN_EXE_lsg"))
         .args(["publish", "help", "section", "limitations"])

@@ -748,3 +748,61 @@ fn view_follows_the_all_pages_public_setting() {
             .all(|page| page["id"] == "home" || page["id"].is_null())
     );
 }
+
+/// A first-party build step is an in-process build plugin whose manifest has a module, so its
+/// metadata reaches its module; a caller's in-process plugin still has no module.
+#[test]
+fn first_party_build_step_runs_in_process_beside_other_build_plugins() {
+    use logseq_gardener_sdk::first_party::FirstParty;
+    use logseq_gardener_sdk::plugins::{BuildStep, ProcessPlugin};
+
+    let manifest = FirstParty::PodcastEpisode.manifest();
+    assert_eq!(
+        manifest.build,
+        Some(BuildStep::InProcess(FirstParty::PodcastEpisode))
+    );
+    assert!(
+        ProcessPlugin::new(&manifest).is_none(),
+        "no program to start"
+    );
+
+    let fixture = Fixture::new();
+    let config = CONFIG.strip_suffix('}').unwrap().to_owned() + " :lsg/plugins [:podcast-episode]}";
+    fixture.write("logseq/config.edn", &config);
+    fixture.write(
+        "pages/Show___Podcast.md",
+        "logseq-entity:: [[Logseq/Entity/Podcast/Episode]]\n\n- # Pilot\n\t- ![r](https://example.com/pilot.mp3)\n",
+    );
+    let recorder = Recorder::new("rows", json!([]));
+    let calls = Arc::clone(&recorder.calls);
+    let site = fixture.plugins("site", vec![recorder]).unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    let html = page(&site, "show/podcast");
+    assert_eq!(
+        html.matches("\"podcast-episode\":{\"recording\":\"https://example.com/pilot.mp3\",\"title\":\"Pilot\"}").count(),
+        1,
+        "{html}"
+    );
+    // A caller's plugin may not take a turned-on first-party id, and still may not contribute
+    // metadata.
+    let error = fixture
+        .plugins("clash", vec![Recorder::new("podcast-episode", json!([]))])
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("\"podcast-episode\" is also declared by plugin manifest logseq/config.edn"),
+        "{error}"
+    );
+    assert!(!fixture.0.join("clash").exists());
+    let error = fixture
+        .plugins(
+            "meta",
+            vec![Recorder::new(
+                "meta",
+                json!([{"kind": "metadata", "pageId": "home", "values": {"a": 1}}]),
+            )],
+        )
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("metadata needs a browser module"), "{error}");
+}
