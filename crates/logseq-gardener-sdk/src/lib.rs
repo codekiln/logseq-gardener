@@ -74,6 +74,9 @@ pub mod graph;
 /// Linked references, filters, tagged pages and unlinked mentions from one index.
 pub mod references;
 
+/// The pages that exist only because published blocks name them.
+pub mod reference_only;
+
 /// Search records, the word index, the query and the published search files.
 pub mod search;
 

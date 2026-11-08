@@ -134,7 +134,12 @@ fn graph_files_hold_published_pages_and_reference_only_pages_only() {
         assert!(!titles.contains(&title), "{title}");
     }
     let flags = |title: &str| default.iter().find(|(t, _)| t == title).unwrap().1;
-    assert_ne!(flags("Contrando") & 64, 0, "reference-only");
+    // Contrando has no file; its reference-only page opens from the graph like any page.
+    assert_eq!(flags("Contrando") & 64, 0, "Contrando opens");
+    assert!(
+        site.join(format!("p-{}.html", route("Contrando")))
+            .is_file()
+    );
     assert_ne!(flags("Tool") & 2, 0, "tag");
     // The journals graph adds the journal page.
     let journals = nodes(&site.join("_graph/journals.bin"));

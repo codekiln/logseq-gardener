@@ -20,15 +20,18 @@ use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct, Serializer};
 use crate::ast::{Block, ListItem};
 use crate::garden::{DocumentKind, Garden, GardenDocument};
 use crate::garden_settings::GardenSettings;
-use crate::journals::{JournalDate, JournalFormats, journal_identity};
+use crate::journals::{JournalDate, JournalFormats, journal_identity, parse_journal_reference};
 use crate::outline::Outline;
-use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings, page_aliases};
+use crate::page_names::{
+    Generated, PageNameIndex, lookup_key, page_alias_spellings, page_aliases, reference_key,
+};
 use crate::page_titles::{FilenameFormat, PageTitleError, document_title, page_title};
 use crate::page_urls::{
-    PageUrlError, PageUrls, check_collisions, folder_spellings, is_readable, readable_url,
-    respelled, same_path,
+    PageUrlError, PageUrls, check_collisions, folded, folder_spellings, is_readable, readable_url,
+    reserved_root, respelled, same_path,
 };
 use crate::publishing::{NamespaceSelection, PublicPages};
+use crate::reference_only::ReferenceOnlyPage;
 use crate::search::digest;
 
 /// Nesting deeper than this withholds a page rather than assuming it is visible.
@@ -84,6 +87,10 @@ pub struct Publication<'a> {
     pub keys: BTreeMap<String, String>,
     /// Namespace destinations with no source file: lower-cased title to `(title, route)`.
     pub namespaces: BTreeMap<String, (String, String)>,
+    /// Pages with no source file that published blocks name, by route (see
+    /// [`crate::reference_only`]). A name whose route collides with another page's, or with a
+    /// file the build writes at the output root, is left out with a notice.
+    pub reference_only: BTreeMap<String, ReferenceOnlyPage>,
     /// Lower-cased titles of every page in the garden that is withheld, selected or not.
     pub withheld: BTreeSet<String>,
     /// Lower-cased titles of every page and journal in the garden.
@@ -95,7 +102,8 @@ pub struct Publication<'a> {
     pub journal_dates: BTreeMap<String, JournalDate>,
     /// The journal file-name and title formats the titles were derived with.
     pub journal_formats: JournalFormats,
-    /// Titles, aliases and journal dates of the published pages.
+    /// Titles, aliases and journal dates of the published pages; generated namespace pages and
+    /// reference-only pages in its second layer, which [`PageNameIndex::link`] reads.
     pub names: PageNameIndex<String>,
     /// Lower-cased aliases of the published pages.
     pub aliases: BTreeSet<String>,
@@ -196,7 +204,14 @@ pub fn select_with_urls<'a>(
         }))
     };
     let mut journal_dates = BTreeMap::new();
+    // The date of every journal file, published or not: no reference-only journal shares one.
+    let mut garden_dates = BTreeSet::new();
     for document in &garden.documents {
+        if document.kind == DocumentKind::Journal
+            && let Ok(identity) = journal_identity(document, &journal_formats)
+        {
+            garden_dates.insert(identity.date);
+        }
         let journal = if document.kind == DocumentKind::Journal {
             if !journals {
                 skipped_journals += 1;
@@ -286,11 +301,35 @@ pub fn select_with_urls<'a>(
         alias_spellings.insert(lookup_key(title), authored);
     }
     let mut namespaces = namespace_destinations(&routes, &keys, &withheld, &aliases, urls)?;
+    // Names that published blocks write and that no page in the garden answers to.
+    let published: Vec<&GardenDocument> = pages.iter().map(|(_, _, document)| *document).collect();
+    // A namespace page keeps the spaces at the ends of its title's segments, as
+    // `MacOS ` for the parent of `MacOS /Applications Folder`.
+    let namespace_keys: BTreeSet<String> = namespaces
+        .iter()
+        .flat_map(|(key, (title, _))| [key.clone(), reference_key(title)])
+        .collect();
+    let answered = |name: &str| {
+        let key = reference_key(name);
+        garden_names.contains(&key)
+            || namespace_keys.contains(&key)
+            || parse_journal_reference(name, &journal_formats)
+                .is_some_and(|date| garden_dates.contains(&date))
+    };
+    let mut candidates: Vec<(crate::reference_only::ReferenceOnlyName, String)> =
+        crate::reference_only::find(&published, &answered, &journal_formats)
+            .into_iter()
+            .map(|name| {
+                let (route, _) = route_for(&name.title, urls);
+                (name, route)
+            })
+            .collect();
     let folders = if urls == PageUrls::Readable {
         folder_spellings(
             routes
                 .iter()
                 .chain(namespaces.values().map(|(title, route)| (route, title)))
+                .chain(candidates.iter().map(|(name, route)| (route, &name.title)))
                 .filter(|(route, _)| is_readable(route))
                 .map(|(_, title)| title.as_str()),
         )
@@ -324,12 +363,27 @@ pub fn select_with_urls<'a>(
         for (title, route) in namespaces.values_mut() {
             moved(route, title);
         }
+        for (name, route) in &mut candidates {
+            moved(route, &name.title);
+        }
     }
+    let reference_only = place_reference_only(candidates, &routes, &namespaces, &mut notices);
     for (title, route, document) in &pages {
         names.insert(route.clone(), title, document);
         if let Some(date) = journal_dates.get(route) {
             names.insert_journal(route.clone(), *date);
         }
+    }
+    for (title, route) in namespaces.values() {
+        names.insert_generated(route.clone(), title, Generated::Namespace, None);
+    }
+    for (route, page) in &reference_only {
+        names.insert_generated(
+            route.clone(),
+            &page.title,
+            Generated::Reference,
+            page.journal,
+        );
     }
     if urls == PageUrls::Readable {
         check_collisions(
@@ -346,6 +400,7 @@ pub fn select_with_urls<'a>(
         routes,
         keys,
         namespaces,
+        reference_only,
         withheld,
         garden_titles,
         garden_names,
@@ -373,6 +428,83 @@ fn route_for(title: &str, urls: PageUrls) -> (String, Option<PageUrlError>) {
             Err(error) => (digest_route(), Some(error)),
         },
     }
+}
+
+/// Give each reference-only name its page, leaving out a name whose route another page or
+/// namespace page has or, with readable URLs, whose path collides with another page's or with a
+/// file the build writes at the output root. A left-out name gets a notice on the first file
+/// that writes it, naming what took its address.
+fn place_reference_only(
+    candidates: Vec<(crate::reference_only::ReferenceOnlyName, String)>,
+    routes: &BTreeMap<String, String>,
+    namespaces: &BTreeMap<String, (String, String)>,
+    notices: &mut Vec<Notice>,
+) -> BTreeMap<String, ReferenceOnlyPage> {
+    let mut taken: BTreeMap<String, String> = routes.clone();
+    // Folded readable titles, which name one folder on a case-insensitive file system.
+    let mut folders: BTreeMap<String, String> = BTreeMap::new();
+    for (route, title) in routes
+        .iter()
+        .chain(namespaces.values().map(|(title, route)| (route, title)))
+    {
+        taken.insert(route.clone(), title.clone());
+        if is_readable(route) {
+            folders.insert(folded(title), title.clone());
+        }
+    }
+    let mut pages = BTreeMap::new();
+    for (name, route) in candidates {
+        let readable = is_readable(&route);
+        let parent_page = || {
+            let (parent, last) = name.title.rsplit_once('/')?;
+            (folded(last) == "index.html")
+                .then(|| folders.get(&folded(parent)).cloned())
+                .flatten()
+        };
+        let index_child = || {
+            folders
+                .get(&format!("{}/index.html", folded(&name.title)))
+                .cloned()
+        };
+        let conflict = if let Some(other) = taken.get(&route) {
+            Some(format!("the page {other:?}"))
+        } else if !readable {
+            None
+        } else if let Some(file) =
+            reserved_root(name.title.split('/').next().unwrap_or(&name.title))
+        {
+            Some(format!("{file}, which the build writes at the output root"))
+        } else if let Some(other) = folders.get(&folded(&name.title)) {
+            Some(format!("the page {other:?}"))
+        } else {
+            parent_page()
+                .or_else(index_child)
+                .map(|other| format!("the page {other:?}"))
+        };
+        if let Some(conflict) = conflict {
+            notices.push(Notice {
+                source: name.source,
+                message: format!(
+                    "Reference-only page {:?} left out: its address {route} is taken by {conflict}",
+                    name.title
+                ),
+            });
+            continue;
+        }
+        taken.insert(route.clone(), name.title.clone());
+        if readable {
+            folders.insert(folded(&name.title), name.title.clone());
+        }
+        pages.insert(
+            route.clone(),
+            ReferenceOnlyPage {
+                title: name.title,
+                route,
+                journal: name.journal,
+            },
+        );
+    }
+    pages
 }
 
 /// Every namespace prefix of a published title that is not itself a published, withheld or
@@ -455,6 +587,8 @@ pub enum ViewPageKind {
     Journal,
     /// A namespace destination generated for a prefix with no page of its own.
     Namespace,
+    /// A page with no source file that published blocks name.
+    Reference,
 }
 
 /// One published page of a view.
@@ -541,6 +675,7 @@ impl PublicationView {
             &publication.pages,
             &publication.journal_dates,
             &publication.namespaces,
+            &publication.reference_only,
             visible,
             blocks,
         )
@@ -551,6 +686,7 @@ impl PublicationView {
         published: &[(String, String, &GardenDocument)],
         journal_dates: &BTreeMap<String, JournalDate>,
         namespaces: &BTreeMap<String, (String, String)>,
+        reference_only: &BTreeMap<String, ReferenceOnlyPage>,
         mut visible: impl FnMut(&str) -> &'v [(String, String)],
         blocks: bool,
     ) -> Self {
@@ -580,6 +716,23 @@ impl PublicationView {
                     title: title.clone(),
                     url: route.clone(),
                     kind: ViewPageKind::Namespace,
+                    visible: Vec::new(),
+                },
+                None,
+            )
+        }));
+        pages.extend(reference_only.values().map(|page| {
+            (
+                ViewPage {
+                    // `MacOS ` keeps its space, as Logseq's page name does.
+                    id: reference_key(&page.title),
+                    title: page.title.clone(),
+                    url: page.route.clone(),
+                    kind: if page.journal.is_some() {
+                        ViewPageKind::Journal
+                    } else {
+                        ViewPageKind::Reference
+                    },
                     visible: Vec::new(),
                 },
                 None,

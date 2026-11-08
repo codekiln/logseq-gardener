@@ -216,7 +216,7 @@ pub(super) fn screens(
 }
 
 /// Every entry as compact JSON rows: `[title, route, kind, backlinks, created, updated, icon]`,
-/// with kind `p`, `j` or `n` and absent values as `null`. The route is `null` when it is
+/// with kind `p`, `j`, `n` or `r` and absent values as `null`. The route is `null` when it is
 /// the usual `p-<digest of the title>.html`.
 pub(super) fn list_json(entries: &[PageListEntry<String>]) -> String {
     let rows: Vec<serde_json::Value> = entries
@@ -226,6 +226,7 @@ pub(super) fn list_json(entries: &[PageListEntry<String>]) -> String {
                 PageKind::Page => "p",
                 PageKind::Journal => "j",
                 PageKind::Namespace => "n",
+                PageKind::Reference => "r",
             };
             // Routes are `p-<digest of the title>.html`, which the script computes itself.
             let route =

@@ -325,9 +325,10 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
     let index = output.join("index.html");
     let stdout = match format {
         Format::Human => output::clean(&format!(
-            "Published {} pages, {} journals and {} assets; withheld {} pages; skipped {} journals; {} diagnostics. Open {}\n",
+            "Published {} pages, {} journals, {} reference-only pages and {} assets; withheld {} pages; skipped {} journals; {} diagnostics. Open {}\n",
             report.pages,
             report.journals,
+            report.reference_only_pages,
             report.assets,
             report.withheld_pages,
             report.skipped_journals,
@@ -336,7 +337,7 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
         )),
         Format::Json => {
             let mut document = json!({"format_version": 1, "command_path": ["publish"],
-            "pages": report.pages, "journals": report.journals, "assets": report.assets, "withheld_pages": report.withheld_pages,
+            "pages": report.pages, "journals": report.journals, "reference_only_pages": report.reference_only_pages, "assets": report.assets, "withheld_pages": report.withheld_pages,
             "skipped_journals": report.skipped_journals, "diagnostic_count": report.diagnostics.len(),
             "output_directory": output.to_string_lossy(), "index_path": index.to_string_lossy()});
             if args.timings {

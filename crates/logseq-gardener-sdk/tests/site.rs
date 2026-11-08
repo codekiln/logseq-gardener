@@ -642,10 +642,15 @@ fn aliases_use_selected_visible_candidates_and_preserve_source() {
             .iter()
             .any(|d| d.message == "Ambiguous selected page reference: Twice")
     );
-    for unavailable in ["PrivateOnly", "ExcludedOnly", "Nested", "Literal"] {
+    for unavailable in ["PrivateOnly", "ExcludedOnly"] {
         assert!(html.contains(&format!(
             "<span class=\"page-reference unresolved\"><span>{unavailable}</span>"
         )));
+    }
+    // A block's `alias::` and a literal alias name no page's alias, so the links make
+    // reference-only pages, as Logseq makes a page for each.
+    for name in ["Nested", "Literal"] {
+        assert!(html.contains(&format!("<a href=\"{}\">{name}</a>", route(name))));
     }
     assert_eq!(report.assets, 0);
     for content in generated.values() {

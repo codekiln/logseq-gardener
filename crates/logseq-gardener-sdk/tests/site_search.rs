@@ -110,7 +110,6 @@ fn selected_originals_safe_projection_aliases_and_anchor_destinations() {
     for sentinel in [
         "PROPERTY_SENTINEL",
         "PrivateRefSentinel",
-        "PrivateTagSentinel",
         "PRIVATE_QUERY_SENTINEL",
         "ASSET_LABEL_SENTINEL",
         "ASSET_PATH_SENTINEL",
@@ -124,7 +123,22 @@ fn selected_originals_safe_projection_aliases_and_anchor_destinations() {
         assert!(!raw.contains(sentinel), "leaked {sentinel}: {raw}");
     }
     assert_eq!(raw.matches("TARGET_ORIGINAL_SENTINEL").count(), 1);
-    assert_eq!(corpus["pages"].as_array().unwrap().len(), 2);
+    // A tag with no file names a reference-only page, which search finds by title, and the
+    // tag's words stay in the referring block.
+    let titles: Vec<&str> = corpus["pages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|page| page["title"].as_str().unwrap())
+        .collect();
+    assert_eq!(titles, ["PrivateTagSentinel", "Public", "Public/Target"]);
+    assert!(
+        corpus["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["text"].as_str().unwrap().contains("PrivateTagSentinel"))
+    );
     assert!(raw.contains("Welcome") && !raw.contains("Shared"));
     let records = corpus["content"].as_array().unwrap();
     assert!(records.iter().any(|r| r["text"] == "before after"));
@@ -138,7 +152,10 @@ fn selected_originals_safe_projection_aliases_and_anchor_destinations() {
             .unwrap()
             .ends_with("#block-12345678-1234-1234-1234-123456789abc")
     );
-    assert_eq!(child["ancestors"][0], "Parent safe Public/Target");
+    assert_eq!(
+        child["ancestors"][0],
+        "Parent safe Public/Target PrivateTagSentinel"
+    );
     for record in records {
         let (route, fragment) = record["href"].as_str().unwrap().split_once('#').unwrap();
         let html = fs::read_to_string(output.join(route)).unwrap();

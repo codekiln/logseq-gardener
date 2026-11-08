@@ -647,8 +647,9 @@ fn a_hidden_entity_property_still_chooses_episode_pages() {
     let site = fixture.publish("site", Vec::new()).unwrap();
     let entry = &page_metadata(&site, "Show/Podcast One")["plugins"]["podcast-episode"];
     assert_eq!(entry["title"], "The First Episode");
-    // The graph view draws the hidden property's page reference, as Logseq's does, with or
-    // without plugins; the plugin adds the hidden value to no file.
+    // The graph view draws the hidden property's page reference, as Logseq's does, and the
+    // reference makes a reference-only page, which All pages lists, with or without plugins;
+    // the plugin adds the hidden value to no file.
     let holding = |site: &Path| -> Vec<String> {
         files(site)
             .into_iter()
@@ -657,8 +658,19 @@ fn a_hidden_entity_property_still_chooses_episode_pages() {
             .collect()
     };
     let with_plugin = holding(&site);
+    let reference_page = format!(
+        "p-{}.html",
+        route("Logseq/Entity/Podcast/Episode/HIDDEN_TYPE_VALUE")
+    );
     assert!(
-        with_plugin.iter().all(|name| name.starts_with("_graph/")),
+        with_plugin.iter().all(|name| name.starts_with("_graph/")
+            || [
+                reference_page.as_str(),
+                "_pages/list.json",
+                "lsg-site.json",
+                "pages.html"
+            ]
+            .contains(&name.as_str())),
         "{with_plugin:?}"
     );
     fixture.config(":block-hidden-properties #{:secret :logseq-entity}");
@@ -749,4 +761,15 @@ fn a_malformed_plugins_key_stops_before_output() {
         assert!(message.contains(":podcast-episode"), "{message}");
         assert!(!fixture.0.join(case).exists(), "{case} output");
     }
+}
+
+/// The digest the publisher names a page's file after: FNV-1a 64 of its title.
+fn route(title: &str) -> String {
+    let hash = title
+        .as_bytes()
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    format!("{hash:016x}")
 }

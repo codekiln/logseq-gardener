@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::garden::GardenDocument;
 use crate::page_names::PageNameIndex;
-use crate::search::{FileOptions, Records, SearchIndex, SearchOptions};
+use crate::reference_only::ReferenceOnlyPage;
+use crate::search::{FileOptions, PageRecord, Records, SearchIndex, SearchOptions};
 use crate::transclusion::ReferenceTargets;
 
 /// The marker in `search.mjs` and `all-pages.js` that the shared fuzzy score replaces.
@@ -23,11 +24,20 @@ pub(super) struct Search {
 impl Search {
     pub fn new(
         selected: &[(String, String, &GardenDocument)],
+        reference_only: &BTreeMap<String, ReferenceOnlyPage>,
         names: &PageNameIndex<String>,
         targets: &ReferenceTargets<String>,
         options: &SearchOptions,
     ) -> Self {
-        let records = Records::build(selected, names, targets, options);
+        let mut records = Records::build(selected, names, targets, options);
+        // Reference-only pages are found by title; they hold no blocks.
+        records
+            .pages
+            .extend(reference_only.values().map(|page| PageRecord {
+                id: page.route.clone(),
+                title: page.title.clone(),
+                aliases: Vec::new(),
+            }));
         let mut anchors: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
         for block in &records.blocks {
             anchors

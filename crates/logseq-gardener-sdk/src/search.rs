@@ -119,7 +119,7 @@ fn plain(nodes: &[Inline], names: &PageNameIndex<String>, depth: usize) -> Strin
                 label,
                 image: false,
                 ..
-            } if names.candidates(v).len() == 1 => {
+            } if names.link(v.trim()).target().is_some() => {
                 if label.is_empty() {
                     text.push_str(v);
                 } else {
@@ -129,7 +129,7 @@ fn plain(nodes: &[Inline], names: &PageNameIndex<String>, depth: usize) -> Strin
             // Tags are references too: an unavailable name must never become a term.
             Inline::Tag { children, .. } => {
                 let value = tag_page_name(children);
-                if names.candidates(&value).len() == 1 {
+                if names.link(&value).target().is_some() {
                     text.push_str(&value);
                 } else {
                     text.push(' ');
