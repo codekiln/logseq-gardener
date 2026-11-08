@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.33](https://github.com/codekiln/logseq-gardener/compare/v0.0.32...v0.0.33) - 2026-11-08
+
+### Fixed
+
+- read a date name with a wrong weekday as Logseq does (#510)
+
 ## [0.0.32](https://github.com/codekiln/logseq-gardener/compare/v0.0.31...v0.0.32) - 2026-11-08
 
 ### Fixed
