@@ -74,10 +74,12 @@ pub struct SiteOptions {
     /// Directory that keeps the graph view's layout between builds, keyed by the graph's
     /// content; `None` lays the graph out on every build. Created when missing.
     pub layout_cache: Option<PathBuf>,
-    /// Plugin manifest files, checked by [`crate::plugins::read_manifests`] before output is
-    /// created. With at least one plugin, every page carries plugin metadata and loads the
-    /// browser host after first paint; with none, pages are unchanged. A manifest with a
-    /// `build` section also runs its command once per build as a build plugin.
+    /// Plugin manifest files, checked by [`crate::plugins::read_plugins`] before output is
+    /// created, together with the first-party plugins that the garden's `:lsg/plugins` key in
+    /// `logseq/config.edn` turns on. With at least one plugin that has a browser module, every
+    /// page carries plugin metadata and loads the browser host after first paint; with none,
+    /// pages are unchanged. A manifest with a `build` section also runs its command once per
+    /// build as a build plugin.
     pub plugins: Vec<PathBuf>,
     /// In-process build plugins. Their ids share one namespace with the manifests' ids. With
     /// none here and no manifest `build` section, the build does no plugin work.
@@ -148,6 +150,8 @@ pub enum SiteError {
     Collision { title: String },
     /// A plugin manifest is invalid, names unusable files or repeats another plugin's id.
     InvalidPlugin(crate::plugins::PluginError),
+    /// The garden's `:lsg/plugins` key is malformed or names a plugin this `lsg` does not ship.
+    PluginKey(crate::garden_settings::PluginKeyError),
     /// A build plugin failed, repeated another plugin's id or returned a rejected contribution.
     BuildPlugin(crate::contributions::ContributionError),
     /// With readable URLs, a page's path collides with another page's or with a file the build
@@ -168,6 +172,7 @@ impl fmt::Display for SiteError {
             Self::InvalidHomepage => write!(f, "homepage must identify one selected visible page"),
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
             Self::InvalidPlugin(error) => error.fmt(f),
+            Self::PluginKey(error) => error.fmt(f),
             Self::BuildPlugin(error) => error.fmt(f),
             Self::PageUrl(error) => error.fmt(f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
@@ -181,6 +186,7 @@ impl Error for SiteError {
             Self::Garden(error) => Some(error),
             Self::Title(error) => Some(error),
             Self::InvalidPlugin(error) => Some(error),
+            Self::PluginKey(error) => Some(error),
             Self::BuildPlugin(error) => Some(error),
             Self::PageUrl(error) => Some(error),
             Self::Io { source, .. } => Some(source),
@@ -418,9 +424,11 @@ pub fn publish_site_with_options(
         .map(stylesheet_contents)
         .transpose()?;
     let stylesheet_route = stylesheet.as_ref().map(|_| "custom.css");
-    let plugin_manifests =
-        crate::plugins::read_manifests(&options.plugins).map_err(SiteError::InvalidPlugin)?;
-    let build_plugins = build_plugins(&plugin_manifests, &options.build_plugins)?;
+    let first_party =
+        crate::garden_settings::read_first_party(root.as_ref()).map_err(SiteError::PluginKey)?;
+    let plugin_manifests = crate::plugins::read_plugins(&options.plugins, &first_party)
+        .map_err(SiteError::InvalidPlugin)?;
+    let mut build_plugins = build_plugins(&plugin_manifests, &options.build_plugins)?;
     let source_root = root.as_ref();
     let root = fs::canonicalize(source_root).map_err(|error| io_error(source_root, error))?;
     let output = fresh_destination(&root, output.as_ref())?;
@@ -568,6 +576,32 @@ pub fn publish_site_with_options(
             )
         })
         .collect();
+    // First-party build steps choose their pages from the authored properties and outlines.
+    for manifest in &plugin_manifests {
+        let Some(crate::plugins::BuildStep::InProcess(plugin)) = manifest.build else {
+            continue;
+        };
+        let resolve = |name: &str| match names.candidates(name) {
+            [route] => format!("route:{route}"),
+            _ => format!("name:{}", lookup_key(name)),
+        };
+        let asset_url = |source: &Path, url: &str| assets::published_route(&root, source, url);
+        let step = plugin.build_step(&crate::first_party::FirstPartyInputs {
+            pages: &selected,
+            resolve: &resolve,
+            asset_url: &asset_url,
+        });
+        report.diagnostics.extend(
+            step.diagnostics
+                .into_iter()
+                .map(|(source, message)| SiteDiagnostic { source, message }),
+        );
+        build_plugins.push(BuildEntry {
+            plugin: step.plugin,
+            has_module: manifest.module.is_some(),
+        });
+    }
+    build_plugins.sort_by(|left, right| left.plugin.id().cmp(right.plugin.id()));
     // Build plugins run on their own threads while the indexes below are built, and are
     // joined before the first page renders. Without build plugins nothing here runs.
     let pending_plugins = (!build_plugins.is_empty()).then(|| {
@@ -733,12 +767,7 @@ pub fn publish_site_with_options(
     code::prepare(selected.iter().map(|(_, _, document)| *document));
     let mut asset = |source: &Path, url: &str| {
         let resolved = assets::resolve_asset(&root, source, url)?;
-        let path = resolved
-            .relative_path
-            .to_str()
-            .ok_or("asset path is not UTF-8")?
-            .replace('\\', "/");
-        let route = format!("assets/a-{}.{}", digest(&path), resolved.extension);
+        let route = assets::asset_route(&resolved.relative_path, &resolved.extension)?;
         if let Some((previous, _)) = copied.get(&route) {
             if previous != &resolved.relative_path {
                 return Err("asset route collision".to_owned());
@@ -1385,6 +1414,7 @@ struct BuildEntry {
 }
 
 /// Every build plugin, from manifests with a `build` section and from the caller, in id order.
+/// First-party build steps are added once the publication's pages are chosen.
 fn build_plugins(
     manifests: &[crate::plugins::PluginManifest],
     in_process: &crate::contributions::BuildPlugins,
@@ -1415,7 +1445,7 @@ fn build_plugins(
         if let Some(manifest) = manifests.iter().find(|manifest| manifest.id == id) {
             return Err(fail(format!(
                 "id {id:?} is also declared by plugin manifest {}",
-                manifest.source.display()
+                manifest.source
             )));
         }
         if entries.iter().any(|entry| entry.plugin.id() == id) {

@@ -263,11 +263,41 @@ build_slowdown_pct = 5
 # garden with the same plugin, a same-document navigation from the response's arrival to the
 # adopted page on the phone profile, and document and window listeners after 20 navigations
 # above the count after the first.
+#
+# First-party plugins (first-party-plugins). parity:budgets also builds copies of the fixture garden
+# with every shipped plugin turned on by :lsg/plugins, once as is and once with 2,000 more pages,
+# and checks page_overhead_gzip_kb (Tools/Queries, which has no plugin entry, against the build
+# without the key), garden_growth_kb (the bytes plugins add to a page, in KB, may not change when
+# the garden grows), that no page links a plugin file and that the search files match the build
+# without the key.
 [plugins]
 host_gzip_kb = 4
 added_bytes_per_page = 0
 navigation_ms_phone = 50
 listener_growth = 0
+page_overhead_gzip_kb = 0.5
+garden_growth_kb = 0
+
+# One table per first-party plugin, with the same four rows; `mise run test` fails when a shipped
+# plugin has no table or a table lacks a row. parity:budgets checks script_styles_gzip_kb (module
+# and stylesheets together) and page_growth_gzip_kb (the largest fixture page with the plugin's
+# entry, against the build without the key) on the fixture garden. parity:build-bench checks
+# build_ms_per_page on the pinned encode garden with the plugin turned on alone. parity:perf
+# --first-party marks phone_heap_growth_mb: the heap after playing across 20 navigations, against
+# the same visit without the plugin.
+[plugins.podcast-episode]
+# Gitpa's player code was about 7 KB gzip.
+script_styles_gzip_kb = 8
+page_growth_gzip_kb = 4
+phone_heap_growth_mb = 1
+build_ms_per_page = 0.05
+
+# sequence-header ships with #490; its rows are set now so both plugins are measured the same way.
+[plugins.sequence-header]
+script_styles_gzip_kb = 1.5
+page_growth_gzip_kb = 0.5
+phone_heap_growth_mb = 0.2
+build_ms_per_page = 0.05
 
 # Build plugins (build-time-contributions). parity:budgets builds the fixture garden with the
 # episode-list fixture build plugin (tests/fixtures/plugins/episode-list) and checks the derived

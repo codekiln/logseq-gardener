@@ -101,6 +101,15 @@ pub mod cards;
 /// Site plugin manifests: reading, checking and the page values a plugin may read.
 pub mod plugins;
 
+/// The plugins that ship inside `lsg`, turned on with `:lsg/plugins` in `logseq/config.edn`.
+pub mod first_party;
+
+/// The entity types a page declares with its `logseq-entity::` property.
+pub mod entity_types;
+
+/// A podcast episode page's recording and title.
+pub mod podcast;
+
 /// The pages a publication contains, and the read-only view build plugins receive.
 pub mod publication;
 

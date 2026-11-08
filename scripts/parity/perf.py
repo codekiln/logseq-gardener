@@ -2273,6 +2273,214 @@ def measure_plugins_run(args, sync_playwright):
         record_sections(['Plugins'], section)
 
 
+# First-party plugins (first-party-plugins): the fixture pages the design names, measured in a
+# build of a copy of the run's garden with every shipped plugin turned on and in Logseq's own
+# export of the same copy, and the phone heap after playing an episode across navigations.
+FIRST_PARTY_PAGES = ['GitP/A/Session/26/11/01-Sun', 'GitP/A/Session/26/10/29-Thu', 'GitP/A/Session/26/10/24-Sat',
+                     'GitP/A/Session/26/10/20-Tue', 'GitP/A/Session/26/09/24-Thu', 'GitP/A', 'GitP/A/Session',
+                     'GitP/A/Session/26/10/24-Sat/Asset/Audio/Full/mp3', 'Home']
+FIRST_PARTY_EPISODE = 'GitP/A/Session/26/10/24-Sat'
+FIRST_PARTY_NAVIGATIONS = 20
+FIRST_PARTY_PLAYER = "document.querySelector('.lsg-episode-player audio')"
+
+
+def tone_wav(seconds=60, rate=8000, frequency=330):
+    """A sine tone as 8-bit mono WAV bytes, served in place of every recording so the
+    measurement makes no request outside the local server."""
+    samples = bytes(128 + round(40 * math.sin(2 * math.pi * frequency * i / rate)) for i in range(rate * seconds))
+    header = (b'RIFF' + (36 + len(samples)).to_bytes(4, 'little') + b'WAVEfmt '
+              + (16).to_bytes(4, 'little') + (1).to_bytes(2, 'little') + (1).to_bytes(2, 'little')
+              + rate.to_bytes(4, 'little') + rate.to_bytes(4, 'little') + (1).to_bytes(2, 'little')
+              + (8).to_bytes(2, 'little'))
+    return header + b'data' + len(samples).to_bytes(4, 'little') + samples
+
+
+def first_party_garden(garden, destination, plugins):
+    """A copy of the garden, as advanced_garden makes it, whose config.edn turns on `plugins`."""
+    copy = advanced_garden(garden, destination, [])
+    budgets_check.with_plugins_key(copy, plugins)
+    return copy
+
+
+def measure_first_party_heap(browser, base, start, routes, profile, plugin):
+    """The JS heap after garbage collection once the reader has started the recording on `start`
+    and followed FIRST_PARTY_NAVIGATIONS links in place. Without `plugin`, the plugin's module is
+    blocked and nothing plays: the same visit with only the host."""
+    context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
+    wav = tone_wav()
+    page.route('**/*.mp3', lambda request: request.fulfill(status=200, body=wav, content_type='audio/wav'))
+    if not plugin:
+        page.route('**/plugins/podcast-episode/**', lambda request: request.abort())
+    timeout = PROFILES[profile]['timeout_ms']
+    try:
+        page.goto(base + start, wait_until='load', timeout=timeout)
+        wait_loaded(page, profile)
+        page.wait_for_function("performance.getEntriesByType('resource').some((r) => r.name.includes('lsg-host-'))",
+                               timeout=timeout)
+        if plugin:
+            page.wait_for_function(FIRST_PARTY_PLAYER, timeout=timeout)
+            page.evaluate(f'{FIRST_PARTY_PLAYER}.play()')
+            page.wait_for_function(f'!{FIRST_PARTY_PLAYER}.paused && {FIRST_PARTY_PLAYER}.currentTime > 0.2',
+                                   timeout=timeout)
+        for index in range(FIRST_PARTY_NAVIGATIONS):
+            page.evaluate(PLUGIN_NAVIGATE, routes[index % len(routes)])
+        playing = page.evaluate(f'!!{FIRST_PARTY_PLAYER} && !{FIRST_PARTY_PLAYER}.paused')
+        return {'heap': collect_garbage(cdp), 'playing': playing}
+    except Exception as error:  # Playwright raises its own TimeoutError type.
+        return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
+    finally:
+        context.close()
+
+
+def first_party_markdown(report, budgets):
+    """The First-party plugins section of the Performance page."""
+    limits = budgets.get('plugins', {})
+    lines = ['', '## First-party plugins', '',
+             f"Measured {report['measured']} on a copy of encode garden commit `{report['garden_commit']}` whose "
+             f"`logseq/config.edn` holds `:lsg/plugins [{' '.join(':' + p for p in report['plugins'])}]`, built by "
+             f"`lsg` `{report['lsg']}` and by Logseq's own export of the same copy, which ignores the key. Each value "
+             f"is the median of {report['loads']} loads. **Bold** marks an `lsg` value over its `[desktop]` or "
+             '`[phone]` budget.', '',
+             '| Page | Profile | Build | Title (ms) | Data before title (KB) | Script before title (KB) | Peak heap (MB) |',
+             '| --- | --- | --- | --- | --- | --- | --- |']
+    for row in report['pages']:
+        if 'error' in row or row.get('missing'):
+            lines.append(f"| {row['page']} | {row['profile']} | {row['build']} | {row.get('error', 'missing')} | | | |")
+            continue
+        profile = budgets.get(row['profile'], {})
+        own = row['build'] == 'lsg'
+        cells = [_marked(f"{row['title_ms']:.0f}", row['title_ms'], profile.get('title_ms') if own else None),
+                 _marked(f"{row['data_before_title'] / 1000:,.1f}", row['data_before_title'] / 1000,
+                         profile.get('data_before_title_kb') if own else None),
+                 _marked(f"{row['script_before_title'] / 1000:,.1f}", row['script_before_title'] / 1000,
+                         profile.get('script_before_title_kb') if own else None),
+                 _marked(f"{row['peak_heap'] / 1_000_000:,.1f}", row['peak_heap'] / 1_000_000,
+                         profile.get('peak_heap_mb') if own else None)]
+        lines.append(f"| {row['page']} | {row['profile']} | {row['build']} | " + ' | '.join(cells) + ' |')
+    heap = report['heap']
+    episode = limits.get('podcast-episode', {})
+    if 'growth_mb' in heap:
+        growth = _marked(f"{heap['growth_mb']:.2f}", heap['growth_mb'], episode.get('phone_heap_growth_mb'))
+        lines += ['', f"Phone heap after starting `{FIRST_PARTY_EPISODE}` and following {FIRST_PARTY_NAVIGATIONS} "
+                      f"links in place: {heap['with_mb']:.2f} MB with `podcast-episode` playing, {heap['without_mb']:.2f} MB "
+                      f"with its module blocked and nothing playing; growth {growth} MB (budget "
+                      f"{episode.get('phone_heap_growth_mb')} MB). Recordings were served as a local tone."]
+    else:
+        lines += ['', f"Phone heap after playing across navigations: {heap.get('error', 'not measured')}."]
+    sizes = report['sizes']
+    lines += ['', f"`podcast-episode` module and stylesheet: {sizes['script_styles_gzip']:,} bytes gzip (budget "
+                  f"{episode.get('script_styles_gzip_kb', 0) * 1000:,.0f}). Pages that load plugin code before the title: "
+                  f"{sizes['plugin_script_before_title']}."]
+    return lines
+
+
+def first_party_failures(report, budgets):
+    """Budget overruns among the lsg rows, the heap growth and the plugin's size."""
+    failures = []
+    for row in report['pages']:
+        if row['build'] != 'lsg' or 'error' in row or row.get('missing'):
+            if row['build'] == 'lsg':
+                failures.append(f"{row['page']} ({row['profile']}): {row.get('error', 'missing from the lsg build')}")
+            continue
+        profile = budgets[row['profile']]
+        for field, key, scale in (('title_ms', 'title_ms', 1), ('data_before_title', 'data_before_title_kb', 1000),
+                                  ('script_before_title', 'script_before_title_kb', 1000),
+                                  ('peak_heap', 'peak_heap_mb', 1_000_000)):
+            if row[field] / scale > profile[key]:
+                failures.append(f"{row['page']} ({row['profile']}): {field} {row[field] / scale:,.1f} over {profile[key]}")
+    episode = budgets['plugins']['podcast-episode']
+    heap = report['heap']
+    if 'error' in heap:
+        failures.append(f"phone heap after playing: {heap['error']}")
+    elif heap['growth_mb'] > episode['phone_heap_growth_mb']:
+        failures.append(f"podcast-episode: phone heap grows {heap['growth_mb']:.2f} MB, over {episode['phone_heap_growth_mb']}")
+    elif not heap['playing']:
+        failures.append('podcast-episode: the recording stopped during the navigations')
+    if report['sizes']['script_styles_gzip'] > episode['script_styles_gzip_kb'] * 1000:
+        failures.append(f"podcast-episode: script and styles {report['sizes']['script_styles_gzip']:,} gzip over budget")
+    if report['sizes']['plugin_script_before_title']:
+        failures.append(f"plugin code before the title on {report['sizes']['plugin_script_before_title']} pages")
+    return failures
+
+
+def measure_first_party_run(args, sync_playwright):
+    """Measure FIRST_PARTY_PAGES in lsg with every shipped first-party plugin on and in Logseq's
+    export of the same garden copy, and the phone heap after playing across navigations; with
+    --record, replace the First-party plugins section of the Performance page. The copy and both
+    builds stay in the run directory under first-party/, and a later run reuses Logseq's export when
+    the garden commit has not changed."""
+    import logseq_export
+    budgets = metrics.load_budgets()
+    run = common.latest_run(args.run)
+    settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
+    profiles = [p.strip() for p in args.profiles.split(',') if p.strip()]
+    plugins = budgets_check.shipped_first_party()
+    work = run / 'first-party'
+    shutil.rmtree(work / 'garden', ignore_errors=True)
+    shutil.rmtree(work / 'lsg', ignore_errors=True)
+    work.mkdir(exist_ok=True)
+    garden = first_party_garden(settings['garden'], work / 'garden', plugins)
+    time_publish(common.lsg_binary(), garden, work / 'lsg', settings['lsg_options'], runs=1)
+    stamp = json.dumps({'garden_commit': settings['garden_commit']})
+    stamp_file = work / 'logseq-stamp.json'
+    if not ((work / 'logseq' / 'index.html').exists() and stamp_file.exists()
+            and stamp_file.read_text(encoding='utf-8') == stamp):
+        shutil.rmtree(work / 'logseq', ignore_errors=True)
+        logseq_build(garden, work / 'logseq')
+        stamp_file.write_text(stamp, encoding='utf-8')
+    names = {common.normalize(p.name)
+             for p in logseq_export.logseq_pages((work / 'logseq' / 'index.html').read_text(encoding='utf-8'))}
+    lsg_index = common.lsg_index(work / 'lsg')
+    listed = {p['id']: p for p in json.loads((work / 'lsg' / 'lsg-site.json').read_text(encoding='utf-8'))['plugins']}
+    episode_files = [listed['podcast-episode']['module'], *listed['podcast-episode']['styles']]
+    targets = {title: serve.targets(title, names, lsg_index, work / 'lsg') for title in FIRST_PARTY_PAGES}
+    before_title = sum(1 for target in targets.values() if target['lsg']
+                       and 'plugins/' in ' '.join(re.findall(r'(?:src|href)="([^"]*)"',
+                                                             (work / 'lsg' / target['lsg']).read_text(encoding='utf-8'))))
+    sizes = {'script_styles_gzip': metrics.gzip_size(b''.join((work / 'lsg' / f).read_bytes() for f in episode_files)),
+             'plugin_script_before_title': before_title}
+    pages = []
+    with serve.Server(work / 'logseq') as logseq, serve.Server(work / 'lsg') as site, \
+            sync_playwright() as playwright:
+        browser = playwright.chromium.launch(args=['--enable-precise-memory-info', '--autoplay-policy=no-user-gesture-required'])
+        servers = {'logseq': logseq, 'lsg': site}
+        for title in FIRST_PARTY_PAGES:
+            for profile in profiles:
+                for build_name, server in servers.items():
+                    row = {'page': title, 'profile': profile, 'build': build_name}
+                    if targets[title][build_name] is None:
+                        pages.append({**row, 'missing': True})
+                        continue
+                    loads = [measure_load(browser, server.url + targets[title][build_name], build_name, profile)
+                             for _ in range(args.loads)]
+                    good = [load for load in loads if 'error' not in load]
+                    row.update(metrics.summarize_loads(good) if good else {'error': loads[0]['error']})
+                    pages.append(row)
+                    print(json.dumps(row, ensure_ascii=False), flush=True)
+        routes = [targets[t]['lsg'] for t in FIRST_PARTY_PAGES if targets[t]['lsg'] and t != FIRST_PARTY_EPISODE]
+        start = targets[FIRST_PARTY_EPISODE]['lsg']
+        heap = {'error': f'{FIRST_PARTY_EPISODE} is missing from the lsg build'}
+        if start:
+            played = measure_first_party_heap(browser, site.url, start, routes, 'phone', True)
+            blocked = measure_first_party_heap(browser, site.url, start, routes, 'phone', False)
+            heap = played if 'error' in played else blocked if 'error' in blocked else {
+                'with_mb': played['heap'] / 1_000_000, 'without_mb': blocked['heap'] / 1_000_000,
+                'growth_mb': (played['heap'] - blocked['heap']) / 1_000_000, 'playing': played['playing']}
+        print(json.dumps(heap), flush=True)
+        browser.close()
+    report = {'measured': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+              'garden_commit': settings['garden_commit'][:7], 'lsg': common.git_commit(common.REPO)[:7],
+              'plugins': plugins, 'loads': args.loads, 'pages': pages, 'heap': heap, 'sizes': sizes}
+    (work / 'perf.json').write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    section = first_party_markdown(report, budgets)
+    print('\n'.join(section))
+    if args.record:
+        record_sections(['First-party plugins'], section)
+    failures = first_party_failures(report, budgets)
+    if failures:
+        raise SystemExit('\n'.join(failures))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', help='run directory from parity:build and parity:compare (default: the latest)')
@@ -2317,6 +2525,9 @@ def main():
     parser.add_argument('--plugins', action='store_true',
                         help="build the run's garden with the recorder fixture plugin and measure same-document "
                              'navigation; with --record, replace its section of the Performance page')
+    parser.add_argument('--first-party', action='store_true',
+                        help='Measure the first-party plugins on the GitP/A fixture pages of a copy of the run\'s garden, '
+                             'in lsg and in Logseq\'s own export of the copy (with --record, their section)')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
@@ -2355,6 +2566,9 @@ def main():
         return
     if args.plugins:
         measure_plugins_run(args, sync_playwright)
+        return
+    if args.first_party:
+        measure_first_party_run(args, sync_playwright)
         return
 
     run = common.latest_run(args.run)

@@ -1,0 +1,7 @@
+{
+  "id": "podcast-episode",
+  "apiVersion": 1,
+  "module": "podcast-episode.mjs",
+  "styles": ["podcast-episode.css"],
+  "activation": "on-demand"
+}

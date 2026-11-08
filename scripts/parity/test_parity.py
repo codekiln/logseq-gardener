@@ -173,6 +173,42 @@ class BuildPluginBudgetTest(unittest.TestCase):
         self.assertEqual(budgets.derived_rows('<ul class="outline"><li>a</li></ul>'), '')
 
 
+class FirstPartyBudgetTest(unittest.TestCase):
+    def test_every_shipped_plugin_has_a_budget_table(self):
+        loaded = metrics.load_budgets()
+        shipped = budgets.shipped_first_party()
+        self.assertIn('podcast-episode', shipped)
+        for plugin in shipped:
+            self.assertEqual(sorted(loaded['plugins'][plugin]), ['build_ms_per_page', 'page_growth_gzip_kb',
+                                                               'phone_heap_growth_mb', 'script_styles_gzip_kb'])
+
+    def test_first_party_perf_rows_and_failures(self):
+        loaded = metrics.load_budgets()
+        row = {'page': 'GitP/A', 'profile': 'phone', 'build': 'lsg', 'title_ms': 2000, 'data_before_title': 40_000,
+               'script_before_title': 2_000, 'peak_heap': 3_000_000}
+        report = {'measured': '2026-11-08', 'garden_commit': 'abcdef1', 'lsg': '1234567', 'plugins': ['podcast-episode'],
+                  'loads': 3, 'pages': [row, {**row, 'build': 'logseq', 'title_ms': 9000}],
+                  'heap': {'with_mb': 5.5, 'without_mb': 5.0, 'growth_mb': 0.5, 'playing': True},
+                  'sizes': {'script_styles_gzip': 2936, 'plugin_script_before_title': 0}}
+        text = '\n'.join(perf.first_party_markdown(report, loaded))
+        self.assertIn('## First-party plugins', text)
+        self.assertIn('| GitP/A | phone | lsg | **2000** | 40.0 | 2.0 | 3.0 |', text)
+        self.assertIn('| GitP/A | phone | logseq | 9000 |', text)
+        self.assertIn('growth 0.50 MB', text)
+        self.assertEqual(perf.first_party_failures(report, loaded), ['GitP/A (phone): title_ms 2,000.0 over 1500'])
+        report['heap'] = {**report['heap'], 'growth_mb': 1.5}
+        self.assertIn('podcast-episode: phone heap grows 1.50 MB, over 1', perf.first_party_failures(report, loaded))
+
+    def test_plugins_key_is_added_to_the_top_level_map(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp)
+            (garden / 'logseq').mkdir()
+            (garden / 'logseq' / 'config.edn').write_text('{:a 1\n :b #{:c}}\n', encoding='utf-8')
+            budgets.with_plugins_key(garden, ['podcast-episode', 'sequence-header'], ':x true')
+            self.assertEqual((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'),
+                             '{:a 1\n :b #{:c} :lsg/plugins [:podcast-episode :sequence-header] :x true}\n')
+
+
 class PublishBenchTest(unittest.TestCase):
     BUDGET = {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100}
     CORPUS = {'name': 'gitpa-sized', 'digest': 'abc'}
@@ -314,8 +350,18 @@ class MetricsTest(unittest.TestCase):
     def test_committed_budgets(self):
         loaded = metrics.load_budgets()
         # Site plugins (published-plugin-host); the proposal's budgets.
+        # First-party plugins (first-party-plugins) add two rows and one table per plugin.
         self.assertEqual(loaded.pop('plugins'), {'host_gzip_kb': 4, 'added_bytes_per_page': 0,
-                                                 'navigation_ms_phone': 50, 'listener_growth': 0})
+                                                 'navigation_ms_phone': 50, 'listener_growth': 0,
+                                                 'page_overhead_gzip_kb': 0.5, 'garden_growth_kb': 0,
+                                                 'podcast-episode': {'script_styles_gzip_kb': 8,
+                                                                     'page_growth_gzip_kb': 4,
+                                                                     'phone_heap_growth_mb': 1,
+                                                                     'build_ms_per_page': 0.05},
+                                                 'sequence-header': {'script_styles_gzip_kb': 1.5,
+                                                                     'page_growth_gzip_kb': 0.5,
+                                                                     'phone_heap_growth_mb': 0.2,
+                                                                     'build_ms_per_page': 0.05}})
         # Build plugins (build-time-contributions); the proposal's budgets.
         self.assertEqual(loaded.pop('build_plugins'), {'derived_rows_gzip_kb': 30,
                                                        'in_process_blocks_ms_per_page': 0.05,
