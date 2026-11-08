@@ -674,8 +674,8 @@ pub fn publish_site_with_options(
             .collect(),
         journal_dates.clone(),
         settings.show_brackets,
-        reference_only.keys().cloned().collect(),
-    );
+    )
+    .with_one_unlinked_file(reference_only.keys().cloned().collect());
     // The graph's layouts and neighbourhood files are computed while pages render.
     let mut graph_files = {
         let mut published: BTreeSet<String> = pages.keys().cloned().collect();

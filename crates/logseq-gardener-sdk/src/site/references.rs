@@ -119,7 +119,6 @@ impl<'a> References<'a> {
         destinations: BTreeMap<String, String>,
         dates: BTreeMap<String, JournalDate>,
         show_brackets: bool,
-        one_unlinked_file: BTreeSet<String>,
     ) -> Self {
         let resolve = |name: &str| resolve(names, name);
         let property_targets: Option<BTreeMap<_, _>> = property_views.map(|views| {
@@ -194,8 +193,14 @@ impl<'a> References<'a> {
             show_brackets,
             contexts: RefCell::default(),
             crumbs: RefCell::default(),
-            one_unlinked_file,
+            one_unlinked_file: BTreeSet::new(),
         }
+    }
+
+    /// List only the groups of one Unlinked References fragment file on these pages.
+    pub fn with_one_unlinked_file(mut self, pages: BTreeSet<String>) -> Self {
+        self.one_unlinked_file = pages;
+        self
     }
 
     /// Source anchors a page keeps so that linked references can open its blocks.
