@@ -18,6 +18,7 @@ mod page_status;
 mod plugins;
 mod properties;
 mod queries;
+mod query_view;
 mod readable;
 mod references;
 mod render;
@@ -700,14 +701,14 @@ pub fn publish_site_with_options(
             let datalog = matches!(
                 crate::query::parse_advanced(text, build_date, &journal_formats),
                 Ok(crate::query::AdvancedQuery {
-                    query: crate::query::AdvancedBody::Datalog,
+                    query: crate::query::AdvancedBody::Datalog(_),
                     ..
                 })
             );
             if datalog {
                 report.diagnostics.push(SiteDiagnostic {
                     source: "logseq/config.edn".into(),
-                    message: "Default journal query skipped: this published site evaluates queries in the simple query language only".to_owned(),
+                    message: "Default journal query skipped: this published site runs Datalog over pages, not over blocks".to_owned(),
                 });
             }
             !datalog

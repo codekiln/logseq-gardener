@@ -228,7 +228,7 @@ fn advanced_queries_titles_collapse_and_errors() {
             .contains("tmux splits panes")
     );
     assert!(html.contains("<div class=\"custom-query-title\">Open tasks</div>"));
-    assert!(html.contains("<div class=\"warning my-1\">Query failed:<p>This published site evaluates queries in the simple query language only"));
+    assert!(html.contains("<div class=\"warning my-1\">Query failed:<p>the published site does not support the query form (:block/marker)</p>"));
     assert!(html.contains("<h5>Invalid query:</h5>"));
     assert!(html.contains(
         "<h5>Query Error:</h5><pre><code>(and [[Notes/tmux]] &quot;x&quot;</code></pre>"

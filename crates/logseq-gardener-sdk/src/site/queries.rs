@@ -17,8 +17,10 @@ use crate::git_dates::GitDates;
 use crate::journals::{JournalDate, JournalFormats};
 use crate::query::{
     AdvancedBody, AdvancedQuery, EvaluateOptions, QueryErrorKind, QueryGraph, QueryResults,
-    QueryTitle, SimpleQuery, parse_advanced, parse_simple, seed,
+    QueryTitle, SimpleQuery, leading_properties, parse_advanced, parse_simple, seed,
 };
+use crate::query_advanced::{Stage, run_advanced};
+use crate::query_page::PageRecord;
 use crate::references::BlockId;
 
 /// The query script, written once at the site root and linked only from pages with a query.
@@ -81,6 +83,8 @@ impl LazyDates {
 pub(super) struct Queries<'r, 'a> {
     refs: &'r References<'a>,
     graph: OnceCell<QueryGraph<'r, String>>,
+    /// The published pages as a Datalog query reads them, in route order.
+    pages: OnceCell<Vec<PageRecord>>,
     resolve: &'r dyn Fn(&str) -> Option<String>,
     formats: &'r JournalFormats,
     today: JournalDate,
@@ -102,6 +106,10 @@ struct View {
     columns: Option<Vec<String>>,
     sort_by: Option<String>,
     descending: bool,
+    /// The count of a custom view's rows, when it differs from the results shown.
+    count: Option<usize>,
+    /// A custom view's HTML, which takes the place of the table and the list.
+    custom: Option<String>,
 }
 
 impl<'r, 'a> Queries<'r, 'a> {
@@ -116,6 +124,7 @@ impl<'r, 'a> Queries<'r, 'a> {
         Self {
             refs,
             graph: OnceCell::new(),
+            pages: OnceCell::new(),
             resolve,
             formats,
             today,
@@ -205,7 +214,37 @@ impl<'r, 'a> Queries<'r, 'a> {
                 .property(id, "query-sort-by")
                 .map(|key| key.trim_start_matches(':').to_lowercase()),
             descending: self.flag(id, "query-sort-desc") != Some(false),
+            count: None,
+            custom: None,
         }
+    }
+
+    /// Every published page for a Datalog query: its route, name and leading properties.
+    fn page_records(&self) -> &[PageRecord] {
+        self.pages.get_or_init(|| {
+            self.refs
+                .sources()
+                .iter()
+                .map(|(route, document)| PageRecord {
+                    key: route.clone(),
+                    original_name: self.refs.page_title(route).to_owned(),
+                    properties: leading_properties(document),
+                })
+                .collect()
+        })
+    }
+
+    /// The line of a form `offset` bytes into an advanced query's map, which starts on the
+    /// line after the block's own line.
+    fn line_at(&self, page: &str, block: Option<usize>, text: &str, offset: usize) -> String {
+        let before = text.get(..offset.min(text.len())).unwrap_or_default();
+        let extra = before.matches('\n').count() + 1;
+        self.line(page, block)
+            .strip_prefix(" (line ")
+            .and_then(|rest| rest.strip_suffix(')'))
+            .and_then(|line| line.parse::<usize>().ok())
+            .map(|line| format!(" (line {})", line + extra))
+            .unwrap_or_default()
     }
 
     fn evaluate(
@@ -241,7 +280,9 @@ impl<'r, 'a> Queries<'r, 'a> {
     ) -> String {
         let id = self.next_id(page);
         let stem = format!("{REFS}/{}-{id}", crate::page_urls::stem(page));
-        let count = results.map_or(0, QueryResults::len);
+        let count = view
+            .count
+            .unwrap_or_else(|| results.map_or(0, QueryResults::len));
         let count_text = match count {
             0 => String::new(),
             1 => "1 result".to_owned(),
@@ -262,6 +303,13 @@ impl<'r, 'a> Queries<'r, 'a> {
         let mut results_html = String::new();
         if let Some(body) = body {
             results_html = body;
+        } else if let Some(html) = &view.custom {
+            let parts = Parts {
+                head: String::new(),
+                items: vec![html.clone()],
+                columns: 0,
+            };
+            results_html = self.write(&stem, "", parts, !view.collapsed, false).0;
         } else if let Some(results) = results.filter(|results| !results.is_empty()) {
             let main = self.parts(results, view.table, view, asset, diagnostics);
             results_html = self.write(&stem, "", main, !view.collapsed, view.table).0;
@@ -689,6 +737,8 @@ impl<'r, 'a> Queries<'r, 'a> {
             columns: None,
             sort_by: None,
             descending: true,
+            count: None,
+            custom: None,
         };
         let html = self.render_box(
             page,
@@ -703,10 +753,125 @@ impl<'r, 'a> Queries<'r, 'a> {
         QueryBox { html, diagnostics }
     }
 
+    /// A failure box in place of the results, with its diagnostic.
+    #[allow(clippy::too_many_arguments)]
+    fn failure_box(
+        &self,
+        page: &str,
+        title: &str,
+        label: &str,
+        message: &str,
+        line: &str,
+        mut view: View,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> QueryBox {
+        let mut diagnostics = vec![format!("{label} {message}{line}")];
+        view.toggle = false;
+        let html = self.render_box(
+            page,
+            title,
+            None,
+            None,
+            Some(Self::failed(label, message)),
+            &view,
+            asset,
+            &mut diagnostics,
+        );
+        QueryBox { html, diagnostics }
+    }
+
+    /// A Datalog query over pages, with its transform and view: run by the SDK and
+    /// written here.
+    fn datalog_box(
+        &self,
+        page: &str,
+        block: Option<usize>,
+        text: &str,
+        query: &AdvancedQuery,
+        mut view: View,
+        asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
+    ) -> QueryBox {
+        let title = Self::title_html(query.title.as_ref());
+        let pages = self.page_records();
+        let result = match run_advanced(query, pages) {
+            Ok(result) => result,
+            Err(failure) => {
+                let label = match failure.stage {
+                    Stage::Query => "Query failed:",
+                    Stage::View => "Custom view failed:",
+                };
+                let line = match failure.offset {
+                    Some(offset) => self.line_at(page, block, text, offset),
+                    None => self.line(page, block),
+                };
+                view.count = failure.count;
+                return self.failure_box(page, &title, label, &failure.message, &line, view, asset);
+            }
+        };
+        let mut diagnostics: Vec<String> = result
+            .warnings
+            .iter()
+            .map(|warning| format!("Query {warning}{}", self.line(page, block)))
+            .collect();
+        view.toggle = false;
+        view.table = true;
+        view.grouped = false;
+        let mut results = None;
+        match &result.view {
+            Some(tree) => {
+                let resolve = |name: &str| (self.resolve)(name);
+                match super::query_view::write(tree, &resolve) {
+                    Ok(html) => {
+                        view.custom = Some(html);
+                        view.count = Some(result.count);
+                    }
+                    Err(message) => {
+                        let line = self.line(page, block);
+                        view.count = Some(result.count);
+                        let mut boxed = self.failure_box(
+                            page,
+                            &title,
+                            "Custom view failed:",
+                            &message,
+                            &line,
+                            view,
+                            asset,
+                        );
+                        diagnostics.append(&mut boxed.diagnostics);
+                        boxed.diagnostics = diagnostics;
+                        return boxed;
+                    }
+                }
+            }
+            None => {
+                // An empty result calls no view and shows Logseq's `No matched result`.
+                results = Some(QueryResults::Pages(
+                    result
+                        .rows
+                        .iter()
+                        .map(|&index| pages[index].key.clone())
+                        .collect(),
+                ));
+            }
+        }
+        let html = self.render_box(
+            page,
+            &title,
+            None,
+            results.as_ref(),
+            None,
+            &view,
+            asset,
+            &mut diagnostics,
+        );
+        QueryBox { html, diagnostics }
+    }
+
     fn advanced_box(
         &self,
         page: &str,
         block: Option<usize>,
+        text: &str,
         query: &AdvancedQuery,
         asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
     ) -> QueryBox {
@@ -716,45 +881,35 @@ impl<'r, 'a> Queries<'r, 'a> {
         let line = self.line(page, block);
         let mut view = self.view(id, false);
         view.collapsed |= query.collapsed;
-        let failure = if query.query == AdvancedBody::Datalog {
-            Some((
-                "Query failed:",
-                "This published site evaluates queries in the simple query language only; Datalog queries are not supported.",
-            ))
-        } else if query.inputs || query.rules {
+        let simple = match &query.query {
+            AdvancedBody::Datalog(_) => {
+                return self.datalog_box(page, block, text, query, view, asset);
+            }
+            AdvancedBody::Simple(simple) => Some(simple),
+            AdvancedBody::Missing => None,
+        };
+        let failure = if query.inputs || query.rules {
             Some((
                 "Query failed:",
                 "This published site does not support :inputs or :rules.",
             ))
-        } else if query.view {
+        } else if query.view.is_some() {
             Some((
                 "Custom view failed:",
-                "This published site does not run :view functions.",
+                "Block results do not support :view functions when this site is built.",
             ))
         } else {
             None
         };
         if let Some((label, message)) = failure {
-            diagnostics.push(format!("{label} {message}{line}"));
-            view.toggle = false;
-            let html = self.render_box(
-                page,
-                &title,
-                None,
-                None,
-                Some(Self::failed(label, message)),
-                &view,
-                asset,
-                &mut diagnostics,
-            );
-            return QueryBox { html, diagnostics };
+            return self.failure_box(page, &title, label, message, &line, view, asset);
         }
-        if query.result_transform {
+        if query.result_transform.is_some() {
             diagnostics.push(format!(
-                "Query :result-transform ignored; results shown untransformed{line}"
+                "Query :result-transform ignored: block results do not support functions when this site is built; results shown untransformed{line}"
             ));
         }
-        let AdvancedBody::Simple(simple) = &query.query else {
+        let Some(simple) = simple else {
             let html = self.render_box(
                 page,
                 &title,
@@ -773,7 +928,7 @@ impl<'r, 'a> Queries<'r, 'a> {
         view.toggle = !pages && query.table_view.is_none();
         view.grouped = query.group_by_page != Some(false)
             && simple.group_by_page != Some(false)
-            && !query.result_transform;
+            && query.result_transform.is_none();
         let html = self.render_box(
             page,
             &title,
@@ -857,7 +1012,7 @@ impl QueryBoxes for Queries<'_, '_> {
         asset: &mut dyn FnMut(&Path, &str) -> Result<String, String>,
     ) -> QueryBox {
         match parse_advanced(text, self.today, self.formats) {
-            Ok(query) => self.advanced_box(page, block, &query, asset),
+            Ok(query) => self.advanced_box(page, block, text, &query, asset),
             Err(error) => {
                 let line = self.line(page, block);
                 let heading = match error.kind {

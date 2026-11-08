@@ -315,7 +315,7 @@ class MetricsTest(unittest.TestCase):
                                               'inline_script_kb': 1.5, 'build_slowdown_pct': 10})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
-                                       'slides', 'queries', 'flashcards', 'loading'})
+                                       'slides', 'queries', 'flashcards', 'loading', 'advanced_queries'})
         self.assertEqual(loaded['loading'], {'build_slowdown_pct': 5})
         self.assertEqual(set(loaded['flashcards']), {'script_kb', 'styles_gzip_kb', 'deck_gzip_kb',
                                                      'card_batch_gzip_kb', 'deck_page', 'deck_page_growth_gzip_kb',
@@ -324,6 +324,10 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(set(loaded['queries']), {'script_kb', 'styles_gzip_kb', 'in_page_gzip_kb',
                                                   'fragment_gzip_kb', 'open_ms_desktop', 'open_ms_phone',
                                                   'open_heap_mb', 'build_slowdown_pct'})
+        self.assertEqual(loaded['advanced_queries'], {'page_growth_gzip_kb': 3, 'script_added_kb': 0,
+                                                      'styles_added_gzip_kb': 0, 'view_max_kb': 128,
+                                                      'step_limit_millions': 20, 'eval_ms': 500,
+                                                      'limit_hit_s': 2, 'build_slowdown_pct': 10})
         self.assertEqual(set(loaded['slides']), {'script_gzip_kb', 'open_ms_desktop', 'step_ms_desktop', 'deck_heap_mb'})
         self.assertEqual(loaded['shell']['script_kb'], 6.9)
         self.assertEqual(set(loaded['graph']), {'data_gzip_kb', 'script_kb', 'worker_kb', 'first_frame_ms_desktop',

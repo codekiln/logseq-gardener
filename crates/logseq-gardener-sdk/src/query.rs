@@ -28,6 +28,9 @@ use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::journals::{JournalDate, JournalFormats, parse_journal_reference};
 use crate::page_names::{lookup_key, namespace_parent, reference_key};
+use crate::query_datalog::{DatalogQuery, parse_datalog};
+use crate::query_form::read_form;
+use crate::query_script::{Script, parse_script};
 use crate::references::{BlockId, ReferenceIndex};
 
 /// Why a query could not be read or run, with the byte offset of the problem in the text
@@ -622,18 +625,21 @@ pub enum QueryTitle {
 }
 
 /// An advanced query's `:query`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum AdvancedBody {
     /// A query in the simple language, as a string or a form.
     Simple(SimpleQuery),
-    /// A Datalog vector with `:find`, which the build does not evaluate.
-    Datalog,
+    /// A Datalog vector with `:find`: the subset the build runs, or the form outside it
+    /// with its byte offset in the block text.
+    Datalog(Box<Result<DatalogQuery, QueryError>>),
     /// No `:query` key.
     Missing,
 }
 
-/// A `#+BEGIN_QUERY` map.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A `#+BEGIN_QUERY` map. The `:query`, `:result-transform` and `:view` forms are read
+/// when the map is read: each holds a runnable form or the form outside the subset, so
+/// the publisher can show the box with its title and name the form.
+#[derive(Clone, Debug, PartialEq)]
 pub struct AdvancedQuery {
     pub title: Option<QueryTitle>,
     pub query: AdvancedBody,
@@ -645,8 +651,8 @@ pub struct AdvancedQuery {
     pub breadcrumb_show: Option<bool>,
     pub inputs: bool,
     pub rules: bool,
-    pub view: bool,
-    pub result_transform: bool,
+    pub view: Option<Result<Script, QueryError>>,
+    pub result_transform: Option<Result<Script, QueryError>>,
 }
 
 #[derive(Clone, Debug)]
@@ -886,8 +892,15 @@ pub fn parse_advanced(
         breadcrumb_show: None,
         inputs: false,
         rules: false,
-        view: false,
-        result_transform: false,
+        view: None,
+        result_transform: None,
+    };
+    let function = |position: usize| -> Result<Script, QueryError> {
+        let (start, end) = spans
+            .get(position)
+            .copied()
+            .ok_or_else(|| invalid("the value is missing", text.len()))?;
+        parse_script(&read_form(&text[start..end], start)?)
     };
     for (position, (key, value)) in pairs.iter().enumerate() {
         let Edn::Keyword(key) = key else { continue };
@@ -912,7 +925,10 @@ pub fn parse_advanced(
             "query" => {
                 let datalog = matches!(value, Edn::Vector(items) if items.iter().any(|item| matches!(item, Edn::Keyword(k) if k == "find")));
                 query.query = if datalog {
-                    AdvancedBody::Datalog
+                    let (start, end) = spans.get(position).copied().unwrap_or((0, 0));
+                    AdvancedBody::Datalog(Box::new(
+                        read_form(&text[start..end], start).and_then(|form| parse_datalog(&form)),
+                    ))
                 } else {
                     let source = match value {
                         Edn::Str(text) => text.clone(),
@@ -931,8 +947,8 @@ pub fn parse_advanced(
             "breadcrumb-show?" => query.breadcrumb_show = Some(truthy(value)),
             "inputs" => query.inputs = true,
             "rules" => query.rules = true,
-            "view" => query.view = true,
-            "result-transform" => query.result_transform = true,
+            "view" => query.view = Some(function(position)),
+            "result-transform" => query.result_transform = Some(function(position)),
             _ => {}
         }
     }
@@ -1035,6 +1051,21 @@ struct BlockFacts<'a> {
     properties: Vec<(String, String)>,
 }
 
+/// A page's leading properties in source order, with lower-cased keys and `_` read as
+/// `-`. The last value of a repeated key wins, as in Logseq. Properties after a heading
+/// are the heading's, not the page's.
+pub fn leading_properties(document: &GardenDocument) -> Vec<(String, String)> {
+    let mut props: Vec<(String, String)> = Vec::new();
+    if let Some(Block::Properties { props: found, .. }) = document.parsed.blocks.first() {
+        for prop in found {
+            let key = prop.0.trim().to_lowercase().replace('_', "-");
+            props.retain(|(k, _)| *k != key);
+            props.push((key, prop.1.trim().to_owned()));
+        }
+    }
+    props
+}
+
 /// The selected visible documents as a query sees them: the reference index plus each
 /// block's text, task marker, priority and properties, and each journal's date.
 pub struct QueryGraph<'a, K> {
@@ -1097,15 +1128,7 @@ impl<'a, K: Ord + Clone> QueryGraph<'a, K> {
                         Some(Block::Properties { .. })
                     ),
             );
-            let mut props: Vec<(String, String)> = Vec::new();
-            if let Some(Block::Properties { props: found, .. }) = document.parsed.blocks.first() {
-                for prop in found {
-                    let key = prop.0.trim().to_lowercase().replace('_', "-");
-                    props.retain(|(k, _)| *k != key);
-                    props.push((key, prop.1.trim().to_owned()));
-                }
-            }
-            page_props.push(props);
+            page_props.push(leading_properties(document));
             let blocks = &document.parsed.blocks;
             let units = &contribution.blocks;
             let mut page_facts = Vec::with_capacity(units.len());
@@ -1837,9 +1860,21 @@ mod tests {
             &formats,
         )
         .unwrap();
-        assert_eq!(query.query, AdvancedBody::Datalog);
+        let AdvancedBody::Datalog(datalog) = &query.query else {
+            panic!()
+        };
+        // Blocks are outside the subset: the form is named, with its offset.
+        let error = datalog.as_ref().as_ref().unwrap_err();
+        assert_eq!(
+            error.kind,
+            QueryErrorKind::Unsupported(":block/marker".into())
+        );
+        assert_eq!(
+            error.offset,
+            "{:title \"NOW\" :query [:find (pull ?b [*]) :where [?b ".len()
+        );
         assert_eq!(query.title, Some(QueryTitle::Text("NOW".into())));
-        assert!(query.inputs && query.result_transform);
+        assert!(query.inputs && matches!(query.result_transform, Some(Ok(_))));
         assert_eq!(query.group_by_page, Some(false));
         let query = parse_advanced(
             "{:query \"(task TODO)\" :remove-block-children? false}",
@@ -1855,15 +1890,43 @@ mod tests {
     }
 
     #[test]
+    fn advanced_map_reads_the_datalog_transform_and_view() {
+        let formats = JournalFormats::default();
+        let source = "{:title [:h2 \"Recent\"]\n :query [:find (pull ?p [*]) :where [?p :block/name] [?p :block/properties ?props] [(get ?props :public) ?public] [(= ?public true)]]\n :result-transform (fn [rows] (sort-by (fn [row] (get-in row [:block/properties :at])) (fn [a b] (compare b a)) rows))\n :view (fn [rows] (into [\"ul\"] (map (fn [row] [\"li\" (:block/original-name row)]) rows)))\n :table-view? false}";
+        let query = parse_advanced(source, today(), &formats).unwrap();
+        let AdvancedBody::Datalog(datalog) = &query.query else {
+            panic!()
+        };
+        assert!(datalog.is_ok());
+        assert!(matches!(query.result_transform, Some(Ok(_))));
+        assert!(matches!(query.view, Some(Ok(_))));
+        assert_eq!(query.table_view, Some(false));
+        // A function outside the subset keeps the rest of the map readable.
+        let source = "{:title \"T\" :query [:find (pull ?p [*]) :where [?p :block/name]]\n :result-transform (fn [rows] (partition 2 rows))\n :view (fn [rows] (slurp \"x\"))}";
+        let query = parse_advanced(source, today(), &formats).unwrap();
+        assert_eq!(query.title, Some(QueryTitle::Text("T".into())));
+        let Some(Err(error)) = &query.result_transform else {
+            panic!()
+        };
+        assert_eq!(error.kind, QueryErrorKind::Unsupported("partition".into()));
+        assert_eq!(error.offset, source.find("partition").unwrap());
+        let Some(Err(error)) = &query.view else {
+            panic!()
+        };
+        assert_eq!(error.kind, QueryErrorKind::Unsupported("slurp".into()));
+        assert_eq!(error.offset, source.find("slurp").unwrap());
+    }
+
+    #[test]
     fn reads_default_journal_queries() {
         let config = "{:a 1 ;; note\n :default-queries\n {:journals\n  [{:title \"NOW\" :query [:find (pull ?b [*]) :where [?b :block/marker]]}\n   {:title \"Tasks\" :query (task TODO)}]}\n :b [1 2]}";
         let maps = default_journal_queries(config);
         assert_eq!(maps.len(), 2);
         let formats = JournalFormats::default();
-        assert_eq!(
+        assert!(matches!(
             parse_advanced(&maps[0], today(), &formats).unwrap().query,
-            AdvancedBody::Datalog
-        );
+            AdvancedBody::Datalog(_)
+        ));
         assert!(matches!(
             parse_advanced(&maps[1], today(), &formats).unwrap().query,
             AdvancedBody::Simple(_)
