@@ -17,7 +17,7 @@
 ## 4. Verification
 
 - [x] 4.1 Run the parser check on the fixtures, the docs graph and the encode garden after the change, and record the results in `verification.md`
-- [ ] 4.2 Run `mise run ci`
+- [x] 4.2 Run `mise run ci`
 
 ## Workflow follow-up
 
