@@ -536,7 +536,7 @@ fn long_episode(count: usize, title_words: usize) -> String {
 }
 
 #[test]
-fn episode_chapters_come_from_timestamped_headings_and_their_blocks_are_anchored() {
+fn episode_chapters_come_from_timestamped_headings_and_bullets_and_their_blocks_are_anchored() {
     let fixture = Fixture::with_episodes(":lsg/plugins [:podcast-episode]");
     fixture.write("pages/Show___Fixture Episode.md", FIXTURE_EPISODE);
     fixture.write("assets/plugins-episode-one.mp3", "ID3");
@@ -559,23 +559,29 @@ fn episode_chapters_come_from_timestamped_headings_and_their_blocks_are_anchored
         summary,
         [
             (0, "Opening", &Value::Null),
+            (5, "the first voice comes in", &Value::from(0)),
             (90, "The middle", &Value::Null),
+            (105, "a nested point", &Value::from(2)),
+            (130, "a deeper point", &Value::from(3)),
             (3723, "An hour in", &Value::Null),
         ]
     );
-    // Each chapter's anchor is on its heading's block, so the module can find the heading.
+    // Each chapter's anchor is on its block, so the module can find the block's timestamp.
     let html = page_html(&site, "Show/Fixture Episode");
-    for (chapter, heading) in
-        chapters
-            .iter()
-            .zip(["00:00 Opening", "01:30 The middle", "1:02:03 An hour in"])
-    {
+    for (chapter, text) in chapters.iter().zip([
+        "<h3>00:00 Opening</h3>",
+        "00:05 - the first voice comes in",
+        "<h3>01:30 The middle</h3>",
+        "01:45 - a nested point",
+        "02:10 - a deeper point",
+        "<h3>1:02:03 An hour in</h3>",
+    ]) {
         let anchor = chapter["anchor"].as_str().unwrap();
-        let tag = format!(
-            "<span id=\"{anchor}\"></span><a class=\"bullet\" href=\"#\"></a><h3>{heading}</h3>"
-        );
+        let tag = format!("<span id=\"{anchor}\"></span><a class=\"bullet\" href=\"#\"></a>{text}");
         assert_eq!(html.matches(&tag).count(), 1, "{tag}");
     }
+    // A timestamp later in a bullet stays text, and its block gains no anchor.
+    assert!(html.contains("<li><a class=\"bullet\" href=\"#\"></a>A second voice joins at 01:28"));
     // About as many timestamps as the largest GitP/A episode stay in one entry.
     let long = &page_metadata(&site, "Show/Long Episode")["plugins"]["podcast-episode"];
     let chapters = long["chapters"].as_array().unwrap();

@@ -3,7 +3,8 @@
 //! A page is an episode when its `logseq-entity::` value names [`EPISODE_TYPE`] (see
 //! [`crate::entity_types`]). Its recording is the first audio embed, `![label](url.mp3)`,
 //! among the descendants of the page's first heading block, and its title is that heading's
-//! text. Its chapters are the H3 to H6 headings that start with a timestamp ([`chapters`]).
+//! text. Its chapters are the H3 to H6 headings that start with a timestamp, and the bullets
+//! under its `## Chapters` heading that start with one ([`chapters`]).
 //!
 //! ```
 //! use logseq_gardener_sdk::podcast::recording;
@@ -67,29 +68,31 @@ pub fn recording(blocks: &[Block]) -> Option<Recording> {
     None
 }
 
-/// One chapter of an episode: an H3 to H6 heading whose text starts with a timestamp.
+/// One chapter of an episode: an H3 to H6 heading, or a bullet under `## Chapters`, whose text
+/// starts with a timestamp.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chapter {
-    /// Byte offset of the heading's bullet in the page source, which the renderer anchors as
+    /// Byte offset of the chapter's bullet in the page source, which the renderer anchors as
     /// `source-block-<offset>`.
     pub start: usize,
     /// Where the chapter starts in the recording.
     pub seconds: u32,
-    /// The heading's text after the timestamp and any dash that follows it.
+    /// The first line's text after the timestamp and any dash that follows it.
     pub title: String,
-    /// Index in the returned list of the nearest chapter among the heading's ancestors.
+    /// Index in the returned list of the nearest chapter among the bullet's ancestors.
     pub parent: Option<usize>,
 }
 
-/// The chapters of a page's outline in page order: each H3 to H6 heading whose text starts
-/// with a `M:SS`, `MM:SS` or `H:MM:SS` timestamp (see [`leading_timestamp`]). A timestamp
-/// later in the heading, or one inside code or emphasis, leaves the heading as text.
+/// The chapters of a page's outline in page order: each H3 to H6 heading, and each bullet at
+/// any depth under a `## Chapters` heading, whose text starts with a `M:SS`, `MM:SS` or
+/// `H:MM:SS` timestamp (see [`leading_timestamp`]). A timestamp later in the block, or one
+/// inside code or emphasis, leaves the block as text.
 ///
 /// ```
 /// use logseq_gardener_sdk::podcast::chapters;
 ///
 /// let parsed = lsdoc::parse_to_projection(
-///     "- # Episode\n\t- ### 18:17 Enter 8bitfi\n\t\t- #### 19:30 - Old warbling\n",
+///     "- # Episode\n\t- ## Chapters\n\t\t- ### 18:17 Enter 8bitfi\n\t\t\t- 19:30 - Old warbling\n",
 /// );
 /// let found = chapters(&parsed.blocks);
 /// assert_eq!(found[0].seconds, 1097);
@@ -101,33 +104,61 @@ pub fn chapters(blocks: &[Block]) -> Vec<Chapter> {
     let mut found = Vec::new();
     // The chapter each outline block opens, by outline index.
     let mut opened: Vec<Option<usize>> = Vec::with_capacity(outline.blocks.len());
+    // Whether each outline block is a descendant of a `## Chapters` heading, by outline index.
+    let mut listed: Vec<bool> = Vec::with_capacity(outline.blocks.len());
     for block in &outline.blocks {
-        let chapter = chapter_of(blocks, block).map(|(start, seconds, title)| {
-            let parent = std::iter::successors(block.parent, |&index| outline.blocks[index].parent)
-                .find_map(|index| opened[index]);
-            found.push(Chapter {
-                start,
-                seconds,
-                title,
-                parent,
-            });
-            found.len() - 1
+        let under_chapters = block.parent.is_some_and(|parent| {
+            listed[parent] || is_chapters_heading(blocks, &outline.blocks[parent])
         });
+        listed.push(under_chapters);
+        let candidate = under_chapters || matches!(block.heading, Some(3..=6));
+        let chapter = candidate.then(|| chapter_of(blocks, block)).flatten().map(
+            |(start, seconds, title)| {
+                let parent =
+                    std::iter::successors(block.parent, |&index| outline.blocks[index].parent)
+                        .find_map(|index| opened[index]);
+                found.push(Chapter {
+                    start,
+                    seconds,
+                    title,
+                    parent,
+                });
+                found.len() - 1
+            },
+        );
         opened.push(chapter);
     }
     found
 }
 
-/// `(start, seconds, title)` when `block` is an H3 to H6 heading led by a timestamp.
+/// Whether `block` is an H2 heading whose text is `Chapters`, ignoring case and surrounding
+/// whitespace.
+fn is_chapters_heading(blocks: &[Block], block: &crate::outline::OutlineBlock) -> bool {
+    if block.heading != Some(2) {
+        return false;
+    }
+    let Block::Bullet { inline, .. } = &blocks[block.index] else {
+        return false;
+    };
+    let mut text = String::new();
+    plain_text(inline, &mut text, 0);
+    text.trim().eq_ignore_ascii_case("Chapters")
+}
+
+/// `(start, seconds, title)` when the text of `block` starts with a timestamp.
 fn chapter_of(
     blocks: &[Block],
     block: &crate::outline::OutlineBlock,
 ) -> Option<(usize, u32, String)> {
-    if !matches!(block.heading, Some(3..=6)) {
-        return None;
-    }
     let start = block.start?;
-    let Block::Bullet { inline, .. } = &blocks[block.index] else {
+    // A task marker or a priority comes before the text, so the text does not start the block.
+    let Block::Bullet {
+        inline,
+        marker: None,
+        priority: None,
+        ..
+    } = &blocks[block.index]
+    else {
         return None;
     };
     let Some(Inline::Plain { text, .. }) = inline.first() else {
@@ -411,6 +442,37 @@ mod tests {
         let starts: std::collections::BTreeSet<_> = found.iter().map(|c| c.start).collect();
         assert_eq!(starts.len(), 3);
         assert_eq!(&page[found[2].start..found[2].start + 1], "-");
+    }
+
+    #[test]
+    fn timestamp_led_bullets_under_chapters_at_any_depth() {
+        let page = "- # Episode\n\t- ![r](https://example.com/r.mp3)\n\t- ## Chapters\n\t\t- ### 00:00 enter [[Microfreak/Preset/016 Voidom]]\n\t\t\t- #### 03:07 secondo strato\n\t\t\t\t- layer B enters while layer A loops.\n\t\t\t- [[My Notes]]\n\t\t\t\t- 05:15 - the bass comes in\n\t\t\t\t\t- 05:40 - and stays\n\t\t\t\t\t\t- 1:02:03 deeper than any heading\n\t\t- 18:17 — Let's try this 8bitfi lead, 260.\n";
+        assert_eq!(
+            chapters_of(page),
+            [
+                (0, "enter Microfreak/Preset/016 Voidom".to_owned(), None),
+                (187, "secondo strato".to_owned(), Some(0)),
+                (315, "the bass comes in".to_owned(), Some(0)),
+                (340, "and stays".to_owned(), Some(2)),
+                (3723, "deeper than any heading".to_owned(), Some(3)),
+                (1097, "Let's try this 8bitfi lead, 260.".to_owned(), None),
+            ]
+        );
+    }
+
+    #[test]
+    fn mid_text_code_and_task_bullets_under_chapters_are_text() {
+        let page = "- ## Chapters\n\t- ### 01:00 Opening\n\t\t- `05:15` in code\n\t\t- the second voice joins at 01:28\n\t\t- **05:15** emphasised\n\t\t- TODO 05:20 check the take\n\t\t- [#A] 05:25 with a priority\n\t\t- ~~~\n\t\t  05:30 in a code block\n\t\t  ~~~\n\t\t- 05:35pm is not a timestamp\n";
+        assert_eq!(chapters_of(page), [(60, "Opening".to_owned(), None)]);
+    }
+
+    #[test]
+    fn timestamp_led_bullets_outside_chapters_are_text() {
+        let page = "- # Episode\n\t- 00:10 under the title\n\t- ## Notes\n\t\t- 00:20 under another heading\n\t- ## Chapters\n\t\t- 00:30 listed\n\t- Chapters\n\t\t- 00:40 under a plain bullet named Chapters\n\t- ### Chapters\n\t\t- 00:50 under an H3 named Chapters\n- 01:00 at the top level\n";
+        assert_eq!(chapters_of(page), [(30, "listed".to_owned(), None)]);
+        // The heading text is matched ignoring case, and a `heading:: 2` property counts.
+        let property = "- chapters\n  heading:: 2\n\t- 00:30 listed\n";
+        assert_eq!(chapters_of(property), [(30, "listed".to_owned(), None)]);
     }
 
     #[test]

@@ -138,6 +138,24 @@ test('timestampLength finds the written timestamp only when it is the chapter st
   assert.equal(timestampLength('', 0), 0);
 });
 
+test('leadingText finds the text that starts a bullet or a heading block', async () => {
+  const { leadingText } = await loaded;
+  const text = (data) => ({ nodeType: 3, data });
+  const element = (tagName, firstChild = null) => ({ nodeType: 1, tagName, firstChild });
+  const item = (after) => ({ querySelector: () => (after === undefined ? null : { nextSibling: after }) });
+  const bullet = text('05:15 - the bass comes in');
+  assert.equal(leadingText(item(bullet)), bullet);
+  const heading = text('18:17 Enter 8bitfi');
+  assert.equal(leadingText(item(element('H3', heading))), heading);
+  assert.equal(leadingText(item(element('H1', heading))), heading);
+  // Code, emphasis or a task checkbox before the text leaves the block without a control.
+  assert.equal(leadingText(item(element('CODE', text('05:15')))), null);
+  assert.equal(leadingText(item(element('H3', element('CODE', text('05:15'))))), null);
+  assert.equal(leadingText(item(null)), null);
+  assert.equal(leadingText(item(undefined)), null);
+  assert.equal(leadingText(null), null);
+});
+
 test('the default export is a host API 1 plugin with the manifest id', async () => {
   const plugin = (await loaded).default;
   assert.equal(plugin.id, 'podcast-episode');
