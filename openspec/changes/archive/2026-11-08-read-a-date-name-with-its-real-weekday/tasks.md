@@ -18,7 +18,7 @@
 
 - [x] 4.1 Run the parser check on the fixtures, the docs graph and the encode garden before and after the change, and record the results in `verification.md`
 - [x] 4.2 Check a published page that links a date with a wrong weekday
-- [ ] 4.3 Run `mise run ci`
+- [x] 4.3 Run `mise run ci`
 
 ## Workflow follow-up
 
