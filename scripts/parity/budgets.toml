@@ -292,7 +292,6 @@ page_growth_gzip_kb = 4
 phone_heap_growth_mb = 1
 build_ms_per_page = 0.05
 
-# sequence-header ships with #490; its rows are set now so both plugins are measured the same way.
 [plugins.sequence-header]
 script_styles_gzip_kb = 1.5
 page_growth_gzip_kb = 0.5

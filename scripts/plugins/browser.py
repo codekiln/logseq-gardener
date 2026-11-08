@@ -14,7 +14,10 @@ that turns on the first-party podcast-episode plugin in its config.edn and check
 without an episode requests no plugin code, that the recording keeps playing across navigation and
 Back, that another episode takes over only when started, that chapter headings, timestamp-led
 bullets under `## Chapters` and dialogue timestamps seek the player, which shows the chapter
-trail, and that a page whose module fails keeps its own recording. Prints one JSON line of results;
+trail, and that a page whose module fails keeps its own recording. A third garden turns on
+sequence-header: the header shows a page's previous and next links, keyboard focus reaches them, a
+phone shows arrows alone, the links follow navigation and Back, and a page outside the sequence
+requests no plugin code. Prints one JSON line of results;
 --screenshots DIR also saves the recording playing on each page.
 """
 import argparse
@@ -330,6 +333,122 @@ def title(page):
     return page.locator('main h1').first.inner_text()
 
 
+SEQUENCE_PAGES = {
+    'Seq___One.md': 'next:: [[Seq/Two]]\n\n- The first page. [[Seq/Plain]]\n',
+    'Seq___Two.md': 'prev:: [[Seq/One]]\nnext:: [[Seq/Three]]\n\n- The second page. [[Seq/Plain]]\n',
+    'Seq___Three.md': 'title:: Seq/Three & <b>bold</b>\nalias:: [[Seq/Three]]\nprev:: [[Seq/Two]]\n\n- The last page.\n',
+    'Seq___Plain.md': '- A page outside the sequence. [[Seq/Two]]\n',
+}
+
+
+def build_sequence(binary, temp):
+    """A garden that turns on sequence-header in its config.edn, published to temp/site-sequence."""
+    garden = temp / 'sequence'
+    (garden / 'pages').mkdir(parents=True)
+    (garden / 'logseq').mkdir()
+    (garden / 'logseq' / 'config.edn').write_text(
+        '{:publishing/all-pages-public? true :lsg/plugins [:sequence-header]}\n', encoding='utf-8')
+    for name, text in SEQUENCE_PAGES.items():
+        (garden / 'pages' / name).write_text(text, encoding='utf-8')
+    output = temp / 'site-sequence'
+    subprocess.run([str(binary), 'publish', '--graph', str(garden), '--output', str(output),
+                    '--filename-format', 'triple-lowbar', '--include', 'Seq'],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return output
+
+
+def header_links(page):
+    return page.evaluate('''() => [...document.querySelectorAll('.lsg-header .lsg-sequence')].map((a) => ({
+      rel: a.getAttribute('rel'), href: a.getAttribute('href'), label: a.getAttribute('aria-label'),
+      title: a.querySelector('.lsg-sequence-title').textContent, markup: a.querySelectorAll('b').length,
+      width: Math.round(a.getBoundingClientRect().width),
+      shown: getComputedStyle(a.querySelector('.lsg-sequence-title')).clipPath === 'none',
+      side: a.compareDocumentPosition(document.querySelector('.lsg-header-space')) & Node.DOCUMENT_POSITION_FOLLOWING ? 'before' : 'after' }))''')
+
+
+def check_sequence_header(browser, site, prefix, screenshots, results):
+    """The first-party sequence-header plugin: header links, keyboard focus, narrow screens and navigation."""
+    one, two, three, plain = (route(t) for t in ('Seq/One', 'Seq/Two', 'Seq/Three & <b>bold</b>', 'Seq/Plain'))
+    module = 'plugins/sequence-header/sequence-header.mjs'
+    loaded = "performance.getEntriesByType('resource').some((r) => r.name.includes('lsg-host-'))"
+
+    # A page outside the sequence, opened directly, requests no plugin file and shows no links.
+    context = browser.new_context()
+    page = context.new_page()
+    requests = []
+    page.on('request', lambda request: requests.append(request.url))
+    page.goto(prefix + plain, wait_until='load')
+    page.wait_for_function(loaded)
+    page.wait_for_timeout(300)
+    assert not [u for u in requests if '/plugins/sequence-header/' in u], requests
+    assert header_links(page) == []
+    context.close()
+    results['sequence_no_plugin_request_without_entry'] = True
+
+    context = browser.new_context(viewport={'width': 1280, 'height': 800})
+    page = context.new_page()
+    errors, requests = [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: requests.append(request.url))
+    page.goto(prefix + two, wait_until='load')
+    page.wait_for_function("document.querySelectorAll('.lsg-header .lsg-sequence').length === 2")
+    links = header_links(page)
+    assert [(l['rel'], l['href'].rsplit('/', 1)[-1], l['title'], l['side']) for l in links] == [
+        ('prev', one, 'Seq/One', 'before'), ('next', three, 'Seq/Three & <b>bold</b>', 'after')], links
+    assert links[1]['label'] == 'Next: Seq/Three & <b>bold</b>' and links[1]['markup'] == 0, links
+    assert all(l['shown'] for l in links), links
+    results['sequence_both_links'] = [l['title'] for l in links]
+
+    # Keyboard focus reaches each link and shows the focus ring.
+    focused = set()
+    for _ in range(20):
+        page.keyboard.press('Tab')
+        state = page.evaluate('''() => { const a = document.activeElement;
+          return a?.matches('.lsg-sequence') ? [a.rel, a.matches(':focus-visible'), getComputedStyle(a).outlineStyle] : null; }''')
+        if state:
+            assert state[1] and state[2] == 'solid', state
+            focused.add(state[0])
+        if focused == {'prev', 'next'}:
+            break
+    assert focused == {'prev', 'next'}, focused
+    results['sequence_keyboard_focus'] = sorted(focused)
+    if screenshots:
+        screenshots.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(screenshots / 'sequence-1-both-links.png'))
+
+    # Following a link to a page outside the sequence removes the links; Back brings them back.
+    follow(page, plain)
+    assert title(page) == 'Seq/Plain'
+    assert header_links(page) == []
+    page.go_back()
+    page.wait_for_function("document.querySelector('main h1')?.textContent === 'Seq/Two'")
+    page.wait_for_function("document.querySelectorAll('.lsg-header .lsg-sequence').length === 2")
+    assert [l['rel'] for l in header_links(page)] == ['prev', 'next']
+    results['sequence_navigation_and_back'] = True
+
+    # The last page shows only its previous link.
+    follow(page, three)
+    links = header_links(page)
+    assert [(l['rel'], l['href'].rsplit('/', 1)[-1]) for l in links] == [('prev', two)], links
+    assert len([u for u in requests if u.endswith(module)]) == 1, requests
+    assert not errors, errors
+    results['sequence_one_link'] = True
+    context.close()
+
+    # On a phone, each link is its arrow alone and the header does not overflow.
+    context = browser.new_context(viewport={'width': 375, 'height': 812})
+    page = context.new_page()
+    page.goto(prefix + two, wait_until='load')
+    page.wait_for_function("document.querySelectorAll('.lsg-header .lsg-sequence').length === 2")
+    links = header_links(page)
+    assert all(l['width'] == 36 and not l['shown'] for l in links), links
+    assert page.evaluate("(() => { const h = document.querySelector('.lsg-header'); return h.scrollWidth <= h.clientWidth; })()")
+    if screenshots:
+        page.screenshot(path=str(screenshots / 'sequence-2-phone.png'))
+    context.close()
+    results['sequence_phone_arrows'] = True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', default=str(REPO / 'target' / 'debug' / 'lsg'))
@@ -341,6 +460,7 @@ def main():
         site = build(args.binary, temp, ['recorder', 'badge', 'probe', 'broken', 'mismatch'])
         plain = build(args.binary, temp, [])
         episodes = build_episodes(args.binary, temp)
+        sequence = build_sequence(args.binary, temp)
         server, base = serve(temp)
         one, two, three, plain_page = (route(f'Episode/{n}') for n in ('One', 'Two', 'Three', 'Plain'))
         prefix = f'{base}/{site.name}/'
@@ -529,6 +649,7 @@ def main():
                 assert not errors, errors
                 context.close()
                 check_podcast_episode(browser, episodes, f'{base}/{episodes.name}/', args.screenshots, results)
+                check_sequence_header(browser, sequence, f'{base}/{sequence.name}/', args.screenshots, results)
                 browser.close()
         finally:
             server.shutdown()

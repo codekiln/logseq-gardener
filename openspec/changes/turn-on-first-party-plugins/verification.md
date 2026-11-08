@@ -1,6 +1,6 @@
 # Verification
 
-This file records the evidence for the tasks of #487 and #488. The tasks of #489 and #490, and the change-wide Verify step (6.1 to 6.3), add their own sections when they land.
+This file records the evidence for the tasks of #487 to #490. The change-wide Verify step (6.1 to 6.3) adds its own section when it lands.
 
 ## 1.10 Logseq ignores the key
 
@@ -91,3 +91,31 @@ Three episodes gained chapters. Their growth over main with the key on:
 `18-Sun` gains 125 chapters from its spoken-word lines, as the design's risk on spoken-word lines expects. Its chapter titles held whole transcript lines and grew the page by 11 KB gzip, so the entry cuts each title to 48 characters at a space; the page keeps the full text. Every other file of the encode garden's `GitP` namespace is the same as main's apart from the build revision.
 
 `mise run parity:budgets` passed: the module and stylesheet are 4,906 bytes gzip (budget 8,000), the 120-chapter Long Episode entry is 14,137 bytes, and its page grows by 1,856 bytes gzip (budget 4,000).
+
+## 5.3 sequence-header in Chromium and in the budgets
+
+`mise run plugins:browser-test` passed with the new sequence-header scenarios: a page outside the sequence requests no file under `plugins/sequence-header/` and shows no links; a page with both neighbours shows a Previous link before the header's spacer and a Next link after it, with `rel`, the page titles and the title `Seq/Three & <b>bold</b>` shown as text; Tab reaches both links with a visible outline; following a link to a page without an entry removes the links and Back brings them back; the last page shows only its Previous link; the module is requested once; on a 375-pixel phone each link is a 36-pixel arrow and the header does not overflow.
+
+`mise run parity:budgets` passed:
+
+| Row | Measured | Budget |
+| --- | --- | --- |
+| `sequence-header` script and styles | 1,465 gzip | 1,500 |
+| Largest page growth (`Tools/Plugins/Show/Episode One`, both plugins' entries) | 282 gzip | 500 |
+| Fixture pages with an entry | `Episode One` and `Episode Two`, the two pages whose neighbours are published | |
+
+## sequence-header on both gardens
+
+The branch's `lsg` built the `GitP` namespace of logseq-encode-garden (`66b81e9543`) and of gitpa's `gitp-garden` (`410f4d9`), each from a copy whose `logseq/config.edn` adds `:lsg/plugins [:podcast-episode :sequence-header]`, with readable URLs, on 2026-11-08. Gitpa's site today was built with its own `scripts/build_site.py` and its pinned `lsg` 0.0.29, which draws the header links with `site/header-sequence.js`. Chromium read the header links on the desktop (1280×800) and phone (375×812) profiles, served locally.
+
+| Page | Encode garden | Gitpa's copy | Gitpa's site today |
+| --- | --- | --- | --- |
+| `GitP/A/Session/26/11/01-Sun` | Previous `26/10/29-Thu` | the same | the same |
+| `GitP/A/Session/26/10/29-Thu` | Previous `26/10/26-Mon` | the same | the same |
+| `GitP/A/Session/26/10/24-Sat` | Previous `26/10/22-Thu`, Next `26/10/26-Mon` | the same | the same |
+| `GitP/A/Session/26/10/20-Tue` | Previous `26/10/18-Sun`, Next `26/10/22-Thu` | the same | the same |
+| `GitP/A/Session/26/09/24-Thu` | Previous `26/09/25-Fri`, Next `24/11/19-Tue` | the same | the same |
+| `GitP/A`, `GitP/A/Session`, the asset page `26/10/24-Sat/Asset/Audio/Full/mp3` | no links, no plugin request | the same | no links |
+| Homepage (journals; `Ghost in the Patch`) | no links, no plugin request | the same | no links |
+
+Each link has the same width as gitpa's on the desktop (for example 236 and 241 pixels on `24-Sat`) and is a 36-pixel arrow on the phone, where the title is visually hidden, as on gitpa. No header overflowed and no page raised an error. On both `lsg` builds, following a link from `24-Sat` to `GitP/A` removed the links and Back showed `24-Sat`'s two links again.

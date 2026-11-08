@@ -25,7 +25,8 @@ use serde_json::{Map, Value};
 use crate::contributions::{BuildPlugin, Contribution, METADATA_LIMIT};
 use crate::entity_types::has_entity_type;
 use crate::garden::GardenDocument;
-use crate::page_names::lookup_key;
+use crate::page_names::{PageNameIndex, lookup_key};
+use crate::page_sequence::{Direction, neighbour};
 use crate::plugins::{PluginFile, PluginManifest, PluginSource, check_manifest, check_relative};
 use crate::publication::PluginView;
 
@@ -35,6 +36,9 @@ pub enum FirstParty {
     /// `podcast-episode`: a player that keeps an episode's recording playing across pages, and
     /// chapter headings, timestamp-led chapter bullets and dialogue lines that seek it.
     PodcastEpisode,
+    /// `sequence-header`: the previous and next pages that `prev::` and `next::` name, as links
+    /// in the header.
+    SequenceHeader,
 }
 
 /// One file of a plugin's folder, compiled in.
@@ -59,15 +63,23 @@ const PODCAST_EPISODE: &[Embedded] = embedded!(
     "podcast-episode.css"
 );
 
+const SEQUENCE_HEADER: &[Embedded] = embedded!(
+    "sequence-header",
+    "lsg-plugin.json",
+    "sequence-header.mjs",
+    "sequence-header.css"
+);
+
 impl FirstParty {
     /// Every first-party plugin, in id order.
-    pub const ALL: [Self; 1] = [Self::PodcastEpisode];
+    pub const ALL: [Self; 2] = [Self::PodcastEpisode, Self::SequenceHeader];
 
     /// The plugin's id, which is also its `:lsg/plugins` keyword without the colon.
     #[must_use]
     pub fn id(self) -> &'static str {
         match self {
             Self::PodcastEpisode => "podcast-episode",
+            Self::SequenceHeader => "sequence-header",
         }
     }
 
@@ -84,12 +96,16 @@ impl FirstParty {
             Self::PodcastEpisode => {
                 "keeps a podcast episode's recording playing across pages; chapter timestamps and dialogue timestamps seek it"
             }
+            Self::SequenceHeader => {
+                "shows the previous and next pages that prev:: and next:: name as links in the header"
+            }
         }
     }
 
     fn files(self) -> &'static [Embedded] {
         match self {
             Self::PodcastEpisode => PODCAST_EPISODE,
+            Self::SequenceHeader => SEQUENCE_HEADER,
         }
     }
 
@@ -141,6 +157,7 @@ impl FirstParty {
     pub fn build_step(self, inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
         match self {
             Self::PodcastEpisode => podcast_episode(inputs),
+            Self::SequenceHeader => sequence_header(inputs),
         }
     }
 }
@@ -150,6 +167,12 @@ impl FirstParty {
 pub struct FirstPartyInputs<'a> {
     /// Every published page and journal as `(title, route, document)`.
     pub pages: &'a [(String, String, &'a GardenDocument)],
+    /// The published pages by title and alias, each found as its route.
+    pub names: &'a PageNameIndex<String>,
+    /// Each published route's page title.
+    pub routes: &'a BTreeMap<String, String>,
+    /// The lower-case property names the garden hides with `:block-hidden-properties`.
+    pub hidden_properties: &'a [String],
     /// The identity a written page name or alias selects, compared to match entity types.
     pub resolve: &'a dyn Fn(&str) -> String,
     /// The published URL, relative to the site root, of a local asset that a document links
@@ -264,6 +287,44 @@ fn podcast_episode(inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
         }),
         diagnostics,
         anchors,
+    }
+}
+
+/// `sequence-header`: each published page with a published neighbour under the
+/// [`crate::page_sequence`] rules gets `prev` and `next`, each `{url, title}` with a URL relative
+/// to the site root, for the neighbours it has. A direction the garden hides with
+/// `:block-hidden-properties` gives no link, as it gives none in the Page sequence region.
+fn sequence_header(inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
+    let entries = inputs
+        .pages
+        .iter()
+        .filter_map(|(title, route, document)| {
+            let values: Map<String, Value> = Direction::ALL
+                .into_iter()
+                .filter(|direction| {
+                    !inputs
+                        .hidden_properties
+                        .iter()
+                        .any(|key| key == direction.key())
+                })
+                .filter_map(|direction| {
+                    let found = neighbour(document, direction, route, inputs.names, inputs.routes)?;
+                    Some((
+                        direction.key().to_owned(),
+                        serde_json::json!({"url": found.route, "title": found.title}),
+                    ))
+                })
+                .collect();
+            (!values.is_empty()).then(|| (lookup_key(title), values))
+        })
+        .collect();
+    FirstPartyStep {
+        plugin: Arc::new(PreparedMetadata {
+            id: FirstParty::SequenceHeader.id(),
+            entries,
+        }),
+        diagnostics: Vec::new(),
+        anchors: BTreeMap::new(),
     }
 }
 

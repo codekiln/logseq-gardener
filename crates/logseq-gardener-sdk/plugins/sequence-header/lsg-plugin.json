@@ -1,0 +1,7 @@
+{
+  "id": "sequence-header",
+  "apiVersion": 1,
+  "module": "sequence-header.mjs",
+  "styles": ["sequence-header.css"],
+  "activation": "on-demand"
+}

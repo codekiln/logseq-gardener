@@ -5,7 +5,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 	- ## Overview
 		- `lsg` ships plugins inside its binary. A garden turns them on with one top-level key in its own `logseq/config.edn`, so every site that turns a plugin on runs the same code at the same `lsg` version. Logseq ignores the key.
 		- ~~~clojure
-		  :lsg/plugins [:podcast-episode]
+		  :lsg/plugins [:podcast-episode :sequence-header]
 		  ~~~
 		- A garden without the key, or with `:lsg/plugins []`, builds the same site as an `lsg` without these plugins: no page carries plugin metadata and no page loads plugin code.
 		- The key is the only switch. `lsg publish` has no flag for first-party plugins, and Rust callers of `publish_site_with_options` get the plugins the key names.
@@ -18,7 +18,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 			- an entry repeats a name;
 			- a `--plugin` manifest, or a Rust build plugin, has the id of a turned-on first-party plugin.
 		- ~~~text
-		  logseq/config.edn: :lsg/plugins names :podcast-epsiode, which lsg 0.0.38 does not ship. It ships :podcast-episode.
+		  logseq/config.edn: :lsg/plugins names :podcast-epsiode, which lsg 0.0.39 does not ship. It ships :podcast-episode and :sequence-header.
 		  ~~~
 		- The same key inside a nested map has no effect.
 	- ## What a turned-on plugin adds
@@ -61,5 +61,27 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 			- When the module is absent or fails, the page shows its own `<audio>` element, chapter timestamps stay text and dialogue timestamps seek the page's recording, as without the plugin.
 		- ### Budget
 			- The `[plugins.podcast-episode]` table of [`scripts/parity/budgets.toml`](https://github.com/codekiln/logseq-gardener/blob/main/scripts/parity/budgets.toml): at most 8 KB gzip of module and stylesheet, 4 KB gzip of added page size on the largest fixture episode, 1 MB of added phone heap after playing across 20 navigations, and 0.05 ms of added build time per published page. `mise run parity:budgets` and `mise run parity:build-bench` check the size and build rows in CI.
+	- ## sequence-header
+		- Links to the previous and next pages in the header, beside the spacer, for a page whose `prev::` or `next::` names a published page.
+		- ### Pages it applies to
+			- A published page with at least one published neighbour. A neighbour comes from the page's last leading `prev::` or `next::` property, in any case, whose whole value is one page reference:
+			- ~~~markdown
+			  prev:: [[GitP/A/Session/26/10/22-Thu]]
+			  next:: [[GitP/A/Session/26/10/26-Mon]]
+			  ~~~
+			- The reference must resolve, through titles and aliases, to exactly one published page other than the page itself. A private, excluded, missing or ambiguous target, or the page itself, gives no link and its title and URL reach no generated file.
+			- These are the same rules the Page sequence region at the bottom of a page follows, so the header and the region always name the same pages. A direction the garden hides with `:block-hidden-properties`, such as `#{:next}`, gives no header link, as it gives no link in the region. The plugin leaves the region and the property rows as they are, and it works with `:publishing/page-sequence? false`, which turns only the region off.
+		- ### Entry
+			- | Key | Value |
+			  | --- | --- |
+			  | `prev` | `{url, title}` of the previous page: its published path relative to the site root and its page title. Left out without a previous page. |
+			  | `next` | `{url, title}` of the next page, in the same form. Left out without a next page. |
+		- ### In the browser
+			- The module puts a Previous link with a left arrow before the header's spacer and a Next link with a right arrow after it. Each link has `rel="prev"` or `rel="next"`, shows the page title, and has the accessible name `Previous: <title>` or `Next: <title>`. A long title ends in an ellipsis, and keyboard focus shows an outline.
+			- Below 640 pixels wide, each link shows its arrow alone; the title stays in the accessible name.
+			- After each navigation the module replaces the links with those of the new page, or removes them when the page has no entry. Back shows the earlier page's links again.
+			- When the module is absent or fails, the header has no sequence links and the Page sequence region at the bottom of the page still links both neighbours.
+		- ### Budget
+			- The `[plugins.sequence-header]` table of [`scripts/parity/budgets.toml`](https://github.com/codekiln/logseq-gardener/blob/main/scripts/parity/budgets.toml): at most 1.5 KB gzip of module and stylesheet, 0.5 KB gzip of added page size, 0.2 MB of added phone heap, and 0.05 ms of added build time per published page.
 	- ## Budget rows for every first-party plugin
 		- Each first-party plugin has a `[plugins.<id>]` table in `scripts/parity/budgets.toml` with `script_styles_gzip_kb`, `page_growth_gzip_kb`, `phone_heap_growth_mb` and `build_ms_per_page`; `mise run test` fails when a shipped plugin lacks one. With any first-party plugin on, a page without a plugin entry grows by at most `page_overhead_gzip_kb` of the `[plugins]` table, and the size plugins add to a page stays the same when the garden gains 2,000 pages (`garden_growth_kb`).
