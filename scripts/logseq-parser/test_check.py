@@ -8,19 +8,14 @@ HERE = Path(__file__).resolve().parent
 
 
 class PropertyNameReferenceFixture(unittest.TestCase):
-    def test_check_names_the_file_and_the_page(self):
+    def test_check_passes_when_a_block_writes_a_property_name_and_a_reference_in_another_case(self):
         # fixtures/property-name-reference holds Notes.md, whose block references [[Gadget]]
-        # and has the property gadget::. Logseq spells the page with the property name, gadget,
-        # and lists one reference, while the SDK spells it Gadget and lists both. Issue #521
-        # tracks the difference.
+        # and has the property gadget::. Logseq and the SDK both spell the page with the
+        # property name, gadget. The other files vary the order of the blocks and the case
+        # of the property name (issue #521).
         result = subprocess.run([sys.executable, HERE / 'check.py', HERE / 'fixtures' / 'property-name-reference'],
                                 capture_output=True, text=True)
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        lines = result.stdout.splitlines()
-        self.assertEqual(lines[1:], [
-            'pages/Notes.md: page without a file "gadget" title: Logseq reads "gadget", the SDK reads "Gadget"',
-            'pages/Notes.md:1: page reference "gadget": the SDK reads it, Logseq does not',
-        ])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class AliasSpellingReferenceFixture(unittest.TestCase):
