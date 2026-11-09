@@ -28,7 +28,7 @@ see-also:: [[lsg/How To/Install with mise]], [[lsg/How To/Build from Source]], [
 			- If the hash differs from the checksum, delete the archive and download it again.
 		- ### 3. Extract the archive
 			- On macOS or Linux, run `tar -xf` with the archive's name, such as `tar -xf logseq-gardener-aarch64-apple-darwin.tar.xz`. In PowerShell, run `Expand-Archive logseq-gardener-x86_64-pc-windows-msvc.zip`.
-			- The folder it creates has the archive's name. It holds `lsg` (`lsg.exe` on Windows), the license text, the third-party notices, the README, the changelog and the documentation in `docs`.
+			- The folder it creates has the archive's name. It holds `lsg` (`lsg.exe` on Windows), the license text, the third-party notices, the README, the changelog and the documentation in `logseq-gardener-docs`.
 		- ### 4. Put lsg on your PATH
 			- Move `lsg` into a folder on your PATH, such as `~/.local/bin`, and run `lsg version`.
 			- If you give copies of `lsg` to others, keep the license and notice files with it. [[lsg/Ref/Release Archives]] describes what each archive holds and how releases are built.

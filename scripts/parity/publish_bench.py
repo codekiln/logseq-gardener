@@ -11,7 +11,7 @@ A row records the lsg commit, the corpus and its digest or commit, the machine, 
 times, the phase times of the fastest warm build, peak memory, and the output's size with the size
 of each part: page HTML at the site root, `_refs/`, `assets/`, search files, `_graph/` and everything
 else. `--check` compares the fastest warm build with the recorded rows for the same corpus; the CI
-check on lsg/Ref/Publication Speed (docs/pages/lsg___Ref___Publication Speed.md) says how the limit
+check on lsg/Ref/Publication Speed (logseq-gardener-docs/pages/lsg___Ref___Publication Speed.md) says how the limit
 is chosen. For the encode garden, `--check` also fails when the site, its page HTML or `_refs/`
 exceeds its budget in the [site] table of budgets.toml, or when its search shards together exceed
 `shards_total_gzip_mb` in the [search] table, or the build's peak memory exceeds its budget in the

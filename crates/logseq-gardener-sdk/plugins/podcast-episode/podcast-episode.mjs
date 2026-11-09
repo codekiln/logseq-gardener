@@ -6,7 +6,7 @@
 // it. The timestamp of each chapter (a heading, or a bullet under `## Chapters`) and each dialogue
 // timestamp (`lsg:media-seek`) seek the player, which shows the current chapter and the chapters
 // that enclose it. lsg/Ref/First-Party Plugins, in
-// docs/pages/lsg___Ref___First-Party Plugins.md, documents the plugin.
+// logseq-gardener-docs/pages/lsg___Ref___First-Party Plugins.md, documents the plugin.
 
 /** `value` as an absolute URL without its fragment, or null. */
 export function recordingURL(value, base) {

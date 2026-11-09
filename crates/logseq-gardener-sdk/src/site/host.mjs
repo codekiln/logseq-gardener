@@ -2,7 +2,7 @@
 // first paint. It loads plugins, owns same-document navigation and calls plugins in this order:
 // prepare the next page, abort the old page's signal, swap <main>, run lsg's page initializers,
 // notify plugins, then reveal the fragment. lsg/Ref/Plugin Host API, in
-// docs/pages/lsg___Ref___Plugin Host API.md, documents the API.
+// logseq-gardener-docs/pages/lsg___Ref___Plugin Host API.md, documents the API.
 // The build trims each line and drops comment lines, so end every statement with a semicolon.
 const PLUGINS = __LSG_PLUGINS__;
 const doc = document;

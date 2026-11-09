@@ -2,7 +2,7 @@
 # private key in GitHub Actions. The values stay in 1Password; this file holds
 # references only. Workflows read the Actions secrets, never this file.
 # Rotation steps: lsg/How To/Rotate the Release App Key
-# (docs/pages/lsg___How To___Rotate the Release App Key.md)
+# (logseq-gardener-docs/pages/lsg___How To___Rotate the Release App Key.md)
 [providers.release-vault]
 type = "1password"
 vault = "codekiln"

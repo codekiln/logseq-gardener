@@ -3,4 +3,4 @@
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
 python3 -m unittest discover -s scripts/logseq-parser -p 'test_*.py'
-python3 scripts/logseq-parser/check.py docs
+python3 scripts/logseq-parser/check.py logseq-gardener-docs

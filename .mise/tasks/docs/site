@@ -9,7 +9,7 @@ if [ -z "$output" ]; then
 fi
 cargo build --locked --release --bin lsg
 # lsg prints each diagnostic on stderr as it publishes; the JSON report goes to stdout.
-report="$("${CARGO_TARGET_DIR:-target}/release/lsg" publish --graph docs --output "$output" \
+report="$("${CARGO_TARGET_DIR:-target}/release/lsg" publish --graph logseq-gardener-docs --output "$output" \
   --filename-format triple-lowbar --include lsg --include Diataxis \
   --homepage lsg --search --readable-urls --format json)"
 printf '%s\n' "$report"

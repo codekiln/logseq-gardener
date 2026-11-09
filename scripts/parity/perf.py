@@ -33,7 +33,7 @@ import serve  # noqa: E402
 QUERIES = Path(__file__).resolve().parent / 'search-queries.txt'
 # The lsg/Ref/Logseq Compatibility/Performance page, Logseq outline Markdown that --record writes:
 # page properties, the title block, its summary block, then one heading block per section.
-PERFORMANCE_PAGE = common.REPO / 'docs' / 'pages' / 'lsg___Ref___Logseq Compatibility___Performance.md'
+PERFORMANCE_PAGE = common.REPO / 'logseq-gardener-docs' / 'pages' / 'lsg___Ref___Logseq Compatibility___Performance.md'
 PAGE_HEAD = [
     'tags:: [[Diataxis/Reference]]',
     'see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]], '
@@ -2572,7 +2572,7 @@ def main():
     parser.add_argument('--search-queries', type=Path, default=QUERIES, help='Query fixture list for search measurements')
     parser.add_argument('--record', action='store_true',
                         help='rewrite the lsg/Ref/Logseq Compatibility/Performance page, '
-                             'docs/pages/lsg___Ref___Logseq Compatibility___Performance.md; with --search-site, '
+                             'logseq-gardener-docs/pages/lsg___Ref___Logseq Compatibility___Performance.md; with --search-site, '
                              'its search sections and docs/parity/search-performance.json')
     parser.add_argument('--graph', action='store_true',
                         help="measure only the graph view and Page graph in the run's site; with --record, "

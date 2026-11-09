@@ -1,4 +1,4 @@
-// lsg first-party plugin sequence-header (docs/pages/lsg___Ref___First-Party Plugins.md): header
+// lsg first-party plugin sequence-header (logseq-gardener-docs/pages/lsg___Ref___First-Party Plugins.md): header
 // links to the pages `prev::` and `next::` name. The entry holds `prev` and `next`, each
 // `{url, title}`. [key, label, arrow]; the previous link goes before the spacer, next after.
 const SIDES = [

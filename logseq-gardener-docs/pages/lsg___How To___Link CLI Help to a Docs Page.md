@@ -7,7 +7,7 @@ see-also:: [[lsg/How To/Review Help Examples]], [[lsg/How To/Edit the Documentat
 		- `mise run docs:check` fails when help links a URL that the built site does not have, so a renamed or missing page shows up in CI.
 	- ## Prerequisites
 		- A checkout of [codekiln/logseq-gardener](https://github.com/codekiln/logseq-gardener) with its tools installed by `mise install`.
-		- The page you want to link, in `docs/pages/`. [[lsg/How To/Edit the Documentation]] shows how to write one.
+		- The page you want to link, in `logseq-gardener-docs/pages/`. [[lsg/How To/Edit the Documentation]] shows how to write one.
 	- ## Steps
 		- ### 1. Choose the page
 			- Pick the page that holds the detail the help section leaves out, and copy its title exactly, such as `lsg/Ref/Rendering and Assets`. The title decides the URL.

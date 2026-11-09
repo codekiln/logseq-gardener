@@ -54,7 +54,7 @@ Decided by the agent without codekiln: the homepage episode list is an `lsg` cor
 
 ## Where plugins live and how a garden turns one on
 
-Decided by the agent without codekiln: first-party plugins live in the logseq-gardener repository, ship inside the `lsg` binary, and use the same manifest and host contract as any other plugin ([Plugin Host API](https://github.com/codekiln/logseq-gardener/blob/main/docs/pages/lsg___Ref___Plugin%20Host%20API.md), [Build Plugin Protocol](https://github.com/codekiln/logseq-gardener/blob/main/docs/pages/lsg___Ref___Build%20Plugin%20Protocol.md)). Each release tests them against its own host, so a site cannot pair a plugin with a host version it was never tested with. Both sites get a plugin fix by moving their pin.
+Decided by the agent without codekiln: first-party plugins live in the logseq-gardener repository, ship inside the `lsg` binary, and use the same manifest and host contract as any other plugin ([Plugin Host API](https://github.com/codekiln/logseq-gardener/blob/main/logseq-gardener-docs/pages/lsg___Ref___Plugin%20Host%20API.md), [Build Plugin Protocol](https://github.com/codekiln/logseq-gardener/blob/main/logseq-gardener-docs/pages/lsg___Ref___Build%20Plugin%20Protocol.md)). Each release tests them against its own host, so a site cannot pair a plugin with a host version it was never tested with. Both sites get a plugin fix by moving their pin.
 
 A garden turns plugins on in `logseq/config.edn`, where `lsg` already reads its own keys such as `:publishing/page-sequence?`:
 

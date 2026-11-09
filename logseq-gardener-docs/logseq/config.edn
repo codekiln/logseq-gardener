@@ -10,6 +10,4 @@
              "lsg/How To/Publish a Garden to GitHub Pages"
              "lsg/Ref/Command Line"
              "lsg/Ref/Logseq Compatibility"]
- :hidden ["/parity/advanced-queries.md"
-          "/parity/gitp-a-shared-rendering.md"
-          "/parity/reference-only-pages.md"]}
+ :hidden []}

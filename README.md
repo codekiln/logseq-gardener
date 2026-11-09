@@ -54,7 +54,7 @@ To find the file that holds a page, by the page's title, alias or journal date, 
 
 ## Documentation
 
-The [documentation site](https://codekiln.github.io/logseq-gardener/) holds every guide and reference page. The `docs` folder of this repository holds the same pages as a Logseq graph, which you can open in Logseq.
+The [documentation site](https://codekiln.github.io/logseq-gardener/) holds every guide and reference page. The `logseq-gardener-docs` folder of this repository holds the same pages as a Logseq graph, which you can open in Logseq.
 
 - [Command Line](https://codekiln.github.io/logseq-gardener/lsg/Ref/Command%20Line/) lists the commands, their JSON output and their exit codes.
 - [Architecture](https://codekiln.github.io/logseq-gardener/lsg/Architecture/) explains how the Rust SDK and the command line divide the work.

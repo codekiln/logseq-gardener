@@ -50,7 +50,7 @@ import serve  # noqa: E402
 PINS = HERE / 'logseq-export'
 SOURCE = json.loads((PINS / 'source.json').read_text(encoding='utf-8'))
 FRONTEND = SOURCE['frontend']
-DOCS = common.REPO / 'docs'
+DOCS = common.REPO / 'logseq-gardener-docs'
 # The options .mise/tasks/docs/site passes for the docs graph.
 DOCS_OPTIONS = ['--filename-format', 'triple-lowbar', '--include', 'lsg', '--include', 'Diataxis',
                 '--homepage', 'lsg', '--search', '--readable-urls']

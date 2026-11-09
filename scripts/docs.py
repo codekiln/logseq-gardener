@@ -9,7 +9,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-DOCS = Path('docs')
+DOCS = Path('logseq-gardener-docs')
+# Markdown documents outside the graph, such as the parity reports, whose local links docs:check also checks.
+OTHER_DOCS = Path('docs')
 CONFIG = DOCS / 'logseq' / 'config.edn'
 # The kind index pages, which carry no kind tag of their own.
 KIND_PAGES = {'diataxis', 'diataxis/how to', 'diataxis/tutorial', 'diataxis/reference', 'diataxis/explanation'}
@@ -24,7 +26,7 @@ CHANGES_MACHINE = re.compile(r'\b(?:mise\s+(?:use|install|trust)|cargo\s+install
 
 
 def old_documents():
-    """Markdown files under docs/ that are not pages yet: outside docs/pages/ and Logseq's own folder."""
+    """Markdown files in the graph folder that are not pages yet: outside its pages/ and Logseq's own folder."""
     return sorted(path for path in DOCS.rglob('*.md')
                   if path.relative_to(DOCS).parts[0] not in ('pages', 'logseq')
                   and not any(part.startswith('.') for part in path.parts))
@@ -56,7 +58,7 @@ def check_hidden(documents):
             errors.append(f'{document}: add "{entry}" to :hidden in {CONFIG}, or convert the file into pages')
     for entry in sorted(names):
         if entry.endswith('.md') and not (DOCS / entry.lstrip('/')).exists():
-            errors.append(f'{CONFIG}: remove the :hidden entry "{entry}"; docs{entry} does not exist')
+            errors.append(f'{CONFIG}: remove the :hidden entry "{entry}"; {DOCS}{entry} does not exist')
     return errors
 
 
@@ -146,7 +148,7 @@ def check_site_links(file):
             continue
         path = urllib.parse.unquote(link[len(SITE):].split('#')[0]).removesuffix('index.html').strip('/')
         if (path or HOMEPAGE) not in titles:
-            errors.append(f'{file}: {link} names no page in docs/pages; a page is published at its title, '
+            errors.append(f'{file}: {link} names no page in {DOCS}/pages; a page is published at its title, '
                           f'such as {SITE}lsg/Ref/Command%20Line/')
     return errors
 
@@ -188,7 +190,9 @@ if args.remote:
     print('README web links, including its links to the documentation site, checked')
     raise SystemExit
 documents = old_documents()
-errors = [*check_relative_links([readme, Path('CONTRIBUTING.md'), Path('THIRD_PARTY_NOTICES.md'), *documents]),
+other_documents = sorted(OTHER_DOCS.rglob('*.md'))
+errors = [*check_relative_links([readme, Path('CONTRIBUTING.md'), Path('THIRD_PARTY_NOTICES.md'), *documents,
+                                *other_documents]),
           *check_site_links(readme), *check_hidden(documents), *check_kind_tags()]
 if errors:
     raise SystemExit('\n'.join(errors))

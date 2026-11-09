@@ -21,10 +21,11 @@ see-also:: [[lsg/Releases]], [[lsg/Licensing]]
 			- `LICENSE`, the complete AGPLv3 text;
 			- `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_LICENSES.txt`, the third-party notices and the combined dependency license file;
 			- `licenses/`, the license texts that the third-party notices refer to;
-			- `README.md`, `CHANGELOG.md` and `CONTRIBUTING.md`; and
-			- `docs/`, this documentation as a Logseq graph, with the dependency inventory `docs/dependency-sources.json`.
+			- `README.md`, `CHANGELOG.md` and `CONTRIBUTING.md`;
+			- `logseq-gardener-docs/`, this documentation as a Logseq graph; and
+			- `docs/`, the dependency inventory `docs/dependency-sources.json`, the parity reports and the Logseq reference boards.
 		- [dist-workspace.toml](https://github.com/codekiln/logseq-gardener/blob/main/dist-workspace.toml) lists the included files and folders in `include`; dist adds the README, the license and the changelog.
-		- A reader who extracts an archive can open its `docs` folder as a graph in Logseq 0.10 desktop without network access. [[lsg/How To/Edit the Documentation]] shows how to open the graph.
+		- A reader who extracts an archive can open its `logseq-gardener-docs` folder as a graph in Logseq 0.10 desktop without network access. [[lsg/How To/Edit the Documentation]] shows how to open the graph.
 	- ## Source archives
 		- `source.tar.gz` and the vendor archive both extract into the same `logseq-gardener-<version>/` directory. After you extract both, `cargo build --locked --offline` builds `lsg` without network access.
 		- The vendor archive is reproducible for a given commit: its entries are sorted, owners and timestamps are fixed to the commit, and gzip omits its own timestamp.
