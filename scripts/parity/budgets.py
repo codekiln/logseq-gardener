@@ -34,6 +34,8 @@ REFERENCES_SCRIPT = 'lsg-references.js'
 REFERENCES_STYLES = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'references.css'
 REFERENCES_DIR = '_refs'
 ALL_PAGES_SCRIPT = 'lsg-all-pages.js'
+# The inline page-property start-up that a garden showing page properties adds to every page.
+PROPERTIES_START = common.REPO / 'crates' / 'logseq-gardener-sdk' / 'src' / 'site' / 'properties-start.js'
 ALL_PAGES_LIST = '_pages/list.json'
 GROWN_ROOT = 'Grown'
 PLUGIN_FIXTURE = common.REPO / 'tests' / 'fixtures' / 'plugins' / 'recorder' / 'lsg-plugin.json'
@@ -1000,22 +1002,34 @@ def check_build_plugins(plain, site, budgets):
     return failures
 
 
-def check_search(site, limits, profiles):
-    """Conservative initial script accounting includes deferred/module scripts too."""
+def check_search(site, limits, profiles, properties_start=0):
+    """Conservative initial script accounting includes deferred/module scripts too.
+
+    Every page counts, All pages included. A page without the page-property start-up counts
+    `properties_start` more, since a garden that shows page properties, as the encode garden does,
+    adds that inline script to every page.
+    """
     failures = []
     startup = next(site.glob('lsg-search-start-*.mjs'))
     if startup.stat().st_size > limits['bootstrap_kb'] * 1000:
         failures.append('search bootstrap exceeds its initial-script budget')
-    for page in site_pages(site):
+    largest = (0, None)
+    for page in sorted(p.name for p in site.glob('*.html')):
         # The graph view's renderer is that page's content; [graph] script_kb budgets it.
         if page == 'graph.html':
             continue
         parser = _BlockingResources(all_scripts=True)
-        parser.feed((site / page).read_text(encoding='utf-8'))
+        text = (site / page).read_text(encoding='utf-8')
+        parser.feed(text)
         script = parser.inline_script + sum((site / p).stat().st_size for p in parser.files if p.endswith(('.js', '.mjs')))
+        if 'data-lsg-properties-start' not in text:
+            script += properties_start
+        largest = max(largest, (script, page))
         limit = min(p['script_before_title_kb'] for p in profiles.values()) * 1000
         if script > limit:
             failures.append(f'{page}: initial search-enabled script {script:,} exceeds {limit:,}')
+    if largest[1]:
+        print(f'script in the page or loaded by its markup: largest {largest[0]:,} ({largest[1]})')
     return failures
 
 
@@ -1180,7 +1194,8 @@ def main():
             variants[name] = temp / name
         plugin_failures += check_first_party(variants['fp-plain'], variants['fp'], variants['fp-plain-large'],
                                              variants['fp-large'], variants['fp-hidden'], budgets)
-        search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets))
+        search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets),
+                                       PROPERTIES_START.stat().st_size)
         index = search_index_sizes(temp / 'search')
         search_failures += check_search_index(index, budgets['search'])
         print(f"search title index: {index['titles_gzip']:,} gzip, {index['titles_decoded']:,} decoded; "

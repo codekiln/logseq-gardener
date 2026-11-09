@@ -82,14 +82,17 @@ def completion_latencies(keys, values, completions):
 
 
 def keystroke_fetches(keys, resources, shard_pattern):
-    """For each keydown, the bytes of the files requested before the next key, and whether one is a shard.
+    """For each keydown, the bytes of the files requested before the next key, and whether it is cold.
 
-    `resources` holds (start time, URL, transferred bytes) triples.
+    `resources` holds (start time, URL, transferred bytes) triples, or quadruples that add the time
+    the response ended. A keystroke is cold when it requests a shard, or when a shard an earlier key
+    requested is still loading at its keydown: a key typed while its word's shard loads waits for it.
     """
     fetches = []
     for index, start in enumerate(keys):
         end = keys[index + 1] if index + 1 < len(keys) else math.inf
-        found = [(url, size) for time, url, size in resources if start <= time < end]
+        found = [(r[1], r[2]) for r in resources if start <= r[0] < end]
+        loading = any(len(r) > 3 and r[0] < start < r[3] and shard_pattern.search(r[1]) for r in resources)
         fetches.append({'bytes': sum(size for _, size in found),
-                        'shard': any(shard_pattern.search(url) for url, _ in found)})
+                        'shard': loading or any(shard_pattern.search(url) for url, _ in found)})
     return fetches
