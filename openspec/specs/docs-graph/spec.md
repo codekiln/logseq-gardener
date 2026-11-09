@@ -1,6 +1,6 @@
 ## Purpose
 
-`docs/` is a Logseq graph that holds the project's documentation. A reader can open it in Logseq 0.10 desktop and read the same pages that the documentation site shows. Each page title names the reader need the page serves, following codekiln's Diataxis convention, and a check fails when Logseq's own file parser and the SDK read the graph differently.
+`logseq-gardener-docs/` is a Logseq graph that holds the project's documentation. A reader can open it in Logseq 0.10 desktop and read the same pages that the documentation site shows. Each page title names the reader need the page serves, following codekiln's Diataxis convention, and a check fails when Logseq's own file parser and the SDK read the graph differently.
 
 ## Requirements
 
