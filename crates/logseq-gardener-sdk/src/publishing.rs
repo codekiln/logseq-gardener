@@ -15,10 +15,12 @@ use crate::page_names::{lookup_key, page_aliases};
 
 /// Namespace roots to include and exclude from a publication.
 ///
-/// Empty inclusion selects nothing. Exclusion always wins. A root matches
-/// itself and slash-separated descendants, but not names with a similar prefix.
+/// Empty inclusion selects nothing, unless [`including_all`](Self::including_all)
+/// selects every page. Exclusion always wins. A root matches itself and
+/// slash-separated descendants, but not names with a similar prefix.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NamespaceSelection {
+    all: bool,
     included: Vec<String>,
     excluded: Vec<String>,
 }
@@ -78,9 +80,24 @@ impl NamespaceSelection {
             }
         }
         Ok(Self {
+            all: false,
             included: included.iter().map(|root| (*root).to_owned()).collect(),
             excluded: excluded.iter().map(|root| (*root).to_owned()).collect(),
         })
+    }
+
+    /// The same policy, selecting every valid page name that no excluded root
+    /// matches. Included roots then change nothing.
+    #[must_use]
+    pub fn including_all(mut self) -> Self {
+        self.all = true;
+        self
+    }
+
+    /// Whether this policy selects every page that no excluded root matches.
+    #[must_use]
+    pub fn includes_all(&self) -> bool {
+        self.all
     }
 
     /// Whether a valid logical page name is included and not excluded.
@@ -92,10 +109,11 @@ impl NamespaceSelection {
     #[must_use]
     pub fn includes(&self, page_name: &str) -> bool {
         valid_page_name(page_name)
-            && self
-                .included
-                .iter()
-                .any(|root| in_namespace(page_name, root))
+            && (self.all
+                || self
+                    .included
+                    .iter()
+                    .any(|root| in_namespace(page_name, root)))
             && !self
                 .excluded
                 .iter()
@@ -222,6 +240,42 @@ mod tests {
             let policy = NamespaceSelection::new(&[], excluded).unwrap();
             assert!(!policy.includes("My"));
             assert!(!policy.includes("My/Private"));
+        }
+    }
+
+    #[test]
+    fn including_all_selects_every_page_except_exclusions() {
+        let policy = NamespaceSelection::new(&[], &["My/Private"])
+            .unwrap()
+            .including_all();
+        assert!(policy.includes_all());
+        for name in ["My", "Other", "SolveSpace", "研究/庭/花", "My/Privateer"] {
+            assert!(policy.includes(name), "{name}");
+        }
+        for name in ["My/Private", "My/Private/Note"] {
+            assert!(!policy.includes(name), "{name}");
+        }
+        assert!(!NamespaceSelection::new(&[], &[]).unwrap().includes_all());
+    }
+
+    #[test]
+    fn included_roots_change_nothing_when_including_all() {
+        let with_roots = NamespaceSelection::new(&["My"], &["My/Private"])
+            .unwrap()
+            .including_all();
+        let without = NamespaceSelection::new(&[], &["My/Private"])
+            .unwrap()
+            .including_all();
+        for name in ["My", "My/AI", "My/Private/Note", "Other", "Research/Draft"] {
+            assert_eq!(with_roots.includes(name), without.includes(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn malformed_candidates_stay_unselected_when_including_all() {
+        let policy = NamespaceSelection::new(&[], &[]).unwrap().including_all();
+        for name in ["My//AI", "My/AI\n", "My/ ", ""] {
+            assert!(!policy.includes(name), "{name:?}");
         }
     }
 

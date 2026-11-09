@@ -9,6 +9,7 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Published Pages]], [[lsg/Stati
 		- The SDK's `publishing::NamespaceSelection` selects logical page names with included and excluded namespace roots. `--include` and `--exclude` pass their values to it.
 		- A root selects itself and its descendants separated by `/`: `My/AI` selects `My/AI/Rule`, and `My/AIM` stays outside the selection.
 		- Exclusions take precedence over inclusions. An empty inclusion list selects nothing.
+		- `--include-all` selects every page instead, through the selection's `including_all()`. Exclusions still apply, and pages it selects follow the same visibility rules, so withheld pages stay withheld.
 		- Matching is exact and case-sensitive.
 		- Selectors match logical page titles, which come from the configured file name format and leading `title::` properties. [[lsg/Ref/Page Titles]] describes the title rules. Names are not file system paths.
 		- Aliases help resolve references. They do not select a page into a namespace.
