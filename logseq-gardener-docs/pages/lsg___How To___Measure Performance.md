@@ -35,10 +35,11 @@ see-also:: [[lsg/Ref/Logseq Compatibility/Performance]], [[lsg/Ref/Publication S
 			  ```
 			- `parity:perf --search-site` fails while any `lsg` value is over its budget and names it. The last command measures Pagefind on the same build, for the comparison on [[lsg/Ref/Logseq Compatibility/Search Performance]].
 		- ### 5. Record the results
-			- Add `--record` to `parity:perf`. A full run rewrites [[lsg/Ref/Logseq Compatibility/Performance]], the committed results that compatibility pull requests compare against. A run with a feature flag replaces only that feature's section, and `--search-site` replaces the search sections and `docs/parity/search-performance.json`.
+			- Add `--record` to `parity:perf`. A full run rewrites the head and the sections it measures of [[lsg/Ref/Logseq Compatibility/Performance]], the committed results that compatibility pull requests compare against, and keeps the sections that feature flags record. A run with a feature flag replaces only that feature's section, and `--search-site` replaces the search sections and `docs/parity/search-performance.json`.
 			- Add `--record` to `parity:publish-bench` to append its rows to `docs/parity/publication-speed.json`. [[lsg/Ref/Publication Speed]] says when the CI check needs new rows.
 			- Commit the changed files with the change they measure.
 	- ## Troubleshooting
 		- If `parity:perf` stops with `Logseq build missing`, run `mise run parity:compare` for the run first.
+		- If `parity:compare` says `origin/gh-pages` is not a Logseq build, pass `--logseq-ref` with a `gh-pages` commit Logseq published, as [[lsg/How To/Compare a Build with Logseq]] shows.
 		- If a value is bold in the results, it exceeds its budget in [`scripts/parity/budgets.toml`](https://github.com/codekiln/logseq-gardener/blob/main/scripts/parity/budgets.toml). Change the code, or change the budget in the proposal of the feature that needs it, with the measurements that justify it.
 		- `mise run parity:budgets` checks the title index, shard and chunk budgets and the page sizes on the fixture garden in CI; [[lsg/Ref/Parity Tasks]] lists what else it checks.

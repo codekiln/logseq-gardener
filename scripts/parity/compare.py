@@ -3,6 +3,7 @@
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -81,12 +82,26 @@ def group_pages(logseq_pages, lsg_titles, hidden):
     return groups
 
 
-def archive_gh_pages(garden, destination):
+def archive_gh_pages(garden, destination, ref=common.LOGSEQ_REF):
     destination.mkdir(parents=True)
-    data = subprocess.run(['git', '-C', str(garden), 'archive', 'origin/gh-pages'],
+    data = subprocess.run(['git', '-C', str(garden), 'archive', ref],
                           capture_output=True, check=True).stdout
     with tarfile.open(fileobj=io.BytesIO(data)) as archive:
         archive.extractall(destination, filter='data')
+
+
+def extract_logseq_build(garden, run, ref):
+    """Extract Logseq's build at `ref` into the run and record its commit. Refuses a commit without
+    Logseq's database, such as an lsg site deployed to gh-pages."""
+    destination = run / 'logseq'
+    commit = common.git_commit(garden, ref)
+    archive_gh_pages(garden, destination, commit)
+    if not (destination / 'static' / 'js' / 'db.gz').exists():
+        shutil.rmtree(destination)
+        raise SystemExit(f'{ref} ({commit[:7]}) has no static/js/db.gz, so it is not a Logseq build; '
+                         'pass --logseq-ref with a gh-pages commit that Logseq published')
+    (run / common.LOGSEQ_BUILD_FILE).write_text(json.dumps({'ref': ref, 'commit': commit}, indent=2) + '\n',
+                                                encoding='utf-8')
 
 
 def markdown(groups, summary):
@@ -110,6 +125,8 @@ def markdown(groups, summary):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', help='run directory from parity:build (default: the latest)')
+    parser.add_argument('--logseq-ref', default=common.LOGSEQ_REF,
+                        help="garden commit or branch holding Logseq's build (default: origin/gh-pages)")
     args = parser.parse_args()
     run = common.latest_run(args.run)
     settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
@@ -117,14 +134,14 @@ def main():
     subprocess.run(['git', '-C', str(garden), 'fetch', '--quiet', 'origin', 'gh-pages'], check=True)
     logseq_dir = run / 'logseq'
     if not logseq_dir.exists():
-        archive_gh_pages(garden, logseq_dir)
+        extract_logseq_build(garden, run, args.logseq_ref)
     pages = logseq_db.read_pages(logseq_dir / 'static' / 'js' / 'db.gz')
     lsg_titles = {name: title for name, (title, _) in common.lsg_index(run / 'site').items()}
     patterns = hidden_patterns((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'))
     groups = group_pages(pages, lsg_titles, hidden_titles(garden, patterns))
     summary = {
         'garden commit': settings['garden_commit'],
-        'gh-pages commit': common.git_commit(garden, 'origin/gh-pages'),
+        'gh-pages commit': common.logseq_build_commit(run, garden),
         'lsg version': f"{settings['lsg_version']} ({settings['lsg_commit'][:7]})",
         'Logseq pages': len(pages),
         'Logseq journals': sum(p.journal for p in pages),

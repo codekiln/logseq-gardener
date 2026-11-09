@@ -147,6 +147,12 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(groups['other'], ['A/ B', 'Other'])
         self.assertEqual(groups['lsg_only'], [{'title': 'LSG Only', 'hidden_in_logseq': False}])
 
+    def test_the_run_records_the_logseq_build_it_extracted(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            (run / common.LOGSEQ_BUILD_FILE).write_text(json.dumps({'ref': 'abc', 'commit': 'abc123'}))
+            self.assertEqual(common.logseq_build_commit(run, run / 'no-garden'), 'abc123')
+
     def test_journal_wins_over_reference_only(self):
         groups = compare.group_pages([logseq_db.Page('2026-01-01 thu', '2026-01-01 Thu', True, False)], {}, set())
         self.assertEqual(groups['journals'], ['2026-01-01 Thu'])
@@ -640,6 +646,20 @@ class PerformancePageTest(unittest.TestCase):
                 perf.PERFORMANCE_PAGE = original
             self.assertEqual(page.read_text(encoding='utf-8').splitlines(),
                              perf.PAGE_HEAD + ['\t- ## Queries', '\t\t- Queries.'])
+
+    def test_a_whole_report_keeps_the_sections_it_does_not_write(self):
+        page = self.page('Page loads', 'Right sidebar on tmux', 'Search', 'Plugins')
+        page.insert(len(perf.PAGE_HEAD), '\t- measured: 2026-10-26')
+        report = ['# Performance', '', '- measured: 2026-11-09', '', '## Page loads', '', 'New loads.', '',
+                  '## Site size', '', 'New size.', '', '## Search', '', 'New search.']
+        lines = perf.whole_report(page, report)
+        self.assertEqual(lines[:len(perf.PAGE_HEAD) + 1], perf.PAGE_HEAD + ['\t- measured: 2026-11-09'])
+        self.assertNotIn('\t- measured: 2026-10-26', lines)
+        self.assertEqual(self.names(lines), ['Page loads', 'Site size', 'Right sidebar on tmux', 'Search', 'Plugins'])
+        self.assertIn('\t\t- New loads.', lines)
+        self.assertNotIn('\t\t- Page loads text.', lines)
+        self.assertIn('\t\t- Right sidebar on tmux text.', lines)
+        self.assertIn('\t\t- Plugins text.', lines)
 
     def test_committed_page_has_the_head_and_a_heading_block_per_section(self):
         lines = perf.PERFORMANCE_PAGE.read_text(encoding='utf-8').splitlines()

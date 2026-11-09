@@ -716,6 +716,28 @@ def replace_sections(lines, names, section_lines, before=()):
     return lines[:position] + outline(section_lines) + lines[position:]
 
 
+def section_names(lines):
+    return [line.removeprefix('\t- ## ') for line in lines if line.startswith('\t- ## ')]
+
+
+def whole_report(lines, report_lines):
+    """Page lines for a whole report: its head and sections, and the page's other sections, such as
+    those a feature flag records, where they were. A section new to the page follows the report
+    section before it."""
+    new = page_text(report_lines).splitlines()
+    names = section_names(new)
+    head = new[:section_span(new, names[0])[0]] if names else new
+    sections = {name: new[slice(*section_span(new, name))] for name in names}
+    order = section_names(lines)
+    for index, name in enumerate(names):
+        if name not in order:
+            order.insert(order.index(names[index - 1]) + 1 if index else 0, name)
+    result = list(head)
+    for name in order:
+        result += sections[name] if name in sections else lines[slice(*section_span(lines, name))]
+    return result
+
+
 def record_sections(names, section_lines, before=()):
     """Replace the named sections of the Performance page with section_lines."""
     lines = replace_sections(read_page(), names, section_lines, before)
@@ -1131,7 +1153,7 @@ def measure_search_site(args, sync_playwright):
         settings = json.loads((run / 'settings.json').read_text(encoding='utf-8'))
         garden = Path(settings['garden'])
         summary.update({'garden commit': settings['garden_commit'][:7],
-                        'gh-pages commit': common.git_commit(garden, 'origin/gh-pages')[:7],
+                        'gh-pages commit': common.logseq_build_commit(run, garden)[:7],
                         'lsg': f"{settings['lsg_version']} ({settings['lsg_commit'][:7]})"})
         if '--search' in settings['lsg_options']:
             build_rows = measure_build(settings)
@@ -2731,7 +2753,7 @@ def main():
         'summary': {
             'measured': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
             'garden commit': settings['garden_commit'][:7],
-            'gh-pages commit': common.git_commit(garden, 'origin/gh-pages')[:7],
+            'gh-pages commit': common.logseq_build_commit(run, garden)[:7],
             'lsg': f"{settings['lsg_version']} ({settings['lsg_commit'][:7]})",
             'profiles': ', '.join(profiles),
         },
@@ -2750,7 +2772,8 @@ def main():
     text = markdown(results, budgets)
     (run / 'perf.md').write_text(text, encoding='utf-8')
     if args.record:
-        PERFORMANCE_PAGE.write_text(page_text(text.splitlines()), encoding='utf-8')
+        PERFORMANCE_PAGE.write_text('\n'.join(whole_report(read_page(), text.splitlines())) + '\n',
+                                    encoding='utf-8')
     print(f"Results: {run / 'perf.md'}")
 
 

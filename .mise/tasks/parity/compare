@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #MISE description="Report pages present in Logseq's gh-pages build or the lsg build but not both"
 #USAGE flag "--run <path>" help="Run directory from parity:build (default: the latest)"
+#USAGE flag "--logseq-ref <ref>" help="Garden commit or branch holding Logseq's build (default: origin/gh-pages)"
 set -euo pipefail
 args=()
 if [ -n "${usage_run:-}" ]; then args+=(--run "$usage_run"); fi
+if [ -n "${usage_logseq_ref:-}" ]; then args+=(--logseq-ref "$usage_logseq_ref"); fi
 python3 scripts/parity/compare.py ${args[@]+"${args[@]}"}

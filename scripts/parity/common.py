@@ -54,6 +54,19 @@ def git_commit(path, ref='HEAD'):
                           capture_output=True, text=True, check=True).stdout.strip()
 
 
+LOGSEQ_REF = 'origin/gh-pages'
+LOGSEQ_BUILD_FILE = 'logseq-build.json'
+
+
+def logseq_build_commit(run, garden):
+    """The garden commit holding the run's Logseq build: the one parity:compare extracted, or
+    origin/gh-pages for a run extracted before parity:compare recorded it."""
+    recorded = Path(run) / LOGSEQ_BUILD_FILE
+    if recorded.exists():
+        return json.loads(recorded.read_text(encoding='utf-8'))['commit']
+    return git_commit(garden, LOGSEQ_REF)
+
+
 def normalize(title):
     """Match page names the way Logseq does: lower case after NFC normalization."""
     return unicodedata.normalize('NFC', title).lower()
