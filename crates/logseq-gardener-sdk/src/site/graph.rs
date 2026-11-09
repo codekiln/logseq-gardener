@@ -479,6 +479,59 @@ pub(super) mod tests {
         assert_eq!(file_flags(&page(None)), REFERENCE_ONLY | 2);
     }
 
+    /// `Deno` writes `TODO try [[Deno Deploy]]`: `Deno Deploy` is a reference-only page with a
+    /// route and `TODO` a reference-only built-in page without one.
+    fn reference_only_sample() -> Graph<String> {
+        let node = |title: &str, page: bool, flags: u8| GraphNode {
+            title: title.to_owned(),
+            page: page.then(|| title.to_owned()),
+            degree: 1,
+            flags,
+        };
+        Graph {
+            nodes: vec![
+                node("Deno", true, 0),
+                node("Deno Deploy", true, REFERENCE_ONLY),
+                node("TODO", false, REFERENCE_ONLY | crate::graph::BUILT_IN),
+            ],
+            edges: vec![(0, 1), (0, 2)],
+            links: 2,
+        }
+    }
+
+    /// tests/graph.test.cjs opens the nodes of these files: the global file and `Deno`'s
+    /// neighbourhood file.
+    #[test]
+    fn reference_only_javascript_fixtures_match_the_encoder() {
+        let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
+        let positions = [(0.0, 0.0), (100.0, 0.0), (-100.0, 0.0)];
+        let binary = encode(&reference_only_sample(), &positions);
+        let json = neighbourhood_json(&reference_only_sample()) + "\n";
+        let (bin_path, json_path) = (
+            folder.join("graph-reference-only.bin"),
+            folder.join("graph-reference-only.json"),
+        );
+        if std::env::var_os("LSG_UPDATE_FIXTURES").is_some() {
+            std::fs::write(&bin_path, gzip(&binary)).unwrap();
+            std::fs::write(&json_path, &json).unwrap();
+        }
+        let stored = std::fs::read(&bin_path).unwrap();
+        let mut plain = Vec::new();
+        std::io::Read::read_to_end(
+            &mut flate2::read::GzDecoder::new(stored.as_slice()),
+            &mut plain,
+        )
+        .unwrap();
+        let hint = "regenerate with LSG_UPDATE_FIXTURES=1 cargo test -p logseq-gardener-sdk javascript_fixture";
+        assert_eq!(plain, binary, "{hint}");
+        assert_eq!(std::fs::read_to_string(&json_path).unwrap(), json, "{hint}");
+        // The browser sees the routed page without the reference-only flag.
+        assert_eq!(
+            decode(&binary).1,
+            [0, 0, REFERENCE_ONLY | crate::graph::BUILT_IN]
+        );
+    }
+
     /// tests/graph.test.cjs reads this file with the browser's reader.
     #[test]
     fn javascript_fixture_matches_the_encoder() {

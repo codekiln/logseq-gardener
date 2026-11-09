@@ -109,7 +109,7 @@ DEFAULT[DEFAULT.indexOf(Buffer.from([2, 64, 0, 1])) + 3] = 16;
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
 
 function browser({ pathname, body }) {
-  const env = { now: 0, serial: 0, timers: [], requests: [], focused: null, held: [], holdWorker: false };
+  const env = { now: 0, serial: 0, timers: [], requests: [], focused: null, held: [], holdWorker: false, assigned: [] };
   Element.onFocus = node => { env.focused = node; };
   const canvas = node => {
     node.drawn = 0;
@@ -140,7 +140,7 @@ function browser({ pathname, body }) {
   const context = {
     console, window, document, URL, TextEncoder, TextDecoder, Response, AbortController, Worker, ResizeObserver,
     DecompressionStream: class extends TransformStream { constructor() { super(); } },
-    location: { pathname, href: 'https://garden.test' + pathname, assign() {} },
+    location: { pathname, href: 'https://garden.test' + pathname, assign: url => env.assigned.push(url) },
     sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
     performance: {},
     MutationObserver: class { observe() {} },
@@ -192,7 +192,8 @@ function graphView() {
   const panel = h('div', { class: 'graph-filters', hidden: '' },
     h('p', { 'data-count': 'pages' }), h('p', { 'data-count': 'links' }),
     h('button', { type: 'button', role: 'switch', 'data-setting': 'journals', 'aria-checked': 'false' }),
-    h('div', { 'data-hops': '', hidden: '' }), h('ul', { 'data-filters': '' }), h('button', { 'data-clear': '' }), ...forces);
+    h('div', { 'data-hops': '', hidden: '' }), h('ul', { 'data-filters': '' }), h('button', { 'data-clear': '' }), ...forces,
+    h('input', { 'data-search-input': '' }), h('ul', { 'data-results': '' }));
   const box = h('div', { class: 'lsg-graph', id: 'global-graph', 'data-lsg-graph': CONFIG },
     h('canvas', { class: 'lsg-graph-canvas', tabindex: '0' }), h('p', { class: 'lsg-graph-status', role: 'status' }), panel);
   const b = browser({ pathname: '/graph.html', body: h('body', {}, h('main', {}, box)) });
@@ -407,4 +408,55 @@ test('a hub without a neighbourhood file loads the global file through the same 
   assert.deepEqual(b.shown(), [null, '', null]);
   // tmux with its two neighbours from the sample file.
   assert.equal(b.canvas().drawn, 3);
+});
+
+// Reference-only pages: `Deno` writes `TODO try [[Deno Deploy]]`. The publisher writes `Deno
+// Deploy`, which has a page, without the reference-only flag, and keeps it on `TODO`, which has
+// none. Written by the Rust test reference_only_javascript_fixtures_match_the_encoder.
+const REFERENCE_ONLY_GRAPH = zlib.gunzipSync(readFileSync(path.join(__dirname, 'fixtures/graph-reference-only.bin')));
+const REFERENCE_ONLY_NEIGHBOURHOOD = readFileSync(path.join(__dirname, 'fixtures/graph-reference-only.json'), 'utf8');
+const status = box => box.querySelector('.lsg-graph-status').textContent;
+
+test('the graph view opens a reference-only page with a route and names one without as not published', async () => {
+  const b = graphView();
+  b.answer('_graph/default.bin', REFERENCE_ONLY_GRAPH);
+  await settle();
+  // The Search section's matching node list, the graph view's keyboard path to a node.
+  const input = b.panel.querySelector('[data-search-input]');
+  const find = text => {
+    input.value = text;
+    for (const callback of b.panel.listeners.input) callback({ target: input });
+    return b.panel.querySelector('[data-results] [data-node]');
+  };
+  const deploy = find('deno deploy');
+  assert.equal(deploy.textContent, 'Deno Deploy');
+  b.press(deploy);
+  assert.deepEqual(b.env.assigned, ['https://garden.test/' + graphModule().routeOf('Deno Deploy')]);
+  assert.equal(status(b.box()), '');
+  const todo = find('todo');
+  assert.equal(todo.textContent, 'TODO');
+  b.press(todo);
+  assert.equal(status(b.box()), 'TODO — not published');
+  assert.equal(b.env.assigned.length, 1);
+});
+
+test('the Page graph card opens a reference-only node the same way', async () => {
+  const b = await pageCard('Deno');
+  // A 1000 by 1000 canvas; the worker lays node i out at (50 i, 0), so the card fits the three
+  // nodes at scale 2 about the canvas centre and draws node i at (400 + 100 i, 500).
+  const canvas = b.canvas();
+  Object.assign(canvas, { clientWidth: 1000, clientHeight: 1000, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 1000 }) });
+  b.answer(b.file, REFERENCE_ONLY_NEIGHBOURHOOD);
+  await settle();
+  await b.layout();
+  assert.equal(canvas.drawn, 3);
+  const click = i => {
+    const event = { pointerId: 1, pointerType: 'mouse', shiftKey: false, clientX: 400 + 100 * i, clientY: 500 };
+    for (const type of ['pointerdown', 'pointerup']) for (const callback of canvas.listeners[type]) callback(event);
+  };
+  click(2);
+  assert.equal(status(b.card), 'TODO — not published');
+  assert.deepEqual(b.env.assigned, []);
+  click(1);
+  assert.deepEqual(b.env.assigned, ['https://garden.test/' + graphModule().routeOf('Deno Deploy')]);
 });
