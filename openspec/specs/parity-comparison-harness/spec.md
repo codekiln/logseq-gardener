@@ -118,7 +118,7 @@ The harness SHALL map each page title to its `lsg` file and to its Logseq route 
 
 ### Requirement: Check lsg against performance budgets
 
-The harness SHALL read budgets for each measure and profile from a committed budget file, and the results SHALL mark every `lsg` value that exceeds its budget. `mise run parity:perf --record` SHALL rewrite the `lsg/Ref/Logseq Compatibility/Performance` page, `docs/pages/lsg___Ref___Logseq Compatibility___Performance.md`, as Logseq outline Markdown with the results and the garden commit, `gh-pages` commit and `lsg` version they came from.
+The harness SHALL read budgets for each measure and profile from a committed budget file, and the results SHALL mark every `lsg` value that exceeds its budget. `mise run parity:perf --record` SHALL rewrite the `lsg/Ref/Logseq Compatibility/Performance` page, `logseq-gardener-docs/pages/lsg___Ref___Logseq Compatibility___Performance.md`, as Logseq outline Markdown with the results and the garden commit, `gh-pages` commit and `lsg` version they came from.
 
 #### Scenario: Page over budget
 - **WHEN** an `lsg` fixture page transfers more data before its title is visible than the budget allows
@@ -176,10 +176,10 @@ The task SHALL record the export's log in the run directory. It SHALL list the f
 
 #### Scenario: Docs graph by default
 - **WHEN** a contributor runs `mise run parity:logseq-export` without arguments
-- **THEN** the task publishes `docs` with `--filename-format triple-lowbar --include lsg --include Diataxis --homepage lsg --search --readable-urls`
+- **THEN** the task publishes `logseq-gardener-docs` with `--filename-format triple-lowbar --include lsg --include Diataxis --homepage lsg --search --readable-urls`
 
 #### Scenario: Another garden without options
-- **WHEN** a contributor passes `--garden` with a garden other than `docs` and no `lsg publish` options
+- **WHEN** a contributor passes `--garden` with a garden other than `logseq-gardener-docs` and no `lsg publish` options
 - **THEN** the task stops and asks for the options that select the garden's pages
 
 ### Requirement: Compare rendered pages with Logseq's export
