@@ -15,6 +15,7 @@ see-also:: [[lsg/Ref/Parity Tasks]], [[lsg/Ref/Logseq Compatibility/Comparison H
 			- Run `mise run parity:build` from the repository root. It builds a release `lsg` and publishes every page and journal into a new directory, `target/parity/<UTC time>/`.
 		- ### 2. List the pages each build lacks
 			- Run `mise run parity:compare`. It extracts Logseq's build beside the `lsg` build and writes `report.md`, which groups the pages present in one build and missing from the other.
+			- Since 2026-11-01 the garden's `gh-pages` branch holds `lsg`'s site, and `parity:compare` stops because that site has no `static/js/db.gz`. Pass `--logseq-ref 8132c95`, the last `gh-pages` commit Logseq published, from garden commit `083106d`. The run records the commit it extracted in `logseq-build.json`, and `parity:perf` reports that commit.
 			- Read the other-pages group first: each page there needs an explanation or a fix.
 		- ### 3. Look at the same pages side by side
 			- Run `mise run parity:screenshots`, then open `screenshots/index.html` in the run directory. It shows each fixture page from both builds side by side, at desktop and phone sizes.
