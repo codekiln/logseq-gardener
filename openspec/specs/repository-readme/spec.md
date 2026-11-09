@@ -25,7 +25,7 @@ The README SHALL explain the problem, audience, intended value, current maturity
 
 ### Requirement: Verified documentation
 
-README commands and links SHALL be checked. The README's release claims SHALL match the published GitHub Releases, and its platform claims SHALL distinguish the targets that releases build from the platforms that the project checks run on. Every README link to the documentation site SHALL return a page. `mise run docs:check` SHALL fail when a README link to the documentation site names a page title that no page in `docs/pages/` has. `mise run docs:links` SHALL request every web link in the README and report each one that fails.
+README commands and links SHALL be checked. The README's release claims SHALL match the published GitHub Releases, and its platform claims SHALL distinguish the targets that releases build from the platforms that the project checks run on. Every README link to the documentation site SHALL return a page. `mise run docs:check` SHALL fail when a README link to the documentation site names a page title that no page in `logseq-gardener-docs/pages/` has. `mise run docs:links` SHALL request every web link in the README and report each one that fails.
 
 #### Scenario: Review README
 
@@ -44,5 +44,5 @@ README commands and links SHALL be checked. The README's release claims SHALL ma
 
 #### Scenario: Site link to a missing page
 
-- **WHEN** the README links `https://codekiln.github.io/logseq-gardener/lsg/How%20To/Missing%20Page/` and no page in `docs/pages/` is titled `lsg/How To/Missing Page`
+- **WHEN** the README links `https://codekiln.github.io/logseq-gardener/lsg/How%20To/Missing%20Page/` and no page in `logseq-gardener-docs/pages/` is titled `lsg/How To/Missing Page`
 - **THEN** `mise run docs:check` fails and names the link
