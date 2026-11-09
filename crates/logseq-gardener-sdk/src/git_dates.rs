@@ -1,5 +1,6 @@
 //! When each page and journal file was first and last committed, read from the garden's
-//! git history in one pass.
+//! git history in one pass. A page's history continues across renames of its file and of
+//! the folders above it.
 //!
 //! ```no_run
 //! use logseq_gardener_sdk::git_dates::GitDates;
@@ -12,12 +13,13 @@
 //!     eprintln!("{message}");
 //! }
 //! ```
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::process::Command;
 
 /// Commit times, in seconds since the Unix epoch, of the first and last commits that
-/// touched a file.
+/// changed a file. A commit that only renames the file, without changing its text, leaves
+/// both times as they were.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileDates {
     pub created: i64,
@@ -37,32 +39,42 @@ impl GitDates {
     pub fn read(root: impl AsRef<Path>) -> (Option<Self>, Option<String>) {
         let root = root.as_ref();
         let git = |args: &[&str]| Command::new("git").arg("-C").arg(root).args(args).output();
-        match git(&["rev-parse", "--is-inside-work-tree"]) {
-            Ok(output) if output.status.success() => {}
-            Ok(_) => {
-                return (
-                    None,
-                    Some("Page dates omitted: the garden is not in a git repository".to_owned()),
-                );
-            }
+        let not_a_repository =
+            || Some("Page dates omitted: the garden is not in a git repository".to_owned());
+        let probe = match git(&[
+            "rev-parse",
+            "--is-inside-work-tree",
+            "--is-shallow-repository",
+            "--show-prefix",
+        ]) {
+            Ok(output) if output.status.success() => output,
+            Ok(_) => return (None, not_a_repository()),
             Err(error) => {
                 return (
                     None,
                     Some(format!("Page dates omitted: git could not run ({error})")),
                 );
             }
+        };
+        let probe = String::from_utf8_lossy(&probe.stdout);
+        let mut probe = probe.lines();
+        if probe.next() != Some("true") {
+            return (None, not_a_repository());
         }
+        let shallow = probe.next() == Some("true");
+        // The garden folder's path inside the repository, such as `docs/`, or empty.
+        let prefix = probe.next().unwrap_or_default().to_owned();
+        // The whole repository's history, so that a rename from outside the garden folder
+        // is seen as a rename. Parents come after their children, which the rename
+        // tracking in `parse` relies on.
         let log = git(&[
-            "-c",
-            "core.quotePath=false",
             "log",
+            "--topo-order",
             "--format=%ct",
-            "--name-only",
-            "--no-renames",
-            "--relative",
-            "--",
-            "pages",
-            "journals",
+            "--name-status",
+            "-z",
+            "--find-renames",
+            "--no-relative",
         ]);
         let output = match log {
             Ok(output) if output.status.success() => output,
@@ -82,38 +94,97 @@ impl GitDates {
                 );
             }
         };
-        let dates = Self::parse(&String::from_utf8_lossy(&output.stdout));
-        let shallow = git(&["rev-parse", "--is-shallow-repository"])
-            .is_ok_and(|output| output.stdout.starts_with(b"true"));
+        let dates = Self::parse(&String::from_utf8_lossy(&output.stdout), &prefix);
         let diagnostic = shallow.then(|| {
             "Page dates come from a shallow clone and reflect only the history it holds".to_owned()
         });
         (Some(dates), diagnostic)
     }
 
-    /// Parse `git log --format=%ct --name-only` output, newest commit first.
-    fn parse(log: &str) -> Self {
-        let mut files: BTreeMap<String, FileDates> = BTreeMap::new();
-        let mut time = None;
-        for line in log.lines() {
-            if line.is_empty() {
-                continue;
-            }
-            if let Ok(seconds) = line.parse::<i64>()
-                && !line.contains('/')
-            {
-                time = Some(seconds);
-                continue;
-            }
-            let Some(time) = time else { continue };
+    /// Parse `git log --topo-order --format=%ct --name-status -z --find-renames` output and
+    /// keep the files under `prefix` + `pages/` and `prefix` + `journals/`, by their path
+    /// below `prefix`.
+    ///
+    /// Commits come newest first, so a rename is read before the older commits of the file
+    /// it renamed. Each file's dates are filed under its current path: in the commits older
+    /// than a rename, the old path stands for the renamed file, and the history of the path
+    /// the file was renamed to ends there. The renames of one commit apply together, once
+    /// its other changes have been read.
+    fn parse(log: &str, prefix: &str) -> Self {
+        let mut files: HashMap<String, FileDates> = HashMap::new();
+        // An older path and the current path whose history it holds; `None` when the
+        // history at that path belongs to a file that no longer exists.
+        let mut renamed: HashMap<String, Option<String>> = HashMap::new();
+        let current =
+            |renamed: &HashMap<String, Option<String>>, path: &str| match renamed.get(path) {
+                Some(current) => current.clone(),
+                None => Some(path.to_owned()),
+            };
+        let mut record = |path: Option<String>, time: i64| {
+            let Some(path) = path else { return };
             files
-                .entry(line.to_owned())
-                .and_modify(|dates| dates.created = time)
+                .entry(path)
+                .and_modify(|dates| {
+                    dates.created = dates.created.min(time);
+                    dates.updated = dates.updated.max(time);
+                })
                 .or_insert(FileDates {
                     created: time,
                     updated: time,
                 });
+        };
+        // The renames of the commit being read: the paths renamed to, and each old path
+        // with the current path it now stands for.
+        let mut ended: Vec<String> = Vec::new();
+        let mut moved: Vec<(String, Option<String>)> = Vec::new();
+        let apply = |renamed: &mut HashMap<String, Option<String>>,
+                     ended: &mut Vec<String>,
+                     moved: &mut Vec<(String, Option<String>)>| {
+            for path in ended.drain(..) {
+                renamed.insert(path, None);
+            }
+            renamed.extend(moved.drain(..));
+        };
+        let mut tokens = log.split('\0');
+        let mut time = None;
+        while let Some(token) = tokens.next() {
+            let token = token.trim_start_matches('\n');
+            if token.is_empty() {
+                continue;
+            }
+            if token.bytes().all(|byte| byte.is_ascii_digit()) {
+                apply(&mut renamed, &mut ended, &mut moved);
+                time = token.parse::<i64>().ok();
+                continue;
+            }
+            // A status letter, then one path, or two for a rename or copy.
+            let Some(path) = tokens.next() else { break };
+            let two_paths = token.starts_with(['R', 'C']);
+            let target = if two_paths { tokens.next() } else { None };
+            let Some(time) = time else { continue };
+            match target {
+                Some(target) => {
+                    let file = current(&renamed, target);
+                    let unchanged = token == "R100";
+                    if token.starts_with('R') {
+                        ended.push(target.to_owned());
+                        moved.push((path.to_owned(), file.clone()));
+                    }
+                    if !unchanged {
+                        record(file, time);
+                    }
+                }
+                None => record(current(&renamed, path), time),
+            }
         }
+        let files = files
+            .into_iter()
+            .filter_map(|(path, dates)| {
+                let relative = path.strip_prefix(prefix)?;
+                (relative.starts_with("pages/") || relative.starts_with("journals/"))
+                    .then(|| (relative.to_owned(), dates))
+            })
+            .collect();
         Self { files }
     }
 
@@ -209,6 +280,136 @@ mod tests {
         assert_eq!(dates.get("README.md"), None);
     }
 
+    fn commit(root: &Path, time: &str) {
+        git(root, &["add", "-A"], time);
+        git(root, &["commit", "-q", "-m", "c"], time);
+    }
+
+    #[test]
+    fn a_renamed_page_file_keeps_its_first_commit_time() {
+        let temp = TempDir::new("rename-page");
+        let root = temp.path();
+        git(root, &["init", "-q"], "@1000 +0000");
+        fs::create_dir(root.join("pages")).unwrap();
+        fs::write(root.join("pages/mise.md"), "- one\n- two\n- three\n").unwrap();
+        commit(root, "@1000 +0000");
+        fs::write(root.join("pages/mise.md"), "- one\n- two\n- four\n").unwrap();
+        commit(root, "@2000 +0000");
+        // A rename alone leaves the dates as they were.
+        git(
+            root,
+            &["mv", "pages/mise.md", "pages/mise___Tasks.md"],
+            "@3000 +0000",
+        );
+        commit(root, "@3000 +0000");
+        // A rename that also edits the page is a change to it.
+        git(
+            root,
+            &["mv", "pages/mise___Tasks.md", "pages/Tasks.md"],
+            "@4000 +0000",
+        );
+        fs::write(
+            root.join("pages/Tasks.md"),
+            "- one\n- two\n- four\n- five\n",
+        )
+        .unwrap();
+        commit(root, "@4000 +0000");
+        let (dates, _) = GitDates::read(root);
+        let dates = dates.unwrap();
+        assert_eq!(
+            dates.get("pages/Tasks.md"),
+            Some(FileDates {
+                created: 1000,
+                updated: 4000
+            })
+        );
+    }
+
+    #[test]
+    fn a_renamed_graph_folder_keeps_page_dates() {
+        let temp = TempDir::new("rename-folder");
+        let repo = temp.path();
+        git(repo, &["init", "-q"], "@1000 +0000");
+        fs::create_dir_all(repo.join("docs/pages")).unwrap();
+        fs::create_dir_all(repo.join("docs/journals")).unwrap();
+        fs::write(repo.join("docs/pages/lsg.md"), "- one\n").unwrap();
+        fs::write(repo.join("docs/journals/2026_11_01.md"), "- day\n").unwrap();
+        commit(repo, "@1000 +0000");
+        fs::write(repo.join("docs/pages/lsg.md"), "- two\n").unwrap();
+        commit(repo, "@2000 +0000");
+        git(repo, &["mv", "docs", "garden-docs"], "@3000 +0000");
+        commit(repo, "@3000 +0000");
+        let (dates, diagnostic) = GitDates::read(repo.join("garden-docs"));
+        let dates = dates.unwrap();
+        assert_eq!(diagnostic, None);
+        assert_eq!(
+            dates.get("pages/lsg.md"),
+            Some(FileDates {
+                created: 1000,
+                updated: 2000
+            })
+        );
+        assert_eq!(
+            dates.get("journals/2026_11_01.md"),
+            Some(FileDates {
+                created: 1000,
+                updated: 1000
+            })
+        );
+    }
+
+    #[test]
+    fn a_page_created_where_another_was_renamed_away_starts_its_own_history() {
+        let temp = TempDir::new("rename-reuse");
+        let root = temp.path();
+        git(root, &["init", "-q"], "@1000 +0000");
+        fs::create_dir(root.join("pages")).unwrap();
+        fs::write(root.join("pages/Podcast.md"), "- the episode page\n").unwrap();
+        commit(root, "@1000 +0000");
+        git(
+            root,
+            &["mv", "pages/Podcast.md", "pages/Podcast___Episode.md"],
+            "@2000 +0000",
+        );
+        commit(root, "@2000 +0000");
+        fs::write(root.join("pages/Podcast.md"), "- a new show page\n").unwrap();
+        commit(root, "@3000 +0000");
+        let (dates, _) = GitDates::read(root);
+        let dates = dates.unwrap();
+        assert_eq!(
+            dates.get("pages/Podcast___Episode.md"),
+            Some(FileDates {
+                created: 1000,
+                updated: 1000
+            })
+        );
+        assert_eq!(
+            dates.get("pages/Podcast.md"),
+            Some(FileDates {
+                created: 3000,
+                updated: 3000
+            })
+        );
+    }
+
+    #[test]
+    fn a_file_name_with_quotes_has_dates() {
+        let temp = TempDir::new("quotes");
+        let root = temp.path();
+        git(root, &["init", "-q"], "@1000 +0000");
+        fs::create_dir(root.join("pages")).unwrap();
+        fs::write(root.join("pages/What is \"zoom\"%3F.md"), "- one\n").unwrap();
+        commit(root, "@1000 +0000");
+        let (dates, _) = GitDates::read(root);
+        assert_eq!(
+            dates.unwrap().get("pages/What is \"zoom\"%3F.md"),
+            Some(FileDates {
+                created: 1000,
+                updated: 1000
+            })
+        );
+    }
+
     #[test]
     fn a_directory_outside_git_has_no_dates_and_one_diagnostic() {
         let temp = TempDir::new("outside");
@@ -226,7 +427,22 @@ mod tests {
     #[test]
     fn parse_keeps_the_oldest_time_as_created() {
         let dates = GitDates::parse(
-            "300\n\npages/a.md\n200\n\npages/a.md\npages/b.md\n100\n\npages/a.md\n",
+            &[
+                "300",
+                "\nM",
+                "pages/a.md",
+                "200",
+                "\nM",
+                "pages/a.md",
+                "A",
+                "pages/b.md",
+                "100",
+                "\nA",
+                "pages/a.md",
+                "",
+            ]
+            .join("\0"),
+            "",
         );
         assert_eq!(
             dates.get("pages/a.md"),
@@ -242,6 +458,49 @@ mod tests {
                 updated: 200
             })
         );
+    }
+
+    #[test]
+    fn parse_applies_the_renames_of_one_commit_together() {
+        // In the commit at 200, `b` became `c` and `a` became `b`.
+        let dates = GitDates::parse(
+            &[
+                "200",
+                "\nR100",
+                "docs/pages/b.md",
+                "docs/pages/c.md",
+                "R100",
+                "docs/pages/a.md",
+                "docs/pages/b.md",
+                "100",
+                "\nA",
+                "docs/pages/a.md",
+                "A",
+                "docs/pages/b.md",
+                "A",
+                "README.md",
+                "",
+            ]
+            .join("\0"),
+            "docs/",
+        );
+        assert_eq!(
+            dates.get("pages/b.md"),
+            Some(FileDates {
+                created: 100,
+                updated: 100
+            })
+        );
+        assert_eq!(
+            dates.get("pages/c.md"),
+            Some(FileDates {
+                created: 100,
+                updated: 100
+            })
+        );
+        assert_eq!(dates.get("pages/a.md"), None);
+        assert_eq!(dates.get("README.md"), None);
+        assert_eq!(dates.get("../README.md"), None);
     }
 
     #[test]
