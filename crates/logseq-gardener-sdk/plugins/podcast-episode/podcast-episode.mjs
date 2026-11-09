@@ -5,7 +5,7 @@
 // episode with another recording, a button takes the player over only when the reader starts
 // it. The timestamp of each chapter (a heading, or a bullet under `## Chapters`) and each dialogue
 // timestamp (`lsg:media-seek`) seek the player, which shows the current chapter and the chapters
-// that enclose it. lsg/Ref/First-Party Plugins, in
+// that enclose it, a link to the full recording, and whether the recording is playing. lsg/Ref/First-Party Plugins, in
 // logseq-gardener-docs/pages/lsg___Ref___First-Party Plugins.md, documents the plugin.
 
 /** `value` as an absolute URL without its fragment, or null. */
@@ -53,6 +53,11 @@ export function formatTime(seconds) {
   const pad = (n) => String(n).padStart(2, '0');
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
   return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+}
+
+/** What the player's status says about the recording: `Ended`, `Paused` or `Playing`. */
+export function playbackStatus({ ended, paused }) {
+  return ended ? 'Ended' : paused ? 'Paused' : 'Playing';
 }
 
 /** The index of the chapter playing at `seconds`: the latest start at or before it, the later
@@ -122,7 +127,7 @@ export default {
   setup(host) {
     const doc = host.document;
     const base = host.baseURL;
-    let region = null, footer = null, audio = null, link = null, status = null, trail = null;
+    let region = null, footer = null, audio = null, link = null, full = null, status = null, trail = null;
     let playing = null; // the episode the player holds
     let here = null; // the episode of the page on screen
     let pending = null;
@@ -156,10 +161,13 @@ export default {
       const key = `${playing.source} ${index}`;
       if (key === shown) return;
       shown = key;
-      trail.replaceChildren(...chapterTrail(playing.chapters, index).flatMap((chapter, at) => {
+      const chapters = chapterTrail(playing.chapters, index);
+      trail.replaceChildren(...chapters.flatMap((chapter, at) => {
         const item = doc.createElement('a');
         item.href = `${playing.url}#${encodeURIComponent(chapter.anchor)}`;
         item.textContent = chapter.title || formatTime(chapter.seconds);
+        // The trail ends with the chapter playing now.
+        if (at === chapters.length - 1) item.setAttribute('aria-current', 'true');
         if (!at) return [item];
         const separator = doc.createElement('span');
         separator.setAttribute('aria-hidden', 'true');
@@ -171,6 +179,7 @@ export default {
       playing = episode;
       link.href = episode.url;
       link.textContent = episode.title;
+      full.href = episode.source;
       showChapter();
     };
     function build(episode, element) {
@@ -184,9 +193,16 @@ export default {
       status.className = 'lsg-episode-player-status';
       status.setAttribute('role', 'status');
       status.setAttribute('aria-live', 'polite');
+      // A new tab, as lsg opens external links: loading the recording here would stop the player.
+      full = doc.createElement('a');
+      full.className = 'lsg-episode-player-recording';
+      full.target = '_blank';
+      full.rel = 'noopener noreferrer';
+      full.textContent = 'Full recording';
       audio = element;
-      origin = { parent: element.parentNode, next: element.nextSibling };
+      origin = { parent: element.parentNode, next: element.nextSibling, label: element.getAttribute('aria-label') };
       audio.controls = true;
+      audio.setAttribute('aria-label', 'Full episode recording');
       // A relative src would resolve against each later page's address; an unloaded recording
       // can take the absolute URL without interrupting anything.
       if (audio.paused && audio.readyState === 0) audio.setAttribute('src', episode.source);
@@ -194,15 +210,17 @@ export default {
       audio.addEventListener('durationchange', applySeek);
       audio.addEventListener('error', () => { pending = null; say('The recording could not load.'); });
       audio.addEventListener('timeupdate', () => showChapter());
+      for (const name of ['playing', 'pause', 'ended']) audio.addEventListener(name, () => say(playbackStatus(audio)));
       trail = doc.createElement('span');
       trail.className = 'lsg-episode-player-chapter';
       const details = doc.createElement('div');
       details.className = 'lsg-episode-player-details';
-      details.append(link, trail, status);
+      details.append(link, trail, status, full);
       footer.append(details, audio);
       region.element.append(footer);
       doc.body.classList.add('lsg-has-episode-player');
       show(episode);
+      if (!audio.paused) say('Playing');
     }
     // Play `episode` from `seconds`; another episode's recording replaces the current one.
     function activate(episode, seconds) {
@@ -285,6 +303,8 @@ export default {
       doc.removeEventListener('lsg:media-seek', seek);
       if (!audio) return;
       audio.pause();
+      if (origin.label === null) audio.removeAttribute('aria-label');
+      else audio.setAttribute('aria-label', origin.label);
       // The recording returns to its page, so the page works as it does without the plugin.
       if (origin.parent?.isConnected) origin.parent.insertBefore(audio, origin.next?.parentNode === origin.parent ? origin.next : null);
       doc.body.classList.remove('lsg-has-episode-player');

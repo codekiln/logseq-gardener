@@ -97,6 +97,14 @@ test('formatTime writes minutes and seconds, with hours only when needed', async
   assert.equal(formatTime(12.9), '0:12');
 });
 
+test('playbackStatus says Ended, Paused or Playing from the recording state', async () => {
+  const { playbackStatus } = await loaded;
+  assert.equal(playbackStatus({ ended: false, paused: false }), 'Playing');
+  assert.equal(playbackStatus({ ended: false, paused: true }), 'Paused');
+  // The browser fires pause just before ended; both read Ended once the recording has ended.
+  assert.equal(playbackStatus({ ended: true, paused: true }), 'Ended');
+});
+
 const sun = [
   { anchor: 'a', seconds: 0, title: 'Enter Infini Pad', parent: null },
   { anchor: 'b', seconds: 0, title: 'Launchpad playing', parent: 0 },

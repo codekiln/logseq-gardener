@@ -34,7 +34,8 @@ body.lsg-has-episode-player { padding-bottom: 7rem; }
 }
 .lsg-episode-player-chapter > span { margin: 0 .35rem; color: var(--lsg-muted); }
 .lsg-episode-seek { font-variant-numeric: tabular-nums; }
-.lsg-episode-player-status { font-size: .8rem; color: var(--lsg-muted); }
+.lsg-episode-player-status, .lsg-episode-player-recording { font-size: .8rem; }
+.lsg-episode-player-status { color: var(--lsg-muted); }
 .lsg-episode-player audio { display: block; width: 100%; max-width: 810px; height: 40px; margin: .35rem auto 0; }
 .lsg-episode-play {
   padding: .45rem .8rem;

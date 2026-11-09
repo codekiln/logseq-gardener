@@ -57,6 +57,8 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 			- On another episode page, the page's recording becomes a Play button. The playing recording stays until the reader presses it; the player then plays the new recording from its start.
 			- Each chapter's timestamp, in a heading or at the start of a bullet, becomes a link that plays the episode's recording in the player from the chapter's start. A link opened in a new tab or with a modifier key opens the recording itself at that time.
 			- While a recording plays, the player shows its current chapter after the episode's title, with the chapters that enclose it, each linked to its block. The current chapter is the one with the latest start at or before the playing time.
+			- The player also has a **Full recording** link to the recording, which opens in a new tab so the player keeps playing, and a status that reads Playing, Paused or Ended and reports a recording that fails to load.
+			- For screen readers, the current chapter's link in the trail carries `aria-current="true"`, and the player's `<audio>` element is named `Full episode recording`. The status is a polite live region, so a screen reader reads each change after its current speech.
 			- A dialogue timestamp on the episode page that the reader is on plays its recording in the player from that time. The module cancels the `lsg:media-seek` event, so the page's own `<audio>` stays paused.
 			- When the module is absent or fails, the page shows its own `<audio>` element, chapter timestamps stay text and dialogue timestamps seek the page's recording, as without the plugin.
 		- ### Budget
