@@ -24,7 +24,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Publish Options
 		- A custom stylesheet can make the browser request any resource its `url()` and `@import` rules name, so choose CSS you trust as well.
 	- ## Who uses it
 		- Gitpa builds its podcast site with a released `lsg`. Its [Publish workflow](https://github.com/codekiln/gitpa/blob/main/.github/workflows/gh-pages.yml) downloads a pinned, checksum-verified release and keeps its own RSS validation, and its [build script](https://github.com/codekiln/gitpa/blob/main/scripts/build_site.py) supplies the site-specific presentation. Gitpa plans to move that customization into Gardener plugins ([Gitpa issue 93](https://github.com/codekiln/gitpa/issues/93)).
-		- This documentation is published with `lsg` from the `docs` folder of the repository, as [[lsg/How To/Edit the Documentation]] describes.
+		- This documentation is published with `lsg` from the `logseq-gardener-docs` folder of the repository, as [[lsg/How To/Edit the Documentation]] describes.
 		- [[lsg/Ref/Logseq Compatibility]] records what `lsg` renders as Logseq does and where it differs. [[lsg/Parser Adoption]] records the parser decision behind the SDK.
 	- ## Sources
 		- [Project Brief](https://github.com/codekiln/logseq-encode-garden/blob/main/pages/Person___codekiln___GitHub___logseq-gardener___Project___Brief.md): describes per-page HTML through the shared garden engine.

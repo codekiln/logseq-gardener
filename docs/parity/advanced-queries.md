@@ -4,7 +4,7 @@
 
 The work is too large for one pull request, so it follows four steps, one pull request each: Analyze (this document), Propose (an OpenSpec change), Apply (code and tests), and Sync (spec sync and archive). The reason is in [Why four steps](#why-four-steps).
 
-Measured on 2026-11-08 with `lsg` built from logseq-gardener `d28b43a`, gitpa `410f4d9` and Logseq's source at `og` `6e7afa8eb`. Logseq's behaviour below comes from that source and from the earlier browser measurements in [Queries Compatibility](../pages/lsg___Ref___Logseq%20Compatibility___Queries.md). No new browser measurement was made in this step; the first Apply test compares the result with Logseq 0.10.15's own export (`mise run parity:logseq-export`).
+Measured on 2026-11-08 with `lsg` built from logseq-gardener `d28b43a`, gitpa `410f4d9` and Logseq's source at `og` `6e7afa8eb`. Logseq's behaviour below comes from that source and from the earlier browser measurements in [Queries Compatibility](../../logseq-gardener-docs/pages/lsg___Ref___Logseq%20Compatibility___Queries.md). No new browser measurement was made in this step; the first Apply test compares the result with Logseq 0.10.15's own export (`mise run parity:logseq-export`).
 
 ## The query to match
 
@@ -62,7 +62,7 @@ Each gap is a test. "Fixture" names a page described under [Fixture pages](#fixt
 2. **Match property types.** `public:: true` matches; `public:: false`, `public:: "true"` and a missing `public` do not (fixture `Tools/Queries/Typed`). A set-valued property matches by page name with its original case.
 3. **Run `:result-transform`.** `fn`, `sort-by` (with and without a comparator), `compare`, `reverse`, `get`, `get-in` and keywords used as functions give the order Logseq gives. Gitpa's `podcast-published-at` values sort as strings, as in Logseq, so two timestamps in different zones keep Logseq's order rather than the order in time.
 4. **Run `:view`.** `fn`, `into`, `map`, `str`, `clojure.string/replace` and keyword access build Hiccup; a vector whose first element is a string becomes an element with its attribute map. Text and attribute values are escaped.
-5. **Keep links working.** The `#/page/<name>` links the gitpa view builds resolve to the published page the way old Logseq links already do ([`--redirect-old-urls`](../pages/lsg___Ref___Logseq%20Compatibility___Queries.md)). View output creates no reference and no backlink, as in Logseq.
+5. **Keep links working.** The `#/page/<name>` links the gitpa view builds resolve to the published page the way old Logseq links already do ([`--redirect-old-urls`](../../logseq-gardener-docs/pages/lsg___Ref___Logseq%20Compatibility___Queries.md)). View output creates no reference and no backlink, as in Logseq.
 6. **Show the header and count.** The box keeps the `:title`, shows `18 results` for the gitpa query, and hides the table toggle because a `:view` is set. An empty result calls no view and shows an empty body with no count.
 7. **Fail like Logseq, and say why.** A form outside the supported set keeps the existing error box: `Query failed:` for the query or the transform, `Custom view failed:` for the view, each naming the unsupported form, plus one build diagnostic with the line. A supported transform or view that throws at build time gives the same boxes as Logseq's throw.
 8. **Run each query once, only when present.** A garden with no advanced query builds the same output at the same speed. The result is the same for the same input; no supported form reads the date or the environment.

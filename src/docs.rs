@@ -1,12 +1,12 @@
 //! Links from help text to pages on the documentation site.
 //!
-//! The site publishes the `docs` graph with readable page URLs, so a page's address is the base
-//! URL followed by the route that the SDK's [`readable_url`] gives the page's title. Help prints
-//! these addresses and never fetches them.
+//! The site publishes the `logseq-gardener-docs` graph with readable page URLs, so a page's
+//! address is the base URL followed by the route that the SDK's [`readable_url`] gives the page's
+//! title. Help prints these addresses and never fetches them.
 
 use logseq_gardener_sdk::page_urls::readable_url;
 
-/// The documentation site, published from the `docs` graph on `main`.
+/// The documentation site, published from the `logseq-gardener-docs` graph on `main`.
 const BASE_URL: &str = "https://codekiln.github.io/logseq-gardener/";
 
 /// The documentation site address of the page titled `title`.
