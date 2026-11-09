@@ -219,6 +219,18 @@ fn body_exclusion_and_default_opt_out() {
     assert_eq!(corpus["content"], serde_json::json!([]));
 }
 #[test]
+fn a_timestamp_is_the_only_macro_that_adds_search_text() {
+    let f = Fixture::new();
+    f.write(
+        "Public.md",
+        "- {{youtube-timestamp 620}} Agent skill {{tweet https://twitter.com/TWEET_SENTINEL/status/1}}\n",
+    );
+    let output = f.publish("site", Some(SearchOptions::default()));
+    let (corpus, raw) = Fixture::corpus(&output);
+    assert_eq!(corpus["content"][0]["text"], "10:20 Agent skill");
+    assert!(!raw.contains("TWEET_SENTINEL") && !raw.contains("tweet"));
+}
+#[test]
 fn duplicate_uuid_uses_offsets_and_large_original_outlines_have_real_destinations() {
     let f = Fixture::new();
     let mut source = "- first\n  id:: 12345678-1234-1234-1234-123456789abc\n- second\n  id:: 12345678-1234-1234-1234-123456789abc\n".to_owned();

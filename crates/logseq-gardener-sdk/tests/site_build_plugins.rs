@@ -639,6 +639,33 @@ mod process {
     }
 
     #[test]
+    fn a_change_to_contributed_metadata_alone_changes_the_revision() {
+        let fixture = Fixture::new();
+        fixture.plugin_file("player/player.mjs", "export default {};\n");
+        let manifest = fixture.plugin_file(
+            "player/lsg-plugin.json",
+            r#"{"id":"player","apiVersion":1,"version":"1.0.0","module":"player.mjs","activation":"on-demand","pageProperties":["recording"],"build":{"command":["./build.sh"]}}"#,
+        );
+        let mut revisions = Vec::new();
+        for (site, title) in [("intro", "Intro"), ("opening", "Opening")] {
+            let answer = ANSWER.replace("Intro", title);
+            script(
+                &fixture,
+                "player",
+                &format!("cat > /dev/null\nprintf '%s' '{answer}'"),
+            );
+            let site = with(&fixture, site, vec![manifest.clone()]).unwrap();
+            let episode = page(&site, "show/episode 1");
+            assert_eq!(
+                metadata(&episode)["plugins"]["player"]["chapters"][0]["title"],
+                title
+            );
+            revisions.push(site_manifest(&site)["revision"].clone());
+        }
+        assert_ne!(revisions[0], revisions[1]);
+    }
+
+    #[test]
     fn build_only_plugin_adds_no_host_or_plugin_entry() {
         let fixture = Fixture::new();
         script(

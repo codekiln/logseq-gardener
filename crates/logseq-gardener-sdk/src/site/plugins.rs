@@ -105,17 +105,13 @@ pub(super) fn host(plugins: &[PluginManifest], readable: bool) -> (String, Strin
     (route, script)
 }
 
-/// The tags added before `</head>` of a page when plugins with a browser module are configured:
-/// the page metadata and a module that imports the host after first paint, as the search loader
-/// does. `contributed` holds the values build plugins added for this page, by plugin id.
-pub(super) fn page_head(
-    page: &SitePage,
-    revision: &str,
+/// The values each plugin with a browser module receives on a page: its page properties and
+/// the values build plugins added, by plugin id. `contributed` holds the latter.
+pub(super) fn page_plugins(
     plugins: &[PluginManifest],
     visible: &[(String, String)],
     contributed: Option<&BTreeMap<String, Map<String, Value>>>,
-    host_route: &str,
-) -> String {
+) -> Map<String, Value> {
     let mut entries = Map::new();
     for plugin in plugins.iter().filter(|plugin| plugin.module.is_some()) {
         let mut values: Map<String, Value> = plugin
@@ -134,6 +130,18 @@ pub(super) fn page_head(
             entries.insert(plugin.id.clone(), Value::Object(values));
         }
     }
+    entries
+}
+
+/// The tags added before `</head>` of a page when plugins with a browser module are configured:
+/// the page metadata and a module that imports the host after first paint, as the search loader
+/// does. `entries` comes from [`page_plugins`].
+pub(super) fn page_head(
+    page: &SitePage,
+    revision: &str,
+    entries: Map<String, Value>,
+    host_route: &str,
+) -> String {
     let metadata = json!({
         "id": page.id,
         "title": page.title,
