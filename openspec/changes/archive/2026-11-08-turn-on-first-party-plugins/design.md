@@ -2,13 +2,13 @@
 
 ## Context
 
-The [analysis](../../../docs/parity/gitp-a-shared-rendering.md) compared gitpa (`410f4d9`) and logseq-encode-garden (`a7d948e`) built with `lsg` 0.0.29 and assigned each reader behaviour an owner. This change covers the behaviour it assigned to first-party plugins. See proposal.md for the motivation.
+The [analysis](../../../../docs/parity/gitp-a-shared-rendering.md) compared gitpa (`410f4d9`) and logseq-encode-garden (`a7d948e`) built with `lsg` 0.0.29 and assigned each reader behaviour an owner. This change covers the behaviour it assigned to first-party plugins. See proposal.md for the motivation.
 
 What `lsg` has today:
 
-- **Manifest plugins.** `lsg publish --plugin PATH` reads a JSON manifest. `plugins::read_manifests` checks it before the output directory exists, the publisher copies the module and stylesheets to `plugins/<id>/`, and `lsg-site.json` lists the plugin ([Plugin Host API](../../../docs/pages/lsg___Ref___Plugin%20Host%20API.md)).
+- **Manifest plugins.** `lsg publish --plugin PATH` reads a JSON manifest. `plugins::read_manifests` checks it before the output directory exists, the publisher copies the module and stylesheets to `plugins/<id>/`, and `lsg-site.json` lists the plugin ([Plugin Host API](../../../../docs/pages/lsg___Ref___Plugin%20Host%20API.md)).
 - **The browser host.** With one plugin that has a module, every page except the graph view carries a `data-lsg-page` metadata element and imports `lsg-host-<digest>.mjs` after first paint. The host owns same-document navigation, keeps persistent regions outside `<main>`, and imports an `on-demand` module on the first page whose metadata has an entry for it.
-- **Build plugins.** A manifest's `build` section runs a program once per build, and a Rust caller can add an in-process `BuildPlugin` to `SiteOptions::build_plugins` ([Build Plugin Protocol](../../../docs/pages/lsg___Ref___Build%20Plugin%20Protocol.md)). Both return `rows` and `metadata` contributions, which `contributions::resolve` checks. Metadata needs a module, and an in-process plugin has none, so in-process plugins contribute rows only.
+- **Build plugins.** A manifest's `build` section runs a program once per build, and a Rust caller can add an in-process `BuildPlugin` to `SiteOptions::build_plugins` ([Build Plugin Protocol](../../../../docs/pages/lsg___Ref___Build%20Plugin%20Protocol.md)). Both return `rows` and `metadata` contributions, which `contributions::resolve` checks. Metadata needs a module, and an in-process plugin has none, so in-process plugins contribute rows only.
 - **Garden settings.** `garden_settings.rs` and `garden_config.rs` read top-level keys of `logseq/config.edn` with an EDN reader, including `lsg`'s own `:publishing/page-sequence?`.
 - **Page sequences.** `site/sequence.rs` resolves `prev::` and `next::` to published neighbours and draws the Page sequence region at the bottom of a page.
 - **Typed property values.** The advanced queries change added a reader that turns `[[A]], [[B]]` into a set of page names.
@@ -182,7 +182,7 @@ phone_heap_growth_mb = 0.2
 build_ms_per_page = 0.05
 ```
 
-The existing budgets apply to every page with the plugins on: 100 KB of data and 16 KB of script before the title, 300 ms (desktop) and 1,500 ms (phone) to the title, 10 MB of JavaScript heap, and a search p95 of 50 ms (desktop) and 100 ms (phone) per keystroke. Logseq's build of the same encode garden loads about 22,000 KB of data and 8,000 KB of script before the title and peaks near 2,000 MB of heap on the same pages ([Performance](../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md)).
+The existing budgets apply to every page with the plugins on: 100 KB of data and 16 KB of script before the title, 300 ms (desktop) and 1,500 ms (phone) to the title, 10 MB of JavaScript heap, and a search p95 of 50 ms (desktop) and 100 ms (phone) per keystroke. Logseq's build of the same encode garden loads about 22,000 KB of data and 8,000 KB of script before the title and peaks near 2,000 MB of heap on the same pages ([Performance](../../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md)).
 
 ### Measurement
 

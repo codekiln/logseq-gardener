@@ -15,7 +15,7 @@
 - [x] 2.2 Render links, tags and page-valued properties to reference-only and generated namespace pages in `site/render.rs` and the property box, and keep `unresolved` and diagnostics only for withheld, unselected, ambiguous and collided names; verify with tests for the `local-static-publishing`, `published-namespace-hierarchy` and `published-page-properties` scenarios
 - [x] 2.3 Limit a reference-only page's Unlinked References to the first fragment file and end the list with `Showing the first N of M pages`; verify with a test on a fixture name with more than one file of mentions
 - [x] 2.4 List reference-only pages in All pages with the ordinary link style and no dates, and reference-only journals in the journals feed; verify with tests for both scenarios
-- [ ] 2.5 Make `site/graph.js` open nodes that have a route and keep `not published` for the rest; verify with JavaScript tests for the `Deno Deploy` and `TODO` nodes and a Shift-click test that adds a page card for a reference-only page
+- [x] 2.5 Make `site/graph.js` open nodes that have a route and keep `not published` for the rest; verify with JavaScript tests for the `Deno Deploy` and `TODO` nodes and a Shift-click test that adds a page card for a reference-only page
 - [x] 2.6 Count reference-only pages in the `lsg publish` human and JSON reports; verify with a CLI test and add the count to `docs/pages/lsg___Ref___Publish Options.md`
 - [x] 2.7 Verify with a `tests/publish.rs` case that adding a block naming a new page and publishing again changes only the files the "Rewrite only the affected files after an edit" requirement names, and that removing it removes the page
 
@@ -34,7 +34,7 @@
 
 - [x] 5.1 Publish the whole encode garden with `mise run parity:build` and verify that the unresolved-reference diagnostics name only the two withheld `GitP/.../wav` pages and that each fixture page from the analysis behaves as its gap describes; record the results in `verification.md`
 - [x] 5.2 Run `parity:compare` against Logseq's 2026-10-25 build and record the reference-only group in `verification.md`
-- [ ] 5.3 Run `parity:perf` on `Deno Deploy` and a search for `deno deploy` in both builds on the desktop and phone profiles, and commit the rows to `docs/parity/performance.md`
+- [x] 5.3 Run `parity:perf` on `Deno Deploy` and a search for `deno deploy` in both builds on the desktop and phone profiles, and commit the rows to `docs/parity/performance.md`
 - [x] 5.4 Run `parity:perf --baseline-lsg` and `parity:publish-bench --record`, verify the build time, page HTML, `_refs/`, Linked and Unlinked References totals and site size are within budget, and commit the rows to `docs/parity/publication-speed.json`
 - [x] 5.5 Update the All Pages, Graph View, Right Sidebar and Hierarchy compatibility pages, `docs/pages/lsg___Ref___Selection and Visibility.md` and `docs/parity/reference-only-pages.md` with the new behaviour, and verify `mise run docs:check` passes
 - [x] 5.6 Run `mise run ci`

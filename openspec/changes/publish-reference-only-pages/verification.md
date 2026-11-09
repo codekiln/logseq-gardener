@@ -87,4 +87,34 @@ The `lsg` values are within the `[desktop]` and `[phone]` budgets: 100 KB of dat
 
 ## Search on the encode garden
 
-The same `parity:perf` run measured search in the `lsg` build with the 4,656 new titles, desktop profile, over the queries in `scripts/parity/search-queries.txt`: first results 137 ms, keystroke p95 23 ms (warm 12 ms, cold 48 ms), heap growth 5.9 MB and at most 115 KB downloaded for one keystroke, within the `[search]` and `[desktop]` budgets. The phone profile's search and a `deno deploy` query were not measured.
+Measured 2026-11-09 with `lsg` 0.0.42 (`a25b3a1`, which includes this change) on garden commit `66b81e9`, against Logseq's 2026-10-25 build: `parity:perf` with `deno deploy` added to `scripts/parity/search-queries.txt`. The Search sections of [lsg/Ref/Logseq Compatibility/Performance](../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md) hold every row, including the new Search per query table.
+
+| Profile | Build | First page results (ms) | `deno deploy` keystroke p95 (ms) | `deno deploy` downloaded (KB, gzip) | First page result for `deno deploy` |
+| --- | --- | ---: | ---: | ---: | --- |
+| Desktop | Logseq | 2,921 | 1,337 | 0 | |
+| Desktop | lsg | 137 | 32 | 108.8 | `Deno Deploy` |
+| Phone | Logseq | 11,889 | 10,243 | 0 | |
+| Phone | lsg | 2,048 | 436 | 103.4 | `Deno Deploy` |
+
+Over the whole query list on the phone profile, `lsg`'s cold keystrokes reach 508 ms at the 95th percentile, within the 1,000 ms budget, and the heap grows 6.3 MB, within 30 MB. Warm keystrokes reach 128 ms against the `[phone]` budget of 100 ms. That excess predates this change: the same measurement on a site published by `lsg` 0.0.41 (`f64db09`), twice each, alternating, gave 105 and 106 ms before and 129 and 133 ms after. Warm keystrokes that fetched nothing took 50 to 51 ms before and 56 to 57 ms after. Before this change, the first page result for `deno deploy` was `LangSmith/Deployment/Concept/Deployment Source`, because no page `Deno Deploy` existed.
+
+## Contrando
+
+`Contrando`'s file publishes it as an ordinary page. Its rows on the Performance page came from `lsg` 0.0.0 on 2026-10-26 and are replaced by the 2026-11-09 run: 20.5 ms to the title on desktop and 412 ms on the phone profile, with 15.2 KB of data and 14.0 KB of script before the title, and a peak heap of 1.8 to 1.9 MB, within the `[desktop]` and `[phone]` budgets.
+
+## Build peak memory
+
+`parity:publish-bench`'s measurement on the encode garden at `66b81e9`, with `--journals`, `--search` and every top-level namespace. The local figures come from `lsg` 0.0.41 (`f64db09`) and this change's build, alternating, two rounds of one cold and two warm builds each; the GitHub figures from the `publication-speed` job on main before and after this change merged (runs 42521212918 and 42534438112, garden commit `5095bdf`).
+
+| Machine | Before (MB) | After (MB) | Growth | Budget (MB) |
+| --- | ---: | ---: | ---: | ---: |
+| GitHub runner, Linux | 2,196 | 2,372 | +8% | 2,700 |
+| Apple M2 Pro, macOS | 3,115 to 3,117 | 3,398 to 3,405 | +9% | 3,900 |
+
+The budgets are `encode_garden_peak_mb_linux` and `encode_garden_peak_mb_macos` in the `[publication]` table of `scripts/parity/budgets.toml`, about 14% above the after figures; `parity:publish-bench --check`, which CI runs, fails a build that peaks above the budget for its system. The two systems count resident memory differently, hence two budgets. The memory is the build process's; a reader's browser loads none of it.
+
+In the same local rounds the warm builds took 17.1 and 18.1 s before and 18.5 and 21.3 s after; the `parity:perf` run's fastest of three took 17.7 s before and 20.3 s after. Another build was running on the machine during these rounds, so these times are less reliable than the three alternating builds under Build time above.
+
+## Graph view and right sidebar
+
+`tests/graph.test.cjs` opens `Deno Deploy` from the graph view's Search list and from a Page graph card, and shows `TODO — not published` for `TODO` in both, reading data files that the Rust encoder writes (`reference_only_javascript_fixtures_match_the_encoder`). `tests/sidebar.test.cjs` Shift-clicks a link to `Deno Deploy` on `Deno` and gets a page card with its Linked References header while the page stays on `Deno`.

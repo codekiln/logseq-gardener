@@ -14,7 +14,8 @@ else. `--check` compares the fastest warm build with the recorded rows for the s
 check on lsg/Ref/Publication Speed (docs/pages/lsg___Ref___Publication Speed.md) says how the limit
 is chosen. For the encode garden, `--check` also fails when the site, its page HTML or `_refs/`
 exceeds its budget in the [site] table of budgets.toml, or when its search shards together exceed
-`shards_total_gzip_mb` in the [search] table.
+`shards_total_gzip_mb` in the [search] table, or the build's peak memory exceeds its budget in the
+[publication] table.
 """
 import argparse
 import json
@@ -216,6 +217,19 @@ def check_search(row, limits):
     return []
 
 
+def check_peak(row, limits, system=sys.platform):
+    """Failure messages for an encode garden row whose build peaked above its memory budget.
+
+    Linux and macOS count resident memory differently, so each has its own budget in [publication].
+    """
+    if row['corpus']['name'] != 'encode-garden':
+        return []
+    key = 'encode_garden_peak_mb_' + ('macos' if system == 'darwin' else 'linux')
+    if key in limits and row['peak_mb'] > limits[key]:
+        return [f'{row["corpus"]["name"]}: peak memory {row["peak_mb"]:,} MB exceeds its {limits[key]:,} MB budget ({key})']
+    return []
+
+
 def describe(row):
     phases = ', '.join(f'{name} {ms / 1000:.2f}' for name, ms in row['phases_ms'].items())
     return (f'{row["corpus"]["name"]}: cold {row["cold_s"]:.2f} s, warm {row["warm_s"]:.2f} s '
@@ -284,6 +298,10 @@ def main():
                     print(f'  site within {size_limits["site_mb"]} MB, page HTML within '
                           f'{size_limits["page_html_mb"]} MB, _refs/ within {size_limits["refs_mb"]} MB and '
                           f'search shards within {budgets["search"]["shards_total_gzip_mb"]} MB gzip')
+                peak = check_peak(row, budget)
+                failures += peak
+                if row['corpus']['name'] == 'encode-garden' and not peak:
+                    print(f'  peak memory {row["peak_mb"]:,} MB within its budget')
     if args.output:
         Path(args.output).write_text(json.dumps(rows, indent=2) + '\n', encoding='utf-8')
     if args.record:
