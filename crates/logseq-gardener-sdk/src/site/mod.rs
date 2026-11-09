@@ -1387,11 +1387,31 @@ pub fn publish_site_with_options(
     }
     if readable {
         let script = readable::script();
+        // Each page names its route as canonical; the home page, shown at `index.html` and
+        // in its folder, names the site root.
+        let page_routes: BTreeSet<&str> = routes
+            .keys()
+            .map(String::as_str)
+            .chain(generated.values().map(|(_, route)| route.as_str()))
+            .chain(reference_only.keys().map(String::as_str))
+            .collect();
         for (route, html) in &mut documents {
+            let canonical = if homepage_route.as_ref() == Some(route)
+                || route == "index.html" && has_homepage
+            {
+                Some("./")
+            } else {
+                page_routes
+                    .contains(route.as_str())
+                    .then_some(route.as_str())
+            };
             if is_readable(route) || route.ends_with(".html") && !route.contains('/') {
                 *html = html.replacen(
                     "<meta charset=\"utf-8\">",
-                    &format!("<meta charset=\"utf-8\">{}", readable::head(route, &script)),
+                    &format!(
+                        "<meta charset=\"utf-8\">{}",
+                        readable::head(route, canonical, &script)
+                    ),
                     1,
                 );
             }
