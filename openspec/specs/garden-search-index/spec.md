@@ -38,7 +38,7 @@ The SDK SHALL answer a query with the same grouped, ordered results the publishe
 
 ### Requirement: Incremental index update
 
-Adding, removing or changing a block on one page SHALL change only the records of that page and the index entries of the words its old and new records contain. Shards and chunks whose content is unchanged SHALL keep the same file name and bytes after a rebuild, and the title index SHALL stay unchanged while no page, title or alias changes.
+Adding, removing or changing a block on one page SHALL change only the records of that page and the index entries of the words its old and new records contain. Adding, removing or renaming a page SHALL change only the title index, the manifest, the chunks that hold that page's records and the shards of the words its records contain, unless the page shares a slot with a page whose route sorts after it or the slot count changes. Shards and chunks whose content is unchanged SHALL keep the same file name and bytes after a rebuild, and the title index SHALL stay unchanged while no page, title or alias changes.
 
 #### Scenario: One page edited
 
@@ -54,3 +54,13 @@ Adding, removing or changing a block on one page SHALL change only the records o
 
 - **WHEN** an edited block grows enough to move a chunk boundary
 - **THEN** only the chunks of the edited block's segment differ, besides the manifest and the affected shards
+
+#### Scenario: One page added
+
+- **WHEN** a page reading `An added page about zymurgy.` is added to a garden, its slot holds no other page, and the site is rebuilt
+- **THEN** every shard whose key starts none of the words `an`, `added`, `page`, `about` and `zymurgy` keeps its name and bytes
+
+#### Scenario: A page added before another in its slot
+
+- **WHEN** an added page shares a slot with a page whose route sorts after it
+- **THEN** that page's block numbers in the slot move by the added page's block count, and the shards of that page's words change as well
