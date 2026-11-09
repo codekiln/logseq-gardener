@@ -1,6 +1,6 @@
 ## Context
 
-The [Reference-only pages analysis](../../../docs/parity/reference-only-pages.md) measured `lsg` 0.0.38 on the encode garden at `66b81e9543` against Logseq's publish-spa build of 2026-10-25. Of the 3,872 unresolved names, 3,494 have no file, 376 already have a generated namespace page and 2 are withheld pages.
+The [Reference-only pages analysis](../../../../docs/parity/reference-only-pages.md) measured `lsg` 0.0.38 on the encode garden at `66b81e9543` against Logseq's publish-spa build of 2026-10-25. Of the 3,872 unresolved names, 3,494 have no file, 376 already have a generated namespace page and 2 are withheld pages.
 
 The SDK already knows most of what the publisher needs. `references.rs` records, per block, the names that resolve to no page (`GraphRefs::unresolved`), their namespace parents and unresolved `tags::` names; `graph.rs` turns them into `REFERENCE_ONLY` nodes; `title_spellings.rs` applies Logseq's first-reference spelling to alias names; `Publication::garden_names` tells a name with a file from a name without one. What is missing is a set of pages built from those names, routes for them, and a page-name index that resolves them and the generated namespace pages. The publisher's `page_link` and `tag` in `site/render.rs` mark every name outside the index `unresolved`.
 

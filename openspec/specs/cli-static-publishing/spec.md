@@ -28,7 +28,7 @@ lsg publish SHALL accept required --graph and --output native filesystem paths, 
 
 ### Requirement: Publication reports and diagnostics
 
-Successful human and JSON output SHALL report pages, published journals, assets, withheld pages, skipped journals, diagnostic count, and an index location. JSON SHALL contain format_version 1 and command_path [publish]. Unsupported selected constructs SHALL produce local stderr diagnostics and success. Fatal SDK failures SHALL return one with empty stdout and an actionable stderr error; invalid selectors SHALL return two.
+Successful human and JSON output SHALL report pages, published journals, reference-only pages, assets, withheld pages, skipped journals, diagnostic count, and an index location. JSON SHALL contain format_version 1 and command_path [publish]. Unsupported selected constructs SHALL produce local stderr diagnostics and success. Fatal SDK failures SHALL return one with empty stdout and an actionable stderr error; invalid selectors SHALL return two.
 
 #### Scenario: Unsupported content
 
@@ -43,6 +43,10 @@ Successful human and JSON output SHALL report pages, published journals, assets,
 #### Scenario: Journal counts
 - **WHEN** a caller publishes a garden with three journals using --journals, one of them private
 - **THEN** the report shows two published journals and one withheld page
+
+#### Scenario: Reference-only page count
+- **WHEN** a caller publishes a garden whose published pages link two names that no file holds
+- **THEN** the human report shows two reference-only pages, the JSON report holds `reference_only_pages` 2, and the page count is unchanged
 
 ### Requirement: Offline publishing help
 

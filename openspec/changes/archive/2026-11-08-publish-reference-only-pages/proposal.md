@@ -1,6 +1,6 @@
 ## Why
 
-In Logseq, `[[Deno Deploy]]` makes a page even when no file holds it, and publish-spa publishes that page with the blocks that name it. `lsg` 0.0.38 renders the same link as plain text: on the encode garden, 3,872 linked or tagged names stay unresolved, 9,366 diagnostics in all ([Reference-only pages analysis](../../../docs/parity/reference-only-pages.md), [Issue #351 Publish pages that exist only as link targets, as Logseq does](https://github.com/codekiln/logseq-gardener/issues/351)). Readers of the garden lose those links, and 376 of the names already have a generated namespace page that a link in a block's text cannot reach.
+In Logseq, `[[Deno Deploy]]` makes a page even when no file holds it, and publish-spa publishes that page with the blocks that name it. `lsg` 0.0.38 renders the same link as plain text: on the encode garden, 3,872 linked or tagged names stay unresolved, 9,366 diagnostics in all ([Reference-only pages analysis](../../../../docs/parity/reference-only-pages.md), [Issue #351 Publish pages that exist only as link targets, as Logseq does](https://github.com/codekiln/logseq-gardener/issues/351)). Readers of the garden lose those links, and 376 of the names already have a generated namespace page that a link in a block's text cannot reach.
 
 ## What Changes
 
