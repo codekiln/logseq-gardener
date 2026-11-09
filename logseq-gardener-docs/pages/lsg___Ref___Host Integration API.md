@@ -85,7 +85,8 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Published Pages]], [[lsg/Ref/S
 		  | `data-lsg-theme-select` | A host's `<select>` | Marks a native Appearance selector. |
 		  | `data-lsg-theme-control` | The selector's container | Marks the element that holds the selector. |
 		  | `data-lsg-search-state` | The search dialog | The dialog's state, as [[lsg/Ref/Search Dialog]] describes. |
-		  | `data-lsg-search-complete` | The search results list, `#lsg-search-results` | Advances after each completed result render, as [[lsg/Ref/Search Dialog]] describes. |
+		  | `data-lsg-search-drawn` | The search results list, `#lsg-search-results` | Advances each time the result list is drawn, as [[lsg/Ref/Search Dialog]] describes. |
+		  | `data-lsg-search-complete` | The search results list, `#lsg-search-results` | Advances once every drawn row has its text, as [[lsg/Ref/Search Dialog]] describes. |
 		  | `data-lsg-page` | A `<script type="application/json">` in the head | The page metadata that plugins read, as [[lsg/Ref/Plugin Host API]] describes. |
 		  | `data-lsg-plugin`, `data-lsg-region` | A plugin's persistent region | The plugin's id and the region's local id, as [[lsg/Ref/Plugin Host API]] describes. |
 	- ## Rewritten page addresses

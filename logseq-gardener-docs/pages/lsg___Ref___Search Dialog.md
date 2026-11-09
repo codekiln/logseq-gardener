@@ -32,8 +32,9 @@ see-also:: [[lsg/Ref/Static Search Data]], [[lsg/Ref/Host Integration API]], [[l
 		- | Attribute | Meaning |
 		  | --- | --- |
 		  | `data-lsg-search-state` | The dialog's state: `loading`, `ready`, `error` or `closed`. |
-		  | `data-lsg-search-complete` | Advances after each completed result render. |
-		- The parity harness measures each keystroke by waiting for `data-lsg-search-complete` to advance, so queries with no results are measured too.
+		  | `data-lsg-search-drawn` | Advances each time the result list for the input is drawn. A block row whose text is still loading shows its page title and a placeholder line. |
+		  | `data-lsg-search-complete` | Advances once every drawn row has its text. |
+		- The parity harness measures each keystroke by waiting for `data-lsg-search-drawn` to advance. A query with no results advances it too, so it is measured.
 	- ## With a persistent host
 		- A host that keeps the page across navigations calls `window.logseqGardenerInitSearch` after each page swap, as [[lsg/Ref/Host Integration API]] describes. The dialog stays one body-level element outside `<main>`.
 		- An ordinary result activation closes the dialog before its click bubbles to the host's delegated navigator. The controller does not prevent the link's navigation, and the host keeps its own player, theme and filter initialization and fragment reveal steps.

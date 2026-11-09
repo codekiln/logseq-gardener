@@ -6,7 +6,7 @@ Define the command-line publishing inputs, reports, and offline help.
 
 ### Requirement: Explicit SDK-backed publishing
 
-lsg publish SHALL accept required --graph and --output native filesystem paths, required --filename-format legacy|triple-lowbar, and repeated UTF-8 --include and --exclude namespace roots. It SHALL accept an optional UTF-8 --homepage logical page selector and an optional --journals flag and pass them to the SDK. It SHALL delegate selection and publication to the SDK, preserving its exclusion and fresh-output protections.
+lsg publish SHALL accept required --graph and --output native filesystem paths, required --filename-format legacy|triple-lowbar, and repeated UTF-8 --include and --exclude namespace roots. It SHALL accept an optional UTF-8 --homepage logical page selector, an optional --journals flag and an optional --include-all flag, and pass them to the SDK; the requirement "Publish every page and journal" defines --include-all. It SHALL delegate selection and publication to the SDK, preserving its exclusion and fresh-output protections.
 
 #### Scenario: Publish selected content
 
