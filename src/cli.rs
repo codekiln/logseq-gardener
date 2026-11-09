@@ -101,6 +101,8 @@ struct PublishArgs {
     #[arg(long)]
     include: Vec<String>,
     #[arg(long)]
+    include_all: bool,
+    #[arg(long)]
     exclude: Vec<String>,
     #[arg(long)]
     plugin: Vec<PathBuf>,
@@ -295,6 +297,11 @@ fn publish(args: PublishArgs, format: Format) -> Result<Response, Failure> {
     let excluded: Vec<&str> = args.exclude.iter().map(String::as_str).collect();
     let selection = NamespaceSelection::new(&included, &excluded)
         .map_err(|error| Failure::from(format!("{error}; each slash-separated segment must be nonempty, have no surrounding whitespace or control characters; use 'lsg publish help'")))?;
+    let selection = if args.include_all {
+        selection.including_all()
+    } else {
+        selection
+    };
     let report = publish_site_with_options(
         &graph,
         &output,

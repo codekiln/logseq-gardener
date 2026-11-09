@@ -78,7 +78,7 @@ Every published source and generated namespace page that has a hierarchy in the 
 
 ### Requirement: Preserve index and source publication contracts
 
-The complete page index SHALL list each selected source page and generated namespace destination once with its full logical title and local route. SiteReport.pages SHALL continue counting selected source documents only. Generated namespaces SHALL remain separate from source page-name, alias, block, transclusion, and homepage lookup. Homepage output, source routes, media rendering, and transclusion behavior SHALL retain their existing contracts.
+The complete page index SHALL list each selected source page, generated namespace destination and reference-only page once with its full logical title and local route. SiteReport.pages SHALL continue counting selected source documents only. Page references, tags and page-valued properties SHALL resolve to generated namespaces through the shared page-name index. Generated namespaces SHALL remain separate from alias, block, transclusion, and homepage lookup. Homepage output, source routes, media rendering, and transclusion behavior SHALL retain their existing contracts.
 
 #### Scenario: Indexed synthetic ancestors
 - **WHEN** one selected source page requires two generated namespace ancestors
@@ -91,6 +91,10 @@ The complete page index SHALL list each selected source page and generated names
 #### Scenario: Retained rendering
 - **WHEN** a selected homepage includes supported media and selected-content transclusions
 - **THEN** hierarchy navigation is added while its existing rendered content, media destinations, block links, and transclusions retain their behavior
+
+#### Scenario: Text link to a generated namespace
+- **WHEN** a selected page's block links `[[AI]]`, and `AI` is a generated namespace destination because `AI/General` is selected
+- **THEN** the link opens the generated `AI` page and the build reports no unresolved reference for it
 
 ### Requirement: Space hierarchy path separators
 
@@ -106,7 +110,7 @@ The default stylesheet SHALL give hierarchy slash separators an 8px horizontal m
 
 ### Requirement: Distinguish namespace destinations
 
-The publisher SHALL visibly label generated namespace pages as Namespace. Links to generated namespace destinations, including hierarchy segments and All pages rows, SHALL have a distinction beyond color and an accessible Namespace name; hierarchy rows and All pages rows SHALL carry no Namespace badge. Selected stored source pages SHALL retain ordinary page labels even when empty. Classification SHALL use only selected visible source routes: missing and ordinarily unselected source ancestors SHALL have the same Namespace presentation. Withheld and alias-conflicting ancestors SHALL retain their existing unavailable behavior. Full logical anchor text in the page index SHALL remain unchanged. Source-only name, alias, embed, homepage, route, and count contracts SHALL remain intact.
+The publisher SHALL visibly label generated namespace pages as Namespace. Links to generated namespace destinations, including hierarchy segments, All pages rows, and page references and tags in page text, SHALL have a distinction beyond color and an accessible Namespace name; hierarchy rows and All pages rows SHALL carry no Namespace badge. Selected stored source pages SHALL retain ordinary page labels even when empty. Classification SHALL use only selected visible source routes: missing and ordinarily unselected source ancestors SHALL have the same Namespace presentation. Withheld and alias-conflicting ancestors SHALL retain their existing unavailable behavior. Full logical anchor text in the page index SHALL remain unchanged. Source-only alias, embed, homepage, route, and count contracts SHALL remain intact.
 
 #### Scenario: Generated and stored destinations
 
@@ -127,6 +131,11 @@ The publisher SHALL visibly label generated namespace pages as Namespace. Links 
 
 - **WHEN** a reader opens `tmux`, whose rows include paths through the generated `tmux/Command`, and All pages, which lists `tmux/Command`
 - **THEN** no hierarchy row or All pages row shows a Namespace badge and the generated links keep their style
+
+#### Scenario: Page reference in text
+
+- **WHEN** a block links `[[Ableton/Live]]`, a generated namespace destination
+- **THEN** the link has the distinct link style and the accessible Namespace name
 
 ### Requirement: Load long hierarchy lists as the reader scrolls
 

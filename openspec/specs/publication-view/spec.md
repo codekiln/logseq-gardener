@@ -11,7 +11,7 @@ The SDK SHALL provide one operation that builds a read-only view of a publicatio
 #### Scenario: Same pages as the site
 
 - **WHEN** a garden is published with build plugins
-- **THEN** the view's page ids are the ids of the `page`, `journal` and `namespace` entries in `lsg-site.json`, and each page's `title` and `url` match its entry
+- **THEN** the view's page ids are the ids of the `page`, `journal`, `namespace` and `reference` entries in `lsg-site.json`, and each page's `title` and `url` match its entry
 
 #### Scenario: Selection moved without output changes
 
@@ -20,12 +20,17 @@ The SDK SHALL provide one operation that builds a read-only view of a publicatio
 
 ### Requirement: View pages
 
-Each view page SHALL have `id` (the lower-cased page name), `title`, `url` (relative to the output root), `kind` (`page`, `journal` or `namespace`) and `properties`. Pages SHALL be sorted by `id`. Generated lists (All pages, the journals feed) SHALL be absent.
+Each view page SHALL have `id` (the lower-cased page name), `title`, `url` (relative to the output root), `kind` (`page`, `journal`, `namespace` or `reference`) and `properties`. Pages SHALL be sorted by `id`. Generated lists (All pages, the journals feed) SHALL be absent.
 
 #### Scenario: Journal page
 
 - **WHEN** a garden is published with `--journals`
 - **THEN** each published journal appears once with kind `journal` and the URL of its generated file
+
+#### Scenario: Reference-only page
+
+- **WHEN** a published block links `Deno Deploy`, which no file holds
+- **THEN** the view holds `Deno Deploy` once with kind `reference`, the URL of its generated file and empty `properties`
 
 ### Requirement: Page properties in the view
 

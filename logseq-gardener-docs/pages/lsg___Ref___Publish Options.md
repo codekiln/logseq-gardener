@@ -6,7 +6,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		- `lsg publish` reads a Logseq garden and writes its selected namespaces as a static website into a new directory, using the Rust SDK. This page lists the command's options, its output directory rules, the report it prints, its exit codes and the folder layout that `--readable-urls` writes. [[lsg/Ref/Command Line]] describes the rules that every `lsg` command shares.
 		- ```sh
 		  lsg publish --graph PATH --output PATH --filename-format legacy|triple-lowbar \
-		    [--include NAMESPACE]... [--exclude NAMESPACE]... [OPTIONS]
+		    [--include NAMESPACE]... [--include-all] [--exclude NAMESPACE]... [OPTIONS]
 		  ```
 		- Run `lsg publish help` to read the command's documentation offline.
 	- ## Options
@@ -15,7 +15,8 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		  | `--graph PATH` | Required. The root folder of the garden. |
 		  | `--output PATH` | Required. A new directory to publish into, as Output directory below describes. |
 		  | `--filename-format FORMAT` | Required. `triple-lowbar` when the garden's `logseq/config.edn` sets `:file/name-format :triple-lowbar`, and `legacy` for Logseq's default file name format. [[lsg/Ref/Page Titles]] describes how each format gives a page its title. |
-		  | `--include NAMESPACE` | Selects a namespace and its descendants. Repeat it to select more namespaces. With no `--include`, no page is selected, and the index lists only the journals that `--journals` publishes. |
+		  | `--include NAMESPACE` | Selects a namespace and its descendants. Repeat it to select more namespaces. With no `--include` and no `--include-all`, no page is selected, and the index lists only the journals that `--journals` publishes. |
+		  | `--include-all` | Selects every page. `--exclude` still applies, and `--include` adds nothing. Add `--journals` to publish the journals too. |
 		  | `--exclude NAMESPACE` | Removes a namespace and its descendants from the selection. Repeat it to remove more namespaces. An exclusion always wins over an inclusion. |
 		  | `--homepage TITLE` | Renders the selected page or alias `TITLE` at `index.html`. |
 		  | `--journals` | Publishes every file under `journals/` as a page, with Logseq's journals feed. |

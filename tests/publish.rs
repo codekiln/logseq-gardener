@@ -917,3 +917,88 @@ fn reports_count_reference_only_pages_apart_from_pages() {
     assert_eq!(report["reference_only_pages"], 2);
     assert_eq!(report["pages"], 1);
 }
+
+#[test]
+fn include_all_publishes_every_page_and_journal_less_exclusions_and_withheld_pages() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- NOTES_SENTINEL\n");
+    f.write("pages/Projects___Alpha.md", "- ALPHA_SENTINEL\n");
+    f.write(
+        "pages/Solvespace.md",
+        "alias:: [[SolveSpace]]\n\n- SOLVESPACE_SENTINEL\n",
+    );
+    f.write("journals/2026_11_08.md", "- JOURNAL_SENTINEL\n");
+    let report = |output: &Path, extra: &[&str]| -> serde_json::Value {
+        let result = f.publish(output, &[extra, &["--format", "json"]].concat());
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        serde_json::from_slice(&result.stdout).unwrap()
+    };
+
+    let all = f.0.join("all");
+    let whole = report(&all, &["--include-all", "--journals"]);
+    assert_eq!(
+        (whole["pages"].as_u64(), whole["journals"].as_u64()),
+        (Some(3), Some(1))
+    );
+    let site = String::from_utf8(fs::read(all.join("lsg-site.json")).unwrap()).unwrap();
+    assert!(site.contains("\"SolveSpace\""), "{site}");
+
+    let excluded = f.0.join("excluded");
+    let less = report(
+        &excluded,
+        &["--include-all", "--journals", "--exclude", "Projects"],
+    );
+    assert_eq!(
+        (less["pages"].as_u64(), less["journals"].as_u64()),
+        (Some(2), Some(1))
+    );
+    let published = files(&excluded);
+    let text = |needle: &str| {
+        published
+            .values()
+            .any(|bytes| String::from_utf8_lossy(bytes).contains(needle))
+    };
+    assert!(!text("ALPHA_SENTINEL"));
+    assert!(text("NOTES_SENTINEL") && text("SOLVESPACE_SENTINEL") && text("JOURNAL_SENTINEL"));
+
+    let redundant = report(
+        &f.0.join("redundant"),
+        &["--include-all", "--journals", "--include", "Notes"],
+    );
+    assert_eq!(redundant["pages"], whole["pages"]);
+
+    let invalid = f.0.join("invalid");
+    let result = f.publish(&invalid, &["--include-all", "--include", "My//AI"]);
+    assert_eq!(result.status.code(), Some(2));
+    assert!(result.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("invalid namespace in include"));
+    assert!(!invalid.exists());
+
+    f.write("pages/Secret.md", "public:: false\n\n- PRIVATE_SENTINEL\n");
+    let private = f.0.join("private");
+    let withheld = report(&private, &["--include-all", "--journals"]);
+    assert_eq!(withheld["withheld_pages"], 1);
+    assert_eq!(withheld["pages"], whole["pages"]);
+    assert!(
+        files(&private)
+            .values()
+            .all(|bytes| !String::from_utf8_lossy(bytes).contains("PRIVATE_SENTINEL"))
+    );
+}
+
+#[test]
+fn include_all_leaves_journals_to_the_journals_flag() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- NOTES_SENTINEL\n");
+    f.write("journals/2026_11_08.md", "- JOURNAL_SENTINEL\n");
+    let result = f.publish(&f.0.join("site"), &["--include-all", "--format", "json"]);
+    assert!(result.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(report["pages"], 1);
+    assert_eq!(report["journals"], 0);
+    assert_eq!(report["skipped_journals"], 1);
+}
