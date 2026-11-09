@@ -67,12 +67,17 @@ The SDK SHALL leave out journal pages and the references they make unless journa
 
 ### Requirement: Include reference-only pages as nodes
 
-A page that exists only because a published page refers to it SHALL be a node flagged reference-only, without a route. A name a block writes SHALL bring in its namespace parents as reference-only nodes whether or not the name itself opens a page, including when the name is an alias of a page. A reference-only node that names one of the pages Logseq creates in every graph (`NOW`, `LATER`, `DOING`, `DONE`, `CANCELED`, `CANCELLED`, `IN-PROGRESS`, `TODO`, `WAIT`, `WAITING`, `A`, `B`, `C`, `Favorites`, `Contents`, `card`) SHALL take that spelling as its title, whatever the case of the references that name it.
+A page that exists only because a published page refers to it SHALL be a node flagged reference-only. The node SHALL carry the route of its published reference-only page when the publication has one, and no route otherwise. A name a block writes SHALL bring in its namespace parents as reference-only nodes whether or not the name itself opens a page, including when the name is an alias of a page. A reference-only node that names one of the pages Logseq creates in every graph (`NOW`, `LATER`, `DOING`, `DONE`, `CANCELED`, `CANCELLED`, `IN-PROGRESS`, `TODO`, `WAIT`, `WAITING`, `A`, `B`, `C`, `Favorites`, `Contents`, `card`) SHALL take that spelling as its title, whatever the case of the references that name it.
 
 #### Scenario: Reference-only node
 
 - **WHEN** a published page links `Contrando`, which has no file
-- **THEN** `Contrando` is a node flagged reference-only with no route
+- **THEN** `Contrando` is a node flagged reference-only with the route of the reference-only page `Contrando`
+
+#### Scenario: Reference-only node without a page
+
+- **WHEN** a published block reads `TODO write`, and no block links `TODO` and no file holds it
+- **THEN** `TODO` is a node flagged reference-only with no route
 
 #### Scenario: Built-in page spelled as in Logseq
 

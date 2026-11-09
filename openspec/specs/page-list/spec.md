@@ -6,7 +6,7 @@ List every published page with its kind, icon, backlink count, sort key and git 
 
 ### Requirement: List published pages with their attributes
 
-The SDK SHALL list every published page, journal and generated namespace page once, each with its title, route, kind (`Page`, `Journal` or `Namespace`), `icon::` property value, backlink count, lower-cased sort key, and created and updated dates. The operation SHALL be available to the CLI, the language server and the publisher, and SHALL leave garden files unchanged.
+The SDK SHALL list every published page, journal, generated namespace page and reference-only page once, each with its title, route, kind (`Page`, `Journal`, `Namespace` or `Reference`), `icon::` property value, backlink count, lower-cased sort key, and created and updated dates. The operation SHALL be available to the CLI, the language server and the publisher, and SHALL leave garden files unchanged.
 
 #### Scenario: Kinds
 
@@ -17,6 +17,11 @@ The SDK SHALL list every published page, journal and generated namespace page on
 
 - **WHEN** a page has the property `icon:: 🧭`
 - **THEN** its entry's icon is `🧭`
+
+#### Scenario: Reference-only pages
+
+- **WHEN** a garden publishes the reference-only page `Deno Deploy` and the reference-only journal `Nov 18th, 2024`
+- **THEN** the list holds `Deno Deploy` of kind `Reference` and `Nov 18th, 2024` of kind `Journal`, each once
 
 ### Requirement: Count backlinks as Logseq does
 
@@ -34,7 +39,7 @@ An entry's backlink count SHALL be the number of blocks whose references include
 
 ### Requirement: Date pages from git history
 
-When the garden is a git repository, an entry for a page or journal with a file SHALL carry the commit times of the first and last commits that touched that file, read in one pass over the history. When the garden is not a git repository or `git` is unavailable, entries SHALL carry no dates and the SDK SHALL report one diagnostic. Generated namespace pages SHALL carry no dates.
+When the garden is a git repository, an entry for a page or journal with a file SHALL carry the commit times of the first and last commits that touched that file, read in one pass over the history. When the garden is not a git repository or `git` is unavailable, entries SHALL carry no dates and the SDK SHALL report one diagnostic. Generated namespace pages and reference-only pages SHALL carry no dates.
 
 #### Scenario: Git dates
 
@@ -50,6 +55,11 @@ When the garden is a git repository, an entry for a page or journal with a file 
 
 - **WHEN** the same garden commit is built twice
 - **THEN** both lists have the same dates and the same default order
+
+#### Scenario: Reference-only page
+
+- **WHEN** the list holds the reference-only page `Deno Deploy` in a git repository
+- **THEN** its entry has no created or updated date
 
 ### Requirement: Order entries as Logseq does
 
