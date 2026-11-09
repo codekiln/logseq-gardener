@@ -68,11 +68,11 @@ def over_budget(build, profile, field, value, budgets):
 
 
 def completion_latencies(keys, values, completions):
-    """For each keydown, the time until a completed result render shows its input or a later one.
+    """For each keydown, the time until a drawn result list shows its input or a later one.
 
     `values[i]` is the input after key `i`; `completions` holds (time, input) pairs. A key whose
-    input was replaced before any render showed it counts from the first render of a longer input
-    that starts with it, since that render also answers it. A key no render answered has None.
+    input was replaced before any list showed it counts from the first list drawn for a longer input
+    that starts with it, since that list also answers it. A key no list answered has None.
     """
     latencies = []
     for start, value in zip(keys, values):
