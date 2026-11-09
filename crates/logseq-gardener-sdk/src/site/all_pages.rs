@@ -8,7 +8,7 @@ use super::render::escape;
 use super::{digest, page_status};
 use crate::page_list::{Column, PageKind, PageListEntry};
 
-/// The All pages script, written once at the site root and loaded only by All pages.
+/// The All pages script, written once at the site root and loaded only on All pages screens.
 pub(super) const SCRIPT_ROUTE: &str = "lsg-all-pages.js";
 /// Every entry, journals included, fetched on the first sort, search or toggle.
 pub(super) const LIST_ROUTE: &str = "_pages/list.json";
@@ -40,11 +40,10 @@ pub(super) fn script() -> String {
     script
 }
 
-/// Styles and the deferred script for the `<head>` of All pages screens.
+/// Styles for the `<head>` of All pages screens. `lsg-shell.js` loads [`SCRIPT_ROUTE`] after the
+/// first paint, so the table shows before its script arrives.
 pub(super) fn head() -> String {
-    format!(
-        "<link rel=\"stylesheet\" href=\"{STYLES_ROUTE}\"><script defer src=\"{SCRIPT_ROUTE}\"></script>"
-    )
+    format!("<link rel=\"stylesheet\" href=\"{STYLES_ROUTE}\">")
 }
 
 /// The route of a page of the default view: the index for the first, then `pages-<n>.html`.

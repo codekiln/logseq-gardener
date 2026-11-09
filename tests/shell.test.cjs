@@ -30,8 +30,8 @@ function element(selectors, extra = {}) {
   return node;
 }
 let state;
-function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, defaults = false, saved = null, graph = true, slides = false, href = 'https://example.com/p-0000000000000000.html', script = null } = {}) {
-  state = { focused: null, assigned: null };
+function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'light', choice = 'system', journals = false, feed = false, list = false, defaults = false, saved = null, graph = true, slides = false, href = 'https://example.com/p-0000000000000000.html', script = null } = {}) {
+  state = { focused: null, assigned: null, frames: [], timers: [] };
   const values = new Map(Object.entries(stored));
   const root = element(['html']);
   const toggle = element(['[data-lsg-left-toggle]']);
@@ -69,6 +69,7 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
     const list = element(['[data-lsg-journals]']); list.setAttribute('data-lsg-journals', 'lsg-journals.js');
     all.push(list);
   }
+  if (list) all.push(element(['.all-pages']));
   const document = new Events();
   document.documentElement = root;
   document.readyState = 'loading';
@@ -95,10 +96,16 @@ function fixture({ desktop = true, stored = {}, blocked = false, appearance = 'l
   };
   state.sidebar = [];
   window.logseqGardenerSidebar = request => state.sidebar.push(request);
-  vm.runInContext(source, vm.createContext({ window, document, Date, Promise, URL }));
+  const requestAnimationFrame = callback => state.frames.push(callback);
+  const setTimeout = callback => state.timers.push(callback);
+  vm.runInContext(source, vm.createContext({ window, document, Date, Promise, URL, requestAnimationFrame, setTimeout }));
   const click = (target, extra = {}) => document.fire('click', { target, preventDefault() {}, stopPropagation() {}, ...extra });
   const key = (k, target = page, extra = {}) => document.fire('keydown', { key: k, target, preventDefault() {}, ...extra });
-  return { slidesItem, right, pageLink, window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
+  // The next frame paints, then the timers it set run.
+  const paint = () => { for (const callback of state.frames.splice(0)) callback(); for (const callback of state.timers.splice(0)) callback(); };
+  // The load event, then the next paint.
+  window.fire = ((fire) => (type, event) => { fire.call(window, type, event); if (type === 'load' && window.painting !== false) paint(); })(window.fire);
+  return { paint, slidesItem, right, pageLink, window, root, toggle, more, menu, themeItem, systemItem, shade, link, allPages, input, page, values, theme, click, key, document };
 }
 test('controls appear once the script runs and the sidebar state is saved', () => {
   const f = fixture();
@@ -197,7 +204,13 @@ test('g j opens the journals feed only when the sidebar links to one', () => {
   const plain = fixture();
   plain.key('g'); plain.key('j'); assert.equal(state.assigned, null);
 });
-test('the journals feed, outline and references scripts are fetched after the page loads', () => {
+test('the journals feed, outline and references scripts are fetched after the page loads and paints', () => {
+  const waiting = fixture();
+  waiting.window.painting = false;
+  waiting.window.fire('load');
+  assert.deepEqual(state.appended, []);
+  waiting.paint();
+  assert.deepEqual(state.appended.map(({ src }) => src), ['lsg-outline.js', 'lsg-references.js']);
   const f = fixture({ feed: true });
   assert.deepEqual(state.appended, []);
   f.window.fire('load');
@@ -206,6 +219,12 @@ test('the journals feed, outline and references scripts are fetched after the pa
   assert.deepEqual(state.appended, []);
   plain.window.fire('load');
   assert.deepEqual(state.appended.map(({ tag, src }) => ({ tag, src })), [{ tag: 'script', src: 'lsg-outline.js' }, { tag: 'script', src: 'lsg-references.js' }]);
+});
+test('All pages loads its script after the page loads and paints', () => {
+  const f = fixture({ list: true });
+  assert.deepEqual(state.appended, []);
+  f.window.fire('load');
+  assert.deepEqual(state.appended.map(({ src }) => src), ['lsg-outline.js', 'lsg-references.js', 'lsg-all-pages.js']);
 });
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 const loaded = () => { const script = state.appended.find(node => node.src === 'lsg-sidebar.js'); script?.onload(); return script; };
