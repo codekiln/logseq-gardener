@@ -18,14 +18,22 @@ pub(super) fn script() -> String {
 }
 
 /// The tags a readable build adds right after `<meta charset>` of the document written at
-/// `route`: `<base>` for a page in a folder, then `script`.
-pub(super) fn head(route: &str, script: &str) -> String {
+/// `route`: `<base>` for a page in a folder, the page's canonical link when it has one, then
+/// `script`. `canonical` is relative to the output root, which `<base>` names, so it gives
+/// the page's absolute address under any server path.
+pub(super) fn head(route: &str, canonical: Option<&str>, script: &str) -> String {
     let base = if is_readable(route) {
         format!("<base href=\"{}\">", base_href(route))
     } else {
         String::new()
     };
-    format!("{base}<script data-lsg-readable>{script}</script>")
+    let canonical = canonical.map_or_else(String::new, |href| {
+        format!(
+            "<link rel=\"canonical\" href=\"{}\">",
+            super::render::escape(href)
+        )
+    });
+    format!("{base}{canonical}<script data-lsg-readable>{script}</script>")
 }
 
 /// Replace each `(line, replacement)` pair once in `source`.
@@ -120,7 +128,14 @@ const HOST: &[(&str, &str)] = &[
     ("/^([^/]+\\.html)?$/", "/^([^/]+\\.html|([^/]+\\/)+)?$/"),
     (
         "node.matches('title,meta,[data-lsg-page],[data-lsg-host]')",
-        "node.matches('title,meta,base,[data-lsg-page],[data-lsg-host]')",
+        "node.matches('title,meta,base,link[rel=canonical],[data-lsg-page],[data-lsg-host]')",
+    ),
+    (
+        "  doc.title = next.title;",
+        "  doc.title = next.title;
+  doc.querySelector('link[rel=canonical]')?.remove();
+  const canonical = next.querySelector('link[rel=canonical]');
+  if (canonical) doc.head.append(doc.importNode(canonical, true));",
     ),
     (
         "  history.scrollRestoration = 'manual';",
@@ -154,8 +169,20 @@ mod tests {
     #[test]
     fn nested_pages_get_a_base_that_climbs_to_the_root() {
         assert!(
-            head("A/B%20C/", "").starts_with("<base href=\"../../\"><script data-lsg-readable>")
+            head("A/B%20C/", None, "")
+                .starts_with("<base href=\"../../\"><script data-lsg-readable>")
         );
-        assert!(head("index.html", "").starts_with("<script data-lsg-readable>"));
+        assert!(head("index.html", None, "").starts_with("<script data-lsg-readable>"));
+    }
+
+    #[test]
+    fn the_canonical_link_follows_the_base() {
+        assert!(head("A/B%20C/", Some("A/B%20C/"), "").starts_with(
+            "<base href=\"../../\"><link rel=\"canonical\" href=\"A/B%20C/\"><script data-lsg-readable>"
+        ));
+        assert!(
+            head("index.html", Some("./"), "")
+                .starts_with("<link rel=\"canonical\" href=\"./\"><script data-lsg-readable>")
+        );
     }
 }

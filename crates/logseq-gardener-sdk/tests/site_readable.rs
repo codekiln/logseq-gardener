@@ -225,7 +225,7 @@ fn pages_live_in_title_folders_and_lists_stay_at_the_root() {
     );
     let start = read(&output, START);
     assert!(start.starts_with(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><base href=\"../../../\"><script data-lsg-readable>"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><base href=\"../../../\"><link rel=\"canonical\" href=\"Docs/Guide/Start/\"><script data-lsg-readable>"
     ));
     assert!(start.contains(&format!("href=\"{ENCODED}\"")));
     assert!(start.contains("href=\"Other/\""));
@@ -241,6 +241,49 @@ fn pages_live_in_title_folders_and_lists_stay_at_the_root() {
     assert!(!home.contains("<base"));
     assert!(home.contains("<script data-lsg-readable>"));
     assert!(home.contains("href=\"2026-10-23%20Fri/\""));
+}
+
+/// The `href` of every canonical link in `html`.
+fn canonical(html: &str) -> Vec<String> {
+    html.split("<link rel=\"canonical\" href=\"")
+        .skip(1)
+        .map(|rest| rest[..rest.find('"').unwrap()].to_owned())
+        .collect()
+}
+
+#[test]
+fn each_page_names_its_route_as_canonical() {
+    let f = Fixture::new();
+    let output = f.publish("site", &f.options()).unwrap();
+    for route in [
+        START,
+        ENCODED,
+        "Other/",
+        "Docs/Guide/",
+        "Docs/",
+        "2026-10-23%20Fri/",
+    ] {
+        let html = read(&output, route);
+        assert_eq!(canonical(&html), [route], "{route}");
+        let base = html.find("<base href=").unwrap();
+        assert!(
+            base < html.find("<link rel=\"canonical\"").unwrap(),
+            "{route}"
+        );
+    }
+    for list in ["index.html", "pages.html", "graph.html"] {
+        let html = fs::read_to_string(output.join(list)).unwrap();
+        assert!(canonical(&html).is_empty(), "{list}");
+    }
+    let options = SiteOptions {
+        page_urls: PageUrls::Digest,
+        ..f.options()
+    };
+    let output = f.publish("digest", &options).unwrap();
+    for file in files(&output).iter().filter(|path| path.ends_with(".html")) {
+        let html = fs::read_to_string(output.join(file)).unwrap();
+        assert!(!html.contains("rel=\"canonical\""), "{file}");
+    }
 }
 
 #[test]
@@ -360,7 +403,8 @@ fn plugin_pages_carry_folder_urls_and_the_readable_host() {
         .unwrap();
     let host = fs::read_to_string(output.join(host)).unwrap();
     assert!(host.contains("/^([^/]+\\.html|([^/]+\\/)+)?$/"));
-    assert!(host.contains("'title,meta,base,[data-lsg-page],[data-lsg-host]'"));
+    assert!(host.contains("'title,meta,base,link[rel=canonical],[data-lsg-page],[data-lsg-host]'"));
+    assert!(host.contains("doc.querySelector('link[rel=canonical]')?.remove();"));
     assert!(host.contains(".href = base.href;"));
 }
 
@@ -375,6 +419,9 @@ fn a_homepage_is_written_at_the_root_and_in_its_folder() {
     let home = fs::read_to_string(output.join("index.html")).unwrap();
     assert!(home.contains("unicornword") && !home.contains("<base"));
     assert!(read(&output, START).contains("unicornword"));
+    assert_eq!(canonical(&home), ["./"]);
+    assert_eq!(canonical(&read(&output, START)), ["./"]);
+    assert_eq!(canonical(&read(&output, "Other/")), ["Other/"]);
 }
 
 #[test]
@@ -456,6 +503,7 @@ fn unsafe_titles_keep_their_digest_file() {
         assert!(html.contains(sentinel));
         assert!(!html.contains("<base"), "{file} sits at the root");
         assert!(html.contains("<script data-lsg-readable>"));
+        assert_eq!(canonical(&html), vec![file.clone()], "{file}");
         assert!(
             read(&output, "Docs/Links/").contains(&format!("href=\"{file}\"")),
             "Docs/Links does not link to {file}"

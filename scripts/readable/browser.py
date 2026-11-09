@@ -10,7 +10,7 @@ cannot name folders and keeps its digest file, a block reference, an asset, a jo
 search, once without plugins and once with the fixture
 recorder plugin. Under the prefix it follows page links, zooms into a block and back, opens a
 search result, a Shift-click sidebar card, the page graph, All pages and the journals feed, and
-moves between pages with the plugin host. From disk it follows page links into folders. Every
+moves between pages with the plugin host, checking each page's canonical link. From disk it follows page links into folders. Every
 page load must finish without a failed request. Prints one JSON line of results.
 """
 import argparse
@@ -118,6 +118,8 @@ def main():
                 assert styled(page)
                 assert page.evaluate("document.querySelector('main img').naturalWidth") == 1
                 assert page.evaluate('document.baseURI') == prefix
+                # The canonical link resolves through the base to the page's own folder.
+                assert page.evaluate("document.querySelector('link[rel=canonical]').href") == prefix + START
                 page.locator(f'main a[href="{ENCODED}"]').first.click()
                 page.wait_for_url(prefix + ENCODED)
                 assert h1(page) == 'Docs/Guide/Q&A: 2026' and styled(page)
@@ -240,6 +242,8 @@ def main():
                     assert page.url == root + target, page.url
                     assert page.evaluate('window.__kept === true && document.baseURI') == root
                     assert page.evaluate("document.querySelectorAll('base').length") == 1
+                    # The host swaps the canonical link, so the document names only this page.
+                    assert page.evaluate("[...document.querySelectorAll('link[rel=canonical]')].map(link => link.href)") == [root + target]
                 page.go_back()
                 page.wait_for_url(root + 'Other/')
                 expect(page.locator('main h1')).to_have_text('Other')
