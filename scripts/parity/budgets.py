@@ -1020,7 +1020,7 @@ def check_search(site, limits, profiles):
 
 
 def search_index_sizes(site):
-    """Sizes of the search format version 3 files in a site: the title index, every shard and chunk.
+    """Sizes of the search format version 5 files in a site: the title index, every shard and chunk.
 
     Returns the title index's decoded and gzip sizes, the number of pages and blocks, and per
     shard and chunk its file name and gzip size, largest first.
@@ -1030,8 +1030,8 @@ def search_index_sizes(site):
     if not path.is_file():
         raise ValueError(f'expected a search manifest at {path}')
     manifest = json.loads(path.read_text(encoding='utf-8'))
-    if manifest.get('format_version') != 4:
-        raise ValueError(f"{path.name}: search format version {manifest.get('format_version')}, expected 4")
+    if manifest.get('format_version') != 5:
+        raise ValueError(f"{path.name}: search format version {manifest.get('format_version')}, expected 5")
     titles = (site / f"lsg-search-titles-{manifest['titles']}.json").read_bytes()
 
     def files(kind, digests):

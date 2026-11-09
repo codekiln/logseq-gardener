@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 - # Static Search Data Reference
 	- ## Overview
 		- `lsg publish --search` writes a search index beside the generated HTML, and every page reads it through the shared search dialog. Rust callers set `SiteOptions.search = Some(SearchOptions::default())`.
-		- Search format version 4 publishes the stored titles, the titles of reference-only pages, unique aliases and original bullet inline text of the selected pages as a small title index, word-prefix shards and record chunks.
+		- Search format version 5 publishes the stored titles, the titles of reference-only pages, unique aliases and original bullet inline text of the selected pages as a small title index, word-prefix shards and record chunks.
 		- Each page names the manifest at a fixed address, `<link rel="lsg-search" href="lsg-search-manifest.json">`, so a garden edit leaves every other page's HTML unchanged.
 		- A small startup module loads with the page. The dialog controller, the manifest, the engine and the title index load when a reader points at or focuses the search button, presses Cmd/Ctrl+K or opens search. Each query loads only the shards its words need and the chunks of the rows it draws. [[lsg/Ref/Search Dialog]] describes the dialog.
 		- The SDK's `search` module builds the records, the word index and the files, and answers the same queries in Rust; the publisher only writes the files.
@@ -27,13 +27,13 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			- The SDK also accepts `SearchOptions.excluded_page_bodies`, a set of stored page titles compared with the normal page-name lookup rules. Those pages keep their title and alias records.
 			- These controls affect search only. Excluded prose stays visible on its published page.
 	- ## Files
-		- Every file lives beside the generated HTML. The manifest has a fixed name; every other file is named by a 16-hex-digit content digest. Adding, removing or editing one block changes only the manifest, the shards that hold the words of the changed block and the chunks that hold that page's records. Adding, removing or renaming a page still changes most shards, because shards number pages in title order.
-		- Every file declares `"format_version": 4`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
+		- Every file lives beside the generated HTML. The manifest has a fixed name; every other file is named by a 16-hex-digit content digest. Adding, removing or editing one block changes only the manifest, the shards that hold the words of the changed block and the chunks that hold that page's records. Adding, removing or renaming a page also changes the title index, and leaves every shard that holds none of that page's words unchanged, with the two exceptions under Shards below.
+		- Every file declares `"format_version": 5`. The examples below come from a build of one page, `Music/Session`, with the alias `Session` and two bullets.
 		- ### Manifest
 			- The manifest, `lsg-search-manifest.json`, names every other file and gives each page's number of block records, in title index order:
 			- ```json
 			  {
-			    "format_version": 4,
+			    "format_version": 5,
 			    "revision": "748cf8298f8a51ad",
 			    "engine": "lsg-search-engine-fbe9260cd1846dc8.mjs",
 			    "urls": "digest",
@@ -47,19 +47,19 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			  }
 			  ```
 			- `urls` names the page URL scheme, `digest` or `readable`. The engine computes a page's route from its title: `p-<FNV-1a 64 of the title>.html`, or each slash-separated segment with every byte outside `A`–`Z`, `a`–`z`, `0`–`9` and `-._~` percent-encoded, then a final `/`. A title index entry carries a route only when the page is published elsewhere, such as a title that cannot form a readable path.
-			- The revision digests the manifest's other fields with a `search-v4` marker, using the publisher's FNV-1a digest. It identifies the publication and gives no cryptographic integrity guarantee.
+			- The revision digests the manifest's other fields with a `search-v5` marker, using the publisher's FNV-1a digest. It identifies the publication and gives no cryptographic integrity guarantee.
 		- ### Other files
 			- | File | Name | Holds |
 			  | --- | --- | --- |
 			  | Title index | `lsg-search-titles-<titles>.json` | For each page, in title order: `[title]`, `[title, aliases]`, or `[title, aliases, route]` when the page is published at another route than its title gives under the manifest's `urls` scheme. |
-			  | Shard | `lsg-search-shard-<digest>.json` | Each normalized word under the shard's key, with the blocks that contain it as page and block pairs. |
+			  | Shard | `lsg-search-shard-<digest>.json` | Each normalized word under the shard's key, with the blocks that contain it as a string of slot and block numbers. |
 			  | Chunk | `lsg-search-chunk-<digest>.json` | Up to 256 consecutive block records, at most 32 KB (32,000 bytes) gzipped: page route, fragment, text and up to three parents, nearest last. |
 			  | Engine | the manifest's `engine` | The pure evaluator, named by its own digest. |
 			- The title index, a shard and a chunk from the example build:
 			- ```json
-			  {"format_version": 4, "pages": [["Music/Session", ["Session"]]]}
-			  {"format_version": 4, "words": [["tmux", [0, 1]]]}
-			  {"format_version": 4, "blocks": [
+			  {"format_version": 5, "pages": [["Music/Session", ["Session"]]]}
+			  {"format_version": 5, "words": [["tmux", "11"]]}
+			  {"format_version": 5, "blocks": [
 			    ["p-a33d85f823d4a0a3.html", "source-block-17", "Session notes", []],
 			    ["p-a33d85f823d4a0a3.html", "source-block-33", "Recording with tmux.conf", ["Session notes"]]]}
 			  ```
@@ -71,7 +71,13 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 			- A word belongs to the shard keyed by its first two characters; a one-character word has its own shard.
 			- A shard larger than 64 KB (64,000 bytes) gzipped splits by the next character, and the words no longer than its key stay in a terminal shard under the key.
 			- A terminal shard, one with a one-character key or a key that a longer key extends, holds only the word equal to its key.
-			- Each word lists its blocks in record order as pairs of numbers. The first pair is a page number, in title index order, and the block's number among that page's records. Each later pair is the step to the block's page and, on a new page, the block's number there, or, when the step is 0, the step from the previous block on the same page. Naming blocks by page keeps a shard's bytes unchanged when another page gains or loses blocks.
+			- Shards name a block by its slot and its number among the slot's blocks, not by its page's place in title order, so a page added, removed or renamed leaves the other pages' numbers as they were.
+			- The pages that have block records share 2^k slots, the smallest power of two at least four times their number: 65,536 slots for the encode garden's 9,186 such pages. A page's slot is its route's FNV-1a 64 digest modulo that number. A slot's blocks are the blocks of its pages, page by page in route order.
+			- Each word lists its blocks ordered by slot and block number, as pairs of numbers. The first pair is a slot and a block number in it. Each later pair is the step to the block's slot and, in a new slot, the block's number there, or, when the step is 0, the step from the previous block in the same slot.
+			- The numbers are written as one string in base 32, most significant digit first. A number's last digit is one of `0`–`9` and `a`–`v`, for 0 to 31; each earlier digit is one of `w`–`z`, `A`–`Z`, `-` and `_`, for 0 to 31 in that order. For example, `"x0"` is 32.
+			- Two cases still change shards that hold none of a page's words:
+				- A page added to a slot that already holds a page whose route sorts after it moves that page's block numbers, so that page's shards change too. On the encode garden, 8,560 of the 65,536 slots hold a page, so a new page shares a slot about 13% of the time, and sorts first in about half of those cases.
+				- When the number of pages with block records crosses a power of two, such as 16,384 on the encode garden, the slot count doubles and every shard changes.
 		- ### Destinations
 			- A record's destination fragment is `block-UUID` when the authored UUID is unique among the selected original blocks, and otherwise `source-block-POSITION`, the block's UTF-8 offset in its source file.
 			- Every indexed destination is requested from the renderer and admitted only after its original anchor is emitted.
@@ -110,7 +116,7 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 		  }
 		  ```
 		- ### Loading and validation
-			- `prepareManifest` rejects every format version other than 4, a `urls` value other than `digest` or `readable`, page counts that do not add up to `blocks`, and malformed fields.
+			- `prepareManifest` rejects every format version other than 5, a `urls` value other than `digest` or `readable`, page counts that do not add up to `blocks`, and malformed fields.
 			- `createIndex`, `addShard` and `addChunk` reject text whose digest differs from the manifest's, and records of the wrong shape or page.
 			- Invalid input throws a `TypeError` with a reload or retry message.
 			- The loader must check for successful HTTP responses itself, and keep loading and error states separate from an empty result.
@@ -148,4 +154,4 @@ see-also:: [[lsg/Ref/Search Dialog]], [[lsg/Ref/Host Integration API]], [[lsg/Re
 		- [[lsg/Ref/Search Dialog]] describes the browser test of the dialog.
 		- ### Performance
 			- [Issue 96, Validate static search loading, performance, failure handling and privacy](https://github.com/codekiln/logseq-gardener/issues/96), covered browser transfer, parsing, query latency and the failure and loading states. `scripts/parity/perf.py` and `scripts/parity/budgets.toml` take those measurements; [[lsg/How To/Measure Performance]] shows how to run them.
-			- [[lsg/Ref/Logseq Compatibility/Search Performance]] records the file sizes, first open, keystroke latency and downloads of format version 2 on the whole encode garden, next to Logseq's build and Pagefind. The verification of the `stable-search-addresses` OpenSpec change compares format version 3 with it.
+			- [[lsg/Ref/Logseq Compatibility/Search Performance]] records the file sizes, first open, keystroke latency and downloads of format version 2 on the whole encode garden, next to Logseq's build and Pagefind. The verification of the `stable-search-addresses` OpenSpec change compares format version 3 with it, and that of `keep-search-shards-on-page-changes` compares format version 5 with version 4.

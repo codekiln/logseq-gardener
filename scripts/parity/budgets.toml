@@ -42,7 +42,9 @@ zoom_ms_phone = 150
 # Search format version 2 (match-logseq-search): a title index, word-prefix shards and record
 # chunks. parity:budgets checks the title index, every shard and every chunk on the fixture garden;
 # parity:perf --search-site marks the rest on the whole encode garden. Warm keystrokes, which fetch
-# no shard, use the [desktop] and [phone] search_p95_ms.
+# no shard, use the [desktop] and [phone] search_p95_ms. parity:publish-bench --check fails when the
+# encode garden's shards together exceed shards_total_gzip_mb: 2.68 MB with title-order page
+# numbers, 2.84 MB with slots (keep-search-shards-on-page-changes, 2026-11-08).
 [search]
 bootstrap_kb = 2
 titles_gzip_kb = 300
@@ -60,6 +62,7 @@ heap_growth_mb = 30
 warm_open_desktop_ms = 100
 warm_open_phone_ms = 200
 build_slowdown_pct = 25
+shards_total_gzip_mb = 3
 
 # Inline markup (published-inline-markup). parity:budgets checks the gzip size of the inline
 # styles every page carries, and that the largest fixture page grows by at most
@@ -346,7 +349,9 @@ unlinked_files_per_page = 1
 unlinked_total_mb = 15
 linked_total_mb = 10
 search_engine_baseline_kb = 15.533
-search_engine_growth_kb = 0.5
+# 0.5 before search format version 5, whose slot and number decoding took 0.86 more
+# (keep-search-shards-on-page-changes).
+search_engine_growth_kb = 1.4
 build_slowdown_pct = 10
 
 # Publication speed (publication-speed). parity:publish-bench --check compares the fastest warm
