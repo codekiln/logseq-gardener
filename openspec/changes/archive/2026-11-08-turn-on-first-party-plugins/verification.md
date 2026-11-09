@@ -140,7 +140,7 @@ On each garden and profile, the same `<audio>` element kept playing through this
 
 ## 2.5 and 6.2 The whole encode garden against Logseq
 
-Every row is within its budget. `mise run parity:perf --first-party --record` built a copy of the whole encode garden (`66b81e9543`, 9,202 published pages) whose `logseq/config.edn` turns on both plugins, with `lsg` 0.0.41 (main at `f64db09`; this change adds no Rust), and Logseq 0.10.15's own export of the same copy, on 2026-11-08 on an Apple Silicon Mac. The rows are in the First-party plugins section of [Performance](../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md).
+Every row is within its budget. `mise run parity:perf --first-party --record` built a copy of the whole encode garden (`66b81e9543`, 9,202 published pages) whose `logseq/config.edn` turns on both plugins, with `lsg` 0.0.41 (main at `f64db09`; this change adds no Rust), and Logseq 0.10.15's own export of the same copy, on 2026-11-08 on an Apple Silicon Mac. The rows are in the First-party plugins section of [Performance](../../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md).
 
 | Row | Measured, worst fixture page | Budget |
 | --- | --- | --- |
