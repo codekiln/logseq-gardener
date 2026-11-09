@@ -897,3 +897,23 @@ fn publish_help_limitations_describe_journal_skipping_accurately() {
     );
     assert!(help.contains("Without --journals"), "{help}");
 }
+
+#[test]
+fn reports_count_reference_only_pages_apart_from_pages() {
+    let fixture = Fixture::new();
+    fixture.write("logseq/config.edn", "{:publishing/all-pages-public? true}");
+    fixture.write("pages/Start.md", "- [[Deno Deploy]] and #company\n");
+    let human = fixture.0.join("human");
+    let output = fixture.publish(&human, &["--include", "Start"]);
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        stdout.starts_with("Published 1 pages, 0 journals, 2 reference-only pages and 0 assets;"),
+        "{stdout}"
+    );
+    let json = fixture.0.join("json");
+    let output = fixture.publish(&json, &["--include", "Start", "--format", "json"]);
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["reference_only_pages"], 2);
+    assert_eq!(report["pages"], 1);
+}

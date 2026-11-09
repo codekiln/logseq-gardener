@@ -58,7 +58,7 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/Ref/Logseq Published Site/All
 	- ## Differences from Logseq
 		- Dates are git commit times. Logseq's published values are the moments one build parsed each file and change on every build; git dates keep the same columns and the newest-first default, and stay the same for one commit.
 		- Row checkboxes, `Delete`, `Remove orphaned pages`, the whiteboard toggle and the `⋯` menu are left out. In Logseq's published site they change only the reader's in-memory copy.
-		- `lsg` lists only the pages it publishes. Logseq also lists the pages that exist only because something references them, so its total is larger by the reference-only pages that `parity:compare` reports: 7,540 on 2026-10-26.
+		- `lsg` lists the pages it publishes, including the reference-only pages that exist only because published blocks link or tag them, each with its backlink count and no dates. Logseq also lists a page for each alias, property name and block UUID that something names, and its built-in pages; `parity:compare` reported 2,046 such pages on 2026-11-08, 1,792 of them aliases, against 7,540 before reference-only pages on 2026-10-26.
 		- The phone layout starts below a viewport width of 640px. Logseq decides by the browser's user agent.
 		- `lsg` has no `All files` list and no whiteboards.
 		- Logseq's dark-theme values were not measured; the table uses `lsg`'s theme tokens.

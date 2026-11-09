@@ -33,7 +33,7 @@ see-also:: [[lsg/How To/Add a Site Plugin]], [[lsg/Ref/Plugin Host API]], [[lsg/
 		    }
 		  }
 		  ```
-		- `pages` holds every published page, journal and namespace page, sorted by `id`, after namespace selection, `public::` rules and alias resolution. Withheld and excluded pages are absent, and no field holds a source path.
+		- `pages` holds every published page, journal, namespace page and reference-only page, sorted by `id`, each with `kind` `page`, `journal`, `namespace` or `reference`. A reference-only page has no source file: published blocks link or tag its name, such as `Deno Deploy`, and its `properties` are empty. The list comes after namespace selection, `public::` rules and alias resolution. Withheld and excluded pages are absent, and no field holds a source path.
 		- `properties` holds the values of the plugin's `pageProperties` that the page shows readers, the same values the browser module receives.
 		- `blocks` lists each page's blocks in document order, page by page, and is empty unless the plugin asked for blocks.
 			- A block's `id` is its `id::` UUID when no other published block has the same UUID, and its position path, such as `3.1.2`, otherwise. The pair of `pageId` and `id` names a block.

@@ -7,6 +7,7 @@ Lazygit
 rw-cli
 ff
 Contrando
+Deno Deploy
 AI/E/WS/25/d1
 GitP/A/Session/24/11/19-Tue
 2026-10-23 Fri

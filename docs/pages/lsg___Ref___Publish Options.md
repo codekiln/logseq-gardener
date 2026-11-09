@@ -38,7 +38,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 	- ## Report
 		- Without `--format json`, standard output holds one line with the counts and the path of the index:
 		- ```text
-		  Published 12 pages, 0 journals and 3 assets; withheld 1 pages; skipped 0 journals; 2 diagnostics. Open /tmp/site/index.html
+		  Published 12 pages, 0 journals, 2 reference-only pages and 3 assets; withheld 1 pages; skipped 0 journals; 2 diagnostics. Open /tmp/site/index.html
 		  ```
 		- Standard error holds the diagnostics, one per line: the source file, a colon and the message. A diagnostic names an unsupported construct, an unresolved or ambiguous reference, a withheld page or another problem that leaves the site complete. Diagnostics stay out of the published site. To keep them, redirect standard error, such as `2> /private/tmp/garden-site-report.txt`.
 		- With `--format json`, standard output holds one JSON document:
@@ -48,6 +48,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		  | `command_path` | `["publish"]` |
 		  | `pages` | Selected page files, not counting journals, generated namespace pages and the index. |
 		  | `journals` | Published journal files. |
+		  | `reference_only_pages` | Pages with no file that the build publishes because published blocks link, tag or list them, such as `[[Deno Deploy]]` when no file holds `Deno Deploy`. Not counted in `pages` or `journals`. |
 		  | `assets` | Distinct asset files copied from the garden. A `--stylesheet` file is not counted. |
 		  | `withheld_pages` | Selected pages that the visibility rules withhold. A diagnostic names each one. |
 		  | `skipped_journals` | Journals left out: every journal without `--journals`, and journal files whose names are not dates. |

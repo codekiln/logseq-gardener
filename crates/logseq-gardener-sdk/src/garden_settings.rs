@@ -67,6 +67,9 @@ pub struct GardenSettings {
     /// published. When `false`, as Logseq defaults, only pages marked `public:: true` may be.
     /// Either key set to `true` turns it on, as in Logseq's publishing export.
     pub all_pages_public: bool,
+    /// `:block-hidden-properties`, lower-cased: properties no published block shows. A name
+    /// written only in their values makes no reference-only page.
+    pub hidden_properties: Vec<String>,
 }
 
 impl Default for GardenSettings {
@@ -82,6 +85,7 @@ impl Default for GardenSettings {
             forces: ForceSettings::default(),
             graph_shortcut: true,
             all_pages_public: false,
+            hidden_properties: Vec::new(),
         }
     }
 }
@@ -129,7 +133,10 @@ impl GardenSettings {
 
     /// Parse settings from `config.edn` text without evaluating it.
     pub fn parse(text: &str) -> (Self, Vec<String>) {
-        let mut settings = Self::default();
+        let mut settings = Self {
+            hidden_properties: garden_config::parse(text).0.hidden_properties,
+            ..Self::default()
+        };
         let pairs = match garden_config::top_level(text) {
             Ok(pairs) => pairs,
             Err(reason) => {

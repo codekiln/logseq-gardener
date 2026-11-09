@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.42](https://github.com/codekiln/logseq-gardener/compare/v0.0.41...v0.0.42) - 2026-11-08
+
+### Added
+
+- publish pages that exist only as link targets (#553)
+
 ## [0.0.41](https://github.com/codekiln/logseq-gardener/compare/v0.0.40...v0.0.41) - 2026-11-08
 
 ### Added

@@ -100,7 +100,7 @@ pub(crate) fn spell_titles_as_logseq(documents: &mut [GardenDocument]) {
                 }
             }
         };
-        for_each_written_name(document, &mut |name| {
+        for_each_written_name(document, true, &mut |name| {
             let key = key_of(name, &mut buffer);
             if let Some((key, titles)) = spellings.get_key_value(key) {
                 here.insert(*key);
@@ -223,11 +223,19 @@ fn key_of<'b>(name: &str, buffer: &'b mut String) -> &'b str {
 
 /// Call `visit` with every name the file may refer to, from the parse that loading already
 /// did: its page references and tags, the names in its `alias::`, `aliases::` and `tags::`
-/// values, its task markers and priorities, and the namespace parents of each. The names
-/// its blocks refer to are among them.
-fn for_each_written_name(document: &GardenDocument, visit: &mut dyn FnMut(&str)) {
+/// values, with `markers` its task markers and priorities, and the namespace parents of each.
+/// Each name is visited without the slash Logseq drops from each end, and a blank name is not
+/// visited. The names its blocks refer to are among them, in the order the file writes them.
+pub(crate) fn for_each_written_name(
+    document: &GardenDocument,
+    markers: bool,
+    visit: &mut dyn FnMut(&str),
+) {
     let mut with_parents = |name: &str| {
-        let mut rest = name;
+        let mut rest = crate::page_names::remove_boundary_slashes(name);
+        if rest.trim().is_empty() {
+            return;
+        }
         visit(rest);
         while let Some(parent) = namespace_parent(rest) {
             visit(parent);
@@ -241,7 +249,7 @@ fn for_each_written_name(document: &GardenDocument, visit: &mut dyn FnMut(&str))
         match block {
             Block::Bullet {
                 marker, priority, ..
-            } => {
+            } if markers => {
                 for name in marker.iter().chain(priority) {
                     with_parents(name);
                 }
@@ -275,7 +283,7 @@ fn for_each_property_name(document: &GardenDocument, visit: &mut dyn FnMut(&str)
 
 /// The spelling the file gives each name in `wanted` that its blocks refer to. With
 /// `property_names`, a block's property names count as written names.
-fn last_spellings(
+pub(crate) fn last_spellings(
     document: &GardenDocument,
     wanted: &HashSet<&str>,
     property_names: bool,

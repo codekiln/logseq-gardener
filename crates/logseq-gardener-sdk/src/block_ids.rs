@@ -24,8 +24,14 @@ fn id_property(name: &str) -> bool {
 
 /// The order in which Logseq parses `documents`, as indexes into it.
 pub(crate) fn parse_order(documents: &[GardenDocument]) -> Vec<usize> {
+    parse_order_of(documents.iter())
+}
+
+/// The order in which Logseq parses `documents`, as indexes into the sequence.
+pub(crate) fn parse_order_of<'d>(
+    documents: impl Iterator<Item = &'d GardenDocument>,
+) -> Vec<usize> {
     let paths: Vec<String> = documents
-        .iter()
         .map(|document| document.relative_path.to_string_lossy().replace('\\', "/"))
         .collect();
     let group = |path: &str| {
@@ -37,7 +43,7 @@ pub(crate) fn parse_order(documents: &[GardenDocument]) -> Vec<usize> {
             2
         }
     };
-    let mut order: Vec<usize> = (0..documents.len()).collect();
+    let mut order: Vec<usize> = (0..paths.len()).collect();
     order.sort_by(|a, b| {
         let (a, b) = (&paths[*a], &paths[*b]);
         group(a)

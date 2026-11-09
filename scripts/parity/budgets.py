@@ -1030,8 +1030,8 @@ def search_index_sizes(site):
     if not path.is_file():
         raise ValueError(f'expected a search manifest at {path}')
     manifest = json.loads(path.read_text(encoding='utf-8'))
-    if manifest.get('format_version') != 3:
-        raise ValueError(f"{path.name}: search format version {manifest.get('format_version')}, expected 3")
+    if manifest.get('format_version') != 4:
+        raise ValueError(f"{path.name}: search format version {manifest.get('format_version')}, expected 4")
     titles = (site / f"lsg-search-titles-{manifest['titles']}.json").read_bytes()
 
     def files(kind, digests):
@@ -1064,6 +1064,69 @@ def check_search_index(sizes, limits):
             label = f'{name} (words starting {key!r})' if key else name
             others = f' and {len(over) - 1:,} more' if len(over) > 1 else ''
             failures.append(f'{label}: largest {kind[:-1]} {size:,} gzip exceeds {limit:,.0f}{others}')
+    return failures
+
+
+REFERENCE_FILLER_ROOT = 'Reference Filler'
+REFERENCE_FILLER_NAMES = 2000
+
+
+def minified_size(text):
+    """Bytes of a script without comment lines, blank lines and indentation."""
+    return len(''.join(line.strip() for line in text.splitlines()
+                       if line.strip() and not line.strip().startswith('//')))
+
+
+def reference_pages(site):
+    """URL by title of the reference-only pages in a site's lsg-site.json."""
+    manifest = json.loads((site / 'lsg-site.json').read_text(encoding='utf-8'))
+    return {page['title']: page['url'] for page in manifest['pages'] if page['kind'] == 'reference'}
+
+
+def add_reference_filler(garden, count):
+    """One page linking `count` names that no file holds."""
+    links = ''.join(f'- [[Reference Filler Name {number:04d}]]\n' for number in range(count))
+    (garden / 'pages' / f'{REFERENCE_FILLER_ROOT}.md').write_text(links, encoding='utf-8')
+
+
+def check_reference_only(site, grown, search_site, limits):
+    """Reference-only page sizes, one Unlinked References file each, unchanged page files when
+    2,000 names are added, and the search engine's growth."""
+    failures = []
+    pages = reference_pages(site)
+    if not pages:
+        failures.append('reference-only pages: the fixture garden publishes none')
+    for title, url in sorted(pages.items()):
+        data = (site / url).read_bytes()
+        if len(data) > limits['page_kb'] * 1000:
+            failures.append(f'{title} ({url}): {len(data):,} bytes exceeds {limits["page_kb"] * 1000:,.0f}')
+        packed = metrics.gzip_size(data)
+        if packed > limits['page_gzip_kb'] * 1000:
+            failures.append(f'{title} ({url}): {packed:,} gzip exceeds {limits["page_gzip_kb"] * 1000:,.0f}')
+        stem = url[:-len('.html')] if url.endswith('.html') else url
+        unlinked = list((site / '_refs').glob(f'{stem}-unlinked-*.html.gz')) if (site / '_refs').exists() else []
+        if len(unlinked) > limits['unlinked_files_per_page']:
+            failures.append(f'{title}: {len(unlinked)} Unlinked References files exceed '
+                            f'{limits["unlinked_files_per_page"]}')
+    grown_pages = reference_pages(grown)
+    added = set(grown_pages) - set(pages)
+    if len(added) < REFERENCE_FILLER_NAMES:
+        failures.append(f'reference-only growth: {len(added)} new pages, expected {REFERENCE_FILLER_NAMES:,}')
+    manifest = json.loads((site / 'lsg-site.json').read_text(encoding='utf-8'))
+    for page in manifest['pages']:
+        if page['kind'] not in ('page', 'journal', 'namespace', 'reference'):
+            continue
+        before, after = site / page['url'], grown / page['url']
+        if not after.exists() or before.read_bytes() != after.read_bytes():
+            failures.append(f'{page["title"]} ({page["url"]}): changed when the garden gained '
+                            f'{REFERENCE_FILLER_NAMES:,} reference-only names')
+    engine = next(search_site.glob('lsg-search-engine-*.mjs'), None)
+    if engine is None:
+        failures.append('search engine: missing from the search build')
+    else:
+        growth = minified_size(engine.read_text(encoding='utf-8')) - limits['search_engine_baseline_kb'] * 1000
+        if growth > limits['search_engine_growth_kb'] * 1000:
+            failures.append(f'{engine.name}: grew {growth:,.0f} bytes, over {limits["search_engine_growth_kb"] * 1000:,.0f}')
     return failures
 
 
@@ -1159,6 +1222,16 @@ def main():
         site_failures += check_inline_parts(temp / 'search', site_pages(temp / 'search'), budgets['site'])
         print(f"inline scripts: largest {max(inline_parts((temp / 'small' / p).read_text(encoding='utf-8'))[1] for p in small):,} bytes")
         all_pages_failures = check_all_pages(temp / 'all-pages-base', temp / 'large', budgets)
+        reference_garden = temp / 'reference-garden'
+        shutil.copytree(FIXTURE_GARDEN, reference_garden)
+        add_reference_filler(reference_garden, REFERENCE_FILLER_NAMES)
+        publish(lsg, reference_garden, temp / 'reference', [*FIXTURE_ROOTS, REFERENCE_FILLER_ROOT])
+        reference_failures = check_reference_only(temp / 'small', temp / 'reference', temp / 'search',
+                                                  budgets['reference_only'])
+        references = reference_pages(temp / 'small')
+        largest = max((metrics.gzip_size((temp / 'small' / url).read_bytes()), title)
+                      for title, url in references.items()) if references else (0, '')
+        print(f'reference-only pages: {len(references)}, largest {largest[1]} {largest[0]:,} gzip')
         hierarchy_failures = check_hierarchy(temp / 'small', grown_root(lsg, temp, GROWN_BASE),
                                              grown_root(lsg, temp, GROWN_BASE + FILLER_PAGES),
                                              budgets['hierarchy'])
@@ -1177,7 +1250,7 @@ def main():
                 + inline_failures + code_failures + transclusion_failures + references_failures
                 + hierarchy_failures + sidebar_failures + slides_failures + graph_failures
                 + search_failures + all_pages_failures + media_failures + queries_failures + flashcards_failures
-                + plugin_failures + site_failures + advanced_failures)
+                + plugin_failures + site_failures + advanced_failures + reference_failures)
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)

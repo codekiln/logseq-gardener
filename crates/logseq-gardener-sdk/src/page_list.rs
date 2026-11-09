@@ -1,5 +1,5 @@
-//! Logseq's All pages list: every published page, journal and generated namespace page
-//! with its kind, icon, backlink count, sort key and git dates.
+//! Logseq's All pages list: every published page, journal, generated namespace page and
+//! reference-only page with its kind, icon, backlink count, sort key and git dates.
 //!
 //! ```
 //! use logseq_gardener_sdk::page_list::{Column, PageKind, PageListEntry};
@@ -34,6 +34,8 @@ pub enum PageKind {
     Journal,
     /// A namespace page generated for a prefix that has no file.
     Namespace,
+    /// A page with no file that exists because published blocks name it.
+    Reference,
 }
 
 /// A page to list: its id in the reference index, its title and kind, and its source
@@ -73,7 +75,7 @@ pub enum Column {
 }
 
 /// List pages with their attributes, in the order given. `dates` is `None` when the
-/// garden has no git history; generated namespace pages never carry dates.
+/// garden has no git history; pages with no file never carry dates.
 pub fn page_list<'a, K: Ord + Clone>(
     pages: impl IntoIterator<Item = PageSource<'a, K>>,
     references: &ReferenceIndex<K>,
@@ -229,6 +231,12 @@ mod tests {
                     kind: PageKind::Namespace,
                     document: None,
                 },
+                PageSource {
+                    id: "deploy".to_owned(),
+                    title: "Deno Deploy".to_owned(),
+                    kind: PageKind::Reference,
+                    document: None,
+                },
             ],
             &index,
             Some(&dates),
@@ -241,7 +249,12 @@ mod tests {
         let kinds: Vec<_> = list.iter().map(|entry| entry.kind).collect();
         assert_eq!(
             kinds,
-            [PageKind::Page, PageKind::Journal, PageKind::Namespace]
+            [
+                PageKind::Page,
+                PageKind::Journal,
+                PageKind::Namespace,
+                PageKind::Reference
+            ]
         );
         assert_eq!(list[0].icon.as_deref(), Some("🧭"));
         assert_eq!(list[1].icon, None);

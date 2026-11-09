@@ -11,6 +11,15 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 static NEXT: AtomicUsize = AtomicUsize::new(0);
+fn digest(title: &str) -> String {
+    let hash = title
+        .as_bytes()
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    format!("{hash:016x}")
+}
 struct Fixture(PathBuf);
 impl Fixture {
     fn new() -> Self {
@@ -40,13 +49,13 @@ impl Fixture {
         .unwrap();
         output
     }
-    // The format version 3 files read back as the version 1 corpus view these
+    // The format version 4 files read back as the version 1 corpus view these
     // assertions use; `raw` holds every search file plus the destinations.
     fn corpus(output: &std::path::Path) -> (Value, String) {
         let manifest_path = output.join("lsg-search-manifest.json");
         let manifest_raw = fs::read_to_string(manifest_path).unwrap();
         let manifest: Value = serde_json::from_str(&manifest_raw).unwrap();
-        assert_eq!(manifest["format_version"], 3);
+        assert_eq!(manifest["format_version"], 4);
         let read = |kind: &str, digest: &Value| {
             let raw = fs::read_to_string(output.join(format!(
                 "lsg-search-{kind}-{}.json",
@@ -54,7 +63,7 @@ impl Fixture {
             )))
             .unwrap();
             let value: Value = serde_json::from_str(&raw).unwrap();
-            assert_eq!(value["format_version"], 3);
+            assert_eq!(value["format_version"], 4);
             (value, raw)
         };
         let (titles, mut raw) = read("titles", &manifest["titles"]);
@@ -63,7 +72,15 @@ impl Fixture {
             .as_array()
             .unwrap()
             .iter()
-            .map(|p| serde_json::json!({"id": p[1], "title": p[0], "href": p[1], "aliases": p[2]}))
+            .map(|p| {
+                // A route the title gives is left out of the entry.
+                let href = p
+                    .get(2)
+                    .cloned()
+                    .unwrap_or_else(|| format!("p-{}.html", digest(p[0].as_str().unwrap())).into());
+                let aliases = p.get(1).cloned().unwrap_or_else(|| serde_json::json!([]));
+                serde_json::json!({"id": href, "title": p[0], "href": href, "aliases": aliases})
+            })
             .collect();
         let mut content = Vec::new();
         for digest in manifest["chunks"].as_array().unwrap() {
@@ -110,7 +127,6 @@ fn selected_originals_safe_projection_aliases_and_anchor_destinations() {
     for sentinel in [
         "PROPERTY_SENTINEL",
         "PrivateRefSentinel",
-        "PrivateTagSentinel",
         "PRIVATE_QUERY_SENTINEL",
         "ASSET_LABEL_SENTINEL",
         "ASSET_PATH_SENTINEL",
@@ -124,7 +140,22 @@ fn selected_originals_safe_projection_aliases_and_anchor_destinations() {
         assert!(!raw.contains(sentinel), "leaked {sentinel}: {raw}");
     }
     assert_eq!(raw.matches("TARGET_ORIGINAL_SENTINEL").count(), 1);
-    assert_eq!(corpus["pages"].as_array().unwrap().len(), 2);
+    // A tag with no file names a reference-only page, which search finds by title, and the
+    // tag's words stay in the referring block.
+    let titles: Vec<&str> = corpus["pages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|page| page["title"].as_str().unwrap())
+        .collect();
+    assert_eq!(titles, ["PrivateTagSentinel", "Public", "Public/Target"]);
+    assert!(
+        corpus["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r["text"].as_str().unwrap().contains("PrivateTagSentinel"))
+    );
     assert!(raw.contains("Welcome") && !raw.contains("Shared"));
     let records = corpus["content"].as_array().unwrap();
     assert!(records.iter().any(|r| r["text"] == "before after"));
@@ -138,7 +169,10 @@ fn selected_originals_safe_projection_aliases_and_anchor_destinations() {
             .unwrap()
             .ends_with("#block-12345678-1234-1234-1234-123456789abc")
     );
-    assert_eq!(child["ancestors"][0], "Parent safe Public/Target");
+    assert_eq!(
+        child["ancestors"][0],
+        "Parent safe Public/Target PrivateTagSentinel"
+    );
     for record in records {
         let (route, fragment) = record["href"].as_str().unwrap().split_once('#').unwrap();
         let html = fs::read_to_string(output.join(route)).unwrap();

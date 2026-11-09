@@ -1,4 +1,5 @@
 //! Escaped HTML rendering with bounded selected-content transclusion.
+use crate::page_names::{Generated, Link};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -940,7 +941,7 @@ impl Renderer<'_> {
         }
         if let Some(priority) = task.priority {
             let text = format!("[#{priority}]");
-            if let (false, [route]) = (self.in_reference, self.pages.candidates(priority)) {
+            if let (false, Some(route)) = (self.in_reference, self.pages.link(priority).target()) {
                 self.html.push_str(&format!(
                     "<a class=\"priority\" href=\"{}\">{}</a> ",
                     escape(route),
@@ -1358,19 +1359,18 @@ impl Renderer<'_> {
             return;
         }
         let card = crate::cards::is_card_name(target);
-        let candidates = self.pages.candidates(target);
-        let route = if let [route] = candidates {
-            Some(route.clone())
-        } else if card {
-            None
-        } else {
-            let reason = if candidates.len() > 1 {
-                "Ambiguous selected page reference"
-            } else {
-                "Unresolved or excluded page reference"
-            };
-            self.diagnostic(format!("{reason}: {target}"));
-            None
+        let link = self.pages.link(target);
+        let route = match link {
+            Link::Page(route) | Link::Generated(route, _, _) => Some(route.clone()),
+            _ if card => None,
+            Link::Ambiguous => {
+                self.diagnostic(format!("Ambiguous selected page reference: {target}"));
+                None
+            }
+            Link::Missing => {
+                self.diagnostic(format!("Unresolved or excluded page reference: {target}"));
+                None
+            }
         };
         // Logseq's faint `[[` `]]` come from the stylesheet, which saves their bytes on
         // every reference; `no-brackets` turns them off for a garden that hides them.
@@ -1385,9 +1385,11 @@ impl Renderer<'_> {
             }
         ));
         match &route {
-            Some(route) => self
-                .html
-                .push_str(&format!("<a href=\"{}\">", escape(route))),
+            Some(route) => self.html.push_str(&format!(
+                "<a{} href=\"{}\">",
+                namespace_attributes(link),
+                escape(route)
+            )),
             None => self.html.push_str("<span>"),
         }
         self.label(label, target, depth);
@@ -1413,16 +1415,23 @@ impl Renderer<'_> {
             self.html.push_str("</span>");
             return;
         }
-        let candidates = self.pages.candidates(&name);
-        if let [route] = candidates {
-            self.html
-                .push_str(&format!("<a class=\"{class}\" href=\"{}\">", escape(route)));
+        let link = self.pages.link(&name);
+        if let Some(route) = link.target() {
+            let attributes = namespace_attributes(link);
+            let (class, attributes) = match attributes.strip_prefix(" class=\"namespace-link\"") {
+                Some(rest) => (format!("{class} namespace-link"), rest.to_owned()),
+                None => (class.to_owned(), attributes),
+            };
+            self.html.push_str(&format!(
+                "<a class=\"{class}\"{attributes} href=\"{}\">",
+                escape(route)
+            ));
             self.text(&text);
             self.html.push_str("</a>");
         } else {
             // `card` is one of Logseq's built-in pages, so it is never reported.
             if !card {
-                let reason = if candidates.len() > 1 {
+                let reason = if link == Link::Ambiguous {
                     "Ambiguous selected tag"
                 } else {
                     "Unresolved or excluded tag"
@@ -1888,6 +1897,17 @@ fn plain_label(nodes: &[Inline], depth: usize) -> (String, bool) {
         }
     }
     (text, unsupported)
+}
+
+/// The attributes that mark a link to a generated namespace page: the dotted underline and an
+/// accessible name that says Namespace. Links to other pages carry none.
+fn namespace_attributes(link: Link<'_, String>) -> String {
+    match link {
+        Link::Generated(_, Generated::Namespace, title) => {
+            super::page_status::link_attributes(true, title)
+        }
+        _ => String::new(),
+    }
 }
 
 #[cfg(test)]

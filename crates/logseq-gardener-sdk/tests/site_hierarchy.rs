@@ -166,7 +166,18 @@ fn missing_parents_are_indexed_navigation_pages_without_source_lookup() {
     let leaf = f.html("Instruments/Synth/Preset");
     assert!(!leaf.contains("namespace-breadcrumbs"));
     assert!(leaf.contains("LEAF_NOTES"));
-    assert!(leaf.contains("class=\"page-reference unresolved\"><span>Instruments/Synth"));
+    // A link in the text opens the generated namespace page with the Namespace style; the
+    // embed keeps its unavailable fallback and diagnostic.
+    assert!(leaf.contains(&format!(
+        "<a class=\"namespace-link\" aria-label=\"Instruments/Synth (Namespace)\" href=\"{}\">Instruments/Synth</a>",
+        route("Instruments/Synth")
+    )));
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| !diagnostic.message.contains("Unresolved"))
+    );
     assert!(
         report
             .diagnostics

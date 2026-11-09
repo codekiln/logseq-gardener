@@ -14,7 +14,7 @@ use super::render;
 use crate::ast::Block;
 use crate::garden::GardenDocument;
 use crate::journals::JournalDate;
-use crate::page_names::{AliasGroups, PageNameIndex, has_outer_space, reference_key};
+use crate::page_names::{AliasGroups, PageNameIndex};
 use crate::references::{BlockId, Contribution, Filter, PageEntry, ReferenceIndex};
 use crate::transclusion::{EmbedPage, ReferenceTargets};
 
@@ -81,8 +81,6 @@ pub(super) struct References<'a> {
     property_targets: Option<BTreeMap<String, BTreeSet<String>>>,
     property_rows: BTreeMap<String, BTreeMap<String, String>>,
     show_brackets: bool,
-    /// Generated namespace pages by lower-cased title, for names no selected page owns.
-    by_name: BTreeMap<String, String>,
     /// The other selected pages of each page's alias group, whose linked references the
     /// page's Linked References also list.
     alias_pages: BTreeMap<String, Vec<String>>,
@@ -92,34 +90,25 @@ pub(super) struct References<'a> {
     contexts: RefCell<HashMap<(BlockId, i64), Rc<render::ReferenceContext>>>,
     /// Each block's breadcrumb, which is the same wherever the block is listed.
     crumbs: RefCell<HashMap<BlockId, Rc<str>>>,
+    /// Pages whose Unlinked References list only the groups of one fragment file: the
+    /// reference-only pages, whose names, such as `To` or `)`, can be mentioned everywhere.
+    one_unlinked_file: BTreeSet<String>,
 }
 
-/// The page a name names: a selected page, else a page in `by_name`. A name with a space
-/// at either end, such as `Release Notes ` for `[[Release Notes ]]` or the namespace parent
-/// `MacOS ` for `MacOS /Applications Folder`, names no selected page, as in Logseq; it can
-/// name a generated namespace page spelled the same.
-fn resolve(
-    names: &PageNameIndex<String>,
-    by_name: &BTreeMap<String, String>,
-    name: &str,
-) -> Option<String> {
-    let candidates = if has_outer_space(name) {
-        &[]
-    } else {
-        names.candidates(name)
-    };
-    match candidates {
-        [route] => Some(route.clone()),
-        [] => by_name.get(&reference_key(name)).cloned(),
-        _ => None,
-    }
+/// The page a name names: a selected page, else a generated namespace page or a
+/// reference-only page ([`PageNameIndex::link`]). A name with a space at either end, such as
+/// `Release Notes ` for `[[Release Notes ]]` or the namespace parent `MacOS ` for
+/// `MacOS /Applications Folder`, names no selected page, as in Logseq; it can name a page with
+/// no file spelled the same.
+fn resolve(names: &PageNameIndex<String>, name: &str) -> Option<String> {
+    names.link(name).target().cloned()
 }
 
 impl<'a> References<'a> {
     /// The page a written name or alias names: a selected page, else a generated
     /// namespace page; `None` when the name is missing or ambiguous.
     pub fn resolve(&self, names: &PageNameIndex<String>, name: &str) -> Option<String> {
-        resolve(names, &self.by_name, name)
+        resolve(names, name)
     }
 
     pub fn new(
@@ -131,11 +120,7 @@ impl<'a> References<'a> {
         dates: BTreeMap<String, JournalDate>,
         show_brackets: bool,
     ) -> Self {
-        let by_name: BTreeMap<_, _> = destinations
-            .iter()
-            .map(|(route, title)| (reference_key(title), route.clone()))
-            .collect();
-        let resolve = |name: &str| resolve(names, &by_name, name);
+        let resolve = |name: &str| resolve(names, name);
         let property_targets: Option<BTreeMap<_, _>> = property_views.map(|views| {
             views
                 .iter()
@@ -195,7 +180,6 @@ impl<'a> References<'a> {
             aliases: aliases.get(route).cloned().unwrap_or_default(),
         });
         Self {
-            by_name: by_name.clone(),
             alias_pages,
             index: ReferenceIndex::build(pages, contributions),
             sources: selected
@@ -209,7 +193,14 @@ impl<'a> References<'a> {
             show_brackets,
             contexts: RefCell::default(),
             crumbs: RefCell::default(),
+            one_unlinked_file: BTreeSet::new(),
         }
+    }
+
+    /// List only the groups of one Unlinked References fragment file on these pages.
+    pub fn with_one_unlinked_file(mut self, pages: BTreeSet<String>) -> Self {
+        self.one_unlinked_file = pages;
+        self
     }
 
     /// Source anchors a page keeps so that linked references can open its blocks.
@@ -365,7 +356,7 @@ impl<'a> References<'a> {
         let filter = self.index.starting_filter(target);
         let mut rows = vec![json!(null); numbers.len()];
         let mut filtered = 0;
-        let files = self.paginate(&groups, |groups, source, blocks, file| {
+        let (files, _) = self.paginate(&groups, usize::MAX, |groups, source, blocks, file| {
             for &id in blocks {
                 let path = self.index.path_refs(id);
                 if !filter.is_empty() && filter.matches(&path) {
@@ -443,8 +434,13 @@ impl<'a> References<'a> {
         let ids = self.index.unlinked(target);
         let groups = self.groups(ids);
         let none = BTreeMap::new();
+        let max_files = if self.one_unlinked_file.contains(target) {
+            1
+        } else {
+            usize::MAX
+        };
         // The linked copies and the page itself already report these blocks' diagnostics.
-        let files = self.paginate(&groups, |groups, source, blocks, _| {
+        let (mut files, shown) = self.paginate(&groups, max_files, |groups, source, blocks, _| {
             let mut quiet = Sections {
                 tagged: String::new(),
                 linked: String::new(),
@@ -463,6 +459,14 @@ impl<'a> References<'a> {
                 &mut quiet,
             )
         });
+        if shown < groups.len()
+            && let Some(last) = files.last_mut()
+        {
+            last.push_str(&format!(
+                "<p class=\"references-more\">Showing the first {shown} of {} pages</p>",
+                groups.len()
+            ));
+        }
         // A page with no mentions has no file; the script shows the zero count.
         let source = if files.is_empty() {
             String::new()
@@ -481,28 +485,35 @@ impl<'a> References<'a> {
         );
     }
 
-    /// Render groups into files of about [`GROUPS_PER_FILE`] groups. `render` receives
-    /// each group and the number of the file it lands in.
+    /// Render groups into at most `max_files` files of about [`GROUPS_PER_FILE`] groups,
+    /// and return them with the number of groups they hold. `render` receives each group and
+    /// the number of the file it lands in.
     fn paginate(
         &self,
         groups: &[(String, Vec<BlockId>)],
+        max_files: usize,
         mut render: impl FnMut(&Self, &str, &[BlockId], usize) -> String,
-    ) -> Vec<String> {
+    ) -> (Vec<String>, usize) {
         let mut files = Vec::new();
         let mut file = String::new();
         let mut in_file = 0;
+        let mut shown = 0;
         for (source, blocks) in groups {
             if in_file >= GROUPS_PER_FILE || file.len() > FILE_BYTES {
                 files.push(std::mem::take(&mut file));
                 in_file = 0;
+                if files.len() >= max_files {
+                    break;
+                }
             }
             file.push_str(&render(self, source, blocks, files.len()));
             in_file += 1;
+            shown += 1;
         }
         if !file.is_empty() {
             files.push(file);
         }
-        files
+        (files, shown)
     }
 
     /// Add each file's groups as `_refs/<page>-<kind>-<n>.html.gz`, which the publisher stores

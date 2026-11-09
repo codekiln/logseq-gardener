@@ -12,7 +12,9 @@ use flate2::write::GzEncoder;
 
 use super::graph_layout::cached_layout;
 use super::render::escape;
-use crate::graph::{ForceSettings, Graph, GraphIndex, GraphSettings, GraphSource};
+use crate::graph::{
+    ForceSettings, Graph, GraphIndex, GraphNode, GraphSettings, GraphSource, REFERENCE_ONLY,
+};
 
 /// The graph view page.
 pub(super) const PAGE_ROUTE: &str = "graph.html";
@@ -79,7 +81,19 @@ fn varint(out: &mut Vec<u8>, mut value: u32) {
 ///   the first changed, less one (varint).
 ///
 /// Numbers are little-endian. A node's page is `p-<FNV-1a 64 of its title>.html` unless
-/// its flags mark it reference-only.
+/// its flags carry [`REFERENCE_ONLY`], which in these files marks a node with no published page
+/// (see [`file_flags`]).
+/// A node's flags as the browser reads them: [`REFERENCE_ONLY`] only for a node with no
+/// published page, which the graph shows as `not published`. A reference-only page with a
+/// route opens like any other page.
+fn file_flags<K>(node: &GraphNode<K>) -> u8 {
+    if node.page.is_some() {
+        node.flags & !REFERENCE_ONLY
+    } else {
+        node.flags | REFERENCE_ONLY
+    }
+}
+
 pub(super) fn encode<K>(graph: &Graph<K>, positions: &[(f32, f32)]) -> Vec<u8> {
     let mut out = Vec::new();
     out.extend_from_slice(b"LSGG");
@@ -108,7 +122,7 @@ pub(super) fn encode<K>(graph: &Graph<K>, positions: &[(f32, f32)]) -> Vec<u8> {
     for node in &graph.nodes {
         out.extend_from_slice(node.title.as_bytes());
     }
-    out.extend(graph.nodes.iter().map(|node| node.flags));
+    out.extend(graph.nodes.iter().map(file_flags));
     for node in &graph.nodes {
         varint(&mut out, node.degree);
     }
@@ -138,7 +152,7 @@ pub(super) fn encode<K>(graph: &Graph<K>, positions: &[(f32, f32)]) -> Vec<u8> {
 /// `f` flags and `e` edges as flat node pairs.
 pub(super) fn neighbourhood_json<K>(graph: &Graph<K>) -> String {
     let titles: Vec<&str> = graph.nodes.iter().map(|node| node.title.as_str()).collect();
-    let flags: Vec<u8> = graph.nodes.iter().map(|node| node.flags).collect();
+    let flags: Vec<u8> = graph.nodes.iter().map(file_flags).collect();
     let edges: Vec<u32> = graph.edges.iter().flat_map(|&(a, b)| [a, b]).collect();
     serde_json::json!({"v": FORMAT_VERSION, "t": titles, "f": flags, "e": edges}).to_string()
 }
@@ -419,9 +433,10 @@ pub(super) mod tests {
     }
 
     fn sample() -> Graph<String> {
-        let node = |title: &str, flags| GraphNode {
+        // A reference-only node without a page; the others are published pages.
+        let node = |title: &str, flags: u8| GraphNode {
             title: title.to_owned(),
-            page: None,
+            page: (flags & REFERENCE_ONLY == 0).then(|| title.to_owned()),
             degree: 300,
             flags,
         };
@@ -450,6 +465,18 @@ pub(super) mod tests {
         assert_eq!(quantised[1], (65535, 0));
         assert_eq!(edges, graph.edges);
         assert_eq!(links, 9);
+    }
+
+    #[test]
+    fn a_reference_only_page_with_a_route_opens_in_the_browser() {
+        let page = |page: Option<&str>| GraphNode {
+            title: "Deno Deploy".to_owned(),
+            page: page.map(str::to_owned),
+            degree: 1,
+            flags: REFERENCE_ONLY | 2,
+        };
+        assert_eq!(file_flags(&page(Some("p-1.html"))), 2);
+        assert_eq!(file_flags(&page(None)), REFERENCE_ONLY | 2);
     }
 
     /// tests/graph.test.cjs reads this file with the browser's reader.

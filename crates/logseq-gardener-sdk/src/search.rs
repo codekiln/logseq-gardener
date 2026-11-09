@@ -42,10 +42,11 @@ use crate::ast::{Block, Inline, Url};
 use crate::garden::GardenDocument;
 use crate::inline_references::tag_page_name;
 use crate::page_names::{PageNameIndex, lookup_key, page_alias_spellings};
+use crate::page_urls::PageUrls;
 use crate::transclusion::{ReferenceTargets, page_targets};
 
 /// The published search format; the browser engine rejects every other version.
-pub const FORMAT_VERSION: u64 = 3;
+pub const FORMAT_VERSION: u64 = 4;
 /// The search manifest's fixed name. Every page names it, so it keeps this name while the
 /// files it lists are named by their contents.
 pub const MANIFEST_ROUTE: &str = "lsg-search-manifest.json";
@@ -119,7 +120,7 @@ fn plain(nodes: &[Inline], names: &PageNameIndex<String>, depth: usize) -> Strin
                 label,
                 image: false,
                 ..
-            } if names.candidates(v).len() == 1 => {
+            } if names.link(v.trim()).target().is_some() => {
                 if label.is_empty() {
                     text.push_str(v);
                 } else {
@@ -129,7 +130,7 @@ fn plain(nodes: &[Inline], names: &PageNameIndex<String>, depth: usize) -> Strin
             // Tags are references too: an unavailable name must never become a term.
             Inline::Tag { children, .. } => {
                 let value = tag_page_name(children);
-                if names.candidates(&value).len() == 1 {
+                if names.link(&value).target().is_some() {
                     text.push_str(&value);
                 } else {
                     text.push(' ');
@@ -464,6 +465,9 @@ pub struct FileOptions {
     pub chunk_size: usize,
     pub chunk_budget: usize,
     pub cut_blocks: u64,
+    /// How the publication names page files, which decides the route a title gives. A title
+    /// index entry carries its page's route only when the page is published elsewhere.
+    pub page_urls: PageUrls,
 }
 
 impl Default for FileOptions {
@@ -473,7 +477,17 @@ impl Default for FileOptions {
             chunk_size: 256,
             chunk_budget: 32_000,
             cut_blocks: 64,
+            page_urls: PageUrls::Digest,
         }
+    }
+}
+
+/// The route a page titled `title` has under `urls` when nothing moves it: its digest file,
+/// or its readable URL. The browser computes the same route from the title.
+fn title_route(title: &str, urls: PageUrls) -> Option<String> {
+    match urls {
+        PageUrls::Digest => Some(format!("p-{}.html", digest(title))),
+        PageUrls::Readable => crate::page_urls::readable_url(title).ok(),
     }
 }
 
@@ -807,7 +821,7 @@ impl SearchIndex {
         Ok(results)
     }
 
-    /// The format version 3 files: the title index, the word-prefix shards and the
+    /// The format version 4 files: the title index, the word-prefix shards and the
     /// record chunks, each named `lsg-search-<kind>-<digest>.json`, and the manifest at
     /// [`MANIFEST_ROUTE`] that lists them and each page's block count for the engine at
     /// `engine`. Page ids must be routes beside the manifest.
@@ -831,11 +845,21 @@ impl SearchIndex {
             refs.push((page as u32, counts[page] as u32));
             counts[page] += 1;
         }
-        // Block counts live in the manifest, so the title index changes only with pages.
+        // Block counts live in the manifest, so the title index changes only with pages. An
+        // entry is `[title]`, `[title, aliases]` or, for a page published at another route
+        // than its title gives, `[title, aliases, route]`.
         let titles: Vec<_> = self
             .pages
             .iter()
-            .map(|p| json!([p.title, p.id, p.aliases]))
+            .map(|p| {
+                if title_route(&p.title, options.page_urls).as_deref() != Some(p.id.as_str()) {
+                    json!([p.title, p.aliases, p.id])
+                } else if p.aliases.is_empty() {
+                    json!([p.title])
+                } else {
+                    json!([p.title, p.aliases])
+                }
+            })
             .collect();
         let titles = add(
             "titles",
@@ -865,6 +889,10 @@ impl SearchIndex {
         let mut manifest = json!({
             "format_version": FORMAT_VERSION,
             "engine": engine,
+            "urls": match options.page_urls {
+                PageUrls::Digest => "digest",
+                PageUrls::Readable => "readable",
+            },
             "titles": titles,
             "blocks": self.blocks.len(),
             "counts": counts,
@@ -873,7 +901,7 @@ impl SearchIndex {
             "shards": shards,
         });
         // The revision names this exact set of files, so any change to one changes it.
-        let revision = digest(&format!("search-v3:{manifest}"));
+        let revision = digest(&format!("search-v4:{manifest}"));
         manifest["revision"] = revision.clone().into();
         let manifest_name = MANIFEST_ROUTE.to_owned();
         files.insert(manifest_name.clone(), manifest.to_string());
@@ -911,6 +939,71 @@ mod tests {
                 })
                 .collect(),
         })
+    }
+
+    #[test]
+    fn title_entries_carry_only_routes_the_title_does_not_give() {
+        let page = |title: &str, id: &str, aliases: &[&str]| PageRecord {
+            id: id.to_owned(),
+            title: title.to_owned(),
+            aliases: aliases.iter().map(|a| (*a).to_owned()).collect(),
+        };
+        let entries = |pages: Vec<PageRecord>, page_urls| {
+            let files = SearchIndex::new(Records {
+                pages,
+                blocks: vec![],
+            })
+            .files(
+                "lsg-search-engine-0000000000000000.mjs",
+                &FileOptions {
+                    page_urls,
+                    ..FileOptions::default()
+                },
+            );
+            let manifest: serde_json::Value =
+                serde_json::from_str(&files.files[MANIFEST_ROUTE]).unwrap();
+            let titles = &files.files[&format!(
+                "lsg-search-titles-{}.json",
+                manifest["titles"].as_str().unwrap()
+            )];
+            let titles: serde_json::Value = serde_json::from_str(titles).unwrap();
+            (manifest["urls"].clone(), titles["pages"].clone())
+        };
+        let digest_route = |title: &str| format!("p-{}.html", digest(title));
+        let (urls, pages) = entries(
+            vec![
+                page("Deno Deploy", &digest_route("Deno Deploy"), &[]),
+                page("mise", &digest_route("mise"), &["mise-en-place"]),
+                page("Moved", "p-0000000000000000.html", &[]),
+            ],
+            PageUrls::Digest,
+        );
+        assert_eq!(urls, "digest");
+        assert_eq!(
+            pages,
+            json!([
+                ["Deno Deploy"],
+                ["mise", ["mise-en-place"]],
+                ["Moved", [], "p-0000000000000000.html"]
+            ])
+        );
+        let (urls, pages) = entries(
+            vec![
+                page("Deno Deploy", "Deno%20Deploy/", &[]),
+                page("MacOS ", &digest_route("MacOS "), &[]),
+                page("typescript/Notes", "TypeScript/Notes/", &[]),
+            ],
+            PageUrls::Readable,
+        );
+        assert_eq!(urls, "readable");
+        assert_eq!(
+            pages,
+            json!([
+                ["Deno Deploy"],
+                ["MacOS ", [], digest_route("MacOS ")],
+                ["typescript/Notes", [], "TypeScript/Notes/"]
+            ])
+        );
     }
 
     fn titles(index: &SearchIndex, results: &QueryResults) -> Vec<String> {
@@ -1084,6 +1177,7 @@ mod tests {
                 chunk_size: 256,
                 chunk_budget: 32_000,
                 cut_blocks: u64::MAX,
+                ..FileOptions::default()
             },
         );
         let manifest: serde_json::Value =
@@ -1113,6 +1207,7 @@ mod tests {
                     chunk_size: 256,
                     chunk_budget: 32_000,
                     cut_blocks: u64::MAX,
+                    ..FileOptions::default()
                 },
             )
         };
@@ -1239,6 +1334,7 @@ mod tests {
             chunk_size: 16,
             chunk_budget: 2_000,
             cut_blocks: u64::MAX,
+            ..FileOptions::default()
         };
         let files = index.files("engine.mjs", &options);
         let chunks = chunks(&files);
@@ -1284,6 +1380,7 @@ mod tests {
                     chunk_size: 16,
                     chunk_budget: 1_500,
                     cut_blocks: u64::MAX,
+                    ..FileOptions::default()
                 },
             )
         };

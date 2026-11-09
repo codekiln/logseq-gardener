@@ -313,16 +313,18 @@ fn search_routes_are_page_folders_and_the_engine_accepts_them() {
         .find(|path| path.starts_with("lsg-search-titles-"))
         .unwrap();
     let titles: Value = serde_json::from_slice(&fs::read(output.join(titles)).unwrap()).unwrap();
-    let routes: Vec<&str> = titles["pages"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|page| page[1].as_str().unwrap())
-        .collect();
-    assert!(
-        routes.contains(&START) && routes.contains(&ENCODED),
-        "{routes:?}"
-    );
+    // Format version 4 leaves out a route the title gives; the manifest names the scheme.
+    let manifest: Value =
+        serde_json::from_slice(&fs::read(output.join("lsg-search-manifest.json")).unwrap())
+            .unwrap();
+    assert_eq!(manifest["urls"], "readable");
+    let pages = titles["pages"].as_array().unwrap();
+    assert!(!pages.is_empty());
+    for page in pages {
+        assert!(page.get(2).is_none(), "{page}");
+    }
+    // The browser computes ENCODED from the title.
+    assert!(pages.iter().any(|page| page[0] == "Docs/Guide/Q&A: 2026"));
     let engine = all
         .iter()
         .find(|path| path.starts_with("lsg-search-engine-"))

@@ -38,7 +38,15 @@ see-also:: [[lsg/Ref/Publish Options]], [[lsg/Ref/Published Pages]], [[lsg/Stati
 		- A page reference can use a selected page's title or one of its leading aliases.
 		- Name matching ignores letter case, surrounding whitespace and a slash at either end. It also treats equivalent Unicode spellings of accented letters as equal, using Normalization Form C (NFC).
 		- Duplicate selected titles fail the build before the output directory is created. A file outside `pages/` and `journals/` whose title repeats the title of a file in those folders is skipped with a diagnostic instead.
-		- A reference to a missing or excluded page keeps the label written in the selected source.
+		- A reference to a withheld, unselected or ambiguous name keeps the label written in the selected source and gets a diagnostic.
+		- A page reference or tag to a generated namespace page links to it with the Namespace link style.
+	- ## Reference-only pages
+		- As in Logseq, a name that a published block links, tags or lists in `tags::` or another page-valued property becomes a page even when no file holds it. `[[Deno Deploy]]` on a published page publishes a page titled `Deno Deploy` that shows its Pages tagged with, Linked References, Hierarchy and Unlinked References. Each namespace parent of such a name becomes one too, unless it is already a generated namespace page.
+		- A reference-only page is published whatever the `--include` selection, because it has no file for the selection to choose: publishing `--include Deno` publishes `Deno Deploy`.
+		- A name that any page or journal file has as its title, alias or date never becomes a reference-only page, whether that file is published, withheld or outside the selection, so those references stay unresolved. A name that only withheld or unselected pages write, or that a published page writes only in a property that `:block-hidden-properties` hides, gets no page. A file that `:hidden` hides counts as no file.
+		- Task markers, priorities, block UUIDs and asset paths make no page.
+		- The page takes the spelling of the first reference Logseq reads: journals newest first, then other files by path, and within a file the spelling Logseq's parser keeps. A name that spells a date takes the journal title format's title and is listed as a journal.
+		- A page whose address collides with another page or with a file the build writes at the output root, such as `Assets/Logo` with `--readable-urls`, is left out with a diagnostic, and references to it stay unresolved.
 		- Markdown links to page file names are not resolved; they keep a visible fallback and get a diagnostic.
 	- ## Aliases
 		- Only the last leading `alias::` property of a page is used. It accepts comma-separated plain names and direct page references.
