@@ -1398,6 +1398,32 @@ pub fn publish_site_with_options(
         }
     }
     let plugin_files = plugins::files(&plugin_manifests);
+    // The page metadata and the host hold the revision or are named after it, so the revision
+    // reads their other contents: each page's plugin values and the host script.
+    let plugin_pages = if plugin_manifests
+        .iter()
+        .any(|plugin| plugin.module.is_some())
+    {
+        let none = Vec::new();
+        let pages: Vec<_> = site_pages
+            .iter()
+            .map(|page| {
+                let visible = page
+                    .properties
+                    .as_ref()
+                    .map_or(&none, |route| &property_views[route].visible);
+                let contributed = contributions
+                    .metadata
+                    .get(page.properties.as_ref().unwrap_or(&page.url));
+                let entries = plugins::page_plugins(&plugin_manifests, visible, contributed);
+                let text = serde_json::to_string(&entries).expect("JSON values serialize");
+                (page, entries, text)
+            })
+            .collect();
+        Some((plugins::host(&plugin_manifests, readable), pages))
+    } else {
+        None
+    };
     let revision = plugins::revision(
         documents
             .iter()
@@ -1416,30 +1442,18 @@ pub fn publish_site_with_options(
                 plugin_files
                     .iter()
                     .map(|(route, contents)| (route.as_str(), *contents)),
-            ),
+            )
+            .chain(plugin_pages.iter().flat_map(|((host_route, host), pages)| {
+                std::iter::once((host_route.as_str(), host.as_bytes())).chain(
+                    pages
+                        .iter()
+                        .map(|(page, _, text)| (page.url.as_str(), text.as_bytes())),
+                )
+            })),
     );
-    if plugin_manifests
-        .iter()
-        .any(|plugin| plugin.module.is_some())
-    {
-        let (host_route, host) = plugins::host(&plugin_manifests, readable);
-        let none = Vec::new();
-        for page in &site_pages {
-            let visible = page
-                .properties
-                .as_ref()
-                .map_or(&none, |route| &property_views[route].visible);
-            let contributed = contributions
-                .metadata
-                .get(page.properties.as_ref().unwrap_or(&page.url));
-            let head = plugins::page_head(
-                page,
-                &revision,
-                &plugin_manifests,
-                visible,
-                contributed,
-                &host_route,
-            );
+    if let Some(((host_route, host), pages)) = plugin_pages {
+        for (page, entries, _) in pages {
+            let head = plugins::page_head(page, &revision, entries, &host_route);
             if let Some(html) = documents.get_mut(&page.url) {
                 *html = html.replacen("</head>", &(head + "</head>"), 1);
             }

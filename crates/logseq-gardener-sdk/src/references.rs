@@ -358,11 +358,16 @@ impl<K: Ord + Clone> Contribution<K> {
                 }
             }
             result.graph.push(graph);
+            // Shown property rows replace the written names, and `expand` adds their
+            // namespace parents from the page titles, so a hidden row names no parent either.
             let refs = match properties {
                 Some(targets) if is_properties => targets.clone(),
-                _ => names.iter().filter_map(|name| resolve(name)).collect(),
+                _ => names
+                    .iter()
+                    .filter_map(|name| resolve(name))
+                    .chain(parent_refs)
+                    .collect(),
             };
-            let refs = refs.into_iter().chain(parent_refs).collect();
             while parents
                 .last()
                 .is_some_and(|(previous, _)| *previous >= level)
@@ -1117,6 +1122,29 @@ mod tests {
         assert_eq!(index.backlink_count(&release), 1);
         assert!(index.linked(&"Notes/Setup".to_owned()).is_empty());
         assert!(index.linked(&"Notes".to_owned()).is_empty());
+    }
+
+    #[test]
+    fn a_hidden_property_names_no_namespace_parent() {
+        // `secret` is hidden, so the page shows no row for it and the caller passes no
+        // property targets: neither `mise/Config` nor its parent `mise` lists the page.
+        let source = "secret:: [[mise/Config]]\ntopic:: [[Diataxis/How To]]\n\n- body\n";
+        let shown = BTreeSet::from(["Diataxis/How To".to_owned()]);
+        let index = ReferenceIndex::build(
+            entries(&["notes"]),
+            vec![Contribution::from_document(
+                "notes".to_owned(),
+                &document(source),
+                &resolve,
+                Some(&shown),
+            )],
+        );
+        assert!(index.linked(&"mise/Config".to_owned()).is_empty());
+        assert!(index.linked(&"mise".to_owned()).is_empty());
+        assert_eq!(index.backlink_count(&"mise".to_owned()), 0);
+        // The shown row still names its page and that page's namespace parent.
+        assert_eq!(index.linked(&"Diataxis/How To".to_owned()).len(), 1);
+        assert_eq!(index.linked(&"Diataxis".to_owned()).len(), 1);
     }
 
     #[test]
