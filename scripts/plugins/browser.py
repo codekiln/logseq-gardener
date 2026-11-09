@@ -101,7 +101,7 @@ def build_episodes(binary, temp):
     for name, text in EPISODE_PAGES.items():
         (garden / 'pages' / name).write_text(text, encoding='utf-8')
     (garden / 'assets' / 'one.wav').write_bytes(tone(330))
-    (garden / 'assets' / 'two.wav').write_bytes(tone(440))
+    (garden / 'assets' / 'two.wav').write_bytes(tone(440, seconds=8))
     output = temp / 'site-episodes'
     subprocess.run([str(binary), 'publish', '--graph', str(garden), '--output', str(output),
                     '--filename-format', 'triple-lowbar', '--include', 'Show'],
@@ -123,6 +123,17 @@ def wait_player(page, after=0.0):
       const audio = document.querySelector('.lsg-episode-player audio');
       return audio && !audio.paused && audio.currentTime > after;
     }''', arg=after)
+
+
+def player_labels(page):
+    return page.evaluate('''() => {
+      const audio = document.querySelector('.lsg-episode-player audio');
+      const full = document.querySelector('.lsg-episode-player-recording');
+      return { status: document.querySelector('.lsg-episode-player-status').textContent,
+        name: audio.getAttribute('aria-label'), full: full.href, src: audio.src, target: full.target,
+        rel: full.rel, text: full.textContent,
+        current: [...document.querySelectorAll('.lsg-episode-player-chapter a')].map((a) => a.getAttribute('aria-current')) };
+    }''')
 
 
 def check_podcast_episode(browser, site, prefix, screenshots, results):
@@ -155,6 +166,13 @@ def check_podcast_episode(browser, site, prefix, screenshots, results):
     page.evaluate("document.querySelector('.lsg-episode-player audio').play()")
     wait_player(page, 0.3)
     first_src = player(page)['src']
+    # The player names its recording, links to it in a new tab and says that it is playing.
+    labels = player_labels(page)
+    assert labels['status'] == 'Playing' and labels['name'] == 'Full episode recording', labels
+    assert labels['full'] == labels['src'] and labels['full'].endswith('.wav') and labels['text'] == 'Full recording', labels
+    assert labels['target'] == '_blank' and labels['rel'] == 'noopener noreferrer', labels
+    first_full = labels['full']
+    results['podcast_player_names_and_links_recording'] = {k: labels[k] for k in ('status', 'name', 'text', 'target')}
     if screenshots:
         screenshots.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(screenshots / 'podcast-1-episode-one-playing.png'))
@@ -213,6 +231,17 @@ def check_podcast_episode(browser, site, prefix, screenshots, results):
     if screenshots:
         page.screenshot(path=str(screenshots / 'podcast-chapter-bullet-seek.png'))
     results['podcast_chapter_bullet_seeks_player'] = {'time_s': round(now['time'], 2), 'trail': page.evaluate(trail)}
+    # Only the chapter playing now, at the end of the trail, is the current one.
+    current = player_labels(page)['current']
+    assert current == [None, None, 'true'], current
+    results['podcast_trail_marks_current_chapter'] = current
+
+    # The status follows the recording: Paused, then Playing again.
+    page.evaluate("document.querySelector('.lsg-episode-player audio').pause()")
+    page.wait_for_function("document.querySelector('.lsg-episode-player-status').textContent === 'Paused'")
+    page.evaluate("document.querySelector('.lsg-episode-player audio').play()")
+    page.wait_for_function("document.querySelector('.lsg-episode-player-status').textContent === 'Playing'")
+    wait_player(page)
 
     # Another episode leaves the playing recording in place until the reader starts it.
     follow(page, two)
@@ -228,9 +257,16 @@ def check_podcast_episode(browser, site, prefix, screenshots, results):
     assert page.locator('main button.lsg-episode-play').count() == 0
     page.locator('main a[data-lsg-dialogue-time="5"]').click()
     page.wait_for_function("document.querySelector('.lsg-episode-player audio').currentTime >= 4.5")
+    labels = player_labels(page)
+    assert labels['full'] == labels['src'] and labels['full'] != first_full, labels
     if screenshots:
         page.screenshot(path=str(screenshots / 'podcast-3-second-episode-playing.png'))
     results['podcast_second_episode_takes_over_when_started'] = True
+
+    # The second recording is 8 seconds long; playing on to its end says Ended.
+    page.wait_for_function("document.querySelector('.lsg-episode-player audio').ended")
+    page.wait_for_function("document.querySelector('.lsg-episode-player-status').textContent === 'Ended'")
+    results['podcast_status_says_ended'] = True
     assert not errors, errors
     context.close()
 
@@ -243,6 +279,7 @@ def check_podcast_episode(browser, site, prefix, screenshots, results):
     page.wait_for_timeout(500)
     assert page.locator('.lsg-episode-player').count() == 0
     assert page.locator('main audio').count() == 1
+    assert page.locator('main audio').get_attribute('aria-label') == 'Episode recording'
     assert page.locator('main .lsg-episode-seek').count() == 0
     assert page.locator('main h4').text_content() == '00:20 Twenty seconds in'
     assert page.locator('main li', has_text='the bass comes in').last.locator('a.lsg-episode-seek').count() == 0
