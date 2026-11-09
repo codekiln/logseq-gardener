@@ -171,3 +171,12 @@ The shell's behaviour SHALL ship as one shared `lsg-shell.js` file at the site r
 #### Scenario: Garden growth
 - **WHEN** the parity fixture garden is built again with 2,000 unrelated pages added
 - **THEN** every fixture page and `lsg-shell.js` keep the same size and stay within their budgets
+
+### Requirement: Load page features after the first paint
+
+`lsg-shell.js` SHALL start the scripts it loads after the page's `load` event, which are the outline, the reference sections, the journals feed, All pages and a restored right sidebar, only after the next paint, so no page's first paint waits on them.
+
+#### Scenario: Small page on a fast connection
+
+- **WHEN** a reader opens `Contents` on the desktop profile and the `load` event fires before the title is painted
+- **THEN** `lsg-outline.js` and `lsg-references.js` are requested after the title is visible
