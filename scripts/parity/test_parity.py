@@ -269,6 +269,16 @@ class PublishBenchTest(unittest.TestCase):
         # The generated garden has no size budget.
         self.assertEqual(publish_bench.check_size({**row, 'corpus': {'name': 'gitpa-sized'}}, limits), [])
 
+    def test_search_shard_budget_names_the_total(self):
+        limits = {'shards_total_gzip_mb': 3}
+        row = {'corpus': {'name': 'encode-garden'}, 'search': {'shards': 2, 'shards_gzip_mb': 3.2, 'largest_shard_gzip_kb': 60}}
+        self.assertEqual(publish_bench.check_search(row, limits),
+                         ['encode-garden: search shards 3.200 MB gzip exceed their 3 MB budget'])
+        row['search']['shards_gzip_mb'] = 2.8
+        self.assertEqual(publish_bench.check_search(row, limits), [])
+        # Rows recorded before the shard total have no search entry.
+        self.assertEqual(publish_bench.check_search({'corpus': {'name': 'encode-garden'}}, limits), [])
+
     def test_the_sample_garden_has_gitpas_shape(self):
         rng = sample_garden.random.Random(sample_garden.SEED)
         words = sample_garden.vocabulary(rng)
@@ -384,7 +394,7 @@ class MetricsTest(unittest.TestCase):
         # Reference-only pages (published-reference-only-pages); the design's budgets.
         self.assertEqual(loaded.pop('reference_only'), {
             'page_kb': 11, 'page_gzip_kb': 4, 'unlinked_files_per_page': 1, 'unlinked_total_mb': 15,
-            'linked_total_mb': 10, 'search_engine_baseline_kb': 15.533, 'search_engine_growth_kb': 0.5,
+            'linked_total_mb': 10, 'search_engine_baseline_kb': 15.533, 'search_engine_growth_kb': 1.4,
             'build_slowdown_pct': 10})
         self.assertEqual(set(loaded), {'desktop', 'phone', 'shell', 'journals', 'outline', 'inline', 'code', 'search',
                                        'transclusion', 'references', 'all_pages', 'hierarchy', 'sidebar', 'graph', 'media',
@@ -426,7 +436,7 @@ class MetricsTest(unittest.TestCase):
             'bootstrap_kb', 'titles_gzip_kb', 'titles_decoded_mb', 'shard_gzip_kb', 'chunk_gzip_kb',
             'keystroke_gzip_kb', 'dialog_ms_desktop', 'dialog_ms_phone', 'first_results_ms_desktop',
             'first_results_ms_phone', 'cold_keystroke_ms_desktop', 'cold_keystroke_ms_phone', 'heap_growth_mb',
-            'warm_open_desktop_ms', 'warm_open_phone_ms', 'build_slowdown_pct'})
+            'warm_open_desktop_ms', 'warm_open_phone_ms', 'build_slowdown_pct', 'shards_total_gzip_mb'})
         for profile in budgets.profiles(loaded).values():
             self.assertEqual(set(profile), {'data_before_title_kb', 'script_before_title_kb', 'title_ms',
                                             'peak_heap_mb', 'search_p95_ms'})
@@ -942,15 +952,15 @@ class BudgetCheckTest(unittest.TestCase):
             self.assertEqual(budgets.check_shell(small, small, ['p-1.html'], {'script_kb': 6, 'frame_kb': 6}), [])
 
     def search_site(self, temp, shard_text):
-        """A format version 4 search publication with one title, one shard and one chunk."""
+        """A format version 5 search publication with one title, one shard and one chunk."""
         site = Path(temp)
-        files = {'titles': '{"format_version": 4, "pages": [["tmux", [], "p-1.html"]]}',
+        files = {'titles': '{"format_version": 5, "pages": [["tmux", [], "p-1.html"]]}',
                  'shard': shard_text,
-                 'chunk': '{"format_version": 4, "blocks": [["p-1.html", "source-block-1", "tmux", []]]}'}
+                 'chunk': '{"format_version": 5, "blocks": [["p-1.html", "source-block-1", "tmux", []]]}'}
         for kind, text in files.items():
             (site / f'lsg-search-{kind}-{kind}0000.json').write_text(text, encoding='utf-8')
         (site / 'lsg-search-manifest.json').write_text(
-            '{"format_version": 4, "urls": "digest", "revision": "r", "titles": "titles0000", "blocks": 1, "counts": [1], "chunk_starts": [0], '
+            '{"format_version": 5, "urls": "digest", "revision": "r", "titles": "titles0000", "blocks": 1, "counts": [1], "chunk_starts": [0], '
             '"chunks": ["chunk0000"], "shards": {"tm": "shard0000"}}', encoding='utf-8')
         return site
 
@@ -980,15 +990,15 @@ class BudgetCheckTest(unittest.TestCase):
     def test_search_index_within_budget(self):
         limits = metrics.load_budgets()['search']
         with tempfile.TemporaryDirectory() as temp:
-            site = self.search_site(temp, '{"format_version": 4, "words": [["tmux", [0, 0]]]}')
+            site = self.search_site(temp, '{"format_version": 5, "words": [["tmux", "00"]]}')
             self.assertEqual(budgets.check_search_index(budgets.search_index_sizes(site), limits), [])
 
     def test_oversized_shard_fails_naming_the_shard(self):
         limits = metrics.load_budgets()['search']
         # Random words compress poorly, so the shard is well over the gzip budget.
-        words = ', '.join(f'["tm{os.urandom(12).hex()}", [0, 0]]' for _ in range(8000))
+        words = ', '.join(f'["tm{os.urandom(12).hex()}", "00"]' for _ in range(8000))
         with tempfile.TemporaryDirectory() as temp:
-            site = self.search_site(temp, '{"format_version": 4, "words": [' + words + ']}')
+            site = self.search_site(temp, '{"format_version": 5, "words": [' + words + ']}')
             failures = budgets.check_search_index(budgets.search_index_sizes(site), limits)
         self.assertEqual(len(failures), 1)
         self.assertIn("lsg-search-shard-shard0000.json (words starting 'tm'): largest shard", failures[0])

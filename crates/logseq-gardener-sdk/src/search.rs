@@ -46,7 +46,7 @@ use crate::page_urls::PageUrls;
 use crate::transclusion::{ReferenceTargets, page_targets};
 
 /// The published search format; the browser engine rejects every other version.
-pub const FORMAT_VERSION: u64 = 4;
+pub const FORMAT_VERSION: u64 = 5;
 /// The search manifest's fixed name. Every page names it, so it keeps this name while the
 /// files it lists are named by their contents.
 pub const MANIFEST_ROUTE: &str = "lsg-search-manifest.json";
@@ -519,30 +519,66 @@ fn gzip_len(text: &str) -> usize {
     encoder.finish().expect("in-memory gzip").len()
 }
 
-// A block's page number in title order and its number among that page's blocks.
+// A block's slot and its number among the blocks of that slot's pages.
 type BlockRef = (u32, u32);
 
-// Each word lists its blocks as pairs: the first pair is a page number and a block number
-// within that page; each later pair is the step to its page and, on a new page, the block
-// number there, or on the same page the step from the previous block. Naming blocks by
-// page keeps a shard unchanged when another page gains or loses blocks.
-fn shard_json(words: &[(&str, &[u32])], refs: &[BlockRef]) -> String {
+/// Slots for the pages that hold block records: the smallest power of two at least four
+/// times their number. A page's slot is the low bits of its route's digest, so it depends
+/// only on the route and the slot count, which changes only when the number of such pages
+/// crosses a power of two.
+pub fn slot_count(pages: usize) -> u64 {
+    (pages.max(1) as u64 * 4).next_power_of_two()
+}
+
+// Digits of the shard number strings: a number is written in base 32, most significant
+// digit first; every digit but the last comes from the second half of the alphabet.
+const DIGITS: &[u8; 64] = b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
+
+fn push_number(out: &mut String, mut value: u32) {
+    let mut digits = [0_u8; 7];
+    let mut at = digits.len();
+    loop {
+        at -= 1;
+        digits[at] = (value & 31) as u8;
+        value >>= 5;
+        if value == 0 {
+            break;
+        }
+    }
+    let last = digits.len() - 1;
+    for (n, digit) in digits.iter().enumerate().skip(at) {
+        let index = if n == last { *digit } else { *digit + 32 };
+        out.push(DIGITS[index as usize] as char);
+    }
+}
+
+// A word's blocks as one string of numbers in pairs, ordered by slot and block: the first
+// pair is a slot and a block number within it; each later pair is the step to its slot and,
+// in a new slot, the block number there, or in the same slot the step from the previous
+// block. Naming blocks by slot keeps the string unchanged when another page is added,
+// removed or edited, unless that page shares one of the word's slots.
+fn word_blocks(blocks: &[u32], refs: &[BlockRef]) -> String {
+    let mut sorted: Vec<BlockRef> = blocks.iter().map(|n| refs[*n as usize]).collect();
+    sorted.sort_unstable();
+    let mut out = String::new();
+    let mut previous: Option<BlockRef> = None;
+    for (slot, block) in sorted {
+        let (step, value) = match previous {
+            None => (slot, block),
+            Some((last, before)) if last == slot => (0, block - before),
+            Some((last, _)) => (slot - last, block),
+        };
+        push_number(&mut out, step);
+        push_number(&mut out, value);
+        previous = Some((slot, block));
+    }
+    out
+}
+
+fn shard_json(words: &[(&str, &str)]) -> String {
     let words: Vec<_> = words
         .iter()
-        .map(|(word, blocks)| {
-            let mut pairs = Vec::with_capacity(blocks.len() * 2);
-            let mut previous: Option<BlockRef> = None;
-            for n in blocks.iter() {
-                let (page, block) = refs[*n as usize];
-                match previous {
-                    None => pairs.extend([page, block]),
-                    Some((last, before)) if last == page => pairs.extend([0, block - before]),
-                    Some((last, _)) => pairs.extend([page - last, block]),
-                }
-                previous = Some((page, block));
-            }
-            json!([word, pairs])
-        })
+        .map(|(word, blocks)| json!([word, blocks]))
         .collect();
     json!({"format_version": FORMAT_VERSION, "words": words}).to_string()
 }
@@ -624,13 +660,12 @@ fn segment_chunks(blocks: &[BlockRecord], options: &FileOptions) -> Vec<(usize, 
 // stay behind in a terminal shard under the same key.
 fn place<'a>(
     key: &'a str,
-    words: Vec<(&'a str, &'a [u32])>,
-    refs: &[BlockRef],
+    words: Vec<(&'a str, &'a str)>,
     budget: usize,
     out: &mut BTreeMap<String, String>,
 ) {
     let depth = key.chars().count();
-    let json = shard_json(&words, refs);
+    let json = shard_json(&words);
     if gzip_len(&json) <= budget || words.iter().all(|(w, _)| w.chars().count() <= depth) {
         out.insert(key.to_owned(), json);
         return;
@@ -648,10 +683,10 @@ fn place<'a>(
         }
     }
     if !terminal.is_empty() {
-        out.insert(key.to_owned(), shard_json(&terminal, refs));
+        out.insert(key.to_owned(), shard_json(&terminal));
     }
     for (key, words) in groups {
-        place(key, words, refs, budget, out);
+        place(key, words, budget, out);
     }
 }
 
@@ -821,7 +856,7 @@ impl SearchIndex {
         Ok(results)
     }
 
-    /// The format version 4 files: the title index, the word-prefix shards and the
+    /// The format version 5 files: the title index, the word-prefix shards and the
     /// record chunks, each named `lsg-search-<kind>-<digest>.json`, and the manifest at
     /// [`MANIFEST_ROUTE`] that lists them and each page's block count for the engine at
     /// `engine`. Page ids must be routes beside the manifest.
@@ -839,11 +874,35 @@ impl SearchIndex {
             .enumerate()
             .map(|(n, p)| (p.id.as_str(), n))
             .collect();
+        for block in &self.blocks {
+            counts[order[block.page.as_str()]] += 1;
+        }
+        // Each page with blocks sits in a slot; a slot's blocks are its pages' blocks in route
+        // order, so a page's first block number in its slot is the blocks of the pages before.
+        let holders: Vec<usize> = (0..self.pages.len()).filter(|n| counts[*n] > 0).collect();
+        let slots = slot_count(holders.len());
+        let mut by_slot: BTreeMap<u64, Vec<usize>> = BTreeMap::new();
+        for page in holders {
+            by_slot
+                .entry(fnv(&self.pages[page].id) % slots)
+                .or_default()
+                .push(page);
+        }
+        let mut first = vec![(0_u32, 0_u32); self.pages.len()];
+        for (slot, mut pages) in by_slot {
+            pages.sort_by(|a, b| self.pages[*a].id.cmp(&self.pages[*b].id));
+            let mut offset = 0;
+            for page in pages {
+                first[page] = (slot as u32, offset as u32);
+                offset += counts[page];
+            }
+        }
         let mut refs = Vec::with_capacity(self.blocks.len());
+        let mut seen = vec![0_u32; self.pages.len()];
         for block in &self.blocks {
             let page = order[block.page.as_str()];
-            refs.push((page as u32, counts[page] as u32));
-            counts[page] += 1;
+            refs.push((first[page].0, first[page].1 + seen[page]));
+            seen[page] += 1;
         }
         // Block counts live in the manifest, so the title index changes only with pages. An
         // entry is `[title]`, `[title, aliases]` or, for a page published at another route
@@ -866,15 +925,20 @@ impl SearchIndex {
             json!({"format_version": FORMAT_VERSION, "pages": titles}).to_string(),
         );
         let mut shards = BTreeMap::new();
+        let encoded: Vec<(&str, String)> = self
+            .words
+            .iter()
+            .map(|(word, blocks)| (word, word_blocks(blocks, &refs)))
+            .collect();
         let mut groups: BTreeMap<&str, Vec<_>> = BTreeMap::new();
-        for (word, blocks) in self.words.iter() {
+        for (word, blocks) in &encoded {
             groups
                 .entry(prefix(word, 2))
                 .or_default()
-                .push((word, blocks));
+                .push((*word, blocks.as_str()));
         }
         for (key, words) in groups {
-            place(key, words, &refs, options.shard_budget, &mut shards);
+            place(key, words, options.shard_budget, &mut shards);
         }
         let shards: serde_json::Map<_, _> = shards
             .into_iter()
@@ -901,7 +965,7 @@ impl SearchIndex {
             "shards": shards,
         });
         // The revision names this exact set of files, so any change to one changes it.
-        let revision = digest(&format!("search-v4:{manifest}"));
+        let revision = digest(&format!("search-v5:{manifest}"));
         manifest["revision"] = revision.clone().into();
         let manifest_name = MANIFEST_ROUTE.to_owned();
         files.insert(manifest_name.clone(), manifest.to_string());
@@ -939,6 +1003,66 @@ mod tests {
                 })
                 .collect(),
         })
+    }
+
+    #[test]
+    fn numbers_are_base_32_with_leading_digits_from_the_second_half() {
+        let text = |values: &[u32]| {
+            let mut out = String::new();
+            for value in values {
+                push_number(&mut out, *value);
+            }
+            out
+        };
+        assert_eq!(text(&[0, 31, 32, 1023, 1024]), "0vx0_vxw0");
+        // The static search contract's example: blocks 1 and 4 of slot 3, block 0 of slot 40.
+        assert_eq!(
+            word_blocks(&[2, 0, 1], &[(3, 1), (3, 4), (40, 0)]),
+            "3103x50"
+        );
+        assert_eq!(slot_count(0), 4);
+        assert_eq!(slot_count(9_186), 65_536);
+    }
+
+    #[test]
+    fn a_page_added_to_a_slot_after_its_pages_leaves_their_shards() {
+        let route = |title: &str| format!("p-{}.html", digest(title));
+        let slot = |title: &str| fnv(&route(title)) % slot_count(4);
+        let titles: Vec<String> = (0..).map(|n| format!("T{n}")).take(500).collect();
+        // Three titles in one slot, in route order, and two in other slots.
+        let in_slot = |title: &String| {
+            let mut same: Vec<_> = titles.iter().filter(|t| slot(t) == slot(title)).collect();
+            same.sort_by_key(|t| route(t));
+            same
+        };
+        let same = titles
+            .iter()
+            .map(in_slot)
+            .find(|same| same.len() >= 3)
+            .unwrap();
+        let (earlier, first, later) = (same[0], same[1], same[2]);
+        let others: Vec<_> = titles
+            .iter()
+            .filter(|t| slot(t) != slot(first))
+            .take(2)
+            .collect();
+        let shard = |pages: &[&str], key: &str| {
+            let blocks: Vec<_> = pages
+                .iter()
+                .map(|page| (*page, if page == first { "alpha" } else { "omega" }))
+                .collect();
+            let pages: Vec<_> = pages.iter().map(|page| (*page, &[][..])).collect();
+            let files = index(&pages, &blocks).files("engine.mjs", &FileOptions::default());
+            let manifest: serde_json::Value =
+                serde_json::from_str(&files.files[MANIFEST_ROUTE]).unwrap();
+            let digest = manifest["shards"][key].as_str().unwrap().to_owned();
+            files.files[&format!("lsg-search-shard-{digest}.json")].clone()
+        };
+        let before = shard(&[first, others[0], others[1]], "al");
+        // Four pages with blocks use the same 16 slots as three.
+        assert_eq!(shard(&[first, others[0], others[1], later], "al"), before);
+        // A page whose route sorts first in the slot moves the slot's other blocks.
+        assert_ne!(shard(&[first, others[0], others[1], earlier], "al"), before);
     }
 
     #[test]

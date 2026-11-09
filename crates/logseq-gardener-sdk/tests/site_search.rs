@@ -49,13 +49,13 @@ impl Fixture {
         .unwrap();
         output
     }
-    // The format version 4 files read back as the version 1 corpus view these
+    // The format version 5 files read back as the version 1 corpus view these
     // assertions use; `raw` holds every search file plus the destinations.
     fn corpus(output: &std::path::Path) -> (Value, String) {
         let manifest_path = output.join("lsg-search-manifest.json");
         let manifest_raw = fs::read_to_string(manifest_path).unwrap();
         let manifest: Value = serde_json::from_str(&manifest_raw).unwrap();
-        assert_eq!(manifest["format_version"], 4);
+        assert_eq!(manifest["format_version"], 5);
         let read = |kind: &str, digest: &Value| {
             let raw = fs::read_to_string(output.join(format!(
                 "lsg-search-{kind}-{}.json",
@@ -63,7 +63,7 @@ impl Fixture {
             )))
             .unwrap();
             let value: Value = serde_json::from_str(&raw).unwrap();
-            assert_eq!(value["format_version"], 4);
+            assert_eq!(value["format_version"], 5);
             (value, raw)
         };
         let (titles, mut raw) = read("titles", &manifest["titles"]);
@@ -286,6 +286,43 @@ fn shared_files_and_their_links_survive_a_garden_edit() {
     }
     assert!(!head.contains("<style") && !head.contains("data-lsg-search-start"));
 }
+// Every file of a published site by its path inside the site.
+fn site_files(site: &std::path::Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+    let mut out = std::collections::BTreeMap::new();
+    let mut stack = vec![site.to_path_buf()];
+    while let Some(folder) = stack.pop() {
+        for entry in fs::read_dir(folder).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                let name = path
+                    .strip_prefix(site)
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned();
+                out.insert(name, fs::read(&path).unwrap());
+            }
+        }
+    }
+    out
+}
+
+// The shard key each shard file name holds, from a manifest.
+fn shard_keys(manifest: &Value) -> std::collections::BTreeMap<String, String> {
+    manifest["shards"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(key, digest)| {
+            (
+                format!("lsg-search-shard-{}.json", digest.as_str().unwrap()),
+                key.clone(),
+            )
+        })
+        .collect()
+}
+
 #[test]
 fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
     let words = [
@@ -310,27 +347,7 @@ fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
         &(edited + "- An added block for a churn test.\n"),
     );
     let after = f.publish("after", Some(SearchOptions::default()));
-    let files = |site: &std::path::Path| -> std::collections::BTreeMap<String, Vec<u8>> {
-        let mut out = std::collections::BTreeMap::new();
-        let mut stack = vec![site.to_path_buf()];
-        while let Some(folder) = stack.pop() {
-            for entry in fs::read_dir(folder).unwrap().flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    stack.push(path);
-                } else {
-                    let name = path
-                        .strip_prefix(site)
-                        .unwrap()
-                        .to_string_lossy()
-                        .into_owned();
-                    out.insert(name, fs::read(&path).unwrap());
-                }
-            }
-        }
-        out
-    };
-    let (old, new) = (files(&before), files(&after));
+    let (old, new) = (site_files(&before), site_files(&after));
     let removed: Vec<_> = old.keys().filter(|name| !new.contains_key(*name)).collect();
     let written: Vec<_> = new
         .iter()
@@ -385,6 +402,51 @@ fn one_added_block_rewrites_only_its_page_and_the_search_files_that_hold_it() {
                 added.iter().any(|word| word.starts_with(&key)),
                 "{name} ({key}) holds none of the added words"
             );
+        }
+    }
+}
+
+#[test]
+fn one_added_page_changes_only_the_shards_of_its_words() {
+    let words = [
+        "river", "mountain", "lantern", "harbor", "meadow", "copper", "willow", "ember", "glacier",
+        "orchard", "falcon", "quartz", "thistle", "velvet", "canyon", "saffron",
+    ];
+    let f = Fixture::new();
+    f.write("Public.md", "- Home of the public pages\n");
+    for page in 0..40 {
+        let mut source = String::new();
+        for block in 0..12 {
+            let a = words[(page + block) % words.len()];
+            let b = words[(page * 3 + block * 5) % words.len()];
+            source.push_str(&format!("- Note {page} {block} about {a} and {b}\n"));
+        }
+        f.write(&format!("Public___P{page:02}.md"), &source);
+    }
+    let before = f.publish("before", Some(SearchOptions::default()));
+    // The new page sorts between existing pages by title, so every later page's number in
+    // title order moves; the shards name pages by slot instead.
+    f.write("Public___P05a.md", "- An added page about zymurgy.\n");
+    let after = f.publish("after", Some(SearchOptions::default()));
+    let (old, new) = (site_files(&before), site_files(&after));
+    let keys = shard_keys(&serde_json::from_slice(&old["lsg-search-manifest.json"]).unwrap());
+    let added = ["an", "added", "page", "about", "zymurgy"];
+    let removed: Vec<_> = keys
+        .iter()
+        .filter(|(name, _)| !new.contains_key(*name))
+        .map(|(_, key)| key)
+        .collect();
+    assert!(!removed.is_empty(), "the added words change their shards");
+    for key in removed {
+        assert!(
+            added.iter().any(|word| word.starts_with(key.as_str())),
+            "shard {key} holds none of the added words"
+        );
+    }
+    // Every shard that holds none of the added words keeps its name and bytes.
+    for (name, key) in &keys {
+        if !added.iter().any(|word| word.starts_with(key.as_str())) {
+            assert_eq!(old.get(name), new.get(name), "shard {key} changed");
         }
     }
 }

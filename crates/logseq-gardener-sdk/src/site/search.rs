@@ -1,4 +1,4 @@
-//! Writes the SDK's search index as format version 4 files beside the generated HTML.
+//! Writes the SDK's search index as format version 5 files beside the generated HTML.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::garden::GardenDocument;

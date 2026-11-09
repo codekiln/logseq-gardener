@@ -13,7 +13,8 @@ of each part: page HTML at the site root, `_refs/`, `assets/`, search files, `_g
 else. `--check` compares the fastest warm build with the recorded rows for the same corpus; the CI
 check on lsg/Ref/Publication Speed (docs/pages/lsg___Ref___Publication Speed.md) says how the limit
 is chosen. For the encode garden, `--check` also fails when the site, its page HTML or `_refs/`
-exceeds its budget in the [site] table of budgets.toml.
+exceeds its budget in the [site] table of budgets.toml, or when its search shards together exceed
+`shards_total_gzip_mb` in the [search] table.
 """
 import argparse
 import json
@@ -29,6 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import budgets as size_budgets  # noqa: E402
 import build  # noqa: E402
 import common  # noqa: E402
 import metrics  # noqa: E402
@@ -133,6 +135,7 @@ def measure(lsg, garden, runs, temp, extra=()):
         if attempt == 0:
             files, size = output_size(output)
             parts = site_parts(output)
+            shards = [gzip for _, gzip in size_budgets.search_index_sizes(output)['shards']]
         shutil.rmtree(output)
     cold, warm = builds[0], builds[1:]
     fastest = min(warm, key=lambda b: b['seconds'])
@@ -147,6 +150,8 @@ def measure(lsg, garden, runs, temp, extra=()):
         'published': {'pages': report['pages'], 'journals': report['journals'],
                       'withheld_pages': report['withheld_pages'], 'assets': report['assets']},
         'output': {'files': files, 'mb': round(size / 1_000_000, 1), 'parts': parts},
+        'search': {'shards': len(shards), 'shards_gzip_mb': round(sum(shards) / 1_000_000, 3),
+                   'largest_shard_gzip_kb': round(max(shards, default=0) / 1000, 1)},
     }
 
 
@@ -198,6 +203,17 @@ def check_size(row, limits):
         if size > limits[key]:
             failures.append(f'{row["corpus"]["name"]}: {label} {size:,.1f} MB exceeds its {limits[key]:,} MB budget')
     return failures
+
+
+def check_search(row, limits):
+    """Failure message for an encode garden row whose search shards together exceed their budget."""
+    search = row.get('search')
+    if row['corpus']['name'] != 'encode-garden' or search is None:
+        return []
+    if search['shards_gzip_mb'] > limits['shards_total_gzip_mb']:
+        return [f'{row["corpus"]["name"]}: search shards {search["shards_gzip_mb"]:,.3f} MB gzip exceed their '
+                f'{limits["shards_total_gzip_mb"]:,} MB budget']
+    return []
 
 
 def describe(row):
@@ -262,11 +278,12 @@ def main():
                     failures.append(f'{name}: warm build {row["warm_s"]:.2f} s exceeds {limit:.2f} s ({reason})')
                 else:
                     print(f'  within {limit:.2f} s ({reason})')
-                over = check_size(row, size_limits)
+                over = check_size(row, size_limits) + check_search(row, budgets['search'])
                 failures += over
                 if row['corpus']['name'] == 'encode-garden' and not over:
                     print(f'  site within {size_limits["site_mb"]} MB, page HTML within '
-                          f'{size_limits["page_html_mb"]} MB and _refs/ within {size_limits["refs_mb"]} MB')
+                          f'{size_limits["page_html_mb"]} MB, _refs/ within {size_limits["refs_mb"]} MB and '
+                          f'search shards within {budgets["search"]["shards_total_gzip_mb"]} MB gzip')
     if args.output:
         Path(args.output).write_text(json.dumps(rows, indent=2) + '\n', encoding='utf-8')
     if args.record:

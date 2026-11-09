@@ -70,6 +70,7 @@ test('validation rejects other versions, digest mismatch and malformed records',
     m => m.format_version = 1,
     m => m.format_version = 2,
     m => m.format_version = 3,
+    m => m.format_version = 4,
     m => m.urls = 'other',
     m => m.revision = 'not a revision',
     m => m.counts[0] += 1,
@@ -93,12 +94,14 @@ test('validation rejects other versions, digest mismatch and malformed records',
   const shard = files[engine.shardFile(manifest, 'tm')];
   assert.throws(() => engine.addShard(index, 'tm', shard.replace('tmux', 'tmuy')), /publication/);
   assert.throws(() => engine.addShard(index, 'mo', shard), /publication/, 'a shard under another key');
-  // A shard names each block by page and block within it: a block past its page's count,
-  // a repeated block, an odd list and a page past the last fail.
-  for (const pairs of [[0, raw.counts[0]], [0, 0, 0, 0], [0], [raw.counts.length, 0]]) {
-    const text = JSON.stringify({ format_version: 4, words: [['tmux', pairs]] });
+  // A shard names each block by slot and block within it: a block past its slot's blocks, a
+  // slot with no page, a repeated block, an odd list, an unfinished number, an empty or a
+  // non-string list fail.
+  const [slot] = JSON.parse(shard).words.find(([word]) => word === 'tmux')[1].match(/[w-zA-Z_-]*[0-9a-v]/gu);
+  for (const numbers of [`${slot}____v`, '____v0', `${slot}000`, slot, `${slot}0W`, '', [0, 0]]) {
+    const text = JSON.stringify({ format_version: 5, words: [['tmux', numbers]] });
     const forged = engine.createIndex({ ...manifest, shards: new Map([...manifest.shards, ['tm', engine.digest(text)]]) }, titles);
-    assert.throws(() => engine.addShard(forged, 'tm', text), /publication/, JSON.stringify(pairs));
+    assert.throws(() => engine.addShard(forged, 'tm', text), /publication/, JSON.stringify(numbers));
   }
   const chunk = files[engine.chunkFile(manifest, 0)];
   assert.throws(() => engine.addChunk(index, 1, chunk), /publication/);

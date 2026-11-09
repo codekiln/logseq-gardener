@@ -1,9 +1,9 @@
-// Pure search v4. Import lazily; this module performs no fetch or DOM work. The caller
+// Pure search v5. Import lazily; this module performs no fetch or DOM work. The caller
 // fetches the manifest, the title index, the shards a query needs and the chunks of the
 // rows it draws, and hands their text to the prepare functions, which check digests.
 // Matching and ranking mirror the SDK's search::SearchIndex::query; the shared fixture
 // tests/search-fixture.json keeps the two the same.
-export const FORMAT_VERSION = 4;
+export const FORMAT_VERSION = 5;
 export const LIMITS = Object.freeze({ query: 256, terms: 16, results: 100, snippet: 240, parents: 3 });
 // __LSG_FUZZY__
 export const score = (query, name) => fuzzyScore(query, name);
@@ -118,32 +118,62 @@ export function pageOf(index, number) {
   return index.pages[low];
 }
 
+// The pages with blocks by slot, in route order. There are the smallest power of two at
+// least four times those pages, and a page's slot is its route's FNV-1a 64 digest modulo
+// that number: the low 32 bits need only the low bits of the offset basis and the prime.
+// Routes are ASCII.
+function slotsOf(pages) {
+  const holders = pages.filter(page => page.blocks).sort((a, b) => a.id < b.id ? -1 : 1), slots = new Map();
+  let size = 4;
+  while (size < holders.length * 4) size *= 2;
+  for (const page of holders) {
+    let hash = 0x84222325;
+    for (let at = 0; at < page.id.length; at++) hash = Math.imul(hash ^ page.id.charCodeAt(at), 0x1b3);
+    const slot = (hash >>> 0) % size;
+    slots.get(slot)?.push(page) ?? slots.set(slot, [page]);
+  }
+  return slots;
+}
+// Each digit's value by character code. A number is base 32, most significant digit first;
+// every digit but the last has a value of 32 or more, less 32.
+const DIGITS = [];
+[...'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_'].forEach((digit, at) => DIGITS[digit.charCodeAt()] = at);
+
 /**
- * Validate a shard's text and keep its words with their block numbers. A shard names each
- * block as a page and a block within it, in pairs: the first pair is a page number and a
- * block number; a later pair steps to a new page and gives the block number there, or
- * steps zero pages and gives the step from the previous block.
+ * Validate a shard's text and keep its words with their block numbers. A word's blocks
+ * are a string of numbers in pairs: the first pair is a slot and a block number among
+ * that slot's blocks; a later pair steps to a new slot and gives the block number there,
+ * or steps zero slots and gives the step from the previous block.
  */
 export function addShard(index, key, source) {
-  const { manifest, pages } = index;
+  const { manifest } = index;
   if (!manifest.shards.has(key)) invalid();
   const shard = parse(source, manifest.shards.get(key));
   if (!Array.isArray(shard.words)) invalid();
+  index.slots ||= slotsOf(index.pages);
   const entries = new Map();
   for (const entry of shard.words) {
     if (!Array.isArray(entry) || typeof entry[0] !== 'string' || words(entry[0])[0] !== entry[0] ||
         !(manifest.terminal.has(key) ? entry[0] === key : entry[0].startsWith(key)) ||
-        entries.has(entry[0]) || !Array.isArray(entry[1]) || !entry[1].length || entry[1].length % 2) invalid();
-    const pairs = entry[1], blocks = new Uint32Array(pairs.length / 2);
-    let page = 0, block = 0;
-    for (let at = 0; at < pairs.length; at += 2) {
-      const step = pairs[at], value = pairs[at + 1];
-      if (!count(step) || !count(value)) invalid();
-      if (!at || step) { page += step; block = value; } else if (value) block += value; else invalid();
-      if (page >= pages.length || block >= pages[page].blocks) invalid();
-      blocks[at / 2] = pages[page].start + block;
+        entries.has(entry[0]) || typeof entry[1] !== 'string' || !entry[1]) invalid();
+    const text = entry[1], blocks = [];
+    let value = 0, step = -1, slot = 0, block = 0;
+    for (let at = 0; at < text.length; at++) {
+      const digit = DIGITS[text.charCodeAt(at)] ?? invalid();
+      value = value * 32 + digit % 32;
+      if (digit > 31) continue;
+      if (step < 0) { step = value; value = 0; continue; }
+      if (!blocks.length || step) { slot += step; block = value; } else if (value) block += value; else invalid();
+      let rest = block;
+      for (const page of index.slots.get(slot) || invalid()) {
+        if (rest < page.blocks) { blocks.push(page.start + rest); rest = -1; break; }
+        rest -= page.blocks;
+      }
+      if (rest >= 0) invalid();
+      step = -1; value = 0;
     }
-    entries.set(entry[0], blocks);
+    if (step >= 0 || DIGITS[text.charCodeAt(text.length - 1)] > 31) invalid();
+    entries.set(entry[0], Uint32Array.from(blocks));
   }
   index.shards.set(key, entries);
 }
