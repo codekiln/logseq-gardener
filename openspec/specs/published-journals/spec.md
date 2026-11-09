@@ -26,7 +26,7 @@ When the caller requests journals, the SDK SHALL publish every journal whose ide
 
 ### Requirement: Show the journals feed
 
-When journals are published, at least one published journal is dated on or before the build date, and `:feature/enable-journals?` is not `false`, the SDK SHALL write a journals feed. The build date SHALL be the UTC date of `SOURCE_DATE_EPOCH` when set, otherwise of the system clock. The feed SHALL list those journals newest first: three in the first batch file and seven in each later batch file `journals-<n>.html`. The first batch SHALL be `index.html`, or `journals.html` when a homepage is selected. Each journal SHALL appear as an article with an `h1` linking to its page, its block tree with authored collapse state, and, when it has Linked References, a collapsed section summarising their count with a link to the journal page's Linked References. Each batch with a later batch SHALL end with an Earlier link to it. Journals dated after the build date SHALL keep their pages and stay out of the feed.
+When journals are published, at least one published journal is dated on or before the build date, and `:feature/enable-journals?` is not `false`, the SDK SHALL write a journals feed. The build date SHALL be the UTC date of `SOURCE_DATE_EPOCH` when set, otherwise of the system clock. The feed SHALL list those journals and the reference-only journals dated on or before the build date, newest first: three in the first batch file and seven in each later batch file `journals-<n>.html`. The first batch SHALL be `index.html`, or `journals.html` when a homepage is selected. Each journal SHALL appear as an article with an `h1` linking to its page, its block tree with authored collapse state, and, when it has Linked References, a collapsed section summarising their count with a link to the journal page's Linked References. Each batch with a later batch SHALL end with an Earlier link to it. Journals dated after the build date SHALL keep their pages and stay out of the feed.
 
 #### Scenario: First batch
 - **WHEN** the encode garden at commit `09cf7fb` is published with journals and a build date of 2026-10-25
@@ -43,6 +43,10 @@ When journals are published, at least one published journal is dated on or befor
 #### Scenario: Journals disabled
 - **WHEN** `:feature/enable-journals?` is `false`
 - **THEN** journal pages are published, no feed is written, and `index.html` is the complete page index
+
+#### Scenario: Reference-only journal
+- **WHEN** a published block links `[[Nov 18th, 2024]]`, no journal file has that date, and the garden is published with journals after that date
+- **THEN** the feed lists `Nov 18th, 2024` in date order as an article with its `h1` link, no blocks and its collapsed Linked References section
 
 ### Requirement: Load later journals and references on demand
 

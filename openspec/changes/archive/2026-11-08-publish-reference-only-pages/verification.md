@@ -87,7 +87,7 @@ The `lsg` values are within the `[desktop]` and `[phone]` budgets: 100 KB of dat
 
 ## Search on the encode garden
 
-Measured 2026-11-09 with `lsg` 0.0.42 (`a25b3a1`, which includes this change) on garden commit `66b81e9`, against Logseq's 2026-10-25 build: `parity:perf` with `deno deploy` added to `scripts/parity/search-queries.txt`. The Search sections of [lsg/Ref/Logseq Compatibility/Performance](../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md) hold every row, including the new Search per query table.
+Measured 2026-11-09 with `lsg` 0.0.42 (`a25b3a1`, which includes this change) on garden commit `66b81e9`, against Logseq's 2026-10-25 build: `parity:perf` with `deno deploy` added to `scripts/parity/search-queries.txt`. The Search sections of [lsg/Ref/Logseq Compatibility/Performance](../../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md) hold every row, including the new Search per query table.
 
 | Profile | Build | First page results (ms) | `deno deploy` keystroke p95 (ms) | `deno deploy` downloaded (KB, gzip) | First page result for `deno deploy` |
 | --- | --- | ---: | ---: | ---: | --- |
