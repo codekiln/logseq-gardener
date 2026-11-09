@@ -13,6 +13,7 @@ import json
 import math
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tarfile
@@ -173,7 +174,10 @@ COLLECT = '''() => {
   }
   const paint = performance.getEntriesByName('first-contentful-paint')[0];
   return {title_ms: title, fcp_ms: paint ? paint.startTime : null, data_before_title: data,
-          script_before_title: script + [...document.scripts].filter(s => !s.src)
+          // Inline JavaScript only: a data element such as <script type="application/json"
+          // data-lsg-page> runs no code, and its size already counts in the page's data.
+          script_before_title: script + [...document.scripts]
+            .filter(s => !s.src && /^(|module|(text|application)\\/javascript)$/i.test(s.type.trim()))
             .reduce((total, s) => total + new Blob([s.textContent]).size, 0), peak_heap: window.__parity.peak};
 }'''
 
@@ -2277,10 +2281,14 @@ def measure_plugins_run(args, sync_playwright):
 # build of a copy of the run's garden with every shipped plugin turned on and in Logseq's own
 # export of the same copy, and the phone heap after playing an episode across navigations.
 FIRST_PARTY_PAGES = ['GitP/A/Session/26/11/01-Sun', 'GitP/A/Session/26/10/29-Thu', 'GitP/A/Session/26/10/24-Sat',
-                     'GitP/A/Session/26/10/20-Tue', 'GitP/A/Session/26/09/24-Thu', 'GitP/A', 'GitP/A/Session',
+                     'GitP/A/Session/26/10/20-Tue', 'GitP/A/Session/26/10/18-Sun', 'GitP/A/Session/26/09/24-Thu',
+                     'GitP/A', 'GitP/A/Session',
                      'GitP/A/Session/26/10/24-Sat/Asset/Audio/Full/mp3', 'Home']
 FIRST_PARTY_EPISODE = 'GitP/A/Session/26/10/24-Sat'
 FIRST_PARTY_NAVIGATIONS = 20
+# Heap visits per variant; the median is kept, because one visit's heap after garbage collection can
+# differ from the next by a few hundred KB, which is the size of the sequence-header budget.
+FIRST_PARTY_HEAP_VISITS = 3
 FIRST_PARTY_PLAYER = "document.querySelector('.lsg-episode-player audio')"
 
 
@@ -2302,15 +2310,17 @@ def first_party_garden(garden, destination, plugins):
     return copy
 
 
-def measure_first_party_heap(browser, base, start, routes, profile, plugin):
+def measure_first_party_heap(browser, base, start, routes, profile, blocked=()):
     """The JS heap after garbage collection once the reader has started the recording on `start`
-    and followed FIRST_PARTY_NAVIGATIONS links in place. Without `plugin`, the plugin's module is
-    blocked and nothing plays: the same visit with only the host."""
+    and followed FIRST_PARTY_NAVIGATIONS links in place. Each plugin in `blocked` has its files
+    refused; with podcast-episode blocked nothing plays, so blocking every plugin gives the same
+    visit with only the host."""
     context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
     wav = tone_wav()
     page.route('**/*.mp3', lambda request: request.fulfill(status=200, body=wav, content_type='audio/wav'))
-    if not plugin:
-        page.route('**/plugins/podcast-episode/**', lambda request: request.abort())
+    for plugin_id in blocked:
+        page.route(f'**/plugins/{plugin_id}/**', lambda request: request.abort())
+    plugin = 'podcast-episode' not in blocked
     timeout = PROFILES[profile]['timeout_ms']
     try:
         page.goto(base + start, wait_until='load', timeout=timeout)
@@ -2358,19 +2368,32 @@ def first_party_markdown(report, budgets):
                          profile.get('peak_heap_mb') if own else None)]
         lines.append(f"| {row['page']} | {row['profile']} | {row['build']} | " + ' | '.join(cells) + ' |')
     heap = report['heap']
-    episode = limits.get('podcast-episode', {})
-    if 'growth_mb' in heap:
-        growth = _marked(f"{heap['growth_mb']:.2f}", heap['growth_mb'], episode.get('phone_heap_growth_mb'))
-        lines += ['', f"Phone heap after starting `{FIRST_PARTY_EPISODE}` and following {FIRST_PARTY_NAVIGATIONS} "
-                      f"links in place: {heap['with_mb']:.2f} MB with `podcast-episode` playing, {heap['without_mb']:.2f} MB "
-                      f"with its module blocked and nothing playing; growth {growth} MB (budget "
-                      f"{episode.get('phone_heap_growth_mb')} MB). Recordings were served as a local tone."]
-    else:
-        lines += ['', f"Phone heap after playing across navigations: {heap.get('error', 'not measured')}."]
     sizes = report['sizes']
-    lines += ['', f"`podcast-episode` module and stylesheet: {sizes['script_styles_gzip']:,} bytes gzip (budget "
-                  f"{episode.get('script_styles_gzip_kb', 0) * 1000:,.0f}). Pages that load plugin code before the title: "
-                  f"{sizes['plugin_script_before_title']}."]
+    lines += ['', f"Phone heap after starting `{FIRST_PARTY_EPISODE}` and following {FIRST_PARTY_NAVIGATIONS} links in "
+                  f"place, the median of {FIRST_PARTY_HEAP_VISITS} visits each. A plugin's growth is the heap with its "
+                  'module against the heap with its module blocked. Recordings were served as a local tone. **Bold** '
+                  'marks a value over its budget.', '']
+    if 'growth_mb' in heap:
+        lines += [f"Heap: {heap['all_mb']:.2f} MB with every plugin on and the recording playing, "
+                  f"{heap['without_episode_mb']:.2f} MB with `podcast-episode` blocked and nothing playing, "
+                  f"{heap['host_mb']:.2f} MB with every plugin blocked.", '',
+                  '| Plugin | Phone heap growth (MB) | Budget (MB) | Module and stylesheet (gzip bytes) | Budget (bytes) |',
+                  '| --- | --- | --- | --- | --- |']
+    else:
+        lines += [f"Heap: {heap.get('error', 'not measured')}.", '',
+                  '| Plugin | Phone heap growth (MB) | Budget (MB) | Module and stylesheet (gzip bytes) | Budget (bytes) |',
+                  '| --- | --- | --- | --- | --- |']
+    for plugin in report['plugins']:
+        table = limits.get(plugin, {})
+        growth = heap.get('growth_mb', {}).get(plugin)
+        size = sizes['script_styles_gzip'].get(plugin)
+        size_limit = table.get('script_styles_gzip_kb', 0) * 1000
+        lines.append(f"| `{plugin}` | "
+                     + (_marked(f'{growth:.2f}', growth, table.get('phone_heap_growth_mb')) if growth is not None else '')
+                     + f" | {table.get('phone_heap_growth_mb')} | "
+                     + (_marked(f'{size:,}', size, size_limit) if size is not None else '')
+                     + f' | {size_limit:,.0f} |')
+    lines += ['', f"Pages that load plugin code before the title: {sizes['plugin_script_before_title']}."]
     return lines
 
 
@@ -2388,16 +2411,19 @@ def first_party_failures(report, budgets):
                                   ('peak_heap', 'peak_heap_mb', 1_000_000)):
             if row[field] / scale > profile[key]:
                 failures.append(f"{row['page']} ({row['profile']}): {field} {row[field] / scale:,.1f} over {profile[key]}")
-    episode = budgets['plugins']['podcast-episode']
     heap = report['heap']
     if 'error' in heap:
         failures.append(f"phone heap after playing: {heap['error']}")
-    elif heap['growth_mb'] > episode['phone_heap_growth_mb']:
-        failures.append(f"podcast-episode: phone heap grows {heap['growth_mb']:.2f} MB, over {episode['phone_heap_growth_mb']}")
-    elif not heap['playing']:
-        failures.append('podcast-episode: the recording stopped during the navigations')
-    if report['sizes']['script_styles_gzip'] > episode['script_styles_gzip_kb'] * 1000:
-        failures.append(f"podcast-episode: script and styles {report['sizes']['script_styles_gzip']:,} gzip over budget")
+    else:
+        if not heap['playing']:
+            failures.append('podcast-episode: the recording stopped during the navigations')
+        for plugin, growth in heap['growth_mb'].items():
+            limit = budgets['plugins'][plugin]['phone_heap_growth_mb']
+            if growth > limit:
+                failures.append(f"{plugin}: phone heap grows {growth:.2f} MB, over {limit}")
+    for plugin, size in report['sizes']['script_styles_gzip'].items():
+        if size > budgets['plugins'][plugin]['script_styles_gzip_kb'] * 1000:
+            failures.append(f"{plugin}: script and styles {size:,} gzip over budget")
     if report['sizes']['plugin_script_before_title']:
         failures.append(f"plugin code before the title on {report['sizes']['plugin_script_before_title']} pages")
     return failures
@@ -2432,12 +2458,13 @@ def measure_first_party_run(args, sync_playwright):
              for p in logseq_export.logseq_pages((work / 'logseq' / 'index.html').read_text(encoding='utf-8'))}
     lsg_index = common.lsg_index(work / 'lsg')
     listed = {p['id']: p for p in json.loads((work / 'lsg' / 'lsg-site.json').read_text(encoding='utf-8'))['plugins']}
-    episode_files = [listed['podcast-episode']['module'], *listed['podcast-episode']['styles']]
     targets = {title: serve.targets(title, names, lsg_index, work / 'lsg') for title in FIRST_PARTY_PAGES}
     before_title = sum(1 for target in targets.values() if target['lsg']
                        and 'plugins/' in ' '.join(re.findall(r'(?:src|href)="([^"]*)"',
                                                              (work / 'lsg' / target['lsg']).read_text(encoding='utf-8'))))
-    sizes = {'script_styles_gzip': metrics.gzip_size(b''.join((work / 'lsg' / f).read_bytes() for f in episode_files)),
+    sizes = {'script_styles_gzip': {plugin: metrics.gzip_size(b''.join(
+                 (work / 'lsg' / f).read_bytes() for f in [listed[plugin]['module'], *listed[plugin]['styles']]))
+                 for plugin in plugins if listed.get(plugin, {}).get('module')},
              'plugin_script_before_title': before_title}
     pages = []
     with serve.Server(work / 'logseq') as logseq, serve.Server(work / 'lsg') as site, \
@@ -2461,11 +2488,22 @@ def measure_first_party_run(args, sync_playwright):
         start = targets[FIRST_PARTY_EPISODE]['lsg']
         heap = {'error': f'{FIRST_PARTY_EPISODE} is missing from the lsg build'}
         if start:
-            played = measure_first_party_heap(browser, site.url, start, routes, 'phone', True)
-            blocked = measure_first_party_heap(browser, site.url, start, routes, 'phone', False)
-            heap = played if 'error' in played else blocked if 'error' in blocked else {
-                'with_mb': played['heap'] / 1_000_000, 'without_mb': blocked['heap'] / 1_000_000,
-                'growth_mb': (played['heap'] - blocked['heap']) / 1_000_000, 'playing': played['playing']}
+            # Every plugin on and playing; podcast-episode blocked, so nothing plays; every plugin
+            # blocked, leaving the host. Each plugin's growth is the step its own module adds.
+            variants = {'all': (), 'without_episode': ('podcast-episode',), 'host': tuple(plugins)}
+            visits = {name: [measure_first_party_heap(browser, site.url, start, routes, 'phone', blocked)
+                             for _ in range(FIRST_PARTY_HEAP_VISITS)] for name, blocked in variants.items()}
+            errors = [visit['error'] for runs in visits.values() for visit in runs if 'error' in visit]
+            if errors:
+                heap = {'error': errors[0]}
+            else:
+                mb = {name: statistics.median(visit['heap'] for visit in runs) / 1_000_000
+                      for name, runs in visits.items()}
+                heap = {'all_mb': mb['all'], 'without_episode_mb': mb['without_episode'], 'host_mb': mb['host'],
+                        'growth_mb': {'podcast-episode': mb['all'] - mb['without_episode'],
+                                      'sequence-header': mb['without_episode'] - mb['host']},
+                        'visits': {name: [visit['heap'] for visit in runs] for name, runs in visits.items()},
+                        'playing': all(visit['playing'] for visit in visits['all'])}
         print(json.dumps(heap), flush=True)
         browser.close()
     report = {'measured': datetime.now(timezone.utc).strftime('%Y-%m-%d'),

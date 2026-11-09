@@ -1,6 +1,6 @@
 # Verification
 
-This file records the evidence for the tasks of #487 to #490. The change-wide Verify step (6.1 to 6.3) adds its own section when it lands.
+This file records the evidence for the tasks of #487 to #490 and the change-wide Verify step (6.1 to 6.3).
 
 ## 1.10 Logseq ignores the key
 
@@ -119,3 +119,50 @@ The branch's `lsg` built the `GitP` namespace of logseq-encode-garden (`66b81e95
 | Homepage (journals; `Ghost in the Patch`) | no links, no plugin request | the same | no links |
 
 Each link has the same width as gitpa's on the desktop (for example 236 and 241 pixels on `24-Sat`) and is a 36-pixel arrow on the phone, where the title is visually hidden, as on gitpa. No header overflowed and no page raised an error. On both `lsg` builds, following a link from `24-Sat` to `GitP/A` removed the links and Back showed `24-Sat`'s two links again.
+
+## 6.1 Every fixture page on both gardens
+
+Both plugins work on every fixture page of both gardens, on the desktop and phone profiles, and no page raised an error. The branch's `lsg` built the `GitP` namespace of logseq-encode-garden (`66b81e9543`, with journals) and of gitpa's `gitp-garden` (`410f4d9`, with `Ghost in the Patch` as the homepage), each from a copy whose `logseq/config.edn` adds `:lsg/plugins [:podcast-episode :sequence-header]`, with readable URLs, on 2026-11-08. Chromium opened each page directly on the desktop (1280×800) and phone (375×812) profiles; the two profiles gave the same counts. Recordings were served as a local tone.
+
+| Page | Seek links, encode / gitpa | Header links, both gardens | Episode entry, encode / gitpa |
+| --- | --- | --- | --- |
+| `GitP/A/Session/26/11/01-Sun` | 41 / 36 | Previous `26/10/29-Thu` | 4,211 / 3,709 |
+| `GitP/A/Session/26/10/29-Thu` | 19 / 19 | Previous `26/10/26-Mon` | 1,957 / 1,959 |
+| `GitP/A/Session/26/10/24-Sat` | 7 / 7 | Previous `26/10/22-Thu`, Next `26/10/26-Mon` | 887 / 887 |
+| `GitP/A/Session/26/10/20-Tue` | 11 / 11 | Previous `26/10/18-Sun`, Next `26/10/22-Thu` | 1,338 / 1,338 |
+| `GitP/A/Session/26/10/18-Sun` | 137 / 137 | Previous `26/10/11-Sun`, Next `26/10/20-Tue` | 15,290 / 15,291 |
+| `GitP/A/Session/26/09/24-Thu` | 0 / 0, with the player | Previous `26/09/25-Fri`, Next `24/11/19-Tue` | 164 / 164 |
+| `GitP/A`, `GitP/A/Session`, the asset page `26/10/24-Sat/Asset/Audio/Full/mp3`, the homepage | 0, no plugin file requested | none | none |
+
+Entries are the characters of the page's `podcast-episode` entry as JSON; the largest, `18-Sun`, is under a quarter of the 64,000 limit. Every episode page requested both plugins' files; no other page requested either. No header overflowed on the phone.
+
+On each garden and profile, the same `<audio>` element kept playing through this visit: start `24-Sat`, select its dialogue line at 855 s (the player moved to 855 s; the line sits in a collapsed transcript block, so the check clicked it from script), follow links to `GitP/A`, the asset page and `GitP/A/Session`, then go Back. On `01-Sun`, selecting the heading `18:17` moved the player to 1,097 s and selecting the bullet `05:15` moved it to 315–316 s. The encode garden's trail read `Enter Microfreak/Preset/260 8bitfi › Let's try this 8bitfi lead, 260.` and then `Enter Microfreak/Preset/259 Infini Pad › Infini Pad as bass › the bass comes in - …`. Gitpa's copy has chapters at 1,096 and 1,097 s, so its first trail named whichever chapter was current when the check read it.
+
+## 2.5 and 6.2 The whole encode garden against Logseq
+
+Every row is within its budget. `mise run parity:perf --first-party --record` built a copy of the whole encode garden (`66b81e9543`, 9,202 published pages) whose `logseq/config.edn` turns on both plugins, with `lsg` 0.0.41 (main at `f64db09`; this change adds no Rust), and Logseq 0.10.15's own export of the same copy, on 2026-11-08 on an Apple Silicon Mac. The rows are in the First-party plugins section of [Performance](../../../docs/pages/lsg___Ref___Logseq%20Compatibility___Performance.md).
+
+| Row | Measured, worst fixture page | Budget |
+| --- | --- | --- |
+| Title, desktop | 32 ms (`29-Thu`) | 300 ms |
+| Title, phone | 417 ms (homepage) | 1,500 ms |
+| Data before the title | 32.9 KB (`20-Tue`); 31.2 KB on `18-Sun`, the 137-chapter episode | 100 KB |
+| Script before the title | 12.2 KB (`24-Sat`, `20-Tue`) | 16 KB |
+| Peak JS heap, phone | 2.4 MB (`18-Sun`) | 10 MB |
+| `podcast-episode` phone heap growth after playing across 20 navigations | 0.14 MB | 1 MB |
+| `sequence-header` phone heap growth over the same visit | 0.03 MB | 0.2 MB |
+| `podcast-episode` module and stylesheet | 4,906 gzip | 8,000 |
+| `sequence-header` module and stylesheet | 1,465 gzip | 1,500 |
+| Pages that load plugin code before the title | 0 | 0 |
+
+Logseq's export of the same pages took 27 to 32 s to the title on the desktop and 196 to 211 s on the phone, loaded about 24,000 KB of data before the title and peaked at about 2,100 MB of heap.
+
+The phone heap is the median of three visits that start `24-Sat`, start the recording and follow 20 links in place: 1.55 MB with both plugins on and the recording playing, 1.41 MB with `podcast-episode` blocked and 1.39 MB with both blocked. The three visits of each kind were within 3 KB of one another. The recording was still playing after the 20th link.
+
+Two changes to the measurement came with this run. The run now measures `sequence-header`'s heap growth as well as `podcast-episode`'s, and includes `18-Sun`. Script before the title now counts only inline JavaScript: the first run counted the page's `<script type="application/json" data-lsg-page>` metadata as script, which put `01-Sun` at 16.2 KB and would have put `18-Sun`, whose entry is 15 KB, far over 16 KB. That element runs no code, and its size already counts in data before the title. The earlier Plugins section of the Performance page was measured with the old count, so its script figures include the recorder plugin's metadata.
+
+Per-keystroke search latency was not measured in this run: the plugins add no search records, and `mise run parity:budgets` checks in CI that the search files match the build without the key.
+
+## 6.3 CI
+
+`mise run ci` passed on the branch on 2026-11-08.

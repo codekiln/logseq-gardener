@@ -187,18 +187,25 @@ class FirstPartyBudgetTest(unittest.TestCase):
         loaded = metrics.load_budgets()
         row = {'page': 'GitP/A', 'profile': 'phone', 'build': 'lsg', 'title_ms': 2000, 'data_before_title': 40_000,
                'script_before_title': 2_000, 'peak_heap': 3_000_000}
-        report = {'measured': '2026-11-08', 'garden_commit': 'abcdef1', 'lsg': '1234567', 'plugins': ['podcast-episode'],
+        report = {'measured': '2026-11-08', 'garden_commit': 'abcdef1', 'lsg': '1234567',
+                  'plugins': ['podcast-episode', 'sequence-header'],
                   'loads': 3, 'pages': [row, {**row, 'build': 'logseq', 'title_ms': 9000}],
-                  'heap': {'with_mb': 5.5, 'without_mb': 5.0, 'growth_mb': 0.5, 'playing': True},
-                  'sizes': {'script_styles_gzip': 2936, 'plugin_script_before_title': 0}}
+                  'heap': {'all_mb': 5.6, 'without_episode_mb': 5.1, 'host_mb': 5.0,
+                           'growth_mb': {'podcast-episode': 0.5, 'sequence-header': 0.1}, 'playing': True},
+                  'sizes': {'script_styles_gzip': {'podcast-episode': 2936, 'sequence-header': 1400},
+                            'plugin_script_before_title': 0}}
         text = '\n'.join(perf.first_party_markdown(report, loaded))
         self.assertIn('## First-party plugins', text)
         self.assertIn('| GitP/A | phone | lsg | **2000** | 40.0 | 2.0 | 3.0 |', text)
         self.assertIn('| GitP/A | phone | logseq | 9000 |', text)
-        self.assertIn('growth 0.50 MB', text)
+        self.assertIn('| `podcast-episode` | 0.50 | 1 | 2,936 | 8,000 |', text)
+        self.assertIn('| `sequence-header` | 0.10 | 0.2 | 1,400 | 1,500 |', text)
         self.assertEqual(perf.first_party_failures(report, loaded), ['GitP/A (phone): title_ms 2,000.0 over 1500'])
-        report['heap'] = {**report['heap'], 'growth_mb': 1.5}
-        self.assertIn('podcast-episode: phone heap grows 1.50 MB, over 1', perf.first_party_failures(report, loaded))
+        report['heap']['growth_mb'] = {'podcast-episode': 1.5, 'sequence-header': 0.3}
+        failures = perf.first_party_failures(report, loaded)
+        self.assertIn('podcast-episode: phone heap grows 1.50 MB, over 1', failures)
+        self.assertIn('sequence-header: phone heap grows 0.30 MB, over 0.2', failures)
+        self.assertIn('| `sequence-header` | **0.30** |', '\n'.join(perf.first_party_markdown(report, loaded)))
 
     def test_plugins_key_is_added_to_the_top_level_map(self):
         with tempfile.TemporaryDirectory() as temp:
