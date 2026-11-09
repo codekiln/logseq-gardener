@@ -67,7 +67,7 @@ SEARCH = {
             'ready': '#lsg-search-dialog[open][data-lsg-search-state=ready]',
             'complete': 'data-lsg-search-complete', 'drawn': 'data-lsg-search-drawn'},
 }
-# Files that lsg's search fetches; a keystroke that requests a shard is a cold keystroke.
+# Files that lsg's search fetches; a keystroke that requests a shard, or is typed while one loads, is cold.
 SEARCH_FILES = re.compile(r'lsg-search-(manifest|titles|shard|chunk|engine|ui)-')
 SHARD_FILE = re.compile(r'lsg-search-shard-')
 KEY_GAP_MS = 300
@@ -203,7 +203,7 @@ SEARCH_COLLECT = '''() => {
   const state = window.__search;
   const first = state.keys.length ? state.keys[0] : performance.now();
   const resources = performance.getEntriesByType('resource').filter(e => e.startTime >= first)
-    .map(e => [e.startTime, e.name, e.encodedBodySize]);
+    .map(e => [e.startTime, e.name, e.encodedBodySize, e.responseEnd]);
   return {keys: state.keys, changes: state.changes, completions: state.completions, resources};
 }'''
 # lsg's first page result once a query is typed. Logseq's list shows a count beside each group
@@ -401,12 +401,12 @@ def query_summary(latencies, fetches):
 
 
 def keystroke_summary(latencies, fetches):
-    """Percentiles of every keystroke, of those that fetched a shard (cold) and of the rest (warm)."""
+    """Percentiles of every keystroke, of those that fetched or waited for a shard (cold) and of the rest (warm)."""
     measured = [v for v in latencies if v is not None]
     cold = [v for v, f in zip(latencies, fetches) if f['shard'] and v is not None]
     warm = [v for v, f in zip(latencies, fetches) if not f['shard'] and v is not None]
     # Warm keystrokes that downloaded nothing: the ones that waited for no record chunk either.
-    idle = [v for v, f in zip(latencies, fetches) if not f['bytes'] and v is not None]
+    idle = [v for v, f in zip(latencies, fetches) if not f['bytes'] and not f['shard'] and v is not None]
     sizes = [f['bytes'] for f in fetches]
     return {'keystrokes': len(latencies), 'unchanged': len(latencies) - len(measured),
             'p50_ms': metrics.percentile(measured, 0.5), 'p95_ms': metrics.percentile(measured, 0.95),
@@ -1004,7 +1004,8 @@ def search_markdown(results, budgets):
               'Cmd/Ctrl+K on the home page, then the first query typed at once: the time from the key to the '
               'dialog and to its page results, and what that first open downloaded. Then each query in '
               f'[`search-queries.txt`]({REPO_FILE}scripts/parity/search-queries.txt) typed a key every '
-              f'{KEY_GAP_MS} ms. A cold keystroke fetches a word shard; a warm one does not. The heap growth is '
+              f'{KEY_GAP_MS} ms. A cold keystroke fetches a word shard or is typed while one is still loading; a warm '
+              'one does neither. The heap growth is '
               'measured after the whole query list, after garbage collection. **Bold** marks an `lsg` value '
               'over its budget.', '',
               '| Profile | Build | Dialog shown (ms) | First page results (ms) | First open (KB, gzip) '
@@ -1788,7 +1789,8 @@ def advanced_queries_markdown(report, budgets):
                      f"| {cell(row['script_before_title'], 'script_before_title_kb', 1000, 1)} "
                      f"| {cell(row['peak_heap'], 'peak_heap_mb', 1e6, 1)} | {row['heap'] / 1e6:,.1f} |")
     lines += ['', 'Search on the copy, from the home page, typing each query in '
-              '`scripts/parity/search-queries.txt` a key at a time. A cold keystroke fetched a search shard; '
+              '`scripts/parity/search-queries.txt` a key at a time. A cold keystroke fetched a search shard or was '
+              'typed while one was still loading; '
               '**bold** marks an `lsg` value over `cold_keystroke_ms` in `[search]` or, for warm keystrokes, '
               'over `search_p95_ms` in `[desktop]` or `[phone]`:', '',
               '| Profile | Build | Keystrokes | p50 (ms) | p95 (ms) | Cold p95 (ms) | Warm p95 (ms) |',

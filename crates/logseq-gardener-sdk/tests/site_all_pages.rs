@@ -113,7 +113,14 @@ fn all_pages_lists_git_dates_newest_first_with_logseq_backlinks() {
         "<td class=\"created-at\"><time datetime=\"2025-03-01T09:12:00Z\">2025-03-01 09:12</time></td>"
     ));
     assert!(html.contains("<th class=\"updated-at\" aria-sort=\"descending\">"));
-    assert!(html.contains("<script defer src=\"lsg-all-pages.js\"></script>"));
+    // The table shows before its script: lsg-shell.js loads lsg-all-pages.js after the first paint.
+    assert!(html.contains("<link rel=\"stylesheet\" href=\"lsg-all-pages.css\">"));
+    assert!(!html.contains("lsg-all-pages.js"));
+    assert!(f.file("site", "lsg-shell.js").contains("near('all-pages')"));
+    assert!(
+        f.file("site", "lsg-all-pages.js")
+            .contains("logseqGardenerAllPages")
+    );
     let list = f.file("site", "_pages/list.json");
     assert!(list.contains("[\"2026-10-23 Fri\","));
     assert!(list.contains(",\"🧭\"]"));

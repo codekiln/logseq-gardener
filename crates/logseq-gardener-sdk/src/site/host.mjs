@@ -28,7 +28,10 @@ const inits = [
   (m) => window.logseqGardenerInitProperties?.(m),
   (m) => window.logseqGardenerInitOutline?.(m),
   (m) => window.logseqGardenerInitReferences?.(m),
-  (m) => window.logseqGardenerAllPages?.init(m),
+  (m) => {
+    if (window.logseqGardenerAllPages) window.logseqGardenerAllPages.init(m);
+    else if (m.querySelector('.all-pages')) doc.head.append(Object.assign(doc.createElement('script'), { src: new URL('lsg-all-pages.js', base).href }));
+  },
   (m) => window.logseqGardenerInitTheme?.(m),
   (m) => window.logseqGardenerInitQueries?.(m),
   (m) => window.logseqGardenerInitSidebar?.(m),

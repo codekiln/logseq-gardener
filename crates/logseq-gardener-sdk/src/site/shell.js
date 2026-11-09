@@ -117,14 +117,17 @@
     pending = key === 't' || key === 'g' ? key : '';
     pendingAt = now;
   });
-  // These wait for load; a host can swap content into a page without outlines.
+  // These wait for load and then for the next paint, so the first paint never waits on them; a
+  // host can swap content into a page without outlines.
   const after = () => {
     const feed = $('[data-lsg-journals]'), right = root.getAttribute('data-lsg-right-sidebar');
     if (feed) load(feed.getAttribute('data-lsg-journals'));
     for (const name of ['outline', 'references']) load(near(name));
+    if ($('.all-pages')) load(near('all-pages'));
     if (right === 'open' || !right && $('[data-lsg-sidebar-default]')) sidebar('restore');
   };
-  if (document.readyState === 'complete') after(); else window.addEventListener('load', after, { once: true });
+  const painted = () => requestAnimationFrame(() => setTimeout(after));
+  if (document.readyState === 'complete') painted(); else window.addEventListener('load', painted, { once: true });
   for (const control of document.querySelectorAll('[data-lsg-left-toggle],[data-lsg-more],[data-lsg-right-toggle]')) control.hidden = false;
   $('[data-lsg-left-toggle]')?.setAttribute('aria-expanded', String(isOpen()));
 })();

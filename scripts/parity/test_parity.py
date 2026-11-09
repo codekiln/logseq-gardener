@@ -357,6 +357,11 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(metrics.keystroke_fetches([0, 300, 600], resources, perf.SHARD_FILE),
                          [{'bytes': 8000, 'shard': True}, {'bytes': 1000, 'shard': False},
                           {'bytes': 0, 'shard': False}])
+        # A key typed while an earlier key's shard is still loading waits for it, so it is cold.
+        loading = [(10, 'lsg-search-shard-a.json', 5000, 450), (320, 'lsg-search-chunk-c.json', 1000, 400)]
+        self.assertEqual(metrics.keystroke_fetches([0, 300, 600], loading, perf.SHARD_FILE),
+                         [{'bytes': 5000, 'shard': True}, {'bytes': 1000, 'shard': True},
+                          {'bytes': 0, 'shard': False}])
 
     def test_keystroke_latencies(self):
         keys = [0, 300, 600]
@@ -527,6 +532,18 @@ class PerfMergeTest(unittest.TestCase):
             (site / 'index.html').write_text('<script type="module" src="lsg-search-start-test.mjs"></script><script defer src="deferred.js"></script>')
             self.assertEqual(len(budgets.check_search(site, {'bootstrap_kb': 2}, {'desktop': {'script_before_title_kb': .15}})), 1)
             self.assertEqual(budgets.check_search(site, {'bootstrap_kb': 2}, {'desktop': {'script_before_title_kb': .3}}), [])
+            # A page without the page-property start-up counts it, as in a garden that shows properties.
+            self.assertEqual(len(budgets.check_search(site, {'bootstrap_kb': 2}, {'desktop': {'script_before_title_kb': .3}},
+                                                      properties_start=101)), 1)
+
+    def test_initial_search_budget_counts_all_pages(self):
+        with tempfile.TemporaryDirectory() as temp:
+            site = Path(temp)
+            (site / 'lsg-search-start-test.mjs').write_text('x' * 100)
+            (site / 'lsg-all-pages.js').write_text('x' * 300)
+            (site / 'pages.html').write_text('<script defer src="lsg-all-pages.js"></script>')
+            failures = budgets.check_search(site, {'bootstrap_kb': 2}, {'desktop': {'script_before_title_kb': .2}})
+            self.assertEqual([f.split(':')[0] for f in failures], ['pages.html'])
 
 
     def search_row(self, **changes):
