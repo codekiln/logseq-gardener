@@ -3,3 +3,4 @@ tmux
 logseq query
 claude code
 flashcard
+deno deploy

@@ -269,6 +269,16 @@ class PublishBenchTest(unittest.TestCase):
         # The generated garden has no size budget.
         self.assertEqual(publish_bench.check_size({**row, 'corpus': {'name': 'gitpa-sized'}}, limits), [])
 
+    def test_check_peak_uses_the_budget_of_the_system(self):
+        row = {'corpus': {'name': 'encode-garden'}, 'peak_mb': 3000}
+        limits = {'encode_garden_peak_mb_linux': 2800, 'encode_garden_peak_mb_macos': 4000}
+        self.assertEqual(publish_bench.check_peak(row, limits, 'linux'),
+                         ['encode-garden: peak memory 3,000 MB exceeds its 2,800 MB budget (encode_garden_peak_mb_linux)'])
+        self.assertEqual(publish_bench.check_peak(row, limits, 'darwin'), [])
+        self.assertEqual(publish_bench.check_peak({**row, 'corpus': {'name': 'gitpa-sized'}}, limits, 'linux'), [])
+        # The recorded GitHub runner figure after reference-only pages fits the real budget.
+        self.assertEqual(publish_bench.check_peak({**row, 'peak_mb': 2373}, metrics.load_budgets()['publication'], 'linux'), [])
+
     def test_the_sample_garden_has_gitpas_shape(self):
         rng = sample_garden.random.Random(sample_garden.SEED)
         words = sample_garden.vocabulary(rng)
@@ -377,7 +387,8 @@ class MetricsTest(unittest.TestCase):
                                                        'process_blocks_ms_per_page': 0.3,
                                                        'peak_memory_growth_pct': 15})
         # Publication speed (publication-speed); the design's tolerances.
-        self.assertEqual(loaded.pop('publication'), {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100})
+        self.assertEqual(loaded.pop('publication'), {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100,
+                                                         'encode_garden_peak_mb_linux': 2700, 'encode_garden_peak_mb_macos': 3900})
         # Site size (published-site-size); the design's budgets.
         self.assertEqual(loaded.pop('site'), {'site_mb': 600, 'page_html_mb': 260, 'refs_mb': 115,
                                               'inline_script_kb': 1.5, 'build_slowdown_pct': 10})
@@ -536,6 +547,19 @@ class PerfMergeTest(unittest.TestCase):
         text = '\n'.join(perf.search_markdown(results, metrics.load_budgets()))
         self.assertIn('| phone | lsg | 50 | 900 | 200.0 | 1 | **1,200** | 40 | 90.0 | 9.0 |', text)
         self.assertIn('| phone | logseq | 50 | 900 | 200.0 | 1 | 9,000 |', text)
+
+    def test_search_markdown_lists_each_query_and_its_first_result(self):
+        latencies = [100, None, 1200]
+        fetches = [{'bytes': 60_000, 'shard': True}, {'bytes': 0, 'shard': False}, {'bytes': 5_000, 'shard': False}]
+        summary = perf.query_summary(latencies, fetches)
+        self.assertEqual(summary, {'keystrokes': 3, 'unchanged': 1, 'p95_ms': 1200, 'last_ms': 1200,
+                                   'cold_keystrokes': 1, 'bytes': 65_000})
+        query = {'query': 'deno deploy', 'first_result': 'Deno Deploy', **summary}
+        results = {'search': [self.search_row(queries=[query]),
+                              {**self.search_row(queries=[{**query, 'first_result': None}]), 'build': 'logseq'}]}
+        text = '\n'.join(perf.search_markdown(results, metrics.load_budgets()))
+        self.assertIn('| `deno deploy` | phone | lsg | 3 | 1 | **1,200** | 1,200 | 1 | 65.0 | `Deno Deploy` |', text)
+        self.assertIn('| `deno deploy` | phone | logseq | 3 | 1 | 1,200 | 1,200 | 1 | 65.0 | – |', text)
 
     def test_build_over_budget(self):
         limits = {'journals': {'build_slowdown_pct': 20}, 'search': {'build_slowdown_pct': 25}}

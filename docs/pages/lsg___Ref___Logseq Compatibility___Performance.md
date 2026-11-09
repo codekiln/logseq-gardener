@@ -7,7 +7,7 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 	- measured: 2026-10-26
 	- garden commit: 0ce74d6
 	- gh-pages commit: 8132c95
-	- lsg: 0.0.0 (b490d68); `Deno Deploy`: the reference-only pages change on 0.0.41 (244935d) against garden commit 66b81e9 and Logseq's 2026-10-25 build, three loads for both builds; the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only; the search sections: search format version 2 on a2284e0 with garden commit 75ef84c and `gh-pages` b491e00 on 2026-10-27, both builds, from `parity:perf --search-site` (see [[lsg/Ref/Logseq Compatibility/Search Performance]]); the graph view and Page graph sections: the graph view change on 73d9c2f with garden commit cc1bb2e, `lsg` only, from `parity:perf --graph`
+	- lsg: 0.0.0 (b490d68); `Contrando`, `Deno Deploy` and the search sections: 0.0.42 (a25b3a1) on 2026-11-09 against garden commit 66b81e9 and Logseq's 2026-10-25 build, three page loads for both builds; the build time and Hierarchy: the Hierarchy change on c373d90 against garden commit 083106d, measured `lsg` only; reference sections: 84e9278; the All pages rows and section: the All pages change on 48fcc54 with garden commit 083106d, measured `lsg` only; the graph view and Page graph sections: the graph view change on 73d9c2f with garden commit cc1bb2e, `lsg` only, from `parity:perf --graph`
 	- profiles: desktop, phone
 	- loads per page, logseq: 1
 	- loads per page, lsg: 3
@@ -43,14 +43,14 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | ff | desktop | lsg | 27.9 | 40.0 | 14.5 | 14.6 | 1.8 |
 		  | ff | phone | logseq | 196,794 | 196,844 | 22,067 | 8,087 | 1,981 |
 		  | ff | phone | lsg | 238 | 200 | 14.5 | 14.6 | 1.9 |
-		  | Contrando | desktop | logseq | 22,494 | 22,504 | 22,643 | 8,087 | 2,007 |
-		  | Contrando | desktop | lsg | 22.0 | 28.0 | 10.7 | 14.6 | 1.8 |
-		  | Contrando | phone | logseq | 191,461 | 191,484 | 22,067 | 8,087 | 1,959 |
-		  | Contrando | phone | lsg | 253 | 212 | 10.7 | 14.6 | 1.8 |
-		  | Deno Deploy | desktop | logseq | 14,570 | 14,576 | 18,699 | 8,087 | 2,561 |
-		  | Deno Deploy | desktop | lsg | 17.9 | 28.0 | 13.0 | 11.6 | 1.8 |
-		  | Deno Deploy | phone | logseq | 144,040 | 144,060 | 18,124 | 8,087 | 1,548 |
-		  | Deno Deploy | phone | lsg | 412 | 436 | 13.0 | 11.6 | 1.8 |
+		  | Contrando | desktop | logseq | 14,538 | 14,548 | 18,699 | 8,087 | 2,576 |
+		  | Contrando | desktop | lsg | 20.5 | 32.0 | 15.2 | 14.0 | 1.8 |
+		  | Contrando | phone | logseq | 134,374 | 134,392 | 18,699 | 8,087 | 1,555 |
+		  | Contrando | phone | lsg | 412 | 444 | 15.2 | 14.0 | 1.9 |
+		  | Deno Deploy | desktop | logseq | 12,141 | 12,148 | 18,699 | 8,087 | 2,557 |
+		  | Deno Deploy | desktop | lsg | 18.8 | 32.0 | 13.0 | 11.6 | 1.8 |
+		  | Deno Deploy | phone | logseq | 135,701 | 135,720 | 18,124 | 8,087 | 1,521 |
+		  | Deno Deploy | phone | lsg | 402 | 424 | 13.0 | 11.6 | 1.8 |
 		  | AI/E/WS/25/d1 | desktop | logseq | 17,595 | 17,612 | 22,643 | 8,087 | 2,002 |
 		  | AI/E/WS/25/d1 | desktop | lsg | 25.4 | 36.0 | 12.3 | 14.6 | 1.8 |
 		  | AI/E/WS/25/d1 | phone | logseq | 190,372 | 190,412 | 22,067 | 8,087 | 1,961 |
@@ -180,31 +180,55 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | Person | phone | 821 | `p/40d76f1f51639ec0.json` |
 		- Whole-garden build with the run's options, the fastest of 3 runs: 15.3 seconds with the graph, 12.9 seconds with the baseline `lsg` (+19%; budget +25%).
 	- ## Search index
-		- `lsg`'s search files for 9,204 pages and 114,926 blocks: one title index, 1,148 word shards and 450 record chunks. **Bold** marks a value over its `[search]` budget.
+		- `lsg`'s search files for 14,378 pages and 123,852 blocks: one title index, 1,236 word shards and 1,946 record chunks. **Bold** marks a value over its `[search]` budget.
 		- | File | Size | Budget |
 		  | --- | ---: | ---: |
-		  | Title index (KB, gzip) | 243 | 300 |
-		  | Title index (MB, decoded) | 0.7 | 1.5 |
-		  | Largest shard, words starting `re` (KB, gzip) | 63.5 | 64 |
-		  | Largest record chunk (KB, gzip) | 32.0 | 32 |
-		  | Search starter (KB) | 2.0 | 2 |
+		  | Title index (KB, gzip) | 147 | 300 |
+		  | Title index (MB, decoded) | 0.6 | 1.5 |
+		  | Largest shard, words starting `pr` (KB, gzip) | 51.1 | 64 |
+		  | Largest record chunk (KB, gzip) | 21.1 | 32 |
+		  | Search starter (KB) | 1.9 | 2 |
 	- ## Search
 		- Cmd/Ctrl+K on the home page, then the first query typed at once: the time from the key to the dialog and to its page results, and what that first open downloaded. Then each query in [`search-queries.txt`](https://github.com/codekiln/logseq-gardener/blob/main/scripts/parity/search-queries.txt) typed a key every 300 ms. A cold keystroke fetches a word shard; a warm one does not. The heap growth is measured after the whole query list, after garbage collection. **Bold** marks an `lsg` value over its budget.
 		- | Profile | Build | Dialog shown (ms) | First page results (ms) | First open (KB, gzip) | Cold keystrokes | Cold 95th percentile (ms) | Warm 95th percentile (ms) | Largest keystroke download (KB, gzip) | Heap growth (MB) |
 		  | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-		  | desktop | logseq | 30 | 3,549 | 0.0 | 0 | – | 1,692 | 0.0 | 59.1 |
-		  | desktop | lsg | 23 | 110 | 306.1 | 7 | 46 | 16 | 95.1 | 6.7 |
-		  | phone | logseq | 116 | 14,369 | 160.2 | 0 | – | 13,839 | 0.0 | 59.2 |
-		  | phone | lsg | 245 | 2,378 | 280.6 | 7 | 578 | 35 | 78.0 | 6.5 |
+		  | desktop | logseq | 24 | 2,921 | 0.0 | 0 | – | 1,328 | 0.0 | 50.9 |
+		  | desktop | lsg | 15 | 137 | 171.3 | 9 | 46 | 14 | 115.4 | 6.4 |
+		  | phone | logseq | 85 | 11,889 | 148.8 | 0 | – | 10,243 | 0.0 | 51.1 |
+		  | phone | lsg | 245 | 2,048 | 164.7 | 9 | 508 | **128** | 97.5 | 6.3 |
 	- ## Search latency per keystroke
 		- Every keystroke of the query list. An unanswered keystroke is one whose results never showed. An `lsg` keystroke ends when its result list is drawn; block rows whose record chunk is still loading show a placeholder line until it arrives. The keystrokes that fetched nothing show the cost of the query alone. `lsg` reopens the dialog from memory after the first open.
 		- | Profile | Build | Keystrokes | Unanswered | Median (ms) | 95th percentile (ms) | Warm keystrokes that fetched a chunk | 95th percentile of keystrokes that fetched nothing (ms) | Reopen (ms) | Reopen requests |
 		  | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-		  | desktop | logseq | 36 | 0 | 803 | 1,692 | 0 | 1,692 | – | – |
-		  | desktop | lsg | 36 | 0 | 14 | 30 | 11 | 20 | 18 | 0 |
-		  | phone | logseq | 36 | 0 | 3,026 | 13,839 | 1 | 13,839 | – | – |
-		  | phone | lsg | 36 | 0 | 26 | 286 | 12 | 262 | 26 | 0 |
-		- Whole-garden build with journals, the fastest of 3 runs: 13.3 seconds with `--search`, 11.4 seconds without (+17%; budget +25%).
+		  | desktop | logseq | 47 | 0 | 666 | 1,328 | 0 | 1,328 | – | – |
+		  | desktop | lsg | 47 | 0 | 11 | 24 | 16 | 14 | 12 | 0 |
+		  | phone | logseq | 47 | 0 | 2,382 | 10,243 | 1 | 10,243 | – | – |
+		  | phone | lsg | 47 | 0 | 47 | 338 | 17 | 62 | 28 | 0 |
+	- ## Search per query
+		- Each query of the list, typed a key every 300 ms: its keystrokes, the 95th percentile and the last keystroke's time to the drawn results, what the query downloaded, and the first page result `lsg` showed. **Bold** marks an `lsg` 95th percentile over the profile's cold keystroke budget in `[search]`.
+		- | Query | Profile | Build | Keystrokes | Unanswered | 95th percentile (ms) | Last keystroke (ms) | Cold keystrokes | Downloaded (KB, gzip) | First result |
+		  | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+		  | `claude code` | desktop | logseq | 11 | 0 | 1,328 | 1,328 | 0 | 0.0 | – |
+		  | `claude code` | desktop | lsg | 11 | 0 | 46 | 12 | 3 | 230.9 | `Claude Code` |
+		  | `claude code` | phone | logseq | 11 | 0 | 10,946 | 10,946 | 0 | 0.0 | – |
+		  | `claude code` | phone | lsg | 11 | 0 | 508 | 53 | 3 | 212.9 | `Claude Code` |
+		  | `deno deploy` | desktop | logseq | 11 | 0 | 1,337 | 1,337 | 0 | 0.0 | – |
+		  | `deno deploy` | desktop | lsg | 11 | 0 | 32 | 10 | 2 | 108.8 | `Deno Deploy` |
+		  | `deno deploy` | phone | logseq | 11 | 0 | 10,243 | 10,243 | 0 | 0.0 | – |
+		  | `deno deploy` | phone | lsg | 11 | 0 | 436 | 43 | 2 | 103.4 | `Deno Deploy` |
+		  | `flashcard` | desktop | logseq | 9 | 0 | 1,130 | 1,130 | 0 | 0.0 | – |
+		  | `flashcard` | desktop | lsg | 9 | 0 | 15 | 10 | 1 | 71.7 | `Flashcard/Cloze` |
+		  | `flashcard` | phone | logseq | 9 | 0 | 8,207 | 8,207 | 0 | 0.0 | – |
+		  | `flashcard` | phone | lsg | 9 | 0 | 233 | 42 | 1 | 71.7 | `Flashcard/Cloze` |
+		  | `logseq query` | desktop | logseq | 12 | 0 | 1,500 | 1,500 | 0 | 0.0 | – |
+		  | `logseq query` | desktop | lsg | 12 | 0 | 24 | 11 | 3 | 136.9 | `Logseq/Q/When using Logseq GUI is there a keyshort that will take me to the parent of a page?` |
+		  | `logseq query` | phone | logseq | 12 | 0 | 11,441 | 11,441 | 0 | 0.0 | – |
+		  | `logseq query` | phone | lsg | 12 | 0 | 338 | 47 | 3 | 136.9 | `Logseq/Q/When using Logseq GUI is there a keyshort that will take me to the parent of a page?` |
+		  | `tmux` | desktop | logseq | 4 | 0 | 666 | 666 | 0 | 0.0 | – |
+		  | `tmux` | desktop | lsg | 4 | 0 | 20 | 11 | 0 | 0.0 | `tmux` |
+		  | `tmux` | phone | logseq | 4 | 0 | 5,506 | 5,506 | 0 | 0.0 | – |
+		  | `tmux` | phone | lsg | 4 | 0 | 60 | 44 | 0 | 6.7 | `tmux` |
+		- Whole-garden build with journals, the fastest of 3 runs: 20.3 seconds with `--search`, 18.9 seconds without (+7%; budget +25%).
 	- ## Video embeds
 		- Each page loaded in a fresh window and left for 40 seconds, then its first bound timestamp clicked. Player requests count every request to a video provider or Google host before that click, where Logseq makes about 1.2 MB of them per page; other hosts are the page's own remote images. **Bold** marks a value over its `[media]` budget.
 		- | Page | Profile | Videos | Timestamps | Player area (px) | Player requests before a click | Other hosts | Player after the click |

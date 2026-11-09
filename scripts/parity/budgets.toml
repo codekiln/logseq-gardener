@@ -358,3 +358,9 @@ build_slowdown_pct = 10
 [publication]
 slowdown_pct = 20
 unknown_cpu_slowdown_pct = 100
+# The encode garden build's peak resident memory. --check fails when a build peaks above the
+# budget for its system: Linux and macOS count resident memory differently. Reference-only pages
+# (publish-reference-only-pages) raised the peak from 2,196 to 2,372 MB on GitHub's runners and
+# from 3,117 to 3,405 MB on an Apple M2 Pro; the budgets leave about 14% above those figures.
+encode_garden_peak_mb_linux = 2700
+encode_garden_peak_mb_macos = 3900

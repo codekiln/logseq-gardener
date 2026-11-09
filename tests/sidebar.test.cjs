@@ -62,6 +62,14 @@ const PAGES = {
       h('ul', { class: 'refs-outline' }, h('li', {}, h('a', { class: 'bullet', href: '/gitpa/GitP/A/Session/26/10/28-Wed/#source-block-20' }), 'Filter [[Arturia]]'))))),
 };
 PAGES['gitpa/Terminal/'] = PAGES['p-terminal.html'];
+// A reference-only page as the publisher writes it: a title and reference sections, no outline.
+PAGES['p-deno.html'] = () => h('main', {}, h('h1', {}, 'Deno'), h('ul', { class: 'outline' }, li(null, 'Deploy with ', h('a', { href: 'p-deno-deploy.html' }, 'Deno Deploy'))));
+PAGES['p-deno-deploy.html'] = () => h('main', {},
+  h('h1', {}, 'Deno Deploy'),
+  h('section', { class: 'references linked-references', id: 'linked-references', 'data-refs': 'linked' },
+    h('details', { class: 'references-section', open: '' }, h('summary', {}, h('h2', {}, '2 Linked References')), h('div', { class: 'references-body' }))),
+  h('section', { class: 'references linked-references unlinked-references', 'data-refs': 'unlinked' },
+    h('details', { class: 'references-section' }, h('summary', {}, h('h2', {}, 'Unlinked References')))));
 
 let state;
 // at is the page's address and root the folder that serves lsg-sidebar.js.
@@ -146,6 +154,19 @@ test('Shift-click adds page and block cards on top without leaving the page', as
   assert.equal(crumb.querySelector('a').textContent, 'tmux');
   assert.deepEqual(s.saved().cards.map(card => [card.type, card.route, card.block]), [['block', 'p-tmux.html', '2'], ['page', 'p-pomodoro.html', undefined]]);
   assert.equal(state.assigned, null);
+});
+
+test('Shift-click on a link to a reference-only page adds its page card and stays on the page', async () => {
+  const s = load({ at: 'https://garden.test/p-deno.html' });
+  s.shift(s.main.querySelector('a[href="p-deno-deploy.html"]'));
+  await settle();
+  assert.deepEqual(s.titles(), ['Deno Deploy']);
+  const card = s.cards()[0];
+  assert.equal(card.querySelector('.linked-references h2').textContent, '2 Linked References');
+  assert.equal(card.querySelector('.unlinked-references'), null);
+  assert.deepEqual(s.saved().cards.map(saved => [saved.type, saved.route]), [['page', 'p-deno-deploy.html']]);
+  assert.equal(state.assigned, null);
+  assert.equal(s.main.querySelector('h1').textContent, 'Deno');
 });
 
 test('a bullet inside a card adds that block, and a block reference adds Block references', async () => {

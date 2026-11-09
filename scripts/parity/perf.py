@@ -206,6 +206,12 @@ SEARCH_COLLECT = '''() => {
     .map(e => [e.startTime, e.name, e.encodedBodySize]);
   return {keys: state.keys, changes: state.changes, completions: state.completions, resources};
 }'''
+# lsg's first page result once a query is typed. Logseq's list shows a count beside each group
+# heading and no stable row element, so its first result is not read.
+FIRST_RESULT = '''(controls) => {
+  const row = controls.drawn && document.querySelector('[data-lsg-search-group=pages] [role=option]');
+  return row ? row.innerText.split('\\n').map(line => line.trim()).find(Boolean) ?? null : null;
+}'''
 # From the Cmd/Ctrl+K keydown: the time the dialog shows, then the time it lists page results for
 # the query typed as soon as the input appears. lsg lists them when it first draws the result list
 # for the query, without waiting for block rows' record chunks; Logseq when its Pages group appears.
@@ -355,7 +361,7 @@ def measure_search(browser, url, build, profile, queries):
             page.wait_for_selector(controls['ready'], timeout=timeout)
             result['warm_open_ms'] = page.evaluate('performance.now()') - started
             result['warm_open_requests'] = search_resources(page, before_warm, build)['requests']
-        latencies, fetches = [], []
+        latencies, fetches, per_query = [], [], []
         for query in queries:
             page.fill(controls['input'], '')
             page.wait_for_timeout(1000)
@@ -367,18 +373,31 @@ def measure_search(browser, url, build, profile, queries):
             state = page.evaluate(SEARCH_COLLECT)
             if build == 'lsg':
                 values = [query[:index + 1] for index in range(len(state['keys']))]
-                latencies += metrics.completion_latencies(state['keys'], values, state['completions'])
+                these = metrics.completion_latencies(state['keys'], values, state['completions'])
                 files = [r for r in state['resources'] if SEARCH_FILES.search(r[1])]
             else:
-                latencies += metrics.keystroke_latencies(state['keys'], state['changes'])
+                these = metrics.keystroke_latencies(state['keys'], state['changes'])
                 files = state['resources']
-            fetches += metrics.keystroke_fetches(state['keys'], files, SHARD_FILE)
+            got = metrics.keystroke_fetches(state['keys'], files, SHARD_FILE)
+            latencies += these
+            fetches += got
+            per_query.append({'query': query, 'first_result': page.evaluate(FIRST_RESULT, controls),
+                              **query_summary(these, got)})
         result['heap_growth'] = max(0, collect_garbage(cdp) - before_heap)
-        return {**result, **keystroke_summary(latencies, fetches)}
+        return {**result, **keystroke_summary(latencies, fetches), 'queries': per_query}
     except Exception as error:
         return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
     finally:
         context.close()
+
+
+def query_summary(latencies, fetches):
+    """One query's keystrokes: how many, how many went unanswered, the 95th percentile and the last
+    keystroke's latency, and what the query downloaded."""
+    measured = [v for v in latencies if v is not None]
+    return {'keystrokes': len(latencies), 'unchanged': len(latencies) - len(measured),
+            'p95_ms': metrics.percentile(measured, 0.95), 'last_ms': latencies[-1] if latencies else None,
+            'cold_keystrokes': sum(f['shard'] for f in fetches), 'bytes': sum(f['bytes'] for f in fetches)}
 
 
 def keystroke_summary(latencies, fetches):
@@ -1006,6 +1025,25 @@ def search_markdown(results, budgets):
         lines.append(f"| {row['profile']} | {row['build']} | {row['keystrokes']} | {row['unchanged']} | "
                      f"{p50} | {p95} | {row.get('chunk_keystrokes', '–')} | {idle} | {reopen} | "
                      f"{row.get('warm_open_requests', '–')} |")
+    query_rows = [(row, query) for row in rows for query in row.get('queries', [])]
+    if query_rows:
+        lines += ['', '## Search per query', '',
+                  'Each query of the list, typed a key every '
+                  f'{KEY_GAP_MS} ms: its keystrokes, the 95th percentile and the last keystroke\'s time to the '
+                  'drawn results, what the query downloaded, and the first page result `lsg` showed. **Bold** marks '
+                  'an `lsg` 95th percentile over the profile\'s cold keystroke budget in `[search]`.', '',
+                  '| Query | Profile | Build | Keystrokes | Unanswered | 95th percentile (ms) | Last keystroke (ms) '
+                  '| Cold keystrokes | Downloaded (KB, gzip) | First result |',
+                  '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |']
+        for row, query in sorted(query_rows, key=lambda pair: (pair[1]['query'], pair[0]['profile'], pair[0]['build'])):
+            limit = budgets.get('search', {}).get(f"cold_keystroke_ms_{row['profile']}")
+            p95, last = ('–' if query.get(k) is None else f'{query[k]:,.0f}' for k in ('p95_ms', 'last_ms'))
+            if row['build'] == 'lsg' and limit is not None and query.get('p95_ms') is not None and query['p95_ms'] > limit:
+                p95 = f'**{p95}**'
+            first = f"`{query['first_result']}`" if row['build'] == 'lsg' and query.get('first_result') else '–'
+            lines.append(f"| `{query['query']}` | {row['profile']} | {row['build']} | {query['keystrokes']} | "
+                         f"{query['unchanged']} | {p95} | {last} | {query['cold_keystrokes']} | "
+                         f"{query['bytes'] / 1000:,.1f} | {first} |")
     builds = build_variants(results.get('search_build', []))
     if (True, True) in builds and (True, False) in builds:
         with_search, without = builds[(True, True)], builds[(True, False)]
@@ -2146,7 +2184,7 @@ def measure_graph_run(args, sync_playwright):
 
 
 GRAPH_SECTIONS = ['Graph view', 'Page graph']
-SEARCH_SECTIONS = ['Search index', 'Search', 'Search latency per keystroke']
+SEARCH_SECTIONS = ['Search index', 'Search', 'Search latency per keystroke', 'Search per query']
 
 
 def record_graph_sections(report, budgets):
