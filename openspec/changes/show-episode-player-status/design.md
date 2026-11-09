@@ -23,7 +23,7 @@ Gitpa's own player, before [codekiln/gitpa#159](https://github.com/codekiln/gitp
 
 **The trail.** `showChapter()` sets `aria-current="true"` on the last link it draws, which is the current chapter; the enclosing chapters before it get none. The trail is already redrawn only when the chapter changes.
 
-**The name.** `build` sets `aria-label="Full episode recording"` on the `<audio>` element, and cleanup removes it before the element returns to its page.
+**The name.** `build` sets `aria-label="Full episode recording"` on the `<audio>` element, and cleanup puts back the name the page gave the element, the embed's alt text such as `Episode recording`, before the element returns to its page.
 
 ## Risks / Trade-offs
 

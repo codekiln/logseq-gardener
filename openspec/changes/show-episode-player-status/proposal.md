@@ -7,7 +7,7 @@ Gitpa's own episode player, deleted in [codekiln/gitpa#159](https://github.com/c
 - The player shows a **Full recording** link to the recording it holds. The link opens in a new tab, as `lsg`'s other external links do, so the player keeps playing.
 - The player's live status says **Playing**, **Paused** or **Ended** as the recording changes state, and still reports errors.
 - The current chapter in the player's trail carries `aria-current="true"`.
-- The player's `<audio>` element has the accessible name `Full episode recording`. When the module is cleaned up and the element returns to its page, the name goes with the player.
+- The player's `<audio>` element has the accessible name `Full episode recording`. When the module is cleaned up and the element returns to its page, it gets back the name the page gave it, such as `Episode recording` from the embed's alt text.
 
 Each item uses the episode entry the plugin already has. Pages, page metadata and the build are unchanged, and a site without the plugin is unchanged.
 

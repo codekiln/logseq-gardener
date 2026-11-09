@@ -32,4 +32,4 @@ The player SHALL show a `Full recording` link to the URL of the recording it hol
 #### Scenario: Accessible name of the recording
 
 - **WHEN** the player holds a recording
-- **THEN** its `<audio>` element has the accessible name `Full episode recording`, and when the module is cleaned up the element returns to its page without that name
+- **THEN** its `<audio>` element has the accessible name `Full episode recording`, and when the module is cleaned up the element returns to its page with the name the page gave it
