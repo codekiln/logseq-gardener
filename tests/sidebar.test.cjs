@@ -92,9 +92,10 @@ function load({ desktop = true, stored = {}, contents = null, defaults = null, a
     matchMedia: () => ({ matches: desktop }),
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
   };
+  const location = { pathname: new URL(at).pathname, hash: '', href: at, assign: url => { state.assigned = String(url); } };
   const context = {
     console, window, document, URL, JSON, Map, Set, Promise, Number, String, Math, Object, Array,
-    location: { pathname: new URL(at).pathname, hash: '', href: at, assign: url => { state.assigned = String(url); } },
+    location,
     fetch: url => {
       const route = new URL(url).pathname.slice(1);
       state.fetched.push(route);
@@ -110,7 +111,7 @@ function load({ desktop = true, stored = {}, contents = null, defaults = null, a
     for (const callback of listeners[type] || []) callback(all);
   };
   return {
-    window, document, main, aside, toggle, storage, fire,
+    window, document, location, main, aside, toggle, storage, fire,
     request: value => window.logseqGardenerSidebar(value),
     shift: node => window.logseqGardenerSidebar({ target: node, shiftKey: true }),
     cards: () => aside.querySelectorAll('.lsg-card'),
@@ -441,6 +442,31 @@ test('a Page graph card whose script fails to load offers Retry, which loads the
   await settle();
   assert.ok(card.querySelector('.lsg-page-graph .lsg-graph-canvas'));
   assert.equal(card.querySelector('.lsg-card-retry'), null);
+});
+
+test('after the plugin host shows another page, the Page graph card draws that page', async () => {
+  const s = load();
+  const drawn = [];
+  s.window.logseqGardenerGraph = { page: body => { drawn.push(s.location.pathname); body.append(h('canvas', { class: 'lsg-graph-canvas' })); } };
+  s.fire(s.aside.querySelector('[data-add=graph]'), 'click');
+  s.document.head.querySelector('script').onload();
+  await settle();
+  assert.deepEqual(drawn, ['/p-tmux.html']);
+  // Another page, shown in place while the sidebar is open.
+  s.location.pathname = '/p-pomodoro.html';
+  s.window.logseqGardenerInitSidebar();
+  await settle();
+  assert.deepEqual(drawn, ['/p-tmux.html', '/p-pomodoro.html']);
+  assert.equal(s.cards()[0].querySelectorAll('.lsg-graph-canvas').length, 1);
+  // While the sidebar is closed, the card waits and draws the current page when it opens.
+  s.request('toggle');
+  s.location.pathname = '/p-terminal.html';
+  s.window.logseqGardenerInitSidebar();
+  await settle();
+  assert.equal(drawn.length, 2);
+  s.request('toggle');
+  await settle();
+  assert.deepEqual(drawn, ['/p-tmux.html', '/p-pomodoro.html', '/p-terminal.html']);
 });
 
 test('phones keep the page: requests are ignored', () => {

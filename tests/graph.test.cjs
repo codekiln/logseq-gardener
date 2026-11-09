@@ -129,6 +129,8 @@ function browser({ pathname, body }) {
     get activeElement() { return env.focused; },
   };
   class Worker {
+    constructor() { env.workers = (env.workers || 0) + 1; }
+    terminate() { env.terminated = (env.terminated || 0) + 1; }
     postMessage(message) {
       if (message.type !== 'start') return;
       env.held.push(() => this.onmessage({ data: { type: 'tick', x: Float32Array.from(message.x, (_, i) => i * 50), y: new Float32Array(message.x.length) } }));
@@ -330,6 +332,17 @@ test('the Page graph card draws a fast load with no loading state', async () => 
   b.tick(1000);
   assert.deepEqual(b.shown(), [null, '', null]);
   assert.equal(b.canvas().drawn, 3);
+});
+
+test('drawing the Page graph card again ends the previous drawing\'s layout worker', async () => {
+  const b = await pageCard();
+  b.answer(b.file, NEIGHBOURHOOD);
+  await settle();
+  await b.layout();
+  assert.equal(b.env.workers, 1);
+  assert.equal(b.env.terminated, undefined);
+  b.graph().page(h('div', { class: 'lsg-page-graph' }));
+  assert.equal(b.env.terminated, 1);
 });
 
 test('the Page graph card shows its loading state, and Cancel leaves Load the page graph', async () => {

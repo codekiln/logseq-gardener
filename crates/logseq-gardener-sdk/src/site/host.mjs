@@ -31,6 +31,7 @@ const inits = [
   (m) => window.logseqGardenerAllPages?.init(m),
   (m) => window.logseqGardenerInitTheme?.(m),
   (m) => window.logseqGardenerInitQueries?.(m),
+  (m) => window.logseqGardenerInitSidebar?.(m),
   (m) => {
     const feed = m.querySelector('[data-lsg-journals]');
     if (!feed) return;
