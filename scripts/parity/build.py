@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish every page of a garden that lsg can select into a new run directory."""
+"""Publish every page and journal of a garden into a new run directory."""
 import argparse
 import json
 import subprocess
@@ -45,24 +45,8 @@ def roots(pages_dir):
     return sorted(selected), skipped
 
 
-LOGSEQ_INTERNAL = ('logseq/bak/', 'logseq/.recycle/', 'logseq/version-files/')
-
-
-def outside_files(garden):
-    """Markdown files lsg loads as pages outside pages/ and journals/, as relative paths.
-
-    The files a fresh checkout holds, less the paths Logseq skips and the :hidden entries.
-    """
-    import compare  # compare imports this module; import it only when needed.
-    listing = subprocess.run(['git', '-C', str(garden), 'ls-files', '-z', '--cached', '--others',
-                              '--exclude-standard', '--', '*.md', ':(exclude)pages/', ':(exclude)journals/'],
-                             capture_output=True, check=True).stdout.decode('utf-8')
-    config = Path(garden) / 'logseq' / 'config.edn'
-    patterns = compare.hidden_patterns(config.read_text(encoding='utf-8')) if config.is_file() else []
-    return sorted(path for path in listing.split('\0') if path
-                  and not any(part.startswith('.') or part == 'node_modules' for part in path.split('/'))
-                  and not path.startswith(LOGSEQ_INTERNAL)
-                  and not compare.is_hidden(path, patterns))
+# Every page, less pages lsg withholds, and every journal.
+OPTIONS = ['--filename-format', FILENAME_FORMAT, '--include-all', '--journals', '--search']
 
 
 def main():
@@ -72,17 +56,8 @@ def main():
     garden = Path(args.garden) if args.garden else common.encode_garden()
     subprocess.run(['cargo', 'build', '--locked', '--release', '--bin', 'lsg'], cwd=common.REPO, check=True)
     lsg = common.lsg_binary()
-    selected, skipped = roots(garden / 'pages')
-    for path in outside_files(garden):
-        root = page_title(Path(path).name).split('/')[0]
-        if valid_root(root):
-            selected = sorted(set(selected) | {root})
-        else:
-            skipped.append(path)
     run = common.new_run_dir()
-    options = ['--filename-format', FILENAME_FORMAT, '--journals', '--search']
-    for root in selected:
-        options += ['--include', root]
+    options = list(OPTIONS)
     command = [str(lsg), 'publish', '--graph', str(garden), '--output', str(run / 'site'), *options, '--format', 'json']
     with open(run / 'diagnostics.txt', 'w', encoding='utf-8') as diagnostics:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=diagnostics, text=True, check=True)
@@ -94,14 +69,11 @@ def main():
         'lsg_version': version['version'],
         'lsg_commit': common.git_commit(common.REPO),
         'lsg_options': options,
-        'skipped_files': skipped,
         'publish_result': json.loads(result.stdout),
     }
     (run / 'settings.json').write_text(json.dumps(settings, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     published = settings['publish_result']
-    print(f"Published {published['pages']} pages from {len(selected)} roots into {run / 'site'}")
-    if skipped:
-        print(f'Skipped {len(skipped)} files whose top-level namespace lsg cannot select; see settings.json')
+    print(f"Published {published['pages']} pages and {published['journals']} journals into {run / 'site'}")
 
 
 if __name__ == '__main__':

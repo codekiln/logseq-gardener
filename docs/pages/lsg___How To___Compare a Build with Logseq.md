@@ -12,7 +12,7 @@ see-also:: [[lsg/Ref/Parity Tasks]], [[lsg/Ref/Logseq Compatibility/Comparison H
 		- For screenshots, measurements and `parity:logseq-export`, Playwright's Chromium. The tasks install it through `uv` on first use, into Playwright's shared browser cache.
 	- ## Steps
 		- ### 1. Build the garden with lsg
-			- Run `mise run parity:build` from the repository root. It builds a release `lsg` and publishes every page whose top-level namespace `lsg` can select into a new directory, `target/parity/<UTC time>/`.
+			- Run `mise run parity:build` from the repository root. It builds a release `lsg` and publishes every page and journal into a new directory, `target/parity/<UTC time>/`.
 		- ### 2. List the pages each build lacks
 			- Run `mise run parity:compare`. It extracts Logseq's build beside the `lsg` build and writes `report.md`, which groups the pages present in one build and missing from the other.
 			- Read the other-pages group first: each page there needs an explanation or a fix.

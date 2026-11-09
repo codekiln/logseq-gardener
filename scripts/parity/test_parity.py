@@ -2,7 +2,6 @@
 import gzip
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -113,19 +112,10 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(selected, ['Contents', 'Notes', 'Tools'])
         self.assertEqual(skipped, ['%20Space.md'])
 
-    def test_outside_files(self):
-        with tempfile.TemporaryDirectory() as temp:
-            garden = Path(temp)
-            subprocess.run(['git', '-C', temp, 'init', '--quiet'], check=True)
-            files = ['pages/a.md', 'journals/2026_10_28.md', 'mise-tasks/PARAMETERS.md', 'README.md',
-                     'tools/README.md', '.agents/skill.md', 'notes/node_modules/x.md', 'logseq/bak/a.md',
-                     'worktrees/one/pages/b.md', 'notes/image.png']
-            for name in files:
-                (garden / name).parent.mkdir(parents=True, exist_ok=True)
-                (garden / name).write_text('- x\n', encoding='utf-8')
-            (garden / '.gitignore').write_text('tools\n', encoding='utf-8')
-            (garden / 'logseq/config.edn').write_text('{\n :hidden ["README.md" "worktrees"]}\n', encoding='utf-8')
-            self.assertEqual(build.outside_files(garden), ['mise-tasks/PARAMETERS.md'])
+    def test_options_select_every_page_and_journal(self):
+        self.assertIn('--include-all', build.OPTIONS)
+        self.assertIn('--journals', build.OPTIONS)
+        self.assertNotIn('--include', build.OPTIONS)
 
 
 class CompareTest(unittest.TestCase):
