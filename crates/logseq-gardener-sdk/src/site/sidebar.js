@@ -453,6 +453,12 @@
     return null;
   }
 
+  // The plugin host calls this after it shows another page in place. Each Page graph card draws
+  // the new page, at once in an open sidebar and otherwise when the sidebar opens.
+  window.logseqGardenerInitSidebar = () => {
+    for (const section of sections.values()) if (section.card.type === 'graph' && section.filled) { section.filled = false; if (state.open) fill(section); }
+  };
+
   window.logseqGardenerSidebar = request => {
     if (!desktop()) return;
     if (request === 'toggle') { state.open = !state.open; render(); return; }

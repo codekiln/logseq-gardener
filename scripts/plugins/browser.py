@@ -17,7 +17,9 @@ bullets under `## Chapters` and dialogue timestamps seek the player, which shows
 trail, and that a page whose module fails keeps its own recording. A third garden turns on
 sequence-header: the header shows a page's previous and next links, keyboard focus reaches them, a
 phone shows arrows alone, the links follow navigation and Back, and a page outside the sequence
-requests no plugin code. Prints one JSON line of results;
+requests no plugin code. A fourth garden checks that a video, View as slides, a flashcard review,
+the Page graph card and Shift-click into the right sidebar work on a page the host shows in place.
+Prints one JSON line of results;
 --screenshots DIR also saves the recording playing on each page.
 """
 import argparse
@@ -449,6 +451,104 @@ def check_sequence_header(browser, site, prefix, screenshots, results):
     results['sequence_phone_arrows'] = True
 
 
+FEATURE_PAGES = {
+    'Feat___Home.md': '- Home. [[Feat/Video]] [[Feat/Slides]] [[Feat/Cards]] [[Feat/Plain]]\n',
+    'Feat___Video.md': '- {{video https://www.youtube.com/watch?v=dQw4w9WgXcQ}}\n- At {{youtube-timestamp 30}} it starts. [[Feat/Home]]\n',
+    'Feat___Slides.md': '- First slide [[Feat/Home]]\n- Second slide\n\t- Child slide\n',
+    'Feat___Cards.md': '- What is 2+2? #card\n\t- 4\n- {{cards}}\n- [[Feat/Home]]\n',
+    'Feat___Plain.md': '- Plain page. [[Feat/Home]] [[Feat/Video]]\n',
+}
+
+
+def build_features(binary, temp):
+    """A garden of pages that use lsg's page features, with the probe plugin, published to temp/site-features."""
+    garden = temp / 'features'
+    (garden / 'pages').mkdir(parents=True)
+    (garden / 'logseq').mkdir()
+    (garden / 'logseq' / 'config.edn').write_text('{:publishing/all-pages-public? true}\n', encoding='utf-8')
+    for name, text in FEATURE_PAGES.items():
+        (garden / 'pages' / name).write_text(text, encoding='utf-8')
+    output = temp / 'site-features'
+    subprocess.run([str(binary), 'publish', '--graph', str(garden), '--output', str(output),
+                    '--filename-format', 'triple-lowbar', '--include', 'Feat',
+                    '--plugin', str(temp / 'plugins' / 'probe' / 'lsg-plugin.json')],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return output
+
+
+def check_page_features(browser, prefix, results):
+    """Media, slides, flashcards, the Page graph card and the right sidebar on pages the host shows in place."""
+    home, video, slides, cards, plain = (route(f'Feat/{name}') for name in ('Home', 'Video', 'Slides', 'Cards', 'Plain'))
+    context = browser.new_context(viewport={'width': 1280, 'height': 800})
+    # The video provider stays offline; the player only needs its iframe.
+    context.route('**/*', lambda r: r.continue_() if r.request.url.startswith(prefix) else r.abort())
+    page = context.new_page()
+    errors, requests = [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: requests.append(request.url))
+    page.goto(prefix + home, wait_until='load')
+    page.wait_for_function('window.__probe && window.__probe.length === 1')
+    page.evaluate('window.__featureMarker = true')
+
+    def visit(target):
+        follow(page, plain)
+        follow(page, target)
+
+    # Media: Play loads the player, and a timestamp loads it at that time.
+    visit(video)
+    page.locator('main .lsg-video-play').click()
+    expect(page.locator('main .lsg-video iframe')).to_have_count(1)
+    visit(video)
+    page.locator('main a.youtube-timestamp').click()
+    assert 'start=30' in page.locator('main .lsg-video iframe').get_attribute('src')
+    results['features_media_after_navigation'] = True
+
+    # Slides: View as slides shows this page's blocks, and the arrow keys move through them.
+    visit(slides)
+    page.locator('[data-lsg-more]').click()
+    page.locator('[data-lsg-slides]').click()
+    present = page.locator('.lsg-right-sidebar .reveal section.present')
+    expect(present).to_have_text('First slide Feat/Home')
+    page.keyboard.press('ArrowRight')
+    expect(present).to_have_text('Second slide')
+    page.locator('.lsg-right-sidebar .lsg-card-close').click()
+    results['features_slides_after_navigation'] = True
+
+    # Flashcards: the deck opens a review, and its keys show the answer.
+    visit(cards)
+    page.locator('main [data-lsg-deck]').first.click()
+    back = page.locator('.lsg-review-card .lsg-card-back')
+    expect(back).to_have_count(1)
+    expect(back).to_be_hidden()
+    page.keyboard.press('s')
+    expect(back).to_be_visible()
+    page.keyboard.press('Escape')
+    expect(page.locator('.lsg-review-shade')).to_have_count(0)
+    results['features_flashcards_after_navigation'] = True
+
+    # The Page graph card draws each page the host shows.
+    visit(home)
+    page.locator('[data-lsg-right-toggle]').click()
+    page.locator('.lsg-right-bar [data-add=graph]').click()
+    neighbourhood = lambda target: f'/_graph/p/{target[2:18]}.json'
+    page.wait_for_function('document.querySelector(".lsg-page-graph canvas")')
+    page.wait_for_function('(file) => performance.getEntriesByType("resource").some((r) => r.name.endsWith(file))', arg=neighbourhood(home))
+    visit(video)
+    page.wait_for_function('(file) => performance.getEntriesByType("resource").some((r) => r.name.endsWith(file))', arg=neighbourhood(video))
+    expect(page.locator('.lsg-page-graph')).to_have_count(1)
+    results['features_page_graph_after_navigation'] = [u.rsplit('/', 1)[-1] for u in requests if '/_graph/p/' in u]
+
+    # The right sidebar: Shift-click on a page link adds that page's card.
+    page.locator('main .page-ref', has_text='Feat/Home').first.click(modifiers=['Shift'])
+    expect(page.locator('.lsg-right-sidebar .lsg-card-title').first).to_have_text('Feat/Home')
+    results['features_sidebar_after_navigation'] = True
+
+    # Every step stayed in the first document.
+    assert page.evaluate('window.__featureMarker === true')
+    assert not errors, errors
+    context.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', default=str(REPO / 'target' / 'debug' / 'lsg'))
@@ -461,6 +561,7 @@ def main():
         plain = build(args.binary, temp, [])
         episodes = build_episodes(args.binary, temp)
         sequence = build_sequence(args.binary, temp)
+        features = build_features(args.binary, temp)
         server, base = serve(temp)
         one, two, three, plain_page = (route(f'Episode/{n}') for n in ('One', 'Two', 'Three', 'Plain'))
         prefix = f'{base}/{site.name}/'
@@ -650,6 +751,7 @@ def main():
                 context.close()
                 check_podcast_episode(browser, episodes, f'{base}/{episodes.name}/', args.screenshots, results)
                 check_sequence_header(browser, sequence, f'{base}/{sequence.name}/', args.screenshots, results)
+                check_page_features(browser, f'{base}/{features.name}/', results)
                 browser.close()
         finally:
             server.shutdown()

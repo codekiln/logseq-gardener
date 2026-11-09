@@ -86,10 +86,10 @@
     return response[as]();
   });
 
-  // A force worker for one graph, loaded on its first message.
+  // A force worker for one graph, loaded on its first message; stop() ends it.
   function simulator() {
     let worker = null, listener = null;
-    return (message, next) => {
+    const simulate = (message, next) => {
       if (!worker) {
         worker = new Worker(new URL('lsg-graph-worker.js', base));
         worker.onmessage = event => listener?.(event.data);
@@ -97,6 +97,8 @@
       if (next) listener = next;
       worker.postMessage(message);
     };
+    simulate.stop = () => { worker?.terminate(); worker = null; };
+    return simulate;
   }
 
   const dark = () => root.getAttribute('data-lsg-theme') === 'dark';
@@ -667,7 +669,9 @@
     fetchGraph();
   }
 
-  // The Page graph card: the current page's neighbourhood, laid out by the worker.
+  // The Page graph card: the current page's neighbourhood, laid out by the worker. Drawing the
+  // card again ends the previous drawing's worker.
+  let lastSimulator = null;
   async function pageGraph(body) {
     styles();
     const KEY = 'logseq-gardener-page-graph-journals';
@@ -681,7 +685,8 @@
     let route = location.pathname.split('/').pop();
     if (!/^p-[0-9a-f]{16}\.html$/.test(route)) route = document.querySelector('.lsg-journal .journal-title')?.getAttribute('href') || '';
     const graph = Graph(box, { centre: true });
-    const simulate = simulator();
+    lastSimulator?.stop();
+    const simulate = lastSimulator = simulator();
     if (!route) { graph.say('This view has no page to draw.'); return; }
     // The neighbourhood: unknown until fetched, null for a hub drawn from the global file.
     let whole;
