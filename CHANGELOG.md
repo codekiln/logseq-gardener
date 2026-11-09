@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.43](https://github.com/codekiln/logseq-gardener/compare/v0.0.42...v0.0.43) - 2026-11-09
+
+### Added
+
+- select every page with --include-all (#564)
+
+### Performance
+
+- keep other search shards when a page is added, removed or renamed (#559)
+- record the first-party plugins' phone memory and page loads (#557)
+
 ## [0.0.42](https://github.com/codekiln/logseq-gardener/compare/v0.0.41...v0.0.42) - 2026-11-08
 
 ### Added
