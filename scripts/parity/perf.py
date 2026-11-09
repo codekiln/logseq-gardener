@@ -1071,7 +1071,7 @@ def search_failures(report, budgets):
             failures.append(f"{profile}: search did not open: {row.get('error') or row.get('note')}")
             continue
         if row['unchanged']:
-            failures.append(f"{profile}: {row['unchanged']} keystrokes had no completed results")
+            failures.append(f"{profile}: {row['unchanged']} keystrokes had no drawn results")
         for field, value, limit in search_checks(row, budgets) + [('eager_search_requests', row['eager_search_requests'], 0),
                                                                   ('warm_open_requests', row.get('warm_open_requests'), 0)]:
             if limit is None:
