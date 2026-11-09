@@ -6,7 +6,7 @@
 
 ### Requirement: Build the site with lsg from the same commit
 
-`mise run docs:site` SHALL build `lsg` from the checkout and publish the docs graph with that binary into a directory that does not exist yet, using `--graph docs`, `--filename-format triple-lowbar`, `--include lsg`, `--include Diataxis`, `--homepage lsg`, `--search` and the readable page URL option of `lsg publish`. It SHALL accept `--output DIR`; without it, it SHALL publish into a new directory under `target/docs-site/`.
+`mise run docs:site` SHALL build `lsg` from the checkout and publish the docs graph with that binary into a directory that does not exist yet, using `--graph logseq-gardener-docs`, `--filename-format triple-lowbar`, `--include lsg`, `--include Diataxis`, `--homepage lsg`, `--search` and the readable page URL option of `lsg publish`. It SHALL accept `--output DIR`; without it, it SHALL publish into a new directory under `target/docs-site/`.
 
 #### Scenario: Fresh build
 
@@ -29,7 +29,7 @@
 
 ### Requirement: Check the docs in CI
 
-`mise run docs:check` SHALL run `mise run docs:site`, run every `sh` code block in `README.md`, and check that each relative link in `README.md`, `CONTRIBUTING.md`, `THIRD_PARTY_NOTICES.md` and every Markdown file under `docs/` outside `docs/pages/` names an existing file. `mise run ci` SHALL run `mise run docs:check`. The CI job that runs `mise run ci` SHALL check out the repository's full git history, so the site's page dates come from complete history.
+`mise run docs:check` SHALL run `mise run docs:site`, run every `sh` code block in `README.md`, and check that each relative link in `README.md`, `CONTRIBUTING.md`, `THIRD_PARTY_NOTICES.md` and every Markdown file under `docs/` or under `logseq-gardener-docs/` outside `logseq-gardener-docs/pages/` names an existing file. `mise run ci` SHALL run `mise run docs:check`. The CI job that runs `mise run ci` SHALL check out the repository's full git history, so the site's page dates come from complete history.
 
 #### Scenario: Pull request with a broken page link
 
@@ -57,9 +57,9 @@ A GitHub Actions workflow SHALL build the site with `mise run docs:site` on ever
 
 ### Requirement: Docs graph in release archives
 
-Each binary archive of a release SHALL contain the docs graph: `docs/logseq/config.edn` and every page in `docs/pages/`, so a reader can open the graph in Logseq without network access.
+Each binary archive of a release SHALL contain the docs graph: `logseq-gardener-docs/logseq/config.edn` and every page in `logseq-gardener-docs/pages/`, so a reader can open the graph in Logseq without network access.
 
 #### Scenario: Graph in an archive
 
 - **WHEN** dist builds a release archive
-- **THEN** the archive holds `docs/logseq/config.edn` and `docs/pages/lsg.md`
+- **THEN** the archive holds `logseq-gardener-docs/logseq/config.edn`, `logseq-gardener-docs/pages/lsg.md` and `docs/dependency-sources.json`
