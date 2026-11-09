@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.48](https://github.com/codekiln/logseq-gardener/compare/v0.0.47...v0.0.48) - 2026-11-09
+
+### Added
+
+- show the full-recording link and playback status in the episode player (#594)
+
+### Performance
+
+- bring the page-load values back within their budgets (#597)
+
 ## [0.0.47](https://github.com/codekiln/logseq-gardener/compare/v0.0.46...v0.0.47) - 2026-11-09
 
 ### Added
