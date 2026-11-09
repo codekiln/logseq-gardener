@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.44](https://github.com/codekiln/logseq-gardener/compare/v0.0.43...v0.0.44) - 2026-11-09
+
+### Fixed
+
+- keep page dates when a page file or graph folder is renamed (#571)
+
 ## [0.0.43](https://github.com/codekiln/logseq-gardener/compare/v0.0.42...v0.0.43) - 2026-11-09
 
 ### Added
