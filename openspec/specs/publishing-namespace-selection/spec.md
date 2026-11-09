@@ -6,7 +6,7 @@ Select logical page namespaces with explicit inclusion and exclusion policies.
 
 ### Requirement: Explicit namespace inclusion
 
-The SDK SHALL select a logical page identity only when it equals an included namespace root or is its slash-separated descendant. Matching SHALL be exact and case-sensitive. An empty inclusion list SHALL select nothing.
+The SDK SHALL select a logical page identity only when it equals an included namespace root or is its slash-separated descendant. Matching SHALL be exact and case-sensitive. An empty inclusion list SHALL select nothing, unless the policy selects every page as the requirement "Select every page" defines.
 
 #### Scenario: Namespace boundary
 
@@ -15,7 +15,7 @@ The SDK SHALL select a logical page identity only when it equals an included nam
 
 #### Scenario: Empty inclusion
 
-- **WHEN** the policy has no included roots
+- **WHEN** the policy has no included roots and does not select every page
 - **THEN** every page is unselected
 
 #### Scenario: Logical Unicode identity
