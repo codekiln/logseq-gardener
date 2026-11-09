@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.47](https://github.com/codekiln/logseq-gardener/compare/v0.0.46...v0.0.47) - 2026-11-09
+
+### Added
+
+- write rel=canonical on pages published with --readable-urls (#592)
+
 ## [0.0.46](https://github.com/codekiln/logseq-gardener/compare/v0.0.45...v0.0.46) - 2026-11-09
 
 ### Fixed
