@@ -19,6 +19,12 @@ sequence-header: the header shows a page's previous and next links, keyboard foc
 phone shows arrows alone, the links follow navigation and Back, and a page outside the sequence
 requests no plugin code. A fourth garden checks that a video, View as slides, a flashcard review,
 the Page graph card and Shift-click into the right sidebar work on a page the host shows in place.
+A fifth garden is installable (:lsg/install), published with --readable-urls under the path prefix
+/gitpa/ with the probe plugin: the manifest and icon load from a nested page, Chromium parses the
+manifest and resolves its start URL and scope to the site folder, reading adds no service worker,
+cache or storage entry, the Install app item stays hidden until a test page dispatches
+beforeinstallprompt and then opens the prompt from the keyboard, the manifest link survives plugin
+navigation, and a page opened from disk raises no script error.
 Prints one JSON line of results;
 --screenshots DIR also saves the recording playing on each page.
 """
@@ -32,6 +38,7 @@ import subprocess
 import tempfile
 import struct
 import threading
+import zlib
 from playwright.sync_api import sync_playwright, expect
 
 REPO = Path(__file__).resolve().parents[2]
@@ -586,6 +593,208 @@ def check_page_features(browser, prefix, results):
     context.close()
 
 
+INSTALL_PAGES = {
+    'Inst___One.md': '- The first page. See [[Inst/Deep/Down/Two]] and [[Inst/Three]].\n',
+    'Inst___Deep___Down___Two.md': '- A nested page. Back to [[Inst/One]].\n',
+    'Inst___Three.md': '- A third page. [[Inst/One]]\n',
+}
+INSTALL_PREFIX = 'gitpa'
+
+
+def solid_png(side):
+    """A solid-colour square RGB PNG, which is small once compressed."""
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack('>I', len(data)) + body + struct.pack('>I', zlib.crc32(body))
+    row = b'\x00' + bytes([0x2f, 0x6f, 0x4f]) * side
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', side, side, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(row * side, 9)) + chunk(b'IEND', b''))
+
+
+def build_installable(binary, temp):
+    """An installable garden with the probe plugin, published readable to temp/served/gitpa, and the
+    same garden without the key, published to temp/served/plain, and without the plugin, to temp/served/bare."""
+    garden = temp / 'installable'
+    (garden / 'pages').mkdir(parents=True)
+    (garden / 'assets').mkdir()
+    (garden / 'logseq').mkdir()
+    (garden / 'logseq' / 'config.edn').write_text(
+        '{:publishing/all-pages-public? true :lsg/install {:name "Inst Garden" :icon "assets/app-icon.png"}}\n',
+        encoding='utf-8')
+    (garden / 'assets' / 'app-icon.png').write_bytes(solid_png(512))
+    for name, text in INSTALL_PAGES.items():
+        (garden / 'pages' / name).write_text(text, encoding='utf-8')
+    served = temp / 'served'
+    served.mkdir()
+    config = '{:publishing/all-pages-public? true :lsg/install {:name "Inst Garden" :icon "assets/app-icon.png"}}\n'
+    probe = ['--plugin', str(temp / 'plugins' / 'probe' / 'lsg-plugin.json')]
+    # The installable site with the probe plugin, the same site without the key, and the installable
+    # site without a plugin, which a page opened from disk can load without an error.
+    for name, key, plugin in ((INSTALL_PREFIX, True, probe), ('plain', False, probe), ('bare', True, [])):
+        (garden / 'logseq' / 'config.edn').write_text(
+            config if key else '{:publishing/all-pages-public? true}\n', encoding='utf-8')
+        subprocess.run([str(binary), 'publish', '--graph', str(garden), '--output', str(served / name),
+                        '--filename-format', 'triple-lowbar', '--include', 'Inst', '--readable-urls', *plugin],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return served
+
+
+def storage_state(page):
+    """Everything a page's origin holds that a reader's browser keeps: service workers, caches and storage."""
+    return page.evaluate('''async () => ({
+      workers: (await navigator.serviceWorker.getRegistrations()).length,
+      caches: await caches.keys(),
+      local: Object.keys(localStorage), session: Object.keys(sessionStorage),
+      databases: (await indexedDB.databases()).map((d) => d.name),
+      cookies: document.cookie })''')
+
+
+def check_installable(browser, served, base, root_base, results):
+    """An installable garden under a path prefix: manifest, icon, scope, storage, the item and navigation."""
+    prefix = f'{base}/{INSTALL_PREFIX}/'
+    nested = 'Inst/Deep/Down/Two/'
+    context = browser.new_context(viewport={'width': 1280, 'height': 800})
+    page = context.new_page()
+    cdp = context.new_cdp_session(page)
+    errors, requests, responses = [], [], {}
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: requests.append(request.url))
+    page.on('response', lambda response: responses.__setitem__(response.url, response.status))
+    page.goto(prefix + nested, wait_until='load')
+    page.wait_for_function('window.__probe && window.__probe.length === 1')
+
+    # The manifest and the icon load from a nested page, through <base>, under the prefix.
+    assert page.locator('link[rel=manifest]').get_attribute('href') == 'lsg.webmanifest'
+    page.wait_for_timeout(500)
+    manifest_url, icon_url = prefix + 'lsg.webmanifest', prefix + 'lsg-icon.png'
+    manifest_response = page.request.get(manifest_url)
+    assert manifest_response.status == 200 and page.request.get(icon_url).status == 200
+    document = manifest_response.json()
+    assert 'id' not in document and document['start_url'] == './' and document['scope'] == './', document
+    results['install_manifest_and_icon_status'] = {'manifest': manifest_response.status, 'icon': 200}
+
+    # Chromium's own parse: no errors, and the start URL and scope are the site folder.
+    parsed = cdp.send('Page.getAppManifest')
+    assert not [e for e in parsed.get('errors', []) if e.get('critical')], parsed
+    data = json.loads(parsed['data'])
+    assert parsed['url'] == manifest_url, parsed['url']
+    assert data['name'] == 'Inst Garden' and data['short_name'] == 'Inst Garden', data
+    resolved = {key: str(__import__('urllib.parse').parse.urljoin(parsed['url'], data[key])) for key in ('start_url', 'scope')}
+    assert resolved == {'start_url': prefix, 'scope': prefix}, resolved
+    assert data['icons'][0]['sizes'] == '512x512', data
+    installability = cdp.send('Page.getInstallabilityErrors')['installabilityErrors']
+    results['install_manifest_resolves_to'] = prefix
+    results['install_chromium_installability_errors'] = [e['errorId'] for e in installability]
+
+    # The same site served at the root of an origin: the same manifest bytes resolve to the root.
+    root = context.new_page()
+    root_cdp = context.new_cdp_session(root)
+    root.goto(f'{root_base}/{nested}', wait_until='load')
+    root_manifest = root.request.get(f'{root_base}/lsg.webmanifest')
+    assert root_manifest.status == 200 and root.request.get(f'{root_base}/lsg-icon.png').status == 200
+    assert root_manifest.body() == manifest_response.body()
+    root_parsed = root_cdp.send('Page.getAppManifest')
+    root_data = json.loads(root_parsed['data'])
+    urljoin = __import__('urllib.parse').parse.urljoin
+    assert urljoin(root_parsed['url'], root_data['start_url']) == f'{root_base}/', root_parsed
+    assert urljoin(root_parsed['url'], root_data['scope']) == f'{root_base}/', root_parsed
+    root.close()
+    results['install_root_served_resolves_to'] = f'{root_base}/'
+
+    # Three navigations later: no service worker, cache entry or storage entry.
+    follow(page, 'Inst/Three/')
+    follow(page, 'Inst/One/')
+    follow(page, nested)
+    state = storage_state(page)
+    assert state == {'workers': 0, 'caches': [], 'local': [], 'session': [], 'databases': [], 'cookies': ''}, state
+    # A page of the same garden without the key holds exactly the same.
+    plain_page = context.new_page()
+    plain_page.goto(f'{base}/plain/{nested}', wait_until='load')
+    assert storage_state(plain_page) == state
+    assert plain_page.locator('link[rel=manifest]').count() == 0 and plain_page.locator('[data-lsg-install]').count() == 0
+    plain_page.close()
+    assert not [u for u in requests if 'service-worker' in u or '/sw.js' in u], requests
+    results['install_no_worker_cache_or_storage'] = state
+
+    # The manifest link survives navigation through the plugin host, and so does Chromium's manifest.
+    assert page.locator('link[rel=manifest]').count() == 1
+    assert cdp.send('Page.getAppManifest')['url'] == manifest_url
+    page.evaluate("window.__installMarker = true")
+    follow(page, 'Inst/Three/')
+    assert page.evaluate('window.__installMarker') is True
+    assert page.locator('link[rel=manifest]').get_attribute('href') == 'lsg.webmanifest'
+    assert cdp.send('Page.getAppManifest')['url'] == manifest_url
+    results['install_manifest_link_after_plugin_navigation'] = True
+
+    # The Install app item stays hidden until the browser offers installation.
+    page.locator('[data-lsg-more]').click()
+    item = page.locator('[data-lsg-install]')
+    expect(item).to_be_hidden()
+    page.keyboard.press('Escape')
+    page.evaluate('''() => {
+      window.__prompts = 0;
+      const event = Object.assign(new Event('beforeinstallprompt', { cancelable: true }),
+        { prompt() { window.__prompts += 1; return Promise.resolve({ outcome: 'dismissed' }); } });
+      window.__offerPrevented = !window.dispatchEvent(event);
+    }''')
+    assert page.evaluate('window.__offerPrevented') is True
+    page.locator('[data-lsg-more]').focus()
+    page.keyboard.press('Enter')
+    expect(item).to_be_visible()
+    assert page.evaluate("document.querySelector('#lsg-more-menu [role=menuitem]:not([hidden])') !== null")
+    # From the keyboard: arrow to the item, activate it, and focus returns to the More button.
+    for _ in range(5):
+        if page.evaluate("document.activeElement?.hasAttribute('data-lsg-install')"):
+            break
+        page.keyboard.press('ArrowDown')
+    assert page.evaluate("document.activeElement?.hasAttribute('data-lsg-install')")
+    assert page.evaluate("getComputedStyle(document.activeElement).outlineStyle !== 'none' || getComputedStyle(document.activeElement).backgroundColor !== 'rgba(0, 0, 0, 0)'")
+    page.keyboard.press('Enter')
+    assert page.evaluate('window.__prompts') == 1
+    expect(item).to_be_hidden()
+    assert page.evaluate("document.activeElement?.hasAttribute('data-lsg-more')")
+    page.keyboard.press('Enter')
+    expect(item).to_be_hidden()
+    assert page.evaluate('window.__prompts') == 1
+    results['install_item_from_keyboard'] = True
+    assert not errors, errors
+    context.close()
+
+    # Opened from disk: renders, a link opens its target, no Install app item, and no more errors than
+    # without the key. A page that loads the plugin host from disk reports the browser's refusal to
+    # import a module from a file, with or without the key, so the garden without a plugin is the one
+    # that must raise none.
+    def from_disk(site, follow_link=True):
+        context = browser.new_context()
+        page = context.new_page()
+        errors, console = [], []
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.on('console', lambda message: message.type == 'error' and console.append(message.text))
+        page.goto((served / site / 'index.html').as_uri(), wait_until='load')
+        page.wait_for_timeout(500)
+        expect(page.locator('main h1').first).to_be_visible()
+        installable = page.locator('[data-lsg-install]').count()
+        page.locator('[data-lsg-more]').click()
+        if installable:
+            expect(page.locator('[data-lsg-install]')).to_be_hidden()
+        page.keyboard.press('Escape')
+        if follow_link:
+            page.locator('main a.page-ref').first.click()
+            page.wait_for_load_state('load')
+            expect(page.locator('main h1').first).to_be_visible()
+        context.close()
+        return installable, errors, console
+
+    installable, errors, console = from_disk('bare')
+    assert installable == 1 and not errors, (installable, errors)
+    results['install_from_disk'] = {'script_errors': 0, 'console_errors': console}
+    keyed, keyed_errors, _ = from_disk(INSTALL_PREFIX, follow_link=False)
+    plain, plain_errors, _ = from_disk('plain', follow_link=False)
+    assert (keyed, plain) == (1, 0) and [e.replace(INSTALL_PREFIX, 'plain') for e in keyed_errors] == plain_errors, \
+        (keyed_errors, plain_errors)
+    results['install_from_disk_with_plugin_host_same_errors_as_without_key'] = len(plain_errors)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', default=str(REPO / 'target' / 'debug' / 'lsg'))
@@ -599,7 +808,10 @@ def main():
         episodes = build_episodes(args.binary, temp)
         sequence = build_sequence(args.binary, temp)
         features = build_features(args.binary, temp)
+        installable = build_installable(args.binary, temp)
         server, base = serve(temp)
+        install_server, install_base = serve(installable)
+        root_server, root_base = serve(installable / INSTALL_PREFIX)
         one, two, three, plain_page = (route(f'Episode/{n}') for n in ('One', 'Two', 'Three', 'Plain'))
         prefix = f'{base}/{site.name}/'
         try:
@@ -789,10 +1001,12 @@ def main():
                 check_podcast_episode(browser, episodes, f'{base}/{episodes.name}/', args.screenshots, results)
                 check_sequence_header(browser, sequence, f'{base}/{sequence.name}/', args.screenshots, results)
                 check_page_features(browser, f'{base}/{features.name}/', results)
+                check_installable(browser, installable, install_base, root_base, results)
                 browser.close()
         finally:
-            server.shutdown()
-            server.server_close()
+            for running in (server, install_server, root_server):
+                running.shutdown()
+                running.server_close()
         host = next(site.glob('lsg-host-*.mjs'))
         results['host_bytes'] = {'raw': host.stat().st_size, 'gzip': len(gzip.compress(host.read_bytes(), mtime=0))}
     print(json.dumps({'plugin_browser': 'passed', **results}))

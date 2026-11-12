@@ -5,9 +5,11 @@ import html.parser
 import json
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
+import zlib
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -62,6 +64,10 @@ FIRST_PARTY_ENTRIES = {'podcast-episode': ['Tools/Plugins/Show/Episode One', 'To
                                            'Tools/Plugins/Show/Hidden Type', LONG_EPISODE],
                        'sequence-header': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two']}
 FIRST_PARTY_HIDDEN_PAGE = 'Tools/Plugins/Show/Hidden Type'
+# Installable gardens (installable-gardens): the key, the icon and the files the key adds.
+INSTALL_KEY = ':lsg/install {:name "Fixture Garden" :short-name "Fixture" :icon "assets/app-icon.png"}'
+INSTALL_FILES = ('lsg.webmanifest', 'lsg-icon.png', 'lsg-install.js')
+INSTALL_ICON_SIDE = 512
 PAGE_METADATA = re.compile(r'<script type="application/json" data-lsg-page>(.*?)</script>', re.S)
 
 
@@ -960,6 +966,98 @@ def check_first_party(plain, site, plain_large, site_large, hidden, budgets):
     return failures
 
 
+def make_png(path, side):
+    """Write a solid-colour square RGB PNG of the given side, which is small once compressed."""
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack('>I', len(data)) + body + struct.pack('>I', zlib.crc32(body))
+    row = b'\x00' + bytes([0x2f, 0x6f, 0x4f]) * side
+    data = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', side, side, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(row * side, 9)) + chunk(b'IEND', b''))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
+def with_install_key(garden):
+    """Add the icon and `:lsg/install` to the top-level map of a garden copy's config.edn."""
+    make_png(garden / 'assets' / 'app-icon.png', INSTALL_ICON_SIDE)
+    config = garden / 'logseq' / 'config.edn'
+    text = config.read_text(encoding='utf-8').rstrip()
+    assert text.endswith('}'), config
+    config.write_text(f'{text[:-1]} {INSTALL_KEY}}}\n', encoding='utf-8')
+
+
+def install_search_files(site):
+    """Every file except pages, the site manifest and the files the key adds."""
+    return {str(path.relative_to(site)): path.read_bytes() for path in sorted(site.rglob('*'))
+            if path.is_file() and path.suffix != '.html' and path.name != 'lsg-site.json'
+            and path.name not in INSTALL_FILES}
+
+
+def page_growths(plain, site):
+    """For each page both builds hold, (bytes added, gzip bytes added) by the key."""
+    return {page: (len((site / page).read_bytes()) - len((plain / page).read_bytes()),
+                   metrics.gzip_size((site / page).read_bytes()) - metrics.gzip_size((plain / page).read_bytes()))
+            for page in site_pages(site) if (plain / page).exists()}
+
+
+def check_install(plain, site, plain_large, site_large, budgets):
+    """Return failure messages for [install] on the fixture garden: what the key adds to each page,
+    the script, the manifest and the icon, first paint, growth with the garden, the search files and
+    service workers."""
+    limits = budgets['install']
+    failures = []
+    for name in INSTALL_FILES:
+        if not (site / name).is_file():
+            failures.append(f'{name}: missing from the build with :lsg/install')
+        if (plain / name).exists():
+            failures.append(f'{name}: written without :lsg/install')
+    if failures:
+        return failures
+    growth = page_growths(plain, site)
+    if not growth:
+        return ['install: no page to compare']
+    largest = max(growth.items(), key=lambda item: item[1][0])
+    largest_gzip = max(growth.items(), key=lambda item: item[1][1])
+    print(f'install: {len(growth)} pages, largest growth {largest[1][0]} bytes ({largest[0]}), '
+          f'{largest_gzip[1][1]} gzip ({largest_gzip[0]})')
+    for page, (raw, packed) in sorted(growth.items()):
+        if raw > limits['page_growth_kb'] * 1000:
+            failures.append(f'page_growth_kb: {page} grows {raw:,} bytes, over {limits["page_growth_kb"] * 1000:,.0f}')
+        if packed > limits['page_growth_gzip_kb'] * 1000:
+            failures.append(f'page_growth_gzip_kb: {page} grows {packed:,} gzip, over {limits["page_growth_gzip_kb"] * 1000:,.0f}')
+    script = (site / 'lsg-install.js').read_bytes()
+    packed = metrics.gzip_size(script)
+    print(f'lsg-install.js: {len(script):,} ({packed:,} gzip); lsg.webmanifest: {(site / "lsg.webmanifest").stat().st_size:,}; '
+          f'lsg-icon.png: {(site / "lsg-icon.png").stat().st_size:,}')
+    if len(script) > limits['script_kb'] * 1000:
+        failures.append(f'script_kb: lsg-install.js is {len(script):,} bytes, over {limits["script_kb"] * 1000:,.0f}')
+    if packed > limits['script_gzip_kb'] * 1000:
+        failures.append(f'script_gzip_kb: lsg-install.js is {packed:,} gzip, over {limits["script_gzip_kb"] * 1000:,.0f}')
+    manifest = (site / 'lsg.webmanifest').stat().st_size
+    if manifest > limits['manifest_kb'] * 1000:
+        failures.append(f'manifest_kb: lsg.webmanifest is {manifest:,} bytes, over {limits["manifest_kb"] * 1000:,.0f}')
+    icon = (site / 'lsg-icon.png').stat().st_size
+    if icon > limits['icon_kb'] * 1000:
+        failures.append(f'icon_kb: lsg-icon.png is {icon:,} bytes, over {limits["icon_kb"] * 1000:,.0f}')
+    sizes = {page: page_sizes(site, page) for page in site_pages(site) if page != 'graph.html'}
+    failures += [f'with :lsg/install, {message}' for message in check(sizes, sizes, budgets)]
+    grown = page_growths(plain_large, site_large)
+    for page, size in sorted(growth.items()):
+        if grown.get(page) != size:
+            failures.append(f'{page}: the key adds {size[0]} bytes ({size[1]} gzip), and {grown.get(page)} '
+                            f'when the garden gains {FILLER_PAGES:,} pages')
+    if install_search_files(plain) != install_search_files(site):
+        failures.append('search files differ from the build without :lsg/install')
+    for path in sorted(site.rglob('*')):
+        name = path.name.lower()
+        if path.is_file() and ('service-worker' in name or re.fullmatch(r'(sw|serviceworker)[-.\w]*\.js', name)):
+            failures.append(f'{path.relative_to(site)}: a service worker file')
+        if path.is_file() and path.suffix in ('.js', '.mjs', '.html') and b'serviceWorker' in path.read_bytes():
+            failures.append(f'{path.relative_to(site)}: names serviceWorker')
+    return failures
+
+
 def derived_rows(text):
     """The markup of every derived row list in a page, each closed at its matching </ul>."""
     lists = []
@@ -1194,6 +1292,17 @@ def main():
             variants[name] = temp / name
         plugin_failures += check_first_party(variants['fp-plain'], variants['fp'], variants['fp-plain-large'],
                                              variants['fp-large'], variants['fp-hidden'], budgets)
+        for name, key, filler in (('inst-plain', False, False), ('inst-plain-large', False, True),
+                                  ('inst', True, False), ('inst-large', True, True)):
+            copy = temp / f'{name}-garden'
+            shutil.copytree(FIXTURE_GARDEN, copy)
+            if key:
+                with_install_key(copy)
+            if filler:
+                add_filler(copy, FILLER_PAGES)
+            publish(lsg, copy, temp / name, [*FIXTURE_ROOTS, *([FILLER_ROOT] if filler else [])], search=True)
+        plugin_failures += check_install(temp / 'inst-plain', temp / 'inst', temp / 'inst-plain-large',
+                                         temp / 'inst-large', budgets)
         search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets),
                                        PROPERTIES_START.stat().st_size)
         index = search_index_sizes(temp / 'search')

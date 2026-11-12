@@ -1002,3 +1002,92 @@ fn include_all_leaves_journals_to_the_journals_flag() {
     assert_eq!(report["journals"], 0);
     assert_eq!(report["skipped_journals"], 1);
 }
+
+fn icon_png(side: u32) -> Vec<u8> {
+    let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13];
+    bytes.extend(b"IHDR");
+    bytes.extend(side.to_be_bytes());
+    bytes.extend(side.to_be_bytes());
+    bytes.resize(2_000, 0);
+    bytes
+}
+
+#[test]
+fn cli_install_key_writes_the_manifest_and_key_errors_fail_without_output() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- Visible\n");
+    let icon = f.0.join("garden/assets/app-icon.png");
+    fs::create_dir_all(icon.parent().unwrap()).unwrap();
+    fs::write(&icon, icon_png(512)).unwrap();
+    let config = |install: &str| {
+        f.write(
+            "logseq/config.edn",
+            &format!("{{:publishing/all-pages-public? true {install}}}"),
+        );
+    };
+    config(
+        r#":lsg/install {:name "Ghost in the Patch" :short-name "GitP" :icon "assets/app-icon.png"}"#,
+    );
+    let output = f.0.join("installable");
+    let result = f.publish(&output, &["--include", "Notes", "--format", "json"]);
+    assert!(result.status.success(), "{result:?}");
+    assert_eq!(
+        fs::read(output.join("lsg-icon.png")).unwrap(),
+        fs::read(&icon).unwrap()
+    );
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(output.join("lsg.webmanifest")).unwrap()).unwrap();
+    assert_eq!(manifest["short_name"], "GitP");
+    assert!(output.join("lsg-install.js").is_file());
+    let page = fs::read_to_string(output.join("index.html"))
+        .or_else(|_| fs::read_to_string(output.join("pages.html")))
+        .unwrap();
+    assert!(page.contains("<link rel=\"manifest\" href=\"lsg.webmanifest\">"));
+
+    for (install, parts) in [
+        (
+            r#":lsg/install {:name "Notes" :shortname "N" :icon "assets/app-icon.png"}"#,
+            vec![":shortname", ":name, :short-name, :icon"],
+        ),
+        (
+            r#":lsg/install {:name "Logseq Gardener Documentation" :icon "assets/app-icon.png"}"#,
+            vec![":short-name of at most 12 characters"],
+        ),
+        (
+            r#":lsg/install {:name "Notes" :icon "assets/missing.png"}"#,
+            vec!["assets/missing.png", "does not exist"],
+        ),
+    ] {
+        config(install);
+        let failed = f.0.join("failed");
+        let result = f.publish(&failed, &["--include", "Notes"]);
+        assert_eq!(result.status.code(), Some(1), "{install}");
+        assert!(result.stdout.is_empty(), "{install}");
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        for part in ["logseq/config.edn", ":lsg/install"]
+            .into_iter()
+            .chain(parts)
+        {
+            assert!(stderr.contains(part), "{part} in {stderr}");
+        }
+        assert!(!failed.exists(), "{install}");
+    }
+}
+
+#[test]
+fn publish_help_describes_the_install_key_and_names_its_reference_page() {
+    let help = Command::new(env!("CARGO_BIN_EXE_lsg"))
+        .args(["publish", "help", "section", "installable-sites"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help = String::from_utf8_lossy(&help.stdout);
+    for part in [
+        ":lsg/install {:name \"Ghost in the Patch\" :short-name \"GitP\" :icon \"assets/app-icon.png\"}",
+        "lsg.webmanifest",
+        "no service worker",
+        "lsg/Ref/Install Options (https://codekiln.github.io/logseq-gardener/lsg/Ref/Install%20Options/)",
+    ] {
+        assert!(help.contains(part), "{part} in {help}");
+    }
+}

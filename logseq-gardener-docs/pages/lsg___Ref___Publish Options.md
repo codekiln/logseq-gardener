@@ -9,6 +9,7 @@ see-also:: [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Command Line]],
 		    [--include NAMESPACE]... [--include-all] [--exclude NAMESPACE]... [OPTIONS]
 		  ```
 		- Run `lsg publish help` to read the command's documentation offline.
+		- A garden's own `logseq/config.edn` also holds keys that `lsg publish` reads, with no command-line option: `:lsg/plugins` turns on first-party plugins, [[lsg/Ref/First-Party Plugins]] describes it, and `:lsg/install` makes the site installable as an app, which [[lsg/Ref/Install Options]] describes.
 	- ## Options
 		- | Option | Meaning |
 		  | --- | --- |

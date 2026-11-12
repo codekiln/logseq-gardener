@@ -386,3 +386,18 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | `podcast-episode` | 0.14 | 1 | 4,906 | 8,000 |
 		  | `sequence-header` | 0.03 | 0.2 | 1,465 | 1,500 |
 		- Pages that load plugin code before the title: 0.
+	- ## Installable gardens
+		- Measured 2026-11-11 with `mise run parity:budgets` on the fixture garden and `mise run parity:build-bench --install-only --runs 5` on a copy of encode garden commit `d9722ef`. A copy of the garden gains `:lsg/install` and an icon; a second copy has neither. A garden without the key publishes the same files as before: the whole encode garden, 65,774 files, matched byte for byte against the previous release.
+		- | Row | Measured | Budget |
+		  | --- | --- | --- |
+		  | Largest page growth with the key, 53 fixture pages (bytes) | 380 | 500 |
+		  | Largest page growth with the key, gzip (bytes) | 90 | 300 |
+		  | `lsg-install.js` (bytes, gzip bytes) | 694, 380 | 1,500, 1,000 |
+		  | `lsg.webmanifest` (bytes) | 240 | 1,000 |
+		  | Icon in the fixture build (bytes) | 1,497 | 256,000 |
+		  | Page growth when the garden gains 2,000 pages | 0 | 0 |
+		  | Search files compared with the build without the key | Identical | Identical |
+		  | Added build time on the encode garden, fastest of 5 builds (ms) | 252 | 50 |
+		  | Added build time on the encode garden, median of 5 paired builds (ms) | -82 | 50 |
+		- First paint of every fixture page stays inside the `[desktop]` and `[phone]` budgets, because the manifest, the icon and `lsg-install.js` load outside first paint.
+		- The five builds of each copy took 19.2 to 20.4 s and varied by about 1 s between runs, more than the 50 ms budget. The fastest-build difference of 252 ms and the paired median of -82 ms both fall inside that spread; the key's real cost is not measurable on this machine. `parity:build-bench` fails on the paired median.

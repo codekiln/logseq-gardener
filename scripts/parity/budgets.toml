@@ -304,6 +304,24 @@ page_growth_gzip_kb = 0.5
 phone_heap_growth_mb = 0.2
 build_ms_per_page = 0.05
 
+# Installable gardens (installable-gardens). A site without :lsg/install is the same as before, so
+# no other table changes. parity:budgets builds copies of the fixture garden with and without the
+# key, once as is and once with 2,000 more pages, and checks page_growth_kb and page_growth_gzip_kb
+# (the largest growth of any page, with the key against without it), script_kb and script_gzip_kb
+# (lsg-install.js), manifest_kb, icon_kb (the icon file, a PNG of at most this size), every page's
+# first paint against [desktop] and [phone], that the growth of each page does not change when the
+# garden gains pages, that the search files match the build without the key, and that no file is a
+# service worker. parity:build-bench checks build_ms: the key may add this many milliseconds to the
+# whole encode garden's build.
+[install]
+page_growth_kb = 0.5
+page_growth_gzip_kb = 0.3
+script_kb = 1.5
+script_gzip_kb = 1
+manifest_kb = 1
+icon_kb = 256
+build_ms = 50
+
 # Build plugins (build-time-contributions). parity:budgets builds the fixture garden with the
 # episode-list fixture build plugin (tests/fixtures/plugins/episode-list) and checks the derived
 # rows on each page (gzip of their markup), every page's first paint against [desktop] and [phone],
