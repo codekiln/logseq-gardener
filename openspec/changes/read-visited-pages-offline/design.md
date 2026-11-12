@@ -2,7 +2,7 @@
 
 ## Context
 
-[Issue #603](https://github.com/codekiln/logseq-gardener/issues/603) plans installable gardens, and [Issue #607](https://github.com/codekiln/logseq-gardener/issues/607) asks whether offline reading is worth offering. See proposal.md for the motivation. The installation proposal ([make-gardens-installable](../make-gardens-installable/design.md)) fixed the site identity as the garden's own folder, the relative-path rule, the pattern of one config key with a hidden menu item, and a promise that installation adds no service worker, cache or storage. This change adds those things only for gardens that choose them, and for readers who choose them again.
+[Issue #603](https://github.com/codekiln/logseq-gardener/issues/603) plans installable gardens, and [Issue #607](https://github.com/codekiln/logseq-gardener/issues/607) asks whether offline reading is worth offering. See proposal.md for the motivation. The installable-gardens capability, shipped in v0.0.49 (`openspec/specs/installable-gardens/spec.md`), fixed the site identity as the garden's own folder, the relative-path rule, the pattern of one config key with a hidden menu item, and a promise that installation adds no service worker, cache or storage. This change adds those things only for gardens that choose them, and for readers who choose them again.
 
 What the repository already has:
 
@@ -83,7 +83,7 @@ There are no options for limits, because every option is a budget row to test an
 | `lsg-sw.js` | The worker: the build identifier, the limits, the fetch rules, the removal check | 5 KB, 2 KB gzip |
 | `lsg-offline.js` | The menu items, registration, the saved-on notice | 2 KB, 1 KB gzip |
 
-The names are fixed and reserved under `--readable-urls`. Every full page of an `On` site gains one `<script defer src="lsg-offline.js">` after the `<base>` that a readable build writes, and two hidden menu items in the More menu, written the same way as the installation proposal's Install app item. Redirect pages and fetched fragments get nothing. The script is separate from `lsg-shell.js`, whose contents depend only on the `lsg` version, and from `lsg-install.js`.
+The names are fixed and reserved under `--readable-urls`. Every full page of an `On` site gains one `<script defer src="lsg-offline.js">` after the `<base>` that a readable build writes, and two hidden menu items in the More menu, written the same way as the shipped Install app item. Redirect pages and fetched fragments get nothing. The script is separate from `lsg-shell.js`, whose contents depend only on the `lsg` version, and from `lsg-install.js`.
 
 ### Registration and scope
 
@@ -264,4 +264,4 @@ Decided by the agent without codekiln: no. Firefox shows a prompt, and the other
 
 ### 14 - Should the worker be part of `lsg-shell.js`?
 
-Decided by the agent without codekiln: no. `lsg-shell.js` depends only on the `lsg` version, and a site without the key must not load worker code. Separate files keep the budget rows separate and match the installation proposal.
+Decided by the agent without codekiln: no. `lsg-shell.js` depends only on the `lsg` version, and a site without the key must not load worker code. Separate files keep the budget rows separate and match the shipped installable-gardens capability.

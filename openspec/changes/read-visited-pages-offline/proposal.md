@@ -8,7 +8,7 @@ The assessment in `design.md` found the benefit real and the risks controllable,
 
 ## What Changes
 
-- A garden opts in with one key in its own `logseq/config.edn`: `:lsg/offline true`. Logseq ignores the key. A garden without the key publishes byte-for-byte the site it publishes today. The key is independent of `:lsg/install` from [make-gardens-installable](../make-gardens-installable/proposal.md); each works alone.
+- A garden opts in with one key in its own `logseq/config.edn`: `:lsg/offline true`. Logseq ignores the key. A garden without the key publishes byte-for-byte the site it publishes today. The key is independent of `:lsg/install` from the installable-gardens capability (`openspec/specs/installable-gardens/spec.md`); each works alone.
 - With the key, `lsg publish` writes `lsg-offline.js` and `lsg-sw.js` at the site root and adds two items to the More menu: Save pages for offline reading and Remove offline copies. The page script loads with `defer`, registers nothing and stores nothing until the reader chooses Save.
 - After the reader chooses Save, the service worker keeps a copy of each page the reader opens, and of the small files that page needs, in one Cache Storage cache named for the garden's own path. It uses network first: a reader who is online always gets the current page, and a reader who is offline gets the last copy. A page that was never opened offline shows the browser's usual offline page.
 - A cached page shows a notice with the date it was saved, so a reader can tell an old copy from the current page.
