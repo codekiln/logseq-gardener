@@ -1,7 +1,11 @@
 """Unit tests for the parity harness; they need no garden, network or browser."""
+import contextlib
 import gzip
+import io
 import json
 import os
+import shutil
+import struct
 import sys
 import tempfile
 import unittest
@@ -11,6 +15,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import budgets  # noqa: E402
 import build  # noqa: E402
+import build_bench  # noqa: E402
 import common  # noqa: E402
 import compare  # noqa: E402
 import logseq_db  # noqa: E402
@@ -213,6 +218,128 @@ class FirstPartyBudgetTest(unittest.TestCase):
                              '{:a 1\n :b #{:c} :lsg/plugins [:podcast-episode :sequence-header] :x true}\n')
 
 
+class InstallBudgetTest(unittest.TestCase):
+    LIMITS = {'install': {'page_growth_kb': 0.5, 'page_growth_gzip_kb': 0.3, 'script_kb': 1.5, 'script_gzip_kb': 1,
+                          'manifest_kb': 1, 'icon_kb': 256, 'build_ms': 50},
+              'desktop': {'data_before_title_kb': 100, 'script_before_title_kb': 16},
+              'phone': {'data_before_title_kb': 100, 'script_before_title_kb': 16}}
+
+    def sites(self, temp, script=b'x' * 600, manifest=b'm' * 240, icon=b'i' * 2000, extra=b''):
+        """A build without the key and one with it, each holding one page."""
+        page = b'<!doctype html><html><head><title>A</title></head><body><main>text</main></body></html>'
+        plain, site = Path(temp) / 'plain', Path(temp) / 'site'
+        for root in (plain, site):
+            root.mkdir()
+            (root / 'a.html').write_bytes(page)
+            (root / 'lsg-site.css').write_bytes(b'a{}')
+        (site / 'a.html').write_bytes(page.replace(b'</head>', b'<link rel="manifest" href="lsg.webmanifest"></head>'))
+        (site / 'lsg-install.js').write_bytes(script)
+        (site / 'lsg.webmanifest').write_bytes(manifest)
+        (site / 'lsg-icon.png').write_bytes(icon + extra)
+        return plain, site
+
+    def check(self, plain, site):
+        with contextlib.redirect_stdout(io.StringIO()):
+            return budgets.check_install(plain, site, plain, site, self.LIMITS)
+
+    def test_a_site_inside_every_row_passes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.assertEqual(self.check(*self.sites(temp)), [])
+
+    def test_each_row_names_the_file_it_fails_on(self):
+        for kwargs, row in (({'script': b'x' * 1600}, 'script_kb'), ({'manifest': b'm' * 1100}, 'manifest_kb'),
+                            ({'icon': b'i' * 257_000}, 'icon_kb')):
+            with tempfile.TemporaryDirectory() as temp:
+                failures = self.check(*self.sites(temp, **kwargs))
+                self.assertEqual([f for f in failures if row in f][:1], failures[:1], f'{row}: {failures}')
+                self.assertTrue(failures and row in failures[0], f'{row}: {failures}')
+
+    def test_page_growth_over_the_row_fails(self):
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (site / 'a.html').write_bytes((site / 'a.html').read_bytes() + b'<!--' + b'z' * 600 + b'-->')
+            failures = self.check(plain, site)
+            self.assertTrue(any('page_growth_kb: a.html grows' in f for f in failures), failures)
+
+    def test_a_missing_or_stray_file_and_a_service_worker_fail(self):
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (site / 'lsg-install.js').unlink()
+            self.assertEqual(self.check(plain, site), ['lsg-install.js: missing from the build with :lsg/install'])
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (plain / 'lsg.webmanifest').write_bytes(b'{}')
+            self.assertEqual(self.check(plain, site), ['lsg.webmanifest: written without :lsg/install'])
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (site / 'sw.js').write_bytes(b'self.addEventListener("fetch", () => {})')
+            self.assertIn('sw.js: a service worker file', self.check(plain, site))
+            (site / 'sw.js').unlink()
+            (site / 'lsg-shell.js').write_bytes(b'navigator.serviceWorker.register("x")')
+            self.assertIn('lsg-shell.js: names serviceWorker', self.check(plain, site))
+
+    def test_search_files_must_match_without_the_key(self):
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (site / 'lsg-search-titles.json').write_bytes(b'[]')
+            self.assertIn('search files differ from the build without :lsg/install', self.check(plain, site))
+
+    def test_growth_must_not_change_with_the_garden(self):
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            other = Path(temp) / 'other'
+            shutil.copytree(site, other)
+            (other / 'a.html').write_bytes((other / 'a.html').read_bytes() + b'<!--y-->')
+            with contextlib.redirect_stdout(io.StringIO()):
+                failures = budgets.check_install(plain, site, plain, other, self.LIMITS)
+            self.assertTrue(any('when the garden gains' in f for f in failures), failures)
+
+    def test_the_fixture_icon_is_a_valid_square_png_and_the_key_lands_in_the_config(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp)
+            (garden / 'logseq').mkdir()
+            (garden / 'logseq' / 'config.edn').write_text('{:a 1}\n', encoding='utf-8')
+            budgets.with_install_key(garden)
+            icon = (garden / 'assets' / 'app-icon.png').read_bytes()
+            self.assertEqual(icon[:8], b'\x89PNG\r\n\x1a\n')
+            self.assertEqual(struct.unpack('>II', icon[16:24]), (512, 512))
+            self.assertLess(len(icon), 256_000)
+            self.assertEqual((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'),
+                             '{:a 1 ' + budgets.INSTALL_KEY + '}\n')
+
+
+class InstallBuildBenchTest(unittest.TestCase):
+    def test_the_install_variant_copies_the_garden_adds_the_key_and_an_icon_and_leaves_the_original(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp) / 'garden'
+            (garden / 'logseq').mkdir(parents=True)
+            (garden / 'logseq' / 'config.edn').write_text('{:a 1}\n', encoding='utf-8')
+            (garden / 'pages').mkdir()
+            (garden / 'pages' / 'A.md').write_text('- a\n', encoding='utf-8')
+            copy = build_bench.garden_with_install(garden, Path(temp) / 'copy')
+            self.assertEqual((copy / 'logseq' / 'config.edn').read_text(encoding='utf-8'),
+                             '{:a 1 ' + budgets.INSTALL_KEY + '}\n')
+            self.assertTrue((copy / 'assets' / 'app-icon.png').is_file())
+            self.assertTrue((copy / 'pages' / 'A.md').is_file())
+            self.assertEqual((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'), '{:a 1}\n')
+            self.assertFalse((garden / 'assets').exists())
+
+    def test_the_key_may_add_at_most_build_ms_to_the_whole_build(self):
+        def rounds(plain, keyed):
+            return {'copy without key': {'seconds': plain}, 'install': {'seconds': keyed}}
+        slow = rounds([20.0, 20.1, 19.9], [20.08, 20.18, 19.98])
+        self.assertEqual(build_bench.install_failure(slow, 50),
+                         'install: the key adds 80 ms to the build, over 50 (build_ms)')
+        fine = rounds([20.0, 20.1, 19.9], [20.03, 20.13, 19.93])
+        self.assertIsNone(build_bench.install_failure(fine, 50))
+        faster = rounds([20.0, 20.1, 19.9], [19.9, 20.0, 19.8])
+        self.assertIsNone(build_bench.install_failure(faster, 50))
+        # A slow moment hits both builds of a round and cancels; one outlier round does not count.
+        noisy = rounds([20.0, 22.0, 19.9, 20.0, 20.1], [20.01, 22.02, 19.91, 21.5, 20.11])
+        self.assertIsNone(build_bench.install_failure(noisy, 50))
+        self.assertAlmostEqual(noisy['install']['added_ms'], 10, places=3)
+
+
 class PublishBenchTest(unittest.TestCase):
     BUDGET = {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100}
     CORPUS = {'name': 'gitpa-sized', 'digest': 'abc'}
@@ -391,6 +518,10 @@ class MetricsTest(unittest.TestCase):
                                                                      'page_growth_gzip_kb': 0.5,
                                                                      'phone_heap_growth_mb': 0.2,
                                                                      'build_ms_per_page': 0.05}})
+        # Installable gardens (installable-gardens); the design's budgets.
+        self.assertEqual(loaded.pop('install'), {'page_growth_kb': 0.5, 'page_growth_gzip_kb': 0.3, 'script_kb': 1.5,
+                                                 'script_gzip_kb': 1, 'manifest_kb': 1, 'icon_kb': 256,
+                                                 'build_ms': 50})
         # Build plugins (build-time-contributions); the proposal's budgets.
         self.assertEqual(loaded.pop('build_plugins'), {'derived_rows_gzip_kb': 30,
                                                        'in_process_blocks_ms_per_page': 0.05,

@@ -107,6 +107,9 @@ pub mod plugins;
 /// The plugins that ship inside `lsg`, turned on with `:lsg/plugins` in `logseq/config.edn`.
 pub mod first_party;
 
+/// Installable gardens: the `:lsg/install` settings, the icon check, the manifest and the page tags.
+pub mod install;
+
 /// The entity types a page declares with its `logseq-entity::` property.
 pub mod entity_types;
 

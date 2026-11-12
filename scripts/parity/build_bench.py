@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import budgets as parity_budgets  # noqa: E402
 import build  # noqa: E402
 import common  # noqa: E402
 import metrics  # noqa: E402
@@ -67,9 +69,9 @@ def link_or_copy(source, target):
         shutil.copy2(source, target)
 
 
-def garden_with_plugin(garden, folder, plugin):
+def garden_with_config(garden, folder, entries):
     """A copy of `garden`, hard-linked where possible and with its git history, whose config.edn
-    turns on one first-party plugin. The original garden is not changed."""
+    gains `entries`, EDN text for the top-level map. The original garden is not changed."""
     shutil.copytree(garden, folder, symlinks=True, copy_function=link_or_copy)
     config = folder / 'logseq' / 'config.edn'
     text = config.read_text(encoding='utf-8').rstrip()
@@ -77,8 +79,38 @@ def garden_with_plugin(garden, folder, plugin):
         raise SystemExit(f'{config}: expected an EDN map')
     # Replace the hard link rather than writing through it.
     config.unlink()
-    config.write_text(f'{text[:-1]} :lsg/plugins [:{plugin}]}}\n', encoding='utf-8')
+    config.write_text(f'{text[:-1]} {entries}}}\n', encoding='utf-8')
     return folder
+
+
+def garden_with_plugin(garden, folder, plugin):
+    """A copy of `garden` whose config.edn turns on one first-party plugin."""
+    return garden_with_config(garden, folder, f':lsg/plugins [:{plugin}]')
+
+
+def garden_with_install(garden, folder):
+    """A copy of `garden` whose config.edn holds :lsg/install and whose assets/ holds its icon."""
+    garden_with_config(garden, folder, parity_budgets.INSTALL_KEY)
+    icon = folder / 'assets' / 'app-icon.png'
+    # Replace a hard link, if the garden already has this file, rather than writing through it.
+    icon.unlink(missing_ok=True)
+    parity_budgets.make_png(icon, parity_budgets.INSTALL_ICON_SIDE)
+    return folder
+
+
+def install_failure(results, budget_ms):
+    """A failure message when the key adds more than `budget_ms` to the whole build, else None.
+
+    The comparison is with a copy of the garden that has no key, because a hard-linked copy builds
+    a little slower than the original folder. The builds run in interleaved rounds, and the added
+    time is the median over the rounds of the install build's time less the copy's in the same
+    round, so a slow moment of the machine, which hits both builds of a round, does not count."""
+    plain, keyed = results['copy without key']['seconds'], results['install']['seconds']
+    added = statistics.median(k - p for p, k in zip(plain, keyed)) * 1000
+    results['install']['added_ms'] = added
+    if added > budget_ms:
+        return f'install: the key adds {added:.0f} ms to the build, over {budget_ms} (build_ms)'
+    return None
 
 
 def published_pages(site):
@@ -91,6 +123,8 @@ def main():
     parser.add_argument('--garden', help='garden path (default: the encode garden from ghq)')
     parser.add_argument('--runs', type=int, default=3, help='builds per variant; the fastest counts (default: 3)')
     parser.add_argument('--output', help='write the measurements as JSON to this file')
+    parser.add_argument('--install-only', action='store_true',
+                        help='measure only the [install] build_ms row: a copy without the key and a copy with it')
     args = parser.parse_args()
     garden = Path(args.garden) if args.garden else common.encode_garden()
     for command in (['cargo', 'build', '--locked', '--release', '--bin', 'lsg'],
@@ -134,6 +168,13 @@ def main():
         variants[name] = lambda out, copy=copy: lsg_build(out, graph=copy)
         baseline_of[name] = 'lsg without plugins'
         budget_of[name] = budgets['plugins'][plugin]['build_ms_per_page']
+    plain_copy = garden_with_config(garden, temp / 'garden-copy', '')
+    install_copy = garden_with_install(garden, temp / 'garden-install')
+    variants['copy without key'] = lambda out: lsg_build(out, graph=plain_copy)
+    variants['install'] = lambda out: lsg_build(out, graph=install_copy)
+    if args.install_only:
+        variants = {name: variants[name] for name in ('lsg without plugins', 'copy without key', 'install')}
+        baseline_of, budget_of = {}, {}
     results = {name: {'seconds': [], 'peak_bytes': []} for name in variants}
     with temp_root:
         # Interleave the variants so that a slow moment of the machine affects all of them.
@@ -163,18 +204,25 @@ def main():
                 failures.append(f'{name}: adds {added:.4f} ms per page, over {budget_of[name]}')
             if not name.startswith('first-party') and result['digest'] != base['digest']:
                 failures.append(f'{name}: output differs from {baseline_of[name]}')
+        if name == 'install':
+            message = install_failure(results, budgets['install']['build_ms'])
+            line += f', {results[name]["added_ms"]:+.0f} ms for the whole build (budget {budgets["install"]["build_ms"]}, median of {args.runs} paired rounds)'
+            if message:
+                failures.append(message)
         print(line)
-    growth = (results['process no-op with blocks']['peak_mb'] / results['lsg without plugins']['peak_mb'] - 1) * 100
-    print(f'peak memory with the process no-op and blocks: {growth:+.1f}% (budget {limits["peak_memory_growth_pct"]}%)')
-    if growth > limits['peak_memory_growth_pct']:
-        failures.append(f'peak memory grows {growth:.1f}% with the process no-op and blocks, over {limits["peak_memory_growth_pct"]}%')
-    results['peak_memory_growth_pct'] = growth
+    if 'process no-op with blocks' in results:
+        growth = (results['process no-op with blocks']['peak_mb'] / results['lsg without plugins']['peak_mb'] - 1) * 100
+        print(f'peak memory with the process no-op and blocks: {growth:+.1f}% (budget {limits["peak_memory_growth_pct"]}%)')
+        if growth > limits['peak_memory_growth_pct']:
+            failures.append(f'peak memory grows {growth:.1f}% with the process no-op and blocks, over {limits["peak_memory_growth_pct"]}%')
+        results['peak_memory_growth_pct'] = growth
     if args.output:
         Path(args.output).write_text(json.dumps(results, indent=2) + '\n', encoding='utf-8')
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)
-    print('build plugins within budget, and no-op plugins leave the output unchanged')
+    print(':lsg/install within budget' if args.install_only else
+          'build plugins and :lsg/install within budget, and no-op plugins leave the output unchanged')
 
 
 if __name__ == '__main__':

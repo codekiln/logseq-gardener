@@ -155,6 +155,8 @@ pub enum SiteError {
     InvalidPlugin(crate::plugins::PluginError),
     /// The garden's `:lsg/plugins` key is malformed or names a plugin this `lsg` does not ship.
     PluginKey(crate::garden_settings::PluginKeyError),
+    /// The garden's `:lsg/install` key is malformed, or its icon failed a check.
+    Install(crate::install::InstallError),
     /// A build plugin failed, repeated another plugin's id or returned a rejected contribution.
     BuildPlugin(crate::contributions::ContributionError),
     /// With readable URLs, a page's path collides with another page's or with a file the build
@@ -176,6 +178,7 @@ impl fmt::Display for SiteError {
             Self::Collision { title } => write!(f, "ambiguous selected title or route: {title}"),
             Self::InvalidPlugin(error) => error.fmt(f),
             Self::PluginKey(error) => error.fmt(f),
+            Self::Install(error) => error.fmt(f),
             Self::BuildPlugin(error) => error.fmt(f),
             Self::PageUrl(error) => error.fmt(f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
@@ -190,6 +193,7 @@ impl Error for SiteError {
             Self::Title(error) => Some(error),
             Self::InvalidPlugin(error) => Some(error),
             Self::PluginKey(error) => Some(error),
+            Self::Install(error) => Some(error),
             Self::BuildPlugin(error) => Some(error),
             Self::PageUrl(error) => Some(error),
             Self::Io { source, .. } => Some(source),
@@ -328,8 +332,9 @@ fn html_page(
         .unwrap_or_default();
     let theme_start = theme_start();
     let fragments = fragments_script();
+    let install_head = shell.install.as_deref().unwrap_or_default();
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_start}</script><script defer src=\"{THEME_ROUTE}\"></script>{properties_script}<link rel=\"stylesheet\" href=\"{SITE_STYLES_ROUTE}\">{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{media_head}{head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_start}</script><script defer src=\"{THEME_ROUTE}\"></script>{properties_script}<link rel=\"stylesheet\" href=\"{SITE_STYLES_ROUTE}\">{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{media_head}{head}{install_head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
     )
 }
 
@@ -429,6 +434,8 @@ pub fn publish_site_with_options(
     let stylesheet_route = stylesheet.as_ref().map(|_| "custom.css");
     let first_party =
         crate::garden_settings::read_first_party(root.as_ref()).map_err(SiteError::PluginKey)?;
+    let install =
+        crate::garden_settings::read_install(root.as_ref()).map_err(SiteError::Install)?;
     let plugin_manifests = crate::plugins::read_plugins(&options.plugins, &first_party)
         .map_err(SiteError::InvalidPlugin)?;
     let mut build_plugins = build_plugins(&plugin_manifests, &options.build_plugins)?;
@@ -552,6 +559,10 @@ pub fn publish_site_with_options(
         "index.html"
     };
     let (reference_config, config_diagnostics) = config::read(&root);
+    let colours = install
+        .as_ref()
+        .map(|_| crate::install::Colours::from_theme(include_str!("theme.css")));
+    let install_head = colours.as_ref().map(crate::install::head);
     let mut shell = shell::Shell {
         flashcards: None,
         graph_shortcut: settings.graph_shortcut,
@@ -562,6 +573,7 @@ pub fn publish_site_with_options(
         sidebar,
         properties: reference_config.properties,
         readable,
+        install: install_head.clone(),
     };
     let mut homepage_document = None;
     for message in config_diagnostics {
@@ -1295,6 +1307,16 @@ pub fn publish_site_with_options(
     for (route, contents) in shared_files() {
         documents.insert(route.to_owned(), contents);
     }
+    if let (Some(install), Some(colours)) = (&install, &colours) {
+        documents.insert(
+            crate::install::MANIFEST_ROUTE.to_owned(),
+            install.manifest(colours),
+        );
+        documents.insert(
+            crate::install::SCRIPT_ROUTE.to_owned(),
+            references::minify(include_str!("install.js")),
+        );
+    }
     documents.insert(
         outline::SCRIPT_ROUTE.to_owned(),
         if readable {
@@ -1505,6 +1527,7 @@ pub fn publish_site_with_options(
             .chain(plugin_files.keys())
             .map(String::as_str)
             .chain(graph_data.iter().map(|(route, _)| *route))
+            .chain(install.as_ref().map(|_| crate::install::ICON_ROUTE))
             .chain(stylesheet.as_ref().map(|_| "custom.css"))
             .map(|route| route.split('/').next().unwrap_or(route))
             .collect();
@@ -1546,6 +1569,10 @@ pub fn publish_site_with_options(
     for (route, bytes) in graph_data {
         let path = output.join(route);
         fs::write(&path, bytes).map_err(|error| io_error(&path, error))?;
+    }
+    if let Some(install) = &install {
+        let path = output.join(crate::install::ICON_ROUTE);
+        fs::write(&path, install.icon().bytes()).map_err(|error| io_error(&path, error))?;
     }
     if let Some(contents) = stylesheet {
         let path = output.join("custom.css");
