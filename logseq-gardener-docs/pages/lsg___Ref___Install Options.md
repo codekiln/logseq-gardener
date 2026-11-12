@@ -69,7 +69,7 @@ see-also:: [[lsg/How To/Install a Published Garden as an App]], [[lsg/Ref/Publis
 		  | `lsg.webmanifest` | 1 KB |
 		  | Icon | 256 KB |
 		  | First paint of any page | The existing 100 KB of data and 16 KB of script |
-		  | Added build time on the encode garden | 50 ms |
+		  | Added build time on the encode garden | 1,000 ms, above the run-to-run noise of a 20 s build |
 		- `mise run parity:budgets` and `mise run parity:build-bench` check these; [[lsg/Ref/Logseq Compatibility/Performance]] records the measurements. A garden without the key pays nothing.
 	- ## What has been checked
 		- Chromium checks run with `mise run plugins:browser-test`: the manifest and icon load from a nested page under a path prefix, Chromium parses the manifest and resolves `start_url` and `scope` to the site folder, reading adds no service worker, cache or storage entry, the item stays hidden until the event fires and then works from the keyboard, the manifest link survives plugin navigation, and a page opened from disk raises no script error. Unit and integration tests cover the key, the icon checks, the manifest bytes and the tags on every kind of page, with and without `--readable-urls`.
