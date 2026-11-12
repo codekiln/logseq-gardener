@@ -18,6 +18,7 @@ use std::path::Path;
 use crate::first_party::FirstParty;
 use crate::garden_config::{self, Form};
 use crate::graph::{ForceSettings, GraphSettings};
+use crate::install::{Icon, InstallError, InstallSettings};
 use crate::journals::{DEFAULT_FILE_NAME_FORMAT, DEFAULT_TITLE_FORMAT, DateFormat};
 use crate::page_names::{PageNameIndex, lookup_key};
 
@@ -448,6 +449,105 @@ pub fn parse_first_party(text: &str) -> Result<Vec<FirstParty>, PluginKeyError> 
     Ok(plugins)
 }
 
+/// The `:lsg/install` key, which makes the published site installable as an app.
+pub const INSTALL_KEY: &str = ":lsg/install";
+
+/// The keys inside an `:lsg/install` map.
+const INSTALL_FIELDS: [&str; 3] = [":name", ":short-name", ":icon"];
+
+/// The installation settings that a garden's `logseq/config.edn` holds under its top-level
+/// `:lsg/install` key, or `None` when it has none.
+///
+/// A garden without `config.edn` and a config without the key are not installable. A config
+/// that cannot be read or parsed is also not installable; [`GardenSettings::read`] reports it.
+///
+/// # Errors
+///
+/// Returns an error when the key is not a map, repeats, appears inside another entry, lacks
+/// `:name` or `:icon`, holds another key or a value that is not a string, has a name out of
+/// range, or names an icon that fails [`crate::install::Icon::read`].
+pub fn read_install(root: impl AsRef<Path>) -> Result<Option<InstallSettings>, InstallError> {
+    match garden_config::read_text(root.as_ref()) {
+        Ok(Some(text)) => parse_install(&text, root.as_ref()),
+        Ok(None) | Err(_) => Ok(None),
+    }
+}
+
+/// [`read_install`] from `config.edn` text; the icon path is relative to `root`.
+///
+/// # Errors
+///
+/// As [`read_install`].
+pub fn parse_install(text: &str, root: &Path) -> Result<Option<InstallSettings>, InstallError> {
+    let Ok(pairs) = garden_config::top_level(text) else {
+        return Ok(None);
+    };
+    let fail = |problem: String| InstallError { problem };
+    let is_key = |form: &Form| matches!(form, Form::Atom(k) if k == INSTALL_KEY);
+    let mut values = Vec::new();
+    for (key, value) in pairs {
+        if is_key(&key) {
+            values.push(value);
+        } else if let Form::Map(inner) = &value
+            && inner.iter().any(|(key, _)| is_key(key))
+        {
+            let owner = match &key {
+                Form::Atom(owner) => owner.clone(),
+                other => describe(other),
+            };
+            return Err(fail(format!(
+                "is a top-level key; it cannot sit inside {owner}"
+            )));
+        }
+    }
+    let value = match values.len() {
+        0 => return Ok(None),
+        1 => values.remove(0),
+        _ => return Err(fail("appears more than once".into())),
+    };
+    let example = r#"{:name "Ghost in the Patch" :short-name "GitP" :icon "assets/app-icon.png"}"#;
+    let Form::Map(entries) = value else {
+        return Err(fail(format!(
+            "must be a map, such as {example}, not {}",
+            describe(&value)
+        )));
+    };
+    let (mut name, mut short_name, mut icon) = (None, None, None);
+    for (key, value) in entries {
+        let Form::Atom(key) = key else {
+            return Err(fail(format!(
+                "has the key {}; the accepted keys are {}",
+                describe(&key),
+                INSTALL_FIELDS.join(", ")
+            )));
+        };
+        let slot = match key.as_str() {
+            ":name" => &mut name,
+            ":short-name" => &mut short_name,
+            ":icon" => &mut icon,
+            _ => {
+                return Err(fail(format!(
+                    "has the key {key}; the accepted keys are {}",
+                    INSTALL_FIELDS.join(", ")
+                )));
+            }
+        };
+        let Form::Str(text) = value else {
+            return Err(fail(format!(
+                "{key} must be a string, not {}",
+                describe(&value)
+            )));
+        };
+        if slot.replace(text).is_some() {
+            return Err(fail(format!("{key} appears twice")));
+        }
+    }
+    let name = name.ok_or_else(|| fail(format!("needs a :name, such as {example}")))?;
+    let icon = icon.ok_or_else(|| fail(format!("needs an :icon, such as {example}")))?;
+    let icon = Icon::read(root, &icon)?;
+    InstallSettings::new(&name, short_name.as_deref(), icon).map(Some)
+}
+
 /// `:a`, `:a and :b` or `:a, :b and :c`.
 fn shipped_names() -> String {
     let names: Vec<String> = FirstParty::ALL
@@ -801,5 +901,128 @@ mod tests {
                 Vec::new()
             )
         );
+    }
+
+    fn install_garden() -> std::path::PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "lsg-install-key-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(root.join("assets")).unwrap();
+        let mut png = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13];
+        png.extend(b"IHDR");
+        png.extend(512u32.to_be_bytes());
+        png.extend(512u32.to_be_bytes());
+        std::fs::write(root.join("assets/app-icon.png"), png).unwrap();
+        root
+    }
+
+    fn install(text: &str) -> Result<Option<InstallSettings>, InstallError> {
+        parse_install(text, &install_garden())
+    }
+
+    #[test]
+    fn install_key_reads_names_and_icon() {
+        let settings = install(
+            r#"{:lsg/install {:name "Ghost in the Patch" :short-name "GitP" :icon "assets/app-icon.png"}}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(settings.name(), "Ghost in the Patch");
+        assert_eq!(settings.short_name(), "GitP");
+        assert_eq!(settings.icon().side(), 512);
+        // A name of exactly 12 characters needs no short name.
+        let twelve =
+            install(r#"{:lsg/install {:name "Twelve chars" :icon "assets/app-icon.png"}}"#)
+                .unwrap()
+                .unwrap();
+        assert_eq!(twelve.short_name(), "Twelve chars");
+    }
+
+    #[test]
+    fn an_absent_key_or_unreadable_config_is_not_installable() {
+        for text in ["{}", r#"{:favorites ["a"]}"#, "not edn {"] {
+            assert_eq!(install(text), Ok(None), "{text}");
+        }
+        assert_eq!(read_install(install_garden()), Ok(None));
+    }
+
+    #[test]
+    fn install_key_errors_name_the_file_the_key_and_the_problem() {
+        let icon = r#":icon "assets/app-icon.png""#;
+        let cases = [
+            (
+                format!(r#"{{:lsg/install {{:name "Notes" :shortname "N" {icon}}}}}"#),
+                ":shortname",
+                Some(":name, :short-name, :icon"),
+            ),
+            (
+                format!(r#"{{:lsg/install {{{icon}}}}}"#),
+                "needs a :name",
+                None,
+            ),
+            (
+                r#"{:lsg/install {:name "Notes"}}"#.to_owned(),
+                "needs an :icon",
+                None,
+            ),
+            (r#"{:lsg/install true}"#.to_owned(), "must be a map", None),
+            (
+                r#"{:lsg/install [:name]}"#.to_owned(),
+                "must be a map",
+                None,
+            ),
+            (
+                format!(r#"{{:lsg/install {{:name :notes {icon}}}}}"#),
+                ":name must be a string",
+                None,
+            ),
+            (
+                r#"{:lsg/install {:name "N" :icon {:path "x"}}}"#.to_owned(),
+                ":icon must be a string",
+                None,
+            ),
+            (
+                format!(r#"{{:lsg/install {{:name "N" :name "M" {icon}}}}}"#),
+                ":name appears twice",
+                None,
+            ),
+            (
+                format!(r#"{{:lsg/install {{:name "Logseq Gardener Documentation" {icon}}}}}"#),
+                "add a :short-name of at most 12 characters",
+                None,
+            ),
+            (
+                format!(r#"{{:default-home {{:lsg/install {{:name "N" {icon}}}}}}}"#),
+                "cannot sit inside :default-home",
+                None,
+            ),
+            (
+                format!(
+                    r#"{{:lsg/install {{:name "N" {icon}}} :lsg/install {{:name "N" {icon}}}}}"#
+                ),
+                "more than once",
+                None,
+            ),
+            (
+                r#"{:lsg/install {:name "N" :icon "../icon.png"}}"#.to_owned(),
+                "inside the garden folder",
+                None,
+            ),
+        ];
+        for (text, problem, keys) in cases {
+            let error = install(&text).unwrap_err().to_string();
+            assert!(
+                error.starts_with("logseq/config.edn: :lsg/install "),
+                "{text}: {error}"
+            );
+            assert!(error.contains(problem), "{text}: {error}");
+            if let Some(keys) = keys {
+                assert!(error.contains(keys), "{error}");
+            }
+        }
     }
 }

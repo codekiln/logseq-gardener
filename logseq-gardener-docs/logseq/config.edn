@@ -10,4 +10,5 @@
              "lsg/How To/Publish a Garden to GitHub Pages"
              "lsg/Ref/Command Line"
              "lsg/Ref/Logseq Compatibility"]
- :hidden []}
+ :hidden []
+ :lsg/install {:name "Logseq Gardener" :short-name "lsg" :icon "assets/app-icon.png"}}

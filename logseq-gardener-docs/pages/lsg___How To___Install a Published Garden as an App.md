@@ -1,0 +1,36 @@
+tags:: [[Diataxis/How To]]
+see-also:: [[lsg/Ref/Install Options]], [[lsg/How To/Publish a Garden to GitHub Pages]]
+
+- # How To Install a Published Garden as an App
+	- ## Overview
+		- Add a garden that `lsg` published to your phone, tablet or computer, so that it opens in its own window with its own name and icon. Installing keeps a shortcut to the site; it does not copy the site to your device, and you still need a network connection to read it.
+		- The steps depend on your browser. Find your device below. A garden whose author has turned installation on shows the author's name and icon. Any other garden can still be added in Safari, with a plain letter as its icon.
+	- ## Prerequisites
+		- A garden's address that starts with `https://`. Browsers install only from an `https://` address, or from `localhost`.
+		- Chrome 112 or later or Edge on a computer, Chrome 108 or later on Android, Safari 17 or later on a Mac, and iOS 16.4 or later on an iPhone or iPad. Earlier versions can still add the page as a bookmark.
+	- ## Steps
+		- ### iPhone and iPad
+			- In Safari, Chrome, Edge or Firefox on iOS 16.4 or later, open the garden and choose Share, then Add to Home Screen, then Add.
+			- The garden's name and icon appear on the Home Screen. Tap the icon to open the garden in its own window. If the author has not chosen an icon, iOS draws a letter.
+			- iOS 16.3 and earlier adds a bookmark that opens the garden in the browser.
+		- ### Mac with Safari
+			- In Safari 17 or later on macOS Sonoma or later, open the garden and choose File, then Add to Dock. You can rename the app and change its icon before you add it.
+		- ### Computer with Chrome or Edge
+			- Open the garden. After you click the page and read it for about half a minute, an install button can appear at the right end of the address bar. Choose it, then Install.
+			- To install at any time, open the browser's menu. In Chrome, choose Cast, save, and share, then Install page as app; in Edge, choose Apps, then Install this site as an app. The wording differs between versions.
+			- The garden's own More menu, the three dots at the top right of a page, also shows an Install app item once the browser offers installation. Choose it to open the browser's install dialog.
+		- ### Android with Chrome
+			- Open the garden, open the Chrome menu and choose Install app. Chrome adds the garden to the Home Screen and the app list with the author's name and icon.
+		- ### Firefox
+			- Firefox on a computer cannot install a site as an app.
+			- Firefox on Android adds a shortcut that opens the garden in Firefox: open the menu and choose Add to Home Screen.
+	- ## What installing does and does not do
+		- The garden opens in a window without the browser's address bar. Links to other sites open in your browser.
+		- Installing adds no copy of the pages. With no network, the app shows the browser's offline page. Offline reading is not part of installation.
+		- Safari and Firefox show no install control inside the page. Use the Share menu or the browser's menu, as above.
+		- Moving the garden to another address creates a new app. The copy you installed keeps opening the old address.
+	- ## Troubleshooting
+		- If Chrome shows no install button, use the browser's menu, which works at any time, or read the page for half a minute and click it.
+		- If an installed app shows the wrong name or icon, remove it and install again. Browsers keep the name and icon they saw when you installed.
+		- If your browser offers no Install or Add to Home Screen item, check that the address starts with `https://`.
+		- [[lsg/Ref/Install Options]] explains how a garden's author turns installation on, and what each browser is known to do.
