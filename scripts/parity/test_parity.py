@@ -220,7 +220,7 @@ class FirstPartyBudgetTest(unittest.TestCase):
 
 class InstallBudgetTest(unittest.TestCase):
     LIMITS = {'install': {'page_growth_kb': 0.5, 'page_growth_gzip_kb': 0.3, 'script_kb': 1.5, 'script_gzip_kb': 1,
-                          'manifest_kb': 1, 'icon_kb': 256, 'build_ms': 50},
+                          'manifest_kb': 1, 'icon_kb': 256, 'build_ms': 1000},
               'desktop': {'data_before_title_kb': 100, 'script_before_title_kb': 16},
               'phone': {'data_before_title_kb': 100, 'script_before_title_kb': 16}}
 
@@ -323,6 +323,12 @@ class InstallBuildBenchTest(unittest.TestCase):
             self.assertTrue((copy / 'pages' / 'A.md').is_file())
             self.assertEqual((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'), '{:a 1}\n')
             self.assertFalse((garden / 'assets').exists())
+
+    def test_build_ms_is_above_the_measured_noise_of_a_whole_build(self):
+        # The same code measured -236 to +219 ms (median of 5 paired rounds) across CI runs
+        # (issue #614); a budget under that spread fails a pull request at random.
+        noise_ms = 236 + 219
+        self.assertGreater(metrics.load_budgets()['install']['build_ms'], noise_ms)
 
     def test_the_key_may_add_at_most_build_ms_to_the_whole_build(self):
         def rounds(plain, keyed):
@@ -521,7 +527,7 @@ class MetricsTest(unittest.TestCase):
         # Installable gardens (installable-gardens); the design's budgets.
         self.assertEqual(loaded.pop('install'), {'page_growth_kb': 0.5, 'page_growth_gzip_kb': 0.3, 'script_kb': 1.5,
                                                  'script_gzip_kb': 1, 'manifest_kb': 1, 'icon_kb': 256,
-                                                 'build_ms': 50})
+                                                 'build_ms': 1000})
         # Build plugins (build-time-contributions); the proposal's budgets.
         self.assertEqual(loaded.pop('build_plugins'), {'derived_rows_gzip_kb': 30,
                                                        'in_process_blocks_ms_per_page': 0.05,

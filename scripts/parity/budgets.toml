@@ -312,7 +312,9 @@ build_ms_per_page = 0.05
 # first paint against [desktop] and [phone], that the growth of each page does not change when the
 # garden gains pages, that the search files match the build without the key, and that no file is a
 # service worker. parity:build-bench checks build_ms: the key may add this many milliseconds to the
-# whole encode garden's build.
+# whole encode garden's build. Builds of about 20 s differ from run to run by about 1 s, and the
+# median of five paired rounds measured -236 to +219 ms for the same code in CI, so the row is
+# sized above that noise; it catches a key that adds real work, not a few milliseconds.
 [install]
 page_growth_kb = 0.5
 page_growth_gzip_kb = 0.3
@@ -320,7 +322,7 @@ script_kb = 1.5
 script_gzip_kb = 1
 manifest_kb = 1
 icon_kb = 256
-build_ms = 50
+build_ms = 1000
 
 # Build plugins (build-time-contributions). parity:budgets builds the fixture garden with the
 # episode-list fixture build plugin (tests/fixtures/plugins/episode-list) and checks the derived
