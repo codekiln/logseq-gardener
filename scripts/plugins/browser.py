@@ -512,7 +512,7 @@ SET_PAGES = {
         '\t- Carries the sequencer\'s notes to the synthesizer.\n'),
     'Live___Set___Track___Commentary.md': (
         'logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # Commentary\n  type:: audio\n'
-        '  audio-from:: AudioIn/External/S0\n  audio-to:: AudioOut/Master\n  monitor:: off\n  arm:: false\n'
+        '  audio-from:: AudioIn/External/S0\n  audio-to:: [[Live/Set/Track/Synths]] Track In\n  monitor:: off\n  arm:: false\n'
         '  devices:: Compressor, EQ <i>Eight</i>, Limiter\n\t- Records the spoken afterword.\n'),
     'Live___Set___Track___A-Reverb.md': ('logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # A-Reverb\n  type:: return\n'
                                          '  audio-to:: AudioOut/Master\n  devices:: Reverb\n'),
@@ -613,11 +613,14 @@ def check_ableton_set(browser, site, prefix, screenshots, results):
                            ['Monitor', 'Auto'], ['MIDI to', 'MidiOut/External.Dev:Arturia MicroFreak/0'], ['Arm', 'Armed']],
               'devices': [], 'tracks': None}]},
         {'title': 'Commentary', 'href': prefix + commentary, 'group': False, 'kind': 'audio', 'type': 'Audio',
-         'settings': [['Audio from', 'AudioIn/External/S0'], ['Monitor', 'Off'], ['Audio to', 'AudioOut/Master'], ['Arm', 'Off']],
+         'settings': [['Audio from', 'AudioIn/External/S0'], ['Monitor', 'Off'], ['Audio to', 'Synths Track In'], ['Arm', 'Off']],
          'devices': ['Compressor', 'EQ <i>Eight</i>', 'Limiter'], 'tracks': None},
         {'title': 'A-Reverb', 'href': prefix + reverb, 'group': False, 'kind': 'return', 'type': 'Return',
          'settings': [['Audio to', 'AudioOut/Master']], 'devices': ['Reverb'], 'tracks': None}], view['tracks']
     assert view['markup'] == 0, view
+    # A routing that names another track of the Set links to that track's page.
+    targets = page.evaluate('''() => [...document.querySelectorAll('.lsg-ableton-set a.lsg-as-target')].map((a) => [a.textContent, a.href])''')
+    assert targets == [['Synths', prefix + group]], targets
     # The outline stays below the view, with the embedded track pages in it.
     assert view['outline_after'] and 'Records the spoken afterword.' in view['outline_text'], view
     assert view['page_overflow'] <= 0, view

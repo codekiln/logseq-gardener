@@ -1,7 +1,8 @@
 // lsg first-party plugin ableton-set (logseq-gardener-docs/pages/lsg___Ref___First-Party Plugins.md): an
 // Ableton Live Set page as a track view. The entry holds `title`, the Set's `live-version`,
 // `tempo` and `time-signature`, and `tracks`; a track holds `title`, `url`, its settings as
-// written, `arm` as a boolean, `devices` in chain order, and `tracks` when it is a group.
+// written, `arm` as a boolean, `devices` in chain order, and `tracks` when it is a group. A
+// routing value that names another track's page is `{ title, url, detail }`.
 const TYPES = { audio: 'Audio', midi: 'MIDI', return: 'Return', group: 'Group' };
 // [key, label] in the order Live's In/Out section shows them.
 const ROUTING = [
@@ -28,6 +29,20 @@ function siteLink(url, base) {
   }
 }
 
+/**
+ * One setting as a row, `{ key, label, value, href }`, or nothing when the track does not state
+ * it. A routing that names another track's page gives that track's title as `value`, its page
+ * on this site as `href` and the rest of the setting as `detail`.
+ */
+function settingRow(key, label, setting, base) {
+  if (text(setting)) return [{ key, label, value: text(setting), href: null }];
+  const title = text(setting?.title);
+  if (!title) return [];
+  const row = { key, label, value: title, href: siteLink(setting.url, base) };
+  if (text(setting.detail)) row.detail = text(setting.detail);
+  return [row];
+}
+
 /** The tracks of `list` that have a title: `{ title, href, type, kind, rows, arm, devices, tracks }`. */
 function trackList(list, base, depth) {
   if (!Array.isArray(list) || depth > MAX_DEPTH) return [];
@@ -43,7 +58,7 @@ function trackList(list, base, depth) {
       // The type as Live names it; a type the plugin does not know stays as written.
       type: TYPES[kind] ?? written,
       kind,
-      rows: ROUTING.flatMap(([key, label]) => (text(track[key]) ? [{ key, label, value: text(track[key]) }] : [])),
+      rows: ROUTING.flatMap(([key, label]) => settingRow(key, label, track[key], base)),
       arm: typeof track.arm === 'boolean' ? track.arm : null,
       devices: Array.isArray(track.devices) ? track.devices.map(text).filter(Boolean) : [],
       tracks: group ? trackList(track.tracks, base, depth + 1) : null,
@@ -97,8 +112,13 @@ function drawTrack(doc, track) {
           if (option !== state) button.setAttribute('aria-hidden', 'true');
           value.append(button);
         }
+      } else if (row.href) {
+        // A routing to another track of the Set: its name as a link, then Live's second box.
+        const target = element(doc, 'a', 'lsg-as-target', row.value);
+        target.setAttribute('href', row.href);
+        value.append(target, row.detail ? ` ${row.detail}` : '');
       } else {
-        value.textContent = row.value;
+        value.textContent = [row.value, row.detail].filter(Boolean).join(' ');
       }
       settings.append(element(doc, 'dt', '', row.label), value);
     }
