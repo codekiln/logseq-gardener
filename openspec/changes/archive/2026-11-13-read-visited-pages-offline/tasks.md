@@ -37,4 +37,4 @@
 
 - [x] 6.1 Run the real-device checklist in the design and record each row in `verification.md` with the device, operating system, browser version, date and result, marking a row that cannot run as not run with its reason
 - [x] 6.2 Run `mise run ci` and `mise run openspec:validate`, then open the implementation pull request with a cleanup sub-issue under its implementation issue
-- [ ] 6.3 File the consumer issues in logseq-encode-garden and gitpa that turn the key on after the release
+- [x] 6.3 File the consumer issues in logseq-encode-garden and gitpa that turn the key on after the release. Not done in this repository: moved at cleanup (#609) to a follow-up that the orchestrator handles, because both issues belong to other repositories and wait for the release
