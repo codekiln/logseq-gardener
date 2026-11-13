@@ -147,7 +147,7 @@ lsg publish SHALL accept an optional --timings flag. With it, human output SHALL
 #### Scenario: Discover first-party plugins offline
 
 - **WHEN** a caller reads publishing help without a garden
-- **THEN** the help describes `:lsg/plugins`, lists `podcast-episode` and `sequence-header`, and names the `lsg/Ref/First-Party Plugins` page with its documentation site URL
+- **THEN** the help describes `:lsg/plugins`, lists `ableton-set`, `podcast-episode` and `sequence-header`, and names the `lsg/Ref/First-Party Plugins` page with its documentation site URL
 
 ### Requirement: Publish every page and journal
 
