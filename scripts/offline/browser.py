@@ -198,6 +198,28 @@ def browse_until(page, url, name, predicate, timeout=20):
             raise AssertionError(f'{name}: {state}')
 
 
+def cleared(page, timeout):
+    """Wait up to `timeout` seconds for the page's origin to hold no worker and no cache."""
+    deadline = time.time() + timeout
+    while True:
+        state = storage(page)
+        if not state['workers'] and not state['caches']:
+            return True
+        if time.time() > deadline:
+            return False
+        page.wait_for_timeout(100)
+
+
+def browse_until_cleared(page, url, views=10):
+    """Open `url` up to `views` times, each followed by 3 seconds for the browser's own worker
+    check, until the origin holds no worker and no cache; return the number of page views."""
+    for view in range(1, views + 1):
+        visit(page, url)
+        if cleared(page, timeout=3):
+            return view
+    raise AssertionError(storage(page))
+
+
 def has(state, url):
     return state is not None and url in state['keys']
 
@@ -446,16 +468,41 @@ def check_updates(browser, garden, served, base, results):
     settle(page, name, lambda s: not has(s, f'{a}Off/Two/'))
     results['expired_copy_deleted_on_start'] = True
 
-    # The author publishes :lsg/offline false: one online visit removes the cache and the worker.
+    # A second reader saves pages before the author turns offline reading off.
+    browsing = browser.new_context()
+    reader = browsing.new_page()
+    visit(reader, f'{a}Off/One/')
+    save(reader)
+    visit(reader, f'{a}Off/Two/')
+    settle(reader, name, lambda s: has(s, f'{a}Off/Two/'))
+
+    # The author publishes :lsg/offline false. After a page view the reader's worker updates to the
+    # removing worker, which deletes the cache and unregisters. Chromium checks for the new worker
+    # about 1.5 seconds after a page view, but folds a check into one already in progress, so a
+    # check that began before the publish can return the old worker. The first reader therefore
+    # asks for a check with registration.update() after the page view, and asks again if the
+    # check returned the old worker.
     garden.publish(served / 'a', key=':lsg/offline false')
     assert not (served / 'a' / 'lsg-offline.js').exists()
     visit(page, f'{a}Off/One/')
-    deadline = time.time() + 15
-    while storage(page)['workers'] or page.evaluate('caches.keys()'):
-        assert time.time() < deadline, storage(page)
-        page.wait_for_timeout(200)
-    results['removing_worker_clears_reader'] = storage(page)
+    checks = 0
+    while True:
+        checks += 1
+        page.evaluate('''async () => {
+          const registration = await navigator.serviceWorker.getRegistration();
+          try { await registration?.update(); } catch {}
+        }''')
+        if cleared(page, timeout=5):
+            break
+        assert checks < 3, storage(page)
+    results['removing_worker_clears_reader'] = {'update_calls': checks, **storage(page)}
     context.close()
+
+    # The second reader only opens pages, as a real reader does: the browser's own check finds the
+    # removing worker without registration.update().
+    views = browse_until_cleared(reader, f'{a}Off/One/')
+    results['removing_worker_reaches_reader_without_update_call'] = {'page_views': views}
+    browsing.close()
     garden.publish(served / 'a')
 
 
