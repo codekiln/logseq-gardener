@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.52](https://github.com/codekiln/logseq-gardener/compare/v0.0.51...v0.0.52) - 2026-11-13
+
+### Added
+
+- show an Ableton Live Set page as a track view (ableton-set plugin) (#629)
+
 ## [0.0.51](https://github.com/codekiln/logseq-gardener/compare/v0.0.50...v0.0.51) - 2026-11-13
 
 ### Added
