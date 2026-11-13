@@ -599,6 +599,8 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(loaded.pop('plugins'), {'host_gzip_kb': 4, 'added_bytes_per_page': 0,
                                                  'navigation_ms_phone': 50, 'listener_growth': 0,
                                                  'page_overhead_gzip_kb': 0.5, 'garden_growth_kb': 0,
+                                                 'ableton-set': {'script_styles_gzip_kb': 4, 'page_growth_gzip_kb': 2,
+                                                                 'phone_heap_growth_mb': 0.5, 'build_ms_per_page': 0.05},
                                                  'podcast-episode': {'script_styles_gzip_kb': 8,
                                                                      'page_growth_gzip_kb': 4,
                                                                      'phone_heap_growth_mb': 1,

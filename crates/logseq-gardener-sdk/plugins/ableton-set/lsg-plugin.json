@@ -1,0 +1,7 @@
+{
+  "id": "ableton-set",
+  "apiVersion": 1,
+  "module": "ableton-set.mjs",
+  "styles": ["ableton-set.css"],
+  "activation": "on-demand"
+}

@@ -33,6 +33,9 @@ use crate::publication::PluginView;
 /// A plugin that ships inside `lsg`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FirstParty {
+    /// `ableton-set`: an Ableton Live Set page as a track view, one column per track, with
+    /// group columns holding their tracks.
+    AbletonSet,
     /// `podcast-episode`: a player that keeps an episode's recording playing across pages, and
     /// chapter headings, timestamp-led chapter bullets and dialogue lines that seek it.
     PodcastEpisode,
@@ -56,6 +59,13 @@ macro_rules! embedded {
     };
 }
 
+const ABLETON_SET: &[Embedded] = embedded!(
+    "ableton-set",
+    "lsg-plugin.json",
+    "ableton-set.mjs",
+    "ableton-set.css"
+);
+
 const PODCAST_EPISODE: &[Embedded] = embedded!(
     "podcast-episode",
     "lsg-plugin.json",
@@ -72,12 +82,13 @@ const SEQUENCE_HEADER: &[Embedded] = embedded!(
 
 impl FirstParty {
     /// Every first-party plugin, in id order.
-    pub const ALL: [Self; 2] = [Self::PodcastEpisode, Self::SequenceHeader];
+    pub const ALL: [Self; 3] = [Self::AbletonSet, Self::PodcastEpisode, Self::SequenceHeader];
 
     /// The plugin's id, which is also its `:lsg/plugins` keyword without the colon.
     #[must_use]
     pub fn id(self) -> &'static str {
         match self {
+            Self::AbletonSet => "ableton-set",
             Self::PodcastEpisode => "podcast-episode",
             Self::SequenceHeader => "sequence-header",
         }
@@ -93,6 +104,9 @@ impl FirstParty {
     #[must_use]
     pub fn summary(self) -> &'static str {
         match self {
+            Self::AbletonSet => {
+                "shows an Ableton Live Set page as a track view: one column per track with its type, routing, monitor and arm state and devices"
+            }
             Self::PodcastEpisode => {
                 "keeps a podcast episode's recording playing across pages; chapter timestamps and dialogue timestamps seek it"
             }
@@ -104,6 +118,7 @@ impl FirstParty {
 
     fn files(self) -> &'static [Embedded] {
         match self {
+            Self::AbletonSet => ABLETON_SET,
             Self::PodcastEpisode => PODCAST_EPISODE,
             Self::SequenceHeader => SEQUENCE_HEADER,
         }
@@ -156,6 +171,7 @@ impl FirstParty {
     #[must_use]
     pub fn build_step(self, inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
         match self {
+            Self::AbletonSet => ableton_set(inputs),
             Self::PodcastEpisode => podcast_episode(inputs),
             Self::SequenceHeader => sequence_header(inputs),
         }
@@ -213,6 +229,177 @@ impl BuildPlugin for PreparedMetadata {
                 values: values.clone(),
             })
             .collect())
+    }
+}
+
+/// `ableton-set`: each published page typed [`crate::ableton_set::SET_TYPE`] gets `title`, the
+/// [`crate::ableton_set::SET_SETTINGS`] its heading states, and `tracks`: the published group
+/// and track pages it embeds, in page order. A typed page that embeds none gets no entry and
+/// one diagnostic.
+fn ableton_set(inputs: &FirstPartyInputs<'_>) -> FirstPartyStep {
+    use crate::ableton_set::{SET_SETTINGS, SET_TYPE, heading};
+    let documents: BTreeMap<&str, &GardenDocument> = inputs
+        .pages
+        .iter()
+        .map(|(_, route, document)| (route.as_str(), *document))
+        .collect();
+    let set = AbletonSet {
+        inputs,
+        documents: &documents,
+    };
+    let mut entries = Vec::new();
+    let mut diagnostics = Vec::new();
+    for (title, route, document) in inputs.pages {
+        let properties = crate::query::leading_properties(document);
+        if !has_entity_type(&properties, SET_TYPE, inputs.resolve) {
+            continue;
+        }
+        let source = &document.relative_path;
+        let tracks = set.tracks(document, &mut vec![route.as_str()]);
+        if tracks.is_empty() {
+            diagnostics.push((
+                source.clone(),
+                format!(
+                    "ableton-set: the page is a {SET_TYPE} and embeds no published track or group page, so it has no track view"
+                ),
+            ));
+            continue;
+        }
+        let found = heading(&document.parsed.blocks);
+        let mut values = Map::new();
+        values.insert(
+            "title".to_owned(),
+            Value::String(
+                found
+                    .as_ref()
+                    .map(|heading| heading.title.clone())
+                    .filter(|title| !title.is_empty())
+                    .unwrap_or_else(|| title.clone()),
+            ),
+        );
+        if let Some(found) = &found {
+            for key in SET_SETTINGS {
+                if let Some(value) = set.setting(found, key) {
+                    values.insert(key.to_owned(), Value::String(value.to_owned()));
+                }
+            }
+        }
+        values.insert("tracks".to_owned(), Value::Array(tracks));
+        let size = serde_json::to_string(&values).map_or(0, |text| text.len());
+        if size > METADATA_LIMIT {
+            diagnostics.push((
+                source.clone(),
+                format!(
+                    "ableton-set: the Set's tracks take {size} bytes and an entry holds {METADATA_LIMIT}, so the page has no track view"
+                ),
+            ));
+            continue;
+        }
+        entries.push((lookup_key(title), values));
+    }
+    FirstPartyStep {
+        plugin: Arc::new(PreparedMetadata {
+            id: FirstParty::AbletonSet.id(),
+            entries,
+        }),
+        diagnostics,
+        anchors: BTreeMap::new(),
+    }
+}
+
+/// The published pages of one build, as the `ableton-set` step reads tracks from them.
+struct AbletonSet<'a> {
+    inputs: &'a FirstPartyInputs<'a>,
+    /// Each published page's document, by route.
+    documents: &'a BTreeMap<&'a str, &'a GardenDocument>,
+}
+
+impl<'a> AbletonSet<'a> {
+    /// A group may hold groups; Live nests them a few levels at most.
+    const MAX_DEPTH: usize = 8;
+
+    /// A heading's block property, unless the garden hides the key from readers.
+    fn setting<'h>(&self, heading: &'h crate::ableton_set::Heading, key: &str) -> Option<&'h str> {
+        if self
+            .inputs
+            .hidden_properties
+            .iter()
+            .any(|hidden| hidden == key)
+        {
+            return None;
+        }
+        heading.setting(key)
+    }
+
+    /// The group and track pages that `document` embeds, in page order. `chain` holds the
+    /// routes of the pages being read, from the Set down, so a page that embeds one of them
+    /// adds no column. An embed of a withheld, missing or ambiguous page, or of a page that is
+    /// neither a group nor a track, adds none either.
+    fn tracks(&self, document: &GardenDocument, chain: &mut Vec<&'a str>) -> Vec<Value> {
+        use crate::ableton_set::{
+            DEVICES, GROUP_TYPE, TRACK_SETTINGS, TRACK_TYPE, embedded_pages, heading,
+        };
+        let mut tracks = Vec::new();
+        for name in embedded_pages(&document.parsed.blocks) {
+            let [route] = self.inputs.names.candidates(&name) else {
+                continue;
+            };
+            let Some((route, embedded)) = self.documents.get_key_value(route.as_str()) else {
+                continue;
+            };
+            if chain.contains(route) {
+                continue;
+            }
+            let properties = crate::query::leading_properties(embedded);
+            let group = has_entity_type(&properties, GROUP_TYPE, self.inputs.resolve);
+            if !group && !has_entity_type(&properties, TRACK_TYPE, self.inputs.resolve) {
+                continue;
+            }
+            let found = heading(&embedded.parsed.blocks);
+            let page_title = self.inputs.routes.get(*route).map_or("", String::as_str);
+            let title = found
+                .as_ref()
+                .map(|heading| heading.title.as_str())
+                .filter(|title| !title.is_empty())
+                .unwrap_or_else(|| page_title.rsplit('/').next().unwrap_or(page_title));
+            let mut track = Map::new();
+            track.insert("title".to_owned(), Value::String(title.to_owned()));
+            track.insert("url".to_owned(), Value::String((*route).to_owned()));
+            if let Some(found) = &found {
+                for key in TRACK_SETTINGS {
+                    let Some(value) = self.setting(found, key) else {
+                        continue;
+                    };
+                    let value = match key {
+                        // Live arms a track or leaves it; any other text states neither.
+                        "arm" if value.eq_ignore_ascii_case("true") => Value::Bool(true),
+                        "arm" if value.eq_ignore_ascii_case("false") => Value::Bool(false),
+                        "arm" => continue,
+                        _ => Value::String(value.to_owned()),
+                    };
+                    track.insert(key.to_owned(), value);
+                }
+                if self.setting(found, DEVICES).is_some() {
+                    track.insert(
+                        DEVICES.to_owned(),
+                        found.devices().into_iter().map(Value::from).collect(),
+                    );
+                }
+            }
+            if group {
+                let inner = if chain.len() < Self::MAX_DEPTH {
+                    chain.push(route);
+                    let inner = self.tracks(embedded, chain);
+                    chain.pop();
+                    inner
+                } else {
+                    Vec::new()
+                };
+                track.insert("tracks".to_owned(), Value::Array(inner));
+            }
+            tracks.push(Value::Object(track));
+        }
+        tracks
     }
 }
 

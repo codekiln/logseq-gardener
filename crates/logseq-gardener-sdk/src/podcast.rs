@@ -283,7 +283,7 @@ fn destination(url: &Url) -> Option<String> {
 }
 
 /// The text a reader sees in `nodes`: page references by name, links by label.
-fn plain_text(nodes: &[Inline], out: &mut String, depth: usize) {
+pub(crate) fn plain_text(nodes: &[Inline], out: &mut String, depth: usize) {
     if depth > MAX_DEPTH {
         return;
     }

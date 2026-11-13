@@ -17,7 +17,10 @@ bullets under `## Chapters` and dialogue timestamps seek the player, which shows
 trail, and that a page whose module fails keeps its own recording. A third garden turns on
 sequence-header: the header shows a page's previous and next links, keyboard focus reaches them, a
 phone shows arrows alone, the links follow navigation and Back, and a page outside the sequence
-requests no plugin code. A fourth garden checks that a video, View as slides, a flashcard review,
+requests no plugin code. Another garden turns on ableton-set: a Set page shows one column per track with
+the group's track inside the group, each column links to its track page, keyboard focus reaches the
+links, the outline stays below, a phone scrolls the tracks and not the page, the dark theme applies,
+and a track page or a page that is not a Set requests no plugin code. A fourth garden checks that a video, View as slides, a flashcard review,
 the Page graph card and Shift-click into the right sidebar work on a page the host shows in place.
 A fifth garden is installable (:lsg/install), published with --readable-urls under the path prefix
 /gitpa/ with the probe plugin: the manifest and icon load from a nested page, Chromium parses the
@@ -495,6 +498,178 @@ def check_sequence_header(browser, site, prefix, screenshots, results):
     results['sequence_phone_arrows'] = True
 
 
+SET_PAGES = {
+    'Live___Set.md': ('logseq-entity:: [[Logseq/Entity/Ableton/Set]]\n\n- # Evening Set\n  live-version:: 11.3.43\n  tempo:: 96\n'
+                      '  time-signature:: 4/4\n\t- How the performance was wired. [[Live/Plain]]\n'
+                      '\t- {{embed [[Live/Set/Track/Synths]]}}\n\t- {{embed [[Live/Set/Track/Commentary]]}}\n'
+                      '\t- {{embed [[Live/Set/Track/A-Reverb]]}}\n'),
+    'Live___Set___Track___Synths.md': ('logseq-entity:: [[Logseq/Entity/Ableton/Track/Group]]\n\n- # Synths\n  type:: group\n'
+                                       '  audio-to:: AudioOut/Master\n\t- {{embed [[Live/Set/Track/Synths/MicroFreak MIDI]]}}\n'),
+    'Live___Set___Track___Synths___MicroFreak MIDI.md': (
+        'logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # MicroFreak MIDI\n  type:: midi\n'
+        '  midi-from:: MidiIn/External.Dev:Launchpad Pro MK3 (LPProMK3 MIDI)/0\n'
+        '  midi-to:: MidiOut/External.Dev:Arturia MicroFreak/0\n  midi-channel:: 1\n  monitor:: auto\n  arm:: true\n'
+        '\t- Carries the sequencer\'s notes to the synthesizer.\n'),
+    'Live___Set___Track___Commentary.md': (
+        'logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # Commentary\n  type:: audio\n'
+        '  audio-from:: AudioIn/External/S0\n  audio-to:: AudioOut/Master\n  monitor:: off\n  arm:: false\n'
+        '  devices:: Compressor, EQ <i>Eight</i>, Limiter\n\t- Records the spoken afterword.\n'),
+    'Live___Set___Track___A-Reverb.md': ('logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # A-Reverb\n  type:: return\n'
+                                         '  audio-to:: AudioOut/Master\n  devices:: Reverb\n'),
+    'Live___Plain.md': '- A page that is not a Set. [[Live/Set]]\n',
+}
+
+
+def build_set(binary, temp):
+    """A garden that turns on ableton-set in its config.edn, published to temp/site-set."""
+    garden = temp / 'set'
+    (garden / 'pages').mkdir(parents=True)
+    (garden / 'logseq').mkdir()
+    (garden / 'logseq' / 'config.edn').write_text(
+        '{:publishing/all-pages-public? true :lsg/plugins [:ableton-set]}\n', encoding='utf-8')
+    for name, text in SET_PAGES.items():
+        (garden / 'pages' / name).write_text(text, encoding='utf-8')
+    output = temp / 'site-set'
+    subprocess.run([str(binary), 'publish', '--graph', str(garden), '--output', str(output),
+                    '--filename-format', 'triple-lowbar', '--include', 'Live'],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return output
+
+
+def track_view(page):
+    """The track view as a reader finds it: each column with its settings, and where the view sits."""
+    return page.evaluate('''() => {
+      const view = document.querySelector('main .lsg-ableton-set');
+      if (!view) return null;
+      const column = (item) => {
+        const own = (selector) => [...item.querySelectorAll(selector)].filter((node) => node.closest('li.lsg-as-track, li.lsg-as-group') === item);
+        const name = own('.lsg-as-name')[0];
+        return { title: name.textContent, href: name.href ?? null, group: item.matches('.lsg-as-group'),
+          kind: item.dataset.type ?? null, type: own('.lsg-as-type')[0]?.textContent ?? null,
+          settings: own('.lsg-as-settings dt').map((dt) => [dt.textContent, dt.nextElementSibling.matches('.lsg-as-monitor')
+            ? dt.nextElementSibling.querySelector('strong').textContent : dt.nextElementSibling.textContent]),
+          devices: own('.lsg-as-devices > li').map((li) => li.textContent),
+          tracks: own('.lsg-as-tracks')[0] ? [...own('.lsg-as-tracks')[0].children].map(column) : null };
+      };
+      const scroller = view.querySelector('.lsg-as-scroll');
+      return { count: document.querySelectorAll('.lsg-ableton-set').length, label: view.getAttribute('aria-label'),
+        caption: view.querySelector('.lsg-as-caption').textContent,
+        tracks: [...scroller.querySelector('.lsg-as-tracks').children].map(column),
+        outline_after: view.nextElementSibling?.matches('.outline') ?? false,
+        outline_text: document.querySelector('main .outline').textContent,
+        markup: view.querySelectorAll('i').length,
+        page_overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        scroll: [scroller.scrollWidth, scroller.clientWidth],
+        colors: [getComputedStyle(view.querySelector('.lsg-as-track')).backgroundColor,
+                 getComputedStyle(view.querySelector('.lsg-as-track')).color] };
+    }''')
+
+
+def luminance(color):
+    """The relative luminance of a computed `rgb(r, g, b)` colour."""
+    channels = [int(part) / 255 for part in color[color.index('(') + 1:color.index(')')].split(',')[:3]]
+    red, green, blue = (c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels)
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def check_ableton_set(browser, site, prefix, screenshots, results):
+    """The first-party ableton-set plugin: the track view of a Set, its links, narrow screens, the dark theme and navigation."""
+    set_page, group, midi, commentary, reverb, plain = (route(t) for t in (
+        'Live/Set', 'Live/Set/Track/Synths', 'Live/Set/Track/Synths/MicroFreak MIDI', 'Live/Set/Track/Commentary',
+        'Live/Set/Track/A-Reverb', 'Live/Plain'))
+    module = 'plugins/ableton-set/ableton-set.mjs'
+    loaded = "performance.getEntriesByType('resource').some((r) => r.name.includes('lsg-host-'))"
+
+    # A page that is not a Set, and a track page, opened directly: no plugin file and no view.
+    for target in (plain, commentary):
+        context = browser.new_context()
+        page = context.new_page()
+        requests = []
+        page.on('request', lambda request: requests.append(request.url))
+        page.goto(prefix + target, wait_until='load')
+        page.wait_for_function(loaded)
+        page.wait_for_timeout(300)
+        assert not [u for u in requests if '/plugins/ableton-set/' in u], requests
+        assert track_view(page) is None
+        context.close()
+    results['set_no_plugin_request_without_entry'] = True
+
+    context = browser.new_context(viewport={'width': 1280, 'height': 800}, color_scheme='light')
+    page = context.new_page()
+    errors, requests = [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: requests.append(request.url))
+    page.goto(prefix + set_page, wait_until='load')
+    page.wait_for_selector('main .lsg-ableton-set')
+    view = track_view(page)
+    assert view['count'] == 1 and view['label'] == 'Track view of Evening Set', view
+    assert view['caption'] == 'Track view · Live 11.3.43 · 96 BPM · 4/4 · 4 tracks', view['caption']
+    # One column per track, the group's track inside the group, each linked to its page.
+    assert view['tracks'] == [
+        {'title': 'Synths', 'href': prefix + group, 'group': True, 'kind': 'group', 'type': 'Group',
+         'settings': [['Audio to', 'AudioOut/Master']], 'devices': [], 'tracks': [
+             {'title': 'MicroFreak MIDI', 'href': prefix + midi, 'group': False, 'kind': 'midi', 'type': 'MIDI',
+              'settings': [['MIDI from', 'MidiIn/External.Dev:Launchpad Pro MK3 (LPProMK3 MIDI)/0'], ['MIDI channel', '1'],
+                           ['Monitor', 'Auto'], ['MIDI to', 'MidiOut/External.Dev:Arturia MicroFreak/0'], ['Arm', 'Armed']],
+              'devices': [], 'tracks': None}]},
+        {'title': 'Commentary', 'href': prefix + commentary, 'group': False, 'kind': 'audio', 'type': 'Audio',
+         'settings': [['Audio from', 'AudioIn/External/S0'], ['Monitor', 'Off'], ['Audio to', 'AudioOut/Master'], ['Arm', 'Off']],
+         'devices': ['Compressor', 'EQ <i>Eight</i>', 'Limiter'], 'tracks': None},
+        {'title': 'A-Reverb', 'href': prefix + reverb, 'group': False, 'kind': 'return', 'type': 'Return',
+         'settings': [['Audio to', 'AudioOut/Master']], 'devices': ['Reverb'], 'tracks': None}], view['tracks']
+    assert view['markup'] == 0, view
+    # The outline stays below the view, with the embedded track pages in it.
+    assert view['outline_after'] and 'Records the spoken afterword.' in view['outline_text'], view
+    assert view['page_overflow'] <= 0, view
+    assert luminance(view['colors'][0]) > 0.7 > 0.2 > luminance(view['colors'][1]), view['colors']
+    results['set_columns'] = [track['title'] for track in view['tracks']]
+
+    # Keyboard focus reaches each track link and shows the focus ring.
+    focused = []
+    for _ in range(40):
+        page.keyboard.press('Tab')
+        state = page.evaluate('''() => { const a = document.activeElement;
+          return a?.matches('a.lsg-as-name') ? [a.textContent, a.matches(':focus-visible'), getComputedStyle(a).outlineStyle] : null; }''')
+        if state:
+            assert state[1] and state[2] == 'solid', state
+            focused.append(state[0])
+        if len(focused) == 4:
+            break
+    assert focused == ['Synths', 'MicroFreak MIDI', 'Commentary', 'A-Reverb'], focused
+    results['set_keyboard_focus'] = focused
+    if screenshots:
+        screenshots.mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=str(screenshots / 'set-1-desktop-light.png'))
+
+    # A column's link opens the track page, an ordinary page without a view; Back shows the view once.
+    page.locator('.lsg-ableton-set a.lsg-as-name', has_text='Commentary').click()
+    page.wait_for_function("document.querySelector('main h1')?.textContent === 'Live/Set/Track/Commentary'")
+    assert track_view(page) is None
+    assert 'Records the spoken afterword.' in page.locator('main').inner_text()
+    page.go_back()
+    page.wait_for_function("document.querySelector('main h1')?.textContent === 'Live/Set'")
+    page.wait_for_selector('main .lsg-ableton-set')
+    assert track_view(page)['count'] == 1
+    assert len([u for u in requests if u.endswith(module)]) == 1, requests
+    assert not errors, errors
+    context.close()
+    results['set_navigation_and_back'] = True
+
+    # On a phone the page does not scroll sideways; the tracks do. The dark theme darkens the columns.
+    context = browser.new_context(viewport={'width': 375, 'height': 812}, color_scheme='dark')
+    page = context.new_page()
+    page.goto(prefix + set_page, wait_until='load')
+    page.wait_for_selector('main .lsg-ableton-set')
+    view = track_view(page)
+    assert view['page_overflow'] <= 0, view
+    assert view['scroll'][0] > view['scroll'][1], view
+    assert luminance(view['colors'][0]) < 0.2 < 0.7 < luminance(view['colors'][1]), view['colors']
+    if screenshots:
+        page.screenshot(path=str(screenshots / 'set-2-phone-dark.png'))
+    context.close()
+    results['set_phone_and_dark'] = view['scroll']
+
+
 FEATURE_PAGES = {
     'Feat___Home.md': '- Home. [[Feat/Video]] [[Feat/Slides]] [[Feat/Cards]] [[Feat/Plain]]\n',
     'Feat___Video.md': '- {{video https://www.youtube.com/watch?v=dQw4w9WgXcQ}}\n- At {{youtube-timestamp 30}} it starts. [[Feat/Home]]\n',
@@ -807,6 +982,7 @@ def main():
         plain = build(args.binary, temp, [])
         episodes = build_episodes(args.binary, temp)
         sequence = build_sequence(args.binary, temp)
+        live_set = build_set(args.binary, temp)
         features = build_features(args.binary, temp)
         installable = build_installable(args.binary, temp)
         server, base = serve(temp)
@@ -1000,6 +1176,7 @@ def main():
                 context.close()
                 check_podcast_episode(browser, episodes, f'{base}/{episodes.name}/', args.screenshots, results)
                 check_sequence_header(browser, sequence, f'{base}/{sequence.name}/', args.screenshots, results)
+                check_ableton_set(browser, live_set, f'{base}/{live_set.name}/', args.screenshots, results)
                 check_page_features(browser, f'{base}/{features.name}/', results)
                 check_installable(browser, installable, install_base, root_base, results)
                 browser.close()
