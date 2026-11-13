@@ -24,7 +24,7 @@ const entry = {
     },
     {
       title: 'Commentary', url: 'Live/Set/Track/Commentary/', type: 'audio', 'audio-from': 'AudioIn/External/S0',
-      'audio-to': 'AudioOut/Master', monitor: 'off', arm: false, devices: ['Compressor', 'EQ Eight', 'Limiter'],
+      'audio-to': { title: 'Synths', url: 'Live/Set/Track/Synths/', detail: 'Track In' }, monitor: 'off', arm: false, devices: ['Compressor', 'EQ Eight', 'Limiter'],
     },
   ],
 };
@@ -39,7 +39,7 @@ test('setView reads a group, a grouped track and an ungrouped track in order', a
   const [group, commentary] = view.tracks;
   assert.equal(group.type, 'Group');
   assert.equal(group.href, 'https://garden.example.org/site/Live/Set/Track/Synths/');
-  assert.deepEqual(group.rows, [{ key: 'audio-to', label: 'Audio to', value: 'AudioOut/Master' }]);
+  assert.deepEqual(group.rows, [{ key: 'audio-to', label: 'Audio to', value: 'AudioOut/Master', href: null }]);
   assert.equal(group.arm, null);
   const [midi] = group.tracks;
   assert.equal(midi.type, 'MIDI');
@@ -55,6 +55,11 @@ test('setView reads a group, a grouped track and an ungrouped track in order', a
   assert.equal(midi.arm, true);
   assert.equal(midi.tracks, null);
   assert.equal(commentary.type, 'Audio');
+  // A routing to another track of the Set: its title, its page and Live's second box.
+  assert.deepEqual(commentary.rows.at(-1), {
+    key: 'audio-to', label: 'Audio to', value: 'Synths',
+    href: 'https://garden.example.org/site/Live/Set/Track/Synths/', detail: 'Track In',
+  });
   assert.equal(commentary.arm, false);
   assert.deepEqual(commentary.devices, ['Compressor', 'EQ Eight', 'Limiter']);
   assert.equal(commentary.tracks, null);
@@ -87,11 +92,26 @@ test('setView keeps what a track states and nothing else', async () => {
     ['Script', '', '', null],
   ]);
   const odd = view.tracks[2];
-  assert.deepEqual(odd.rows, [{ key: 'monitor', label: 'Monitor', value: 'sometimes' }]);
+  assert.deepEqual(odd.rows, [{ key: 'monitor', label: 'Monitor', value: 'sometimes', href: null }]);
   // `arm` is a boolean or nothing, and `devices` a list or nothing.
   assert.equal(odd.arm, null);
   assert.deepEqual(odd.devices, []);
   assert.deepEqual(view.tracks[1].tracks, []);
+});
+
+test('setView reads a routing that names another track', async () => {
+  const { setView } = await loaded;
+  const rows = (routing) => setView({ tracks: [{ title: 'T', url: 't.html', 'audio-to': routing }] }, base).tracks[0].rows;
+  assert.deepEqual(rows({ title: '1n2', url: 'one.html' }),
+    [{ key: 'audio-to', label: 'Audio to', value: '1n2', href: 'https://garden.example.org/site/one.html' }]);
+  // A target off the site, or without an address, keeps its name and has no link.
+  assert.deepEqual(rows({ title: '1n2', url: 'https://elsewhere.example.com/p.html', detail: 'Track In' }),
+    [{ key: 'audio-to', label: 'Audio to', value: '1n2', href: null, detail: 'Track In' }]);
+  assert.deepEqual(rows({ title: '1n2' }), [{ key: 'audio-to', label: 'Audio to', value: '1n2', href: null }]);
+  // A target without a title, and a value of another kind, give no row.
+  for (const routing of [{ url: 'one.html', detail: 'Track In' }, { title: '' }, {}, null, 7, ['1n2']]) {
+    assert.deepEqual(rows(routing), [], JSON.stringify(routing));
+  }
 });
 
 test('setView gives no view for a page without tracks', async () => {

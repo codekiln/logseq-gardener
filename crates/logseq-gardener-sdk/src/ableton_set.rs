@@ -44,6 +44,9 @@ pub const TRACK_SETTINGS: [&str; 8] = [
     "monitor",
     "arm",
 ];
+/// The [`TRACK_SETTINGS`] that say where a track's signal comes from and goes to. A value may
+/// start with a reference to another track's page ([`leading_reference`]).
+pub const ROUTING_SETTINGS: [&str; 4] = ["audio-from", "audio-to", "midi-from", "midi-to"];
 /// The block property that lists a track's devices in chain order, separated by commas.
 pub const DEVICES: &str = "devices";
 
@@ -101,6 +104,23 @@ pub fn heading(blocks: &[Block]) -> Option<Heading> {
             .map(|(key, value)| (key.to_lowercase().replace('_', "-"), value.to_owned()))
             .collect(),
     })
+}
+
+/// The page a routing value starts with and the text after it: `[[Set/Track/1n2]] Track In`
+/// gives `("Set/Track/1n2", "Track In")`. `None` when the value does not start with a page
+/// reference.
+///
+/// ```
+/// use logseq_gardener_sdk::ableton_set::leading_reference;
+///
+/// assert_eq!(leading_reference("[[Set/Track/1n2]] Track In"), Some(("Set/Track/1n2", "Track In")));
+/// assert_eq!(leading_reference("Ext. In 3"), None);
+/// ```
+#[must_use]
+pub fn leading_reference(value: &str) -> Option<(&str, &str)> {
+    let (name, rest) = value.trim().strip_prefix("[[")?.split_once("]]")?;
+    let name = name.trim();
+    (!name.is_empty() && !name.contains("[[")).then_some((name, rest.trim()))
 }
 
 /// The names of the pages a page embeds with `{{embed [[page]]}}`, in page order. Block
@@ -167,6 +187,28 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(found.devices(), ["Multband & Limiter", "Voice Enhancer"]);
+    }
+
+    #[test]
+    fn a_routing_value_may_start_with_a_page_reference() {
+        assert_eq!(
+            leading_reference("  [[ Set/Track/1n2 ]]  Post Mixer "),
+            Some(("Set/Track/1n2", "Post Mixer"))
+        );
+        assert_eq!(
+            leading_reference("[[Set/Track/1n2]]"),
+            Some(("Set/Track/1n2", ""))
+        );
+        for value in [
+            "Ext. In 3",
+            "to [[Set/Track/1n2]]",
+            "[[]] Track In",
+            "[[Set/Track/1n2",
+            "[[a [[b]] c]]",
+            "",
+        ] {
+            assert_eq!(leading_reference(value), None, "{value}");
+        }
     }
 
     #[test]

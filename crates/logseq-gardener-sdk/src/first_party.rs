@@ -331,13 +331,55 @@ impl<'a> AbletonSet<'a> {
         heading.setting(key)
     }
 
+    /// The title a column and a routing link show for the published page at `route`: the text
+    /// of its first heading, or the last segment of its page title without one.
+    fn title(&self, route: &str, heading: Option<&crate::ableton_set::Heading>) -> String {
+        let page_title = self.inputs.routes.get(route).map_or("", String::as_str);
+        heading
+            .map(|heading| heading.title.as_str())
+            .filter(|title| !title.is_empty())
+            .unwrap_or_else(|| page_title.rsplit('/').next().unwrap_or(page_title))
+            .to_owned()
+    }
+
+    /// A routing value as the entry holds it. A value that starts with a reference to one
+    /// published page becomes `{title, url, detail}`: the page's title, its route and the text
+    /// after the reference, which is left out when empty. A reference to any other page becomes
+    /// text: the last segment of the name it writes, then the text after it. Any other value
+    /// stays as written.
+    fn routing(&self, value: &str) -> Value {
+        let Some((name, detail)) = crate::ableton_set::leading_reference(value) else {
+            return Value::String(value.to_owned());
+        };
+        let found = match self.inputs.names.candidates(name) {
+            [route] => self.documents.get_key_value(route.as_str()),
+            _ => None,
+        };
+        let Some((route, document)) = found else {
+            let name = name.rsplit('/').next().unwrap_or(name).trim();
+            return Value::String(format!("{name} {detail}").trim().to_owned());
+        };
+        let heading = crate::ableton_set::heading(&document.parsed.blocks);
+        let mut target = Map::new();
+        target.insert(
+            "title".to_owned(),
+            Value::String(self.title(route, heading.as_ref())),
+        );
+        target.insert("url".to_owned(), Value::String((*route).to_owned()));
+        if !detail.is_empty() {
+            target.insert("detail".to_owned(), Value::String(detail.to_owned()));
+        }
+        Value::Object(target)
+    }
+
     /// The group and track pages that `document` embeds, in page order. `chain` holds the
     /// routes of the pages being read, from the Set down, so a page that embeds one of them
     /// adds no column. An embed of a withheld, missing or ambiguous page, or of a page that is
     /// neither a group nor a track, adds none either.
     fn tracks(&self, document: &GardenDocument, chain: &mut Vec<&'a str>) -> Vec<Value> {
         use crate::ableton_set::{
-            DEVICES, GROUP_TYPE, TRACK_SETTINGS, TRACK_TYPE, embedded_pages, heading,
+            DEVICES, GROUP_TYPE, ROUTING_SETTINGS, TRACK_SETTINGS, TRACK_TYPE, embedded_pages,
+            heading,
         };
         let mut tracks = Vec::new();
         for name in embedded_pages(&document.parsed.blocks) {
@@ -356,14 +398,11 @@ impl<'a> AbletonSet<'a> {
                 continue;
             }
             let found = heading(&embedded.parsed.blocks);
-            let page_title = self.inputs.routes.get(*route).map_or("", String::as_str);
-            let title = found
-                .as_ref()
-                .map(|heading| heading.title.as_str())
-                .filter(|title| !title.is_empty())
-                .unwrap_or_else(|| page_title.rsplit('/').next().unwrap_or(page_title));
             let mut track = Map::new();
-            track.insert("title".to_owned(), Value::String(title.to_owned()));
+            track.insert(
+                "title".to_owned(),
+                Value::String(self.title(route, found.as_ref())),
+            );
             track.insert("url".to_owned(), Value::String((*route).to_owned()));
             if let Some(found) = &found {
                 for key in TRACK_SETTINGS {
@@ -375,6 +414,7 @@ impl<'a> AbletonSet<'a> {
                         "arm" if value.eq_ignore_ascii_case("true") => Value::Bool(true),
                         "arm" if value.eq_ignore_ascii_case("false") => Value::Bool(false),
                         "arm" => continue,
+                        _ if ROUTING_SETTINGS.contains(&key) => self.routing(value),
                         _ => Value::String(value.to_owned()),
                     };
                     track.insert(key.to_owned(), value);

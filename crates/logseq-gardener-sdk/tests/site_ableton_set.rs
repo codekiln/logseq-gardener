@@ -32,15 +32,15 @@ impl Fixture {
             ("Live___Set.md", SET),
             (
                 "Live___Set___Track___Synths.md",
-                "logseq-entity:: [[Logseq/Entity/Ableton/Track/Group]]\n\n- # Synths\n  type:: group\n  audio-to:: AudioOut/Master\n\t- {{embed [[Live/Set/Track/Synths/MicroFreak MIDI]]}}\n\t- {{embed [[Live/Set/Track/Synths]]}}\n\t- {{embed [[Live/Set]]}}\n",
+                "logseq-entity:: [[Logseq/Entity/Ableton/Track/Group]]\n\n- # Synths\n  type:: group\n  audio-to:: [[live/set/track/commentary]]\n\t- {{embed [[Live/Set/Track/Synths/MicroFreak MIDI]]}}\n\t- {{embed [[Live/Set/Track/Synths]]}}\n\t- {{embed [[Live/Set]]}}\n",
             ),
             (
                 "Live___Set___Track___Synths___MicroFreak MIDI.md",
-                "logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # MicroFreak & <MIDI>\n  type:: midi\n  midi-from:: MidiIn/External.Dev:Launchpad Pro MK3/0\n  midi-to:: MidiOut/External.Dev:Arturia MicroFreak/0\n  midi-channel:: 1\n  monitor:: auto\n  arm:: true\n\t- Carries the sequencer's notes. TRACK_BODY\n",
+                "logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # MicroFreak & <MIDI>\n  type:: midi\n  midi-from:: [[Live/Set/Track/Private]] Post Mixer\n  midi-to:: MidiOut/External.Dev:Arturia MicroFreak/0\n  midi-channel:: 1\n  monitor:: auto\n  arm:: true\n\t- Carries the sequencer's notes. TRACK_BODY\n",
             ),
             (
                 "Live___Set___Track___Commentary.md",
-                "logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # Commentary\n  type:: audio\n  audio-from:: AudioIn/External/S0\n  audio-to:: AudioOut/Master\n  monitor:: off\n  arm:: false\n  devices:: Compressor, EQ Eight, Limiter\n\t- Records the afterword.\n",
+                "logseq-entity:: [[Logseq/Entity/Ableton/Track/Track]]\n\n- # Commentary\n  type:: audio\n  audio-from:: AudioIn/External/S0\n  audio-to:: [[Live/Set/Track/Synths]] Track In\n  monitor:: off\n  arm:: false\n  devices:: Compressor, EQ Eight, Limiter\n\t- Records the afterword.\n",
             ),
             (
                 // A track with no heading is named by its page, and states nothing else.
@@ -163,12 +163,14 @@ fn a_set_entry_holds_its_groups_and_tracks_in_page_order() {
                     "title": "Synths",
                     "url": url(&site, "Live/Set/Track/Synths"),
                     "type": "group",
-                    "audio-to": "AudioOut/Master",
+                    // A routing that names a published page, with nothing after it.
+                    "audio-to": {"title": "Commentary", "url": url(&site, "Live/Set/Track/Commentary")},
                     "tracks": [{
                         "title": "MicroFreak & <MIDI>",
                         "url": url(&site, "Live/Set/Track/Synths/MicroFreak MIDI"),
                         "type": "midi",
-                        "midi-from": "MidiIn/External.Dev:Launchpad Pro MK3/0",
+                        // A routing that names a withheld page: its name as text, no URL.
+                        "midi-from": "Private Post Mixer",
                         "midi-to": "MidiOut/External.Dev:Arturia MicroFreak/0",
                         "midi-channel": "1",
                         "monitor": "auto",
@@ -180,7 +182,11 @@ fn a_set_entry_holds_its_groups_and_tracks_in_page_order() {
                     "url": url(&site, "Live/Set/Track/Commentary"),
                     "type": "audio",
                     "audio-from": "AudioIn/External/S0",
-                    "audio-to": "AudioOut/Master",
+                    "audio-to": {
+                        "title": "Synths",
+                        "url": url(&site, "Live/Set/Track/Synths"),
+                        "detail": "Track In",
+                    },
                     "monitor": "off",
                     "arm": false,
                     "devices": ["Compressor", "EQ Eight", "Limiter"],
@@ -228,7 +234,7 @@ fn a_hidden_setting_stays_out_of_the_entry() {
     assert_eq!(set["live-version"], "11.3.43");
     let midi = &set["tracks"][0]["tracks"][0];
     assert_eq!(midi.get("midi-to"), None);
-    assert_eq!(midi["midi-from"], "MidiIn/External.Dev:Launchpad Pro MK3/0");
+    assert_eq!(midi["midi-from"], "Private Post Mixer");
     assert_eq!(set["tracks"][1].get("devices"), None);
 }
 

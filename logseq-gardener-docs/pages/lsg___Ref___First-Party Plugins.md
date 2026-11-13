@@ -68,7 +68,8 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 			  | --- | --- |
 			  | `title` | The text of the track page's first heading, or the last segment of the page title without one. |
 			  | `url` | The track page's published path relative to the site root. |
-			  | `type`, `audio-from`, `audio-to`, `midi-from`, `midi-to`, `midi-channel`, `monitor` | The heading's block properties of those names, as written. Each is left out when the heading does not state it. |
+			  | `type`, `midi-channel`, `monitor` | The heading's block properties of those names, as written. Each is left out when the heading does not state it. |
+			  | `audio-from`, `audio-to`, `midi-from`, `midi-to` | The heading's block property of that name, left out when the heading does not state it. A value that starts with a reference to one published page, such as `[[Evening/Set/Track/Synths]] Track In`, is `{title, url, detail}`: the page's title as a column shows it, its published path relative to the site root, and the text after the reference, left out when there is none. A value that starts with a reference to any other page is the last segment of the name it writes, then the text after it. Any other value is as written. |
 			  | `arm` | `true` or `false` for `arm:: true` or `arm:: false`. Left out for any other value. |
 			  | `devices` | The names in `devices::`, split at commas, in chain order. Left out without the property. |
 			  | `tracks` | On a group page only: the group's tracks, in the same form. A track page has no `tracks` key. |
@@ -76,7 +77,7 @@ see-also:: [[lsg/Ref/Plugin Host API]], [[lsg/Ref/Build Plugin Protocol]], [[lsg
 			- The module puts a `<section class="lsg-ableton-set">` with the accessible name `Track view of <title>` above the page's outline. A caption gives the Live version, the tempo, the time signature and the number of tracks, counting groups.
 			- Tracks are a row of columns that scrolls sideways inside the section, so the page itself never scrolls sideways, at any width. A group is a column that holds its own settings and then its tracks' columns.
 			- A column's heading is the track's name, linked to its page, with its type beside it: `Audio`, `MIDI`, `Return` or `Group` for those `type::` values, and any other value as written. A coloured top edge repeats the type.
-			- Settings follow the order of Live's In/Out section: Audio from, MIDI from, MIDI channel, Monitor, Audio to, MIDI to, Arm. Routing values appear as the page writes them. Monitor shows Live's three states, In, Auto and Off, with the track's state marked; a screen reader hears that state alone. Arm reads `Armed` or `Off`.
+			- Settings follow the order of Live's In/Out section: Audio from, MIDI from, MIDI channel, Monitor, Audio to, MIDI to, Arm. A routing that names another page of the site shows that page's title as a link, then the rest of the value, such as **Synths** Track In; any other routing appears as the page writes it. Monitor shows Live's three states, In, Auto and Off, with the track's state marked; a screen reader hears that state alone. Arm reads `Armed` or `Off`.
 			- Devices are a list in chain order.
 			- Keyboard focus reaches each track link and shows an outline. The view uses the site's theme colours in light and dark.
 			- After each navigation the module draws the view of the new page, or none when the page has no entry.
