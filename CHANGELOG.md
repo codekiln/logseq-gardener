@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.53](https://github.com/codekiln/logseq-gardener/compare/v0.0.52...v0.0.53) - 2026-11-13
+
+### Added
+
+- link a track's routing to the track it names in the ableton-set view (#635)
+
 ## [0.0.52](https://github.com/codekiln/logseq-gardener/compare/v0.0.51...v0.0.52) - 2026-11-13
 
 ### Added
