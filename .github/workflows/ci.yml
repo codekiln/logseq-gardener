@@ -68,6 +68,8 @@ jobs:
           # Only the tools the task uses; the npm tools are for other checks.
           install_args: rust mr-boxington usage python node uv
       - run: mise run offline:browser-test
+        env:
+          MISE_AUTO_INSTALL: "false"
 
   # Publication speed (publication-speed): cold and warm builds of the generated Gitpa-sized
   # garden and of a pinned encode garden commit, with phase times, against the rows recorded in
