@@ -401,3 +401,19 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | Added build time on the encode garden, median of 5 paired builds (ms) | -82 | 1,000 |
 		- First paint of every fixture page stays inside the `[desktop]` and `[phone]` budgets, because the manifest, the icon and `lsg-install.js` load outside first paint.
 		- The five builds of each copy took 19.2 to 20.4 s and varied by about 1 s between runs, more than the 50 ms the budget first allowed. In CI, the paired median for the same code ranged from -236 to +219 ms between runs, so the budget is now 1,000 ms, above that spread. The key's real cost is below what a whole-garden build can measure; the budget catches a key that adds real work. `parity:build-bench` fails on the paired median.
+	- ## Offline reading
+		- Measured 2026-11-12 with `mise run parity:budgets` on the fixture garden, `mise run offline:browser-test` in Chromium 148, and `mise run parity:build-bench --offline-only --runs 5` on a copy of encode garden commit `17a6d17`. A garden without the key publishes the same files as before: the whole encode garden, 66,241 files, matched byte for byte against the previous release.
+		- | Row | Measured | Budget |
+		  | --- | --- | --- |
+		  | `lsg-sw.js` (bytes, gzip bytes) | 4,606, 1,776 | 5,000, 2,000 |
+		  | `lsg-offline.js` (bytes, gzip bytes) | 1,957, 959 | 2,000, 1,000 |
+		  | Largest page growth with the key, 53 fixture pages (bytes) | 249 | 600 |
+		  | Largest page growth with the key, gzip (bytes) | 53 | 300 |
+		  | Page growth when the garden gains 2,000 pages | 0 | 0 |
+		  | Search files compared with the build without the key | Identical | Identical |
+		  | Online navigation through an active worker, median of 15 (ms) | +0.4 | 50 |
+		  | Page memory after Save (MB) | 0.15 | 2 |
+		  | Most stored responses, 300 pages of 100 KB | 250 | 250 |
+		  | Most stored megabytes, 200 pages of 200 KB | 32.0 | 32 |
+		  | Added build time on the encode garden, median of 5 paired builds (ms) | +162 | 1,000 |
+		- First paint of every fixture page stays inside the `[desktop]` and `[phone]` budgets, because `lsg-offline.js` loads with `defer` and nothing else loads before a reader chooses Save.

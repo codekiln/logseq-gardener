@@ -26,7 +26,7 @@ see-also:: [[lsg/Ref/Install Options]], [[lsg/How To/Publish a Garden to GitHub 
 			- Firefox on Android adds a shortcut that opens the garden in Firefox: open the menu and choose Add to Home Screen.
 	- ## What installing does and does not do
 		- The garden opens in a window without the browser's address bar. Links to other sites open in your browser.
-		- Installing adds no copy of the pages. With no network, the app shows the browser's offline page. Offline reading is not part of installation.
+		- Installing adds no copy of the pages. With no network, the app shows the browser's offline page. Offline reading is a separate choice: in a garden that offers it, [[lsg/How To/Read a Published Garden Offline]] shows how to keep pages. An app on the Home Screen helps Safari keep those copies.
 		- Safari and Firefox show no install control inside the page. Use the Share menu or the browser's menu, as above.
 		- Moving the garden to another address creates a new app. The copy you installed keeps opening the old address.
 	- ## Troubleshooting

@@ -1091,3 +1091,66 @@ fn publish_help_describes_the_install_key_and_names_its_reference_page() {
         assert!(help.contains(part), "{part} in {help}");
     }
 }
+
+#[test]
+fn cli_offline_key_writes_the_worker_and_key_errors_fail_without_output() {
+    let f = Fixture::new();
+    f.write("pages/Notes.md", "- Visible\n");
+    let config = |offline: &str| {
+        f.write(
+            "logseq/config.edn",
+            &format!("{{:publishing/all-pages-public? true {offline}}}"),
+        );
+    };
+    config(":lsg/offline true");
+    let output = f.0.join("offline");
+    let result = f.publish(&output, &["--include", "Notes", "--format", "json"]);
+    assert!(result.status.success(), "{result:?}");
+    assert!(output.join("lsg-sw.js").is_file() && output.join("lsg-offline.js").is_file());
+    let page = fs::read_to_string(output.join("index.html"))
+        .or_else(|_| fs::read_to_string(output.join("pages.html")))
+        .unwrap();
+    assert!(page.contains("<script defer src=\"lsg-offline.js\"></script>"));
+    assert!(page.contains("data-lsg-offline-save hidden>Save pages for offline reading</button>"));
+
+    for (offline, problem) in [
+        (
+            r#":lsg/offline "yes""#,
+            r#"must be true or false, not "yes""#,
+        ),
+        (
+            ":default-home {:lsg/offline true}",
+            "cannot sit inside :default-home",
+        ),
+    ] {
+        config(offline);
+        let failed = f.0.join("failed");
+        let result = f.publish(&failed, &["--include", "Notes"]);
+        assert_eq!(result.status.code(), Some(1), "{offline}");
+        assert!(result.stdout.is_empty(), "{offline}");
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        for part in ["logseq/config.edn", ":lsg/offline", problem] {
+            assert!(stderr.contains(part), "{part} in {stderr}");
+        }
+        assert!(!failed.exists(), "{offline}");
+    }
+}
+
+#[test]
+fn publish_help_describes_the_offline_key_and_names_its_reference_page() {
+    let help = Command::new(env!("CARGO_BIN_EXE_lsg"))
+        .args(["publish", "help", "section", "offline-reading"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help = String::from_utf8_lossy(&help.stdout);
+    for part in [
+        ":lsg/offline true",
+        "lsg-sw.js",
+        "Nothing is registered or stored until a reader chooses Save",
+        ":lsg/offline false",
+        "lsg/Ref/Offline Options (https://codekiln.github.io/logseq-gardener/lsg/Ref/Offline%20Options/)",
+    ] {
+        assert!(help.contains(part), "{part} in {help}");
+    }
+}

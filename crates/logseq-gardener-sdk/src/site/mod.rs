@@ -157,6 +157,8 @@ pub enum SiteError {
     PluginKey(crate::garden_settings::PluginKeyError),
     /// The garden's `:lsg/install` key is malformed, or its icon failed a check.
     Install(crate::install::InstallError),
+    /// The garden's `:lsg/offline` key is not `true` or `false`, or sits in the wrong place.
+    Offline(crate::offline::OfflineError),
     /// A build plugin failed, repeated another plugin's id or returned a rejected contribution.
     BuildPlugin(crate::contributions::ContributionError),
     /// With readable URLs, a page's path collides with another page's or with a file the build
@@ -179,6 +181,7 @@ impl fmt::Display for SiteError {
             Self::InvalidPlugin(error) => error.fmt(f),
             Self::PluginKey(error) => error.fmt(f),
             Self::Install(error) => error.fmt(f),
+            Self::Offline(error) => error.fmt(f),
             Self::BuildPlugin(error) => error.fmt(f),
             Self::PageUrl(error) => error.fmt(f),
             Self::Io { path, source } => write!(f, "{}: {source}", path.display()),
@@ -194,6 +197,7 @@ impl Error for SiteError {
             Self::InvalidPlugin(error) => Some(error),
             Self::PluginKey(error) => Some(error),
             Self::Install(error) => Some(error),
+            Self::Offline(error) => Some(error),
             Self::BuildPlugin(error) => Some(error),
             Self::PageUrl(error) => Some(error),
             Self::Io { source, .. } => Some(source),
@@ -333,8 +337,13 @@ fn html_page(
     let theme_start = theme_start();
     let fragments = fragments_script();
     let install_head = shell.install.as_deref().unwrap_or_default();
+    let offline_head = if shell.offline {
+        crate::offline::PAGE_HEAD
+    } else {
+        ""
+    };
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_start}</script><script defer src=\"{THEME_ROUTE}\"></script>{properties_script}<link rel=\"stylesheet\" href=\"{SITE_STYLES_ROUTE}\">{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{media_head}{head}{install_head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{title}</title><script data-lsg-theme-script>{theme_start}</script><script defer src=\"{THEME_ROUTE}\"></script>{properties_script}<link rel=\"stylesheet\" href=\"{SITE_STYLES_ROUTE}\">{stylesheet}<script defer src=\"{shell_script}\"></script>{dialogue_script}{media_head}{head}{install_head}{offline_head}</head><body>{frame}<main>{main}</main><script data-lsg-fragments>{fragments}</script></body></html>\n"
     )
 }
 
@@ -436,6 +445,8 @@ pub fn publish_site_with_options(
         crate::garden_settings::read_first_party(root.as_ref()).map_err(SiteError::PluginKey)?;
     let install =
         crate::garden_settings::read_install(root.as_ref()).map_err(SiteError::Install)?;
+    let offline =
+        crate::garden_settings::read_offline(root.as_ref()).map_err(SiteError::Offline)?;
     let plugin_manifests = crate::plugins::read_plugins(&options.plugins, &first_party)
         .map_err(SiteError::InvalidPlugin)?;
     let mut build_plugins = build_plugins(&plugin_manifests, &options.build_plugins)?;
@@ -574,6 +585,7 @@ pub fn publish_site_with_options(
         properties: reference_config.properties,
         readable,
         install: install_head.clone(),
+        offline: offline.on(),
     };
     let mut homepage_document = None;
     for message in config_diagnostics {
@@ -1437,6 +1449,24 @@ pub fn publish_site_with_options(
                     1,
                 );
             }
+        }
+    }
+    if offline.on() {
+        documents.insert(
+            crate::offline::SCRIPT_ROUTE.to_owned(),
+            crate::offline::script(),
+        );
+    }
+    // The worker names the published pages' addresses, so it is written once every page is.
+    if offline != crate::offline::OfflineSetting::Absent {
+        let build = crate::offline::build_id(
+            documents
+                .keys()
+                .filter(|route| is_html(route) && !route.starts_with("_refs/"))
+                .map(String::as_str),
+        );
+        if let Some(worker) = crate::offline::worker(offline, &build) {
+            documents.insert(crate::offline::WORKER_ROUTE.to_owned(), worker);
         }
     }
     let plugin_files = plugins::files(&plugin_manifests);

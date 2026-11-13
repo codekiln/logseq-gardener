@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-#MISE description="Measure build plugins and :lsg/install on a whole garden against the [build_plugins] and [install] budgets"
+#MISE description="Measure build plugins, :lsg/install and :lsg/offline on a whole garden against the [build_plugins], [install] and [offline] budgets"
 #USAGE flag "--garden <path>" help="Garden to publish (default: the encode garden from ghq)"
 #USAGE flag "--runs <count>" help="Builds per variant; the fastest counts (default: 3)"
 #USAGE flag "--output <path>" help="Write the measurements as JSON to this file"
 #USAGE flag "--install-only" help="Measure only the :lsg/install build_ms row"
+#USAGE flag "--offline-only" help="Measure only the :lsg/offline build_ms row"
 set -euo pipefail
 args=()
 if [ -n "${usage_garden:-}" ]; then args+=(--garden "$usage_garden"); fi
 if [ -n "${usage_runs:-}" ]; then args+=(--runs "$usage_runs"); fi
 if [ -n "${usage_output:-}" ]; then args+=(--output "$usage_output"); fi
 if [ "${usage_install_only:-}" = "true" ]; then args+=(--install-only); fi
+if [ "${usage_offline_only:-}" = "true" ]; then args+=(--offline-only); fi
 python3 scripts/parity/build_bench.py ${args[@]+"${args[@]}"}

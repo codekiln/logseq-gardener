@@ -1,11 +1,12 @@
 tags:: [[Diataxis/How To]]
-see-also:: [[lsg/How To/Install with mise]], [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Publish Options]], [[lsg/How To/Install a Published Garden as an App]], [[lsg/Ref/Install Options]]
+see-also:: [[lsg/How To/Install with mise]], [[lsg/How To/Publish Selected Namespaces]], [[lsg/Ref/Publish Options]], [[lsg/How To/Install a Published Garden as an App]], [[lsg/Ref/Install Options]], [[lsg/Ref/Offline Options]], [[lsg/How To/Read a Published Garden Offline]]
 
 - # How To Publish a Garden to GitHub Pages
 	- ## Overview
 		- Publish a Logseq garden from its GitHub repository to GitHub Pages with a released `lsg`. A GitHub Actions workflow installs `lsg` with mise, deploys the site on every push to `main`, and uploads the site as a preview on every pull request.
 		- GitHub Pages serves a repository's site under the repository's name, such as https://codekiln.github.io/logseq-gardener/ for this documentation. Every link `lsg` writes is relative to the site, so the site works under that path. With `--readable-urls`, each page's address is its title, such as `https://OWNER.github.io/REPOSITORY/Notes/Garden/`.
 		- To let readers install the site as an app with its own name and icon, add `:lsg/install` to the garden's `logseq/config.edn`. [[lsg/Ref/Install Options]] describes the key, and [[lsg/How To/Install a Published Garden as an App]] tells readers how to install.
+		- To let readers keep the pages they open for reading without a network, add `:lsg/offline true`. [[lsg/Ref/Offline Options]] describes the key, and [[lsg/How To/Read a Published Garden Offline]] tells readers how to use it.
 	- ## Prerequisites
 		- A Logseq garden in a GitHub repository, with a `pages` or `journals` folder.
 		- [mise](https://mise.jdx.dev/) on your computer.

@@ -68,6 +68,9 @@ FIRST_PARTY_HIDDEN_PAGE = 'Tools/Plugins/Show/Hidden Type'
 INSTALL_KEY = ':lsg/install {:name "Fixture Garden" :short-name "Fixture" :icon "assets/app-icon.png"}'
 INSTALL_FILES = ('lsg.webmanifest', 'lsg-icon.png', 'lsg-install.js')
 INSTALL_ICON_SIDE = 512
+# Offline reading (offline-reading): the key and the files it adds.
+OFFLINE_KEY = ':lsg/offline true'
+OFFLINE_FILES = ('lsg-sw.js', 'lsg-offline.js')
 PAGE_METADATA = re.compile(r'<script type="application/json" data-lsg-page>(.*?)</script>', re.S)
 
 
@@ -1058,6 +1061,65 @@ def check_install(plain, site, plain_large, site_large, budgets):
     return failures
 
 
+def with_offline_key(garden):
+    """Add `:lsg/offline true` to the top-level map of a garden copy's config.edn."""
+    config = garden / 'logseq' / 'config.edn'
+    text = config.read_text(encoding='utf-8').rstrip()
+    assert text.endswith('}'), config
+    config.write_text(f'{text[:-1]} {OFFLINE_KEY}}}\n', encoding='utf-8')
+
+
+def offline_search_files(site):
+    """Every file except pages, the site manifest and the files the offline key adds."""
+    return {str(path.relative_to(site)): path.read_bytes() for path in sorted(site.rglob('*'))
+            if path.is_file() and path.suffix != '.html' and path.name != 'lsg-site.json'
+            and path.name not in OFFLINE_FILES}
+
+
+def check_offline(plain, site, plain_large, site_large, budgets):
+    """Return failure messages for [offline] on the fixture garden: the two files, what the key adds
+    to each page, first paint, growth with the garden and the search files."""
+    limits = budgets['offline']
+    failures = []
+    for name in OFFLINE_FILES:
+        if not (site / name).is_file():
+            failures.append(f'{name}: missing from the build with :lsg/offline true')
+        if (plain / name).exists():
+            failures.append(f'{name}: written without :lsg/offline')
+    if failures:
+        return failures
+    for name, raw_row, gzip_row in (('lsg-sw.js', 'sw_kb', 'sw_gzip_kb'), ('lsg-offline.js', 'script_kb', 'script_gzip_kb')):
+        data = (site / name).read_bytes()
+        packed = metrics.gzip_size(data)
+        print(f'{name}: {len(data):,} ({packed:,} gzip)')
+        if len(data) > limits[raw_row] * 1000:
+            failures.append(f'{raw_row}: {name} is {len(data):,} bytes, over {limits[raw_row] * 1000:,.0f}')
+        if packed > limits[gzip_row] * 1000:
+            failures.append(f'{gzip_row}: {name} is {packed:,} gzip, over {limits[gzip_row] * 1000:,.0f}')
+    growth = page_growths(plain, site)
+    if not growth:
+        return failures + ['offline: no page to compare']
+    largest = max(growth.items(), key=lambda item: item[1][0])
+    largest_gzip = max(growth.items(), key=lambda item: item[1][1])
+    print(f'offline: {len(growth)} pages, largest growth {largest[1][0]} bytes ({largest[0]}), '
+          f'{largest_gzip[1][1]} gzip ({largest_gzip[0]})')
+    for page, (raw, packed) in sorted(growth.items()):
+        if raw > limits['page_growth_kb'] * 1000:
+            failures.append(f'page_growth_kb: {page} grows {raw:,} bytes, over {limits["page_growth_kb"] * 1000:,.0f}')
+        if packed > limits['page_growth_gzip_kb'] * 1000:
+            failures.append(f'page_growth_gzip_kb: {page} grows {packed:,} gzip, over {limits["page_growth_gzip_kb"] * 1000:,.0f}')
+    sizes = {page: page_sizes(site, page) for page in site_pages(site) if page != 'graph.html'}
+    failures += [f'with :lsg/offline true, {message}' for message in check(sizes, sizes, budgets)]
+    grown = page_growths(plain_large, site_large)
+    for page, size in sorted(growth.items()):
+        if grown.get(page) != size:
+            failures.append(f'{page}: the key adds {size[0]} bytes ({size[1]} gzip), and {grown.get(page)} '
+                            f'when the garden gains {FILLER_PAGES:,} pages')
+    if offline_search_files(plain) != offline_search_files(site):
+        failures.append('search files differ from the build without :lsg/offline')
+    return failures
+
+
 def derived_rows(text):
     """The markup of every derived row list in a page, each closed at its matching </ul>."""
     lists = []
@@ -1303,6 +1365,15 @@ def main():
             publish(lsg, copy, temp / name, [*FIXTURE_ROOTS, *([FILLER_ROOT] if filler else [])], search=True)
         plugin_failures += check_install(temp / 'inst-plain', temp / 'inst', temp / 'inst-plain-large',
                                          temp / 'inst-large', budgets)
+        for name, filler in (('off', False), ('off-large', True)):
+            copy = temp / f'{name}-garden'
+            shutil.copytree(FIXTURE_GARDEN, copy)
+            with_offline_key(copy)
+            if filler:
+                add_filler(copy, FILLER_PAGES)
+            publish(lsg, copy, temp / name, [*FIXTURE_ROOTS, *([FILLER_ROOT] if filler else [])], search=True)
+        plugin_failures += check_offline(temp / 'inst-plain', temp / 'off', temp / 'inst-plain-large',
+                                         temp / 'off-large', budgets)
         search_failures = check_search(temp / 'search', budgets['search'], profiles(budgets),
                                        PROPERTIES_START.stat().st_size)
         index = search_index_sizes(temp / 'search')
