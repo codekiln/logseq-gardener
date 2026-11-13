@@ -58,7 +58,8 @@ jobs:
   # Offline reading (offline-reading): the worker, the menu items and the stored copies in
   # Chromium, and the browser rows of the [offline] budgets.
   offline-browser:
-    runs-on: ubuntu-latest
+    # Playwright 1.60 has no Chromium build for ubuntu-latest (Ubuntu 26.04).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
