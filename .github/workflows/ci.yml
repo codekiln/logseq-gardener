@@ -65,6 +65,8 @@ jobs:
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4
         with:
           version: 2026.9.5
+          # Only the tools the task uses; the npm tools are for other checks.
+          install_args: rust mr-boxington usage python node uv
       - run: mise run offline:browser-test
 
   # Publication speed (publication-speed): cold and warm builds of the generated Gitpa-sized
