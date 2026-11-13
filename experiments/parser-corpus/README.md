@@ -6,9 +6,9 @@ This one-time experiment compares parsers on [Pengx's knowledge garden](https://
 
 [compare.mjs](compare.mjs) reads the garden's committed `pages/`, `journals/`, `assets/` and `logseq/config.edn` at the pinned revision and runs four checks:
 
-1. **Syntax and references.** lsdoc's garden runner compares lsdoc with mldoc 1.5.9 on every note, starting a fresh mldoc process for each note. It applies the same Org reference repair as the [earlier comparison](../../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/README.md).
+1. **Syntax and references.** lsdoc's garden runner compares lsdoc with mldoc 1.5.9 on every note, starting a fresh mldoc process for each note. It applies the same Org reference repair as the [earlier comparison](../../openspec/changes/archive/2026-11-13-parser-comparison-evidence/experiments/parser-comparison/README.md).
 2. **Embedded media and publication properties.** The script counts images, asset links, page and block embeds, media macros, media HTML and page or block properties in each parser's output, then checks that the counts agree file by file.
-3. **Logseq relationships.** The current Logseq OG file-graph parser builds the graph with the garden's own configuration, using the [relationship script](../../openspec/changes/current-og-relationships/experiments/file-relationships/graph.cljs) and runtime from the earlier OG comparison. For each file, the script compares the pages that Logseq links with the page references lsdoc reports, and sorts the differences into categories.
+3. **Logseq relationships.** The current Logseq OG file-graph parser builds the graph with the garden's own configuration, using the [relationship script](../../openspec/changes/archive/2026-11-13-current-og-relationships/experiments/file-relationships/graph.cljs) and runtime from the earlier OG comparison. For each file, the script compares the pages that Logseq links with the page references lsdoc reports, and sorts the differences into categories.
 4. **Gardener end to end.** `lsg publish --journals` publishes every root namespace, and the script counts the published pages and diagnostics by kind.
 
 ## Run it

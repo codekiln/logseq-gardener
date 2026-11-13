@@ -16,47 +16,47 @@ fn document(path: &str, source: &str) -> GardenDocument {
 #[test]
 fn saved_logseq_fixture_titles() {
     // Expected original names come from the saved Logseq OG results:
-    // https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/current-og-relationships/experiments/file-relationships/relationships.json
+    // https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/archive/2026-11-13-current-og-relationships/experiments/file-relationships/relationships.json
     let fixtures = [
         (
             "Title Override",
             include_str!(
-                "../../../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/fixtures/pages/Title Override.md"
+                "../../../openspec/changes/archive/2026-11-13-parser-comparison-evidence/experiments/parser-comparison/fixtures/pages/Title Override.md"
             ),
             "Chosen Name",
         ),
         (
             "Graph Cases",
             include_str!(
-                "../../../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/fixtures/pages/Graph Cases.md"
+                "../../../openspec/changes/archive/2026-11-13-parser-comparison-evidence/experiments/parser-comparison/fixtures/pages/Graph Cases.md"
             ),
             "Graph Cases",
         ),
         (
             "Alias Source",
             include_str!(
-                "../../../openspec/changes/parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Alias Source.md"
+                "../../../openspec/changes/archive/2026-11-13-parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Alias Source.md"
             ),
             "Alias Source",
         ),
         (
             "Code Fence",
             include_str!(
-                "../../../openspec/changes/parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Code Fence.md"
+                "../../../openspec/changes/archive/2026-11-13-parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Code Fence.md"
             ),
             "Code Fence",
         ),
         (
             "Media",
             include_str!(
-                "../../../openspec/changes/parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Media.md"
+                "../../../openspec/changes/archive/2026-11-13-parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Media.md"
             ),
             "Media",
         ),
         (
             "Target Page",
             include_str!(
-                "../../../openspec/changes/parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Target Page.md"
+                "../../../openspec/changes/archive/2026-11-13-parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Target Page.md"
             ),
             "Target Page",
         ),
@@ -70,7 +70,7 @@ fn saved_logseq_fixture_titles() {
     let doc = document(
         "pages/Names___Nested.md",
         include_str!(
-            "../../../openspec/changes/parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Names___Nested.md"
+            "../../../openspec/changes/archive/2026-11-13-parser-comparison-baseline/experiments/mldoc-baseline/fixtures/garden/pages/Names___Nested.md"
         ),
     );
     assert_eq!(

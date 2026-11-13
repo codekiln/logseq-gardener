@@ -7,11 +7,11 @@ import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, read
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { repairRunner, runnerRepair } from '../../openspec/changes/parser-comparison-evidence/experiments/parser-comparison/repair-runner.mjs';
+import { repairRunner, runnerRepair } from '../../openspec/changes/archive/2026-11-13-parser-comparison-evidence/experiments/parser-comparison/repair-runner.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = execFileSync('git', ['-C', here, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
-const ogExperiment = path.join(repoRoot, 'openspec/changes/current-og-relationships/experiments/file-relationships');
+const ogExperiment = path.join(repoRoot, 'openspec/changes/archive/2026-11-13-current-og-relationships/experiments/file-relationships');
 const sources = JSON.parse(readFileSync(path.join(here, 'sources.json'), 'utf8'));
 
 const args = process.argv.slice(2);

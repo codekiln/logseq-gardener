@@ -15,7 +15,7 @@ The SDK answers come from `PageCatalog`, `page_titles`, `journals`, `page_names`
 
 ## Where the expected results come from
 
-`expected.json` is derived from `relationships.json` in the [current Logseq OG comparison](../../../../../openspec/changes/current-og-relationships/experiments/file-relationships/README.md). That comparison ran Logseq OG's `version/file` branch at revision `6efedb75588763af256bc7dfd0ed5526dc91fe7c` with mldoc 1.5.7; Logseq 0.9.8 produced the same results. `expected.json` repeats the revision, the runtime versions and each note's SHA-256 hash. The notes are synthetic test notes written for this project.
+`expected.json` is derived from `relationships.json` in the [current Logseq OG comparison](../../../../../openspec/changes/archive/2026-11-13-current-og-relationships/experiments/file-relationships/README.md). That comparison ran Logseq OG's `version/file` branch at revision `6efedb75588763af256bc7dfd0ed5526dc91fe7c` with mldoc 1.5.7; Logseq 0.9.8 produced the same results. `expected.json` repeats the revision, the runtime versions and each note's SHA-256 hash. The notes are synthetic test notes written for this project.
 
 Logseq records more than the SDK models, so the derivation keeps the current Logseq results with these changes:
 
