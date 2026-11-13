@@ -6,7 +6,7 @@ The person publishing a garden can turn on plugins that ship inside `lsg`, such 
 
 ### Requirement: Plugins shipped inside lsg
 
-`lsg` SHALL ship the first-party plugins `podcast-episode` and `sequence-header`. Each SHALL have a manifest that passes the checks a `--plugin` manifest passes, with its module and stylesheets built into the `lsg` binary. A turned-on plugin's files SHALL be written to `plugins/<id>/` and listed in `lsg-site.json` as a manifest plugin's are, with the `lsg` version as the plugin's version. A build SHALL read no file outside the garden for a first-party plugin.
+`lsg` SHALL ship the first-party plugins `ableton-set`, `podcast-episode` and `sequence-header`. Each SHALL have a manifest that passes the checks a `--plugin` manifest passes, with its module and stylesheets built into the `lsg` binary. A turned-on plugin's files SHALL be written to `plugins/<id>/` and listed in `lsg-site.json` as a manifest plugin's are, with the `lsg` version as the plugin's version. A build SHALL read no file outside the garden for a first-party plugin.
 
 #### Scenario: Files written for a turned-on plugin
 
@@ -44,7 +44,7 @@ Before it creates the output directory, the publisher SHALL stop with an error w
 #### Scenario: Misspelled name
 
 - **WHEN** `logseq/config.edn` holds `:lsg/plugins [:podcast-epsiode]`
-- **THEN** the build stops before the output directory exists, and the error names `:podcast-epsiode`, the `lsg` version, `:podcast-episode` and `:sequence-header`
+- **THEN** the build stops before the output directory exists, and the error names `:podcast-epsiode`, the `lsg` version, `:ableton-set`, `:podcast-episode` and `:sequence-header`
 
 #### Scenario: String entry
 
