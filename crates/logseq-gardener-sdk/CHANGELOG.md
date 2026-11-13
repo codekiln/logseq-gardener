@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.51](https://github.com/codekiln/logseq-gardener/compare/v0.0.50...v0.0.51) - 2026-11-13
+
+### Added
+
+- read visited pages offline (#621)
+
+### Changed
+
+- prepare v0.0.50 (#618)
+
 ## [0.0.50](https://github.com/codekiln/logseq-gardener/compare/v0.0.49...v0.0.50) - 2026-11-12
 
 ### Changed
