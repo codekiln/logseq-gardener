@@ -6,10 +6,10 @@ see-also:: [[lsg/Parser Adoption]], [[lsg/How To/Update Dependencies]]
 		- The SDK manifest, [crates/logseq-gardener-sdk/Cargo.toml](https://github.com/codekiln/logseq-gardener/blob/main/crates/logseq-gardener-sdk/Cargo.toml), pins lsdoc to one git revision, and [THIRD_PARTY_NOTICES.md](https://github.com/codekiln/logseq-gardener/blob/main/THIRD_PARTY_NOTICES.md) records it. Follow these steps to move the SDK to another lsdoc revision and show that parsing still matches Logseq. [[lsg/Parser Adoption]] explains why the SDK uses lsdoc.
 	- ## Prerequisites
 		- A checkout of [codekiln/logseq-gardener](https://github.com/codekiln/logseq-gardener) with its tools installed by `mise install`.
-		- The ghq checkouts that the [parser comparison guide](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/parser-comparison-evidence/experiments/parser-comparison/README.md) lists, at the revisions it names.
+		- The ghq checkouts that the [parser comparison guide](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/archive/2026-11-13-parser-comparison-evidence/experiments/parser-comparison/README.md) lists, at the revisions it names.
 	- ## Steps
 		- ### 1. Rerun the comparisons
-			- Rerun the [fixture comparison](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/parser-comparison-evidence/experiments/parser-comparison/README.md) with `mise run parser:comparison-check`, and the public-garden comparisons with `mise run parser:garden-comparison docs`, `mise run parser:garden-comparison encode` and the [Pengx corpus script](https://github.com/codekiln/logseq-gardener/blob/main/experiments/parser-corpus/README.md).
+			- Rerun the [fixture comparison](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/archive/2026-11-13-parser-comparison-evidence/experiments/parser-comparison/README.md) with `mise run parser:comparison-check`, and the public-garden comparisons with `mise run parser:garden-comparison docs`, `mise run parser:garden-comparison encode` and the [Pengx corpus script](https://github.com/codekiln/logseq-gardener/blob/main/experiments/parser-corpus/README.md).
 			- Update the evidence on [[lsg/Parser Adoption]] with the new results.
 		- ### 2. Pin the new revision
 			- Pin the new revision in the SDK manifest, update [[lsg/Ref/Dependencies]], and commit the resulting `Cargo.lock`.

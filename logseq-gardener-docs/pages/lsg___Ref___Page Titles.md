@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Garden Loading]], [[lsg/How To/Use the Rust SDK]]
 - # Page Titles Reference
 	- ## Overview
 		- `lsg` and the SDK's `page_titles::page_title` derive the title of each page from its file's name or from a leading `title::` property. A page that refers to itself in another spelling takes that spelling, as in Logseq. The caller chooses the filename format, which matches the garden's `:file/name-format` setting in `logseq/config.edn`: `pages/Names___Nested.md` is the page `Names/Nested` with the triple-lowbar format and `Names___Nested` with the legacy format.
-		- The rules follow the Logseq OG source revision recorded in the [relationship experiment](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/current-og-relationships/experiments/file-relationships/README.md).
+		- The rules follow the Logseq OG source revision recorded in the [relationship experiment](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/archive/2026-11-13-current-og-relationships/experiments/file-relationships/README.md).
 	- ## Rules
 		- ### Contents page
 			- A file directly in `pages/` whose name starts with `contents.` is the page `Contents`, including `pages/contents.extra.md`. The rule uses native path separators and applies before properties.

@@ -15,13 +15,13 @@ see-also:: [[lsg/Parser Adoption]], [[lsg/Static Publishing]], [[lsg/Ref/Depende
 		- The source is in [crates/logseq-gardener-sdk](https://github.com/codekiln/logseq-gardener/tree/main/crates/logseq-gardener-sdk) and [src](https://github.com/codekiln/logseq-gardener/tree/main/src).
 	- ## Garden files and parsing
 		- Markdown files hold the garden's notes. Any future index must be rebuildable from those files, and an editing command should be able to change a note without reformatting unrelated text.
-		- The Markdown reader uses the tested lsdoc revision. Official mldoc provides the syntax reference, and Logseq OG's graph parser and graph-validator provide the references for relationships between notes. The [parser comparison findings](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/parser-comparison-evidence/experiments/parser-comparison/findings.md) favor lsdoc for read-only Markdown parsing on the tested fixtures and public gardens.
+		- The Markdown reader uses the tested lsdoc revision. Official mldoc provides the syntax reference, and Logseq OG's graph parser and graph-validator provide the references for relationships between notes. The [parser comparison findings](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/archive/2026-11-13-parser-comparison-evidence/experiments/parser-comparison/findings.md) favor lsdoc for read-only Markdown parsing on the tested fixtures and public gardens.
 		- SDK modules above the parser turn its output into pages and relationships:
 			- `page_titles` derives titles with an explicit filename format, as [[lsg/Ref/Page Titles]] describes.
 			- `page_names` keeps title and alias candidates, `page_lookup` finds source files, and `journals` interprets journal dates.
 			- `outline`, `references` and `transclusion` supply outline identities, relationships and embedded content to the publisher.
 		- The loader keeps source text and ranges alongside the parsed structure.
-		- The [current Logseq OG relationship comparison](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/current-og-relationships/experiments/file-relationships/findings.md) reproduces the earlier fixture relationships under default and configured filename interpretation. The results preserve the recorded page lookup rules for titles, aliases, namespaces, journals and pages without a file.
+		- The [current Logseq OG relationship comparison](https://github.com/codekiln/logseq-gardener/blob/main/openspec/changes/archive/2026-11-13-current-og-relationships/experiments/file-relationships/findings.md) reproduces the earlier fixture relationships under default and configured filename interpretation. The results preserve the recorded page lookup rules for titles, aliases, namespaces, journals and pages without a file.
 		- [[lsg/Parser Adoption]] records the decision: lsdoc parses syntax in the SDK, and the SDK modules above it apply Logseq's relationship rules for every caller.
 	- ## Publishing
 		- The SDK owns namespace selection, visibility, reference resolution and HTML generation.
