@@ -346,6 +346,89 @@ class InstallBuildBenchTest(unittest.TestCase):
         self.assertAlmostEqual(noisy['install']['added_ms'], 10, places=3)
 
 
+class OfflineBudgetTest(unittest.TestCase):
+    LIMITS = {'offline': {'sw_kb': 5, 'sw_gzip_kb': 2, 'script_kb': 2, 'script_gzip_kb': 1, 'page_growth_kb': 0.6,
+                          'page_growth_gzip_kb': 0.3, 'nav_overhead_ms': 50, 'memory_growth_mb': 2,
+                          'cache_pages': 250, 'cache_mb': 32, 'build_ms': 1000},
+              'desktop': {'data_before_title_kb': 100, 'script_before_title_kb': 16},
+              'phone': {'data_before_title_kb': 100, 'script_before_title_kb': 16}}
+
+    def sites(self, temp, worker=b'w' * 4000, script=b's' * 1500):
+        """A build without the key and one with it, each holding one page."""
+        page = b'<!doctype html><html><head><title>A</title></head><body><main>text</main></body></html>'
+        plain, site = Path(temp) / 'plain', Path(temp) / 'site'
+        for root in (plain, site):
+            root.mkdir()
+            (root / 'a.html').write_bytes(page)
+        (site / 'a.html').write_bytes(page.replace(b'</head>', b'<script defer src="lsg-offline.js"></script></head>'))
+        (site / 'lsg-sw.js').write_bytes(worker)
+        (site / 'lsg-offline.js').write_bytes(script)
+        return plain, site
+
+    def check(self, plain, site, large=None):
+        with contextlib.redirect_stdout(io.StringIO()):
+            return budgets.check_offline(plain, site, plain, large or site, self.LIMITS)
+
+    def test_a_site_inside_every_row_passes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.assertEqual(self.check(*self.sites(temp)), [])
+
+    def test_an_oversized_worker_names_its_row_and_size(self):
+        with tempfile.TemporaryDirectory() as temp:
+            failures = self.check(*self.sites(temp, worker=os.urandom(7000)))
+            self.assertIn('sw_kb: lsg-sw.js is 7,000 bytes, over 5,000', failures)
+            self.assertTrue(any(f.startswith('sw_gzip_kb: lsg-sw.js') for f in failures), failures)
+        with tempfile.TemporaryDirectory() as temp:
+            failures = self.check(*self.sites(temp, script=b's' * 2100))
+            self.assertEqual(failures, ['script_kb: lsg-offline.js is 2,100 bytes, over 2,000'])
+
+    def test_page_growth_over_the_row_fails(self):
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (site / 'a.html').write_bytes((site / 'a.html').read_bytes() + b'<!--' + os.urandom(700).hex().encode() + b'-->')
+            failures = self.check(plain, site)
+            self.assertTrue(any('page_growth_kb: a.html grows' in f for f in failures), failures)
+
+    def test_a_missing_or_stray_file_fails(self):
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (site / 'lsg-sw.js').unlink()
+            self.assertEqual(self.check(plain, site), ['lsg-sw.js: missing from the build with :lsg/offline true'])
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (plain / 'lsg-offline.js').write_bytes(b'x')
+            self.assertEqual(self.check(plain, site), ['lsg-offline.js: written without :lsg/offline'])
+
+    def test_search_files_and_growth_with_the_garden(self):
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            (site / 'lsg-search-titles.json').write_bytes(b'[]')
+            self.assertIn('search files differ from the build without :lsg/offline', self.check(plain, site))
+        with tempfile.TemporaryDirectory() as temp:
+            plain, site = self.sites(temp)
+            other = Path(temp) / 'other'
+            shutil.copytree(site, other)
+            (other / 'a.html').write_bytes((other / 'a.html').read_bytes() + b'<!--y-->')
+            self.assertTrue(any('when the garden gains' in f for f in self.check(plain, site, other)))
+
+    def test_the_key_lands_in_the_config(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp)
+            (garden / 'logseq').mkdir()
+            (garden / 'logseq' / 'config.edn').write_text('{:a 1}\n', encoding='utf-8')
+            budgets.with_offline_key(garden)
+            self.assertEqual((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'), '{:a 1 :lsg/offline true}\n')
+
+    def test_build_ms_is_above_the_measured_noise_of_a_whole_build(self):
+        # As [install]: the same code measured -236 to +219 ms across CI runs (issue #614).
+        self.assertGreater(metrics.load_budgets()['offline']['build_ms'], 236 + 219)
+
+    def test_the_offline_variant_uses_the_same_paired_rounds(self):
+        results = {'copy without key': {'seconds': [20.0, 20.1, 19.9]}, 'offline': {'seconds': [21.2, 21.3, 21.1]}}
+        self.assertEqual(build_bench.key_failure(results, 'offline', 1000),
+                         'offline: the key adds 1200 ms to the build, over 1000 (build_ms)')
+
+
 class PublishBenchTest(unittest.TestCase):
     BUDGET = {'slowdown_pct': 20, 'unknown_cpu_slowdown_pct': 100}
     CORPUS = {'name': 'gitpa-sized', 'digest': 'abc'}
@@ -528,6 +611,11 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(loaded.pop('install'), {'page_growth_kb': 0.5, 'page_growth_gzip_kb': 0.3, 'script_kb': 1.5,
                                                  'script_gzip_kb': 1, 'manifest_kb': 1, 'icon_kb': 256,
                                                  'build_ms': 1000})
+        # Offline reading (offline-reading); the design's budgets, with build_ms sized as [install]'s.
+        self.assertEqual(loaded.pop('offline'), {'sw_kb': 5, 'sw_gzip_kb': 2, 'script_kb': 2, 'script_gzip_kb': 1,
+                                                 'page_growth_kb': 0.6, 'page_growth_gzip_kb': 0.3,
+                                                 'nav_overhead_ms': 50, 'memory_growth_mb': 2, 'cache_pages': 250,
+                                                 'cache_mb': 32, 'build_ms': 1000})
         # Build plugins (build-time-contributions); the proposal's budgets.
         self.assertEqual(loaded.pop('build_plugins'), {'derived_rows_gzip_kb': 30,
                                                        'in_process_blocks_ms_per_page': 0.05,

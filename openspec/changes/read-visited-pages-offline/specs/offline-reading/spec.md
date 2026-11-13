@@ -64,7 +64,7 @@ The worker SHALL keep its copies in one cache named `lsg-offline:` followed by i
 
 ### Requirement: Keep visited pages, network first
 
-After the reader chooses Save, the worker SHALL keep a copy of each same-origin GET response with status 200 inside its scope that a page of the garden requests, except responses that the storage limits exclude. A navigation SHALL go to the network first. When the network answers 200, the reader SHALL see that response and the worker SHALL replace the stored copy. When the network fails or does not answer within 4 seconds, the worker SHALL answer from the stored copy of that address, and from none otherwise, which leaves the browser's own offline page. The worker SHALL turn on navigation preload so that waiting for the worker's start adds no delay to an online navigation. A page served from a stored copy SHALL show a notice with the date the copy was saved, written from the stored time.
+After the reader chooses Save, the worker SHALL keep a copy of each same-origin GET response with status 200 inside its scope that a page of the garden requests, except responses that the storage limits exclude. A navigation SHALL go to the network first. When the network answers 200, the reader SHALL see that response and the worker SHALL replace the stored copy. When the network fails, the worker SHALL answer from the stored copy of that address, and from none otherwise, which leaves the browser's own offline page. When the network does not answer within 4 seconds, the worker SHALL answer from the stored copy, and SHALL keep waiting for the network when there is none. The worker SHALL turn on navigation preload so that waiting for the worker's start adds no delay to an online navigation. A page served from a stored copy SHALL show a notice with the date the copy was saved, written from the stored time.
 
 #### Scenario: Online
 - **WHEN** an online reader opens a page that was changed and published after they saved it
@@ -144,7 +144,7 @@ A copy SHALL expire 30 days after it was saved, and the worker SHALL delete expi
 
 ### Requirement: Stay inside size and speed budgets
 
-The `[offline]` table in `scripts/parity/budgets.toml` SHALL set: `lsg-sw.js` at most 5 KB and 2 KB gzip, `lsg-offline.js` at most 2 KB and 1 KB gzip, page growth at most 0.6 KB and 0.3 KB gzip, page growth when the garden gains 2,000 pages at 0, page-load memory growth after Save at most 2 MB, `nav_overhead_ms` at most 50 at the median for an online navigation through an active worker, and `build_ms` at most 50 on the encode garden. First paint of a page SHALL stay inside the existing 100 KB of data and 16 KB of script before its title when a reader has not chosen Save. `parity:budgets` SHALL fail and name the row that exceeds its limit.
+The `[offline]` table in `scripts/parity/budgets.toml` SHALL set: `lsg-sw.js` at most 5 KB and 2 KB gzip, `lsg-offline.js` at most 2 KB and 1 KB gzip, page growth at most 0.6 KB and 0.3 KB gzip, page growth when the garden gains 2,000 pages at 0, page-load memory growth after Save at most 2 MB, `nav_overhead_ms` at most 50 at the median for an online navigation through an active worker, and `build_ms` at most 1000 on the encode garden, a limit above the run-to-run noise of a whole build. First paint of a page SHALL stay inside the existing 100 KB of data and 16 KB of script before its title when a reader has not chosen Save. `parity:budgets` SHALL fail and name the row that exceeds its limit.
 
 #### Scenario: Oversized worker
 - **WHEN** a change makes `lsg-sw.js` 7 KB

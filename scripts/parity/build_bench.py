@@ -98,19 +98,25 @@ def garden_with_install(garden, folder):
     return folder
 
 
-def install_failure(results, budget_ms):
-    """A failure message when the key adds more than `budget_ms` to the whole build, else None.
+def key_failure(results, variant, budget_ms):
+    """A failure message when the key of `variant` adds more than `budget_ms` to the whole build,
+    else None.
 
     The comparison is with a copy of the garden that has no key, because a hard-linked copy builds
     a little slower than the original folder. The builds run in interleaved rounds, and the added
-    time is the median over the rounds of the install build's time less the copy's in the same
+    time is the median over the rounds of the variant's build time less the copy's in the same
     round, so a slow moment of the machine, which hits both builds of a round, does not count."""
-    plain, keyed = results['copy without key']['seconds'], results['install']['seconds']
+    plain, keyed = results['copy without key']['seconds'], results[variant]['seconds']
     added = statistics.median(k - p for p, k in zip(plain, keyed)) * 1000
-    results['install']['added_ms'] = added
+    results[variant]['added_ms'] = added
     if added > budget_ms:
-        return f'install: the key adds {added:.0f} ms to the build, over {budget_ms} (build_ms)'
+        return f'{variant}: the key adds {added:.0f} ms to the build, over {budget_ms} (build_ms)'
     return None
+
+
+def install_failure(results, budget_ms):
+    """[`key_failure`] for the :lsg/install variant."""
+    return key_failure(results, 'install', budget_ms)
 
 
 def published_pages(site):
@@ -125,6 +131,8 @@ def main():
     parser.add_argument('--output', help='write the measurements as JSON to this file')
     parser.add_argument('--install-only', action='store_true',
                         help='measure only the [install] build_ms row: a copy without the key and a copy with it')
+    parser.add_argument('--offline-only', action='store_true',
+                        help='measure only the [offline] build_ms row: a copy without the key and a copy with it')
     args = parser.parse_args()
     garden = Path(args.garden) if args.garden else common.encode_garden()
     for command in (['cargo', 'build', '--locked', '--release', '--bin', 'lsg'],
@@ -172,8 +180,11 @@ def main():
     install_copy = garden_with_install(garden, temp / 'garden-install')
     variants['copy without key'] = lambda out: lsg_build(out, graph=plain_copy)
     variants['install'] = lambda out: lsg_build(out, graph=install_copy)
-    if args.install_only:
-        variants = {name: variants[name] for name in ('lsg without plugins', 'copy without key', 'install')}
+    offline_copy = garden_with_config(garden, temp / 'garden-offline', parity_budgets.OFFLINE_KEY)
+    variants['offline'] = lambda out: lsg_build(out, graph=offline_copy)
+    only = [key for key, chosen in (('install', args.install_only), ('offline', args.offline_only)) if chosen]
+    if only:
+        variants = {name: variants[name] for name in ('lsg without plugins', 'copy without key', *only)}
         baseline_of, budget_of = {}, {}
     results = {name: {'seconds': [], 'peak_bytes': []} for name in variants}
     with temp_root:
@@ -204,9 +215,9 @@ def main():
                 failures.append(f'{name}: adds {added:.4f} ms per page, over {budget_of[name]}')
             if not name.startswith('first-party') and result['digest'] != base['digest']:
                 failures.append(f'{name}: output differs from {baseline_of[name]}')
-        if name == 'install':
-            message = install_failure(results, budgets['install']['build_ms'])
-            line += f', {results[name]["added_ms"]:+.0f} ms for the whole build (budget {budgets["install"]["build_ms"]}, median of {args.runs} paired rounds)'
+        if name in ('install', 'offline'):
+            message = key_failure(results, name, budgets[name]['build_ms'])
+            line += f', {results[name]["added_ms"]:+.0f} ms for the whole build (budget {budgets[name]["build_ms"]}, median of {args.runs} paired rounds)'
             if message:
                 failures.append(message)
         print(line)
@@ -221,8 +232,8 @@ def main():
     if failures:
         print('\n'.join(failures), file=sys.stderr)
         raise SystemExit(1)
-    print(':lsg/install within budget' if args.install_only else
-          'build plugins and :lsg/install within budget, and no-op plugins leave the output unchanged')
+    print(f'{" and ".join(f":lsg/{key}" for key in only)} within budget' if only else
+          'build plugins, :lsg/install and :lsg/offline within budget, and no-op plugins leave the output unchanged')
 
 
 if __name__ == '__main__':

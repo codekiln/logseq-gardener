@@ -91,7 +91,7 @@ The names are fixed and reserved under `--readable-urls`. Every full page of an 
 
 ### What is kept
 
-The worker caches every same-origin GET with status 200 that a page of the garden requests: the page, `lsg-site.css`, `lsg-theme.js` and the other shared files, linked-reference fragments under `_refs/`, and images. Media, the search index and any response above 256 KB go to the network only. The cap keeps pages and shared files, which are within the project's 100 KB data budget, and excludes the 15 MB-class files that would make eviction frequent. A page shown offline without a large image is acceptable; the how-to says so.
+The worker caches every same-origin GET with status 200 that a page of the garden requests: the page, `lsg-site.css`, `lsg-theme.js` and the other shared files, linked-reference fragments under `_refs/`, and images. Media, the search index and any response above 256 KB go to the network only. Media is a request for audio, video or a text track, a request with a `Range` header, or a response whose type is audio or video. The search index is every file named `lsg-search-*.json`; the search scripts and styles are kept. The 250 limit counts every stored response, not only pages. Chromium requests the web app manifest outside the worker, so `lsg.webmanifest` is not stored. The cap keeps pages and shared files, which are within the project's 100 KB data budget, and excludes the 15 MB-class files that would make eviction frequent. A page shown offline without a large image is acceptable; the how-to says so.
 
 One more cache entry holds a JSON record of each copy: its address, size, save time and last use. The record is how the worker applies the 250 page, 32 MB and 30 day rules without reading every body. If the record is missing or corrupt, the worker deletes the cache and starts over, which loses copies and never shows a wrong page.
 
@@ -102,13 +102,15 @@ The worker answers a navigation like this:
 1. Start the network request, with navigation preload turned on so the worker's start does not delay it.
 2. If it returns 200, store the copy, update the record and show the response.
 3. If it returns 404 or 410, delete the stored copy and show the response.
-4. If it fails or takes more than 4 seconds, show the stored copy, or let the browser's offline page appear when there is none.
+4. If it fails, show the stored copy, or let the browser's offline page appear when there is none. If it takes more than 4 seconds, show the stored copy; with no copy, keep waiting for the network, so a slow page with no copy still loads.
+
+Other requests inside the scope also go to the network first and fall back to the stored copy when the network fails, with no time limit.
 
 Cache first would load faster offline but would show old content to an online reader. The stored copy is the fallback, so the answer to "is this the current page?" is always yes online. Four seconds follows the same trade as other network-first guides: long enough for a slow mobile response, short enough to be useful on a failed connection. The reader sees the page's own load, not a spinner, because the page shows from the first byte. A served copy carries a notice with the day it was saved.
 
 ### The saved-on notice
 
-The worker marks the copy it returns with a response header that holds the saved time. A navigation response's headers are not readable by the page, so `lsg-offline.js` reads the stored copy of its own address through the Cache API when `navigator.onLine` is false or when the page was loaded from a copy, and shows a one-line notice above the page: "Saved copy from 3 November". The page reads from the origin's own cache by exact name, so it needs no message from the worker and has no startup race. A reader who is online with a failing server sees a copy with no notice; the how-to says so, and the cost is accepted because a second channel would grow the script past its budget.
+The worker stores the saved time in an `x-lsg-saved` header of each copy, and marks a copy it returns with `Server-Timing: lsg-offline`, which the page can read from its navigation's `serverTiming`. A navigation response's other headers are not readable by the page, so `lsg-offline.js` reads the stored copy of its own address through the Cache API when `navigator.onLine` is false or when `serverTiming` names `lsg-offline`, and shows a one-line notice at the top of `<main>`: "Saved copy from 3 November", in the reader's own date format. The page reads from the origin's own cache by exact name, so it needs no message from the worker and has no startup race. In Chromium the `Server-Timing` mark also shows the notice to a reader who is online with a failing server; a browser that does not pass it to the page shows that reader a copy with no notice, and the how-to says so.
 
 ### Removing pages that are no longer published
 
@@ -116,10 +118,10 @@ Copies of pages the author has unpublished are the main privacy risk, because an
 
 1. A copy expires after 30 days, checked whenever the worker starts.
 2. A 404 or 410 on an online navigation deletes the copy.
-3. A new `lsg-sw.js` triggers a check of every saved page: when it activates, the worker sends a HEAD request for each stored page, two at a time, after the reader's own requests, and deletes each copy answered 404 or 410. That is at most 250 small requests per publish per reader. A 405 or a failed request keeps the copy.
+3. A new `lsg-sw.js` triggers a check of every saved page: after the new worker has activated and answered its first request from the network, it sends a HEAD request for each stored page, two at a time, and deletes each copy answered 404 or 410. The record holds the build identifier of the version that last checked, so a worker that is stopped before its first request still checks when it next starts. That is at most 250 small requests per publish per reader. A 405 or a failed request keeps the copy.
 4. The Remove item deletes everything at once.
 
-The build writes a build identifier into `lsg-sw.js`, a hash of the published page addresses and the `lsg` version. A publish that adds or removes a page changes it, and a publish that edits a block does not, so most edits cost readers nothing. The hash covers addresses already known at build time; the added build cost is bounded by the row below.
+The build writes a build identifier into `lsg-sw.js`, a hash of the published page addresses and the `lsg` version. The addresses are the routes of every HTML file the site holds outside `_refs/`: pages, journals, namespace pages, the generated lists and the redirect pages. A page that another page links stays published as a page even when its file is removed, so unpublishing it changes nothing until the link goes too. A publish that adds or removes a page changes it, and a publish that edits a block does not, so most edits cost readers nothing. The hash covers addresses already known at build time; the added build cost is bounded by the row below.
 
 A page that is unpublished but never revisited and never checked (a host that rejects HEAD) stays up to 30 days. That is the stated bound.
 
@@ -144,12 +146,12 @@ The publisher writes the two files, adds the script tag and the menu items to fu
 
 ### Accessibility
 
-- Both menu items are native buttons with text labels, in the menu's tab order, with the neighbours' focus style. Activating one moves focus to the More button and writes the outcome to the page's existing polite status region.
+- Both menu items are native buttons with text labels, in the menu's tab order after Install app and before Toggle theme, with the neighbours' focus style. Activating one moves focus to the More button and writes the outcome to a `<p role="status">` at the top of `<main>`, which `lsg-offline.js` adds the first time it has something to say. Pages have no shared polite status region to reuse.
 - The saved-copy notice is plain text above the page content, not a dialog.
 
 ### Budgets
 
-Measured by `mise run parity:budgets` and `parity:build-bench` on the fixture garden and the pinned encode garden, in addition to the existing first-paint, shell and search rows. Row names are the keys of the `[offline]` table.
+Measured by `mise run parity:budgets` and `parity:build-bench` on the fixture garden and the pinned encode garden, and by `mise run offline:browser-test` in Chromium, in addition to the existing first-paint, shell and search rows. `parity:budgets` has no browser, so the rows that need one (`nav_overhead_ms`, `memory_growth_mb`, `cache_pages`, `cache_mb`) belong to `offline:browser-test`, which runs in its own CI job with the other Chromium checks. Row names are the keys of the `[offline]` table.
 
 | Budget | Limit | Row |
 | --- | --- | --- |
@@ -163,7 +165,7 @@ Measured by `mise run parity:budgets` and `parity:build-bench` on the fixture ga
 | Page memory after Save | At most 2 MB more | `memory_growth_mb` |
 | Stored copies | At most 250 pages and 32 MB, 256 KB per response | `cache_pages`, `cache_mb` |
 | Search files | Identical to the build without the key | |
-| Added build time on the encode garden | 50 ms | `build_ms` |
+| Added build time on the encode garden | 1,000 ms, as `[install]`: the run-to-run noise of a 20 s build is about 450 ms | `build_ms` |
 
 The files are fetched after the page has painted, `defer` does not delay paint, and a worker's start adds no delay to the page's first bytes because navigation preload is on. Worst-case storage is 32 MB per garden, so three gardens on one origin may use 96 MB, far below any browser's quota.
 
@@ -265,3 +267,35 @@ Decided by the agent without codekiln: no. Firefox shows a prompt, and the other
 ### 14 - Should the worker be part of `lsg-shell.js`?
 
 Decided by the agent without codekiln: no. `lsg-shell.js` depends only on the `lsg` version, and a site without the key must not load worker code. Separate files keep the budget rows separate and match the shipped installable-gardens capability.
+
+### 15 - Where does a menu item write its outcome?
+
+Decided by the agent without codekiln: in a `<p role="status">` that `lsg-offline.js` adds at the top of `<main>` the first time it reports something. The design named the page's existing polite status region, but pages have none to share, and adding one to every page would grow pages without the key. The same paragraph holds the saved-copy notice.
+
+### 16 - How does a page know it came from a stored copy?
+
+Decided by the agent without codekiln: the worker adds `Server-Timing: lsg-offline` to a copy it returns, and `lsg-offline.js` reads its navigation's `serverTiming` as well as `navigator.onLine`. Chromium passes the mark to the page, so the notice also appears to an online reader whose server fails. The script stays inside its budget.
+
+### 17 - What does the 250 limit count?
+
+Decided by the agent without codekiln: every stored response, including shared files, fragments and images. Counting pages alone would need the worker to tell pages from other files, and 250 responses of at most 256 KB already bound the cache together with the 32 MB limit.
+
+### 18 - What happens after 4 seconds when there is no copy?
+
+Decided by the agent without codekiln: the worker keeps waiting for the network. A slow page that was never saved then still loads, and a page with a copy gets the copy at 4 seconds as the spec requires.
+
+### 19 - When does a new worker check the stored pages?
+
+Decided by the agent without codekiln: after it has activated and answered its first request from the network, not during activation. A browser holds requests back until activation ends, so 250 HEAD requests there would delay the reader. The record keeps the build identifier of the last check, so the check still runs if the worker stops before its first request.
+
+### 20 - Which addresses make the build identifier?
+
+Decided by the agent without codekiln: the routes of every HTML file outside `_refs/`, which covers pages, journals, namespace pages, the generated lists and redirect pages. These are fixed before the worker is written, and none of them changes when a block changes.
+
+### 21 - Where do the browser checks and rows run?
+
+Decided by the agent without codekiln: in a new `mise run offline:browser-test` task with its own CI job, not in `plugins:browser-test` or `parity:budgets`. `parity:budgets` runs in `mise run ci` with no browser, and the offline checks need their own test server, which stops, slows and rejects HEAD requests on demand. The task checks `nav_overhead_ms`, `memory_growth_mb`, `cache_pages` and `cache_mb` against `scripts/parity/budgets.toml`.
+
+### 22 - What is `build_ms`?
+
+Decided by the agent without codekiln: 1,000 ms, the same as `[install]`. The design's 50 ms is below the run-to-run noise of a 20 second build, which made the install row fail at random in [Issue #614](https://github.com/codekiln/logseq-gardener/issues/614).

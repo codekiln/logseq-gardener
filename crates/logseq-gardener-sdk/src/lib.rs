@@ -110,6 +110,10 @@ pub mod first_party;
 /// Installable gardens: the `:lsg/install` settings, the icon check, the manifest and the page tags.
 pub mod install;
 
+/// Offline reading: the `:lsg/offline` setting, the limits, the cache name, the build identifier
+/// and the worker sources.
+pub mod offline;
+
 /// The entity types a page declares with its `logseq-entity::` property.
 pub mod entity_types;
 

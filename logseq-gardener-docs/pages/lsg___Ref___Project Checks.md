@@ -33,10 +33,11 @@ see-also:: [[lsg/How To/Contribute a Change]], [[lsg/Releases]]
 		  | CI `title` | `mise run pr:title` on the pull request title. Required. |
 		  | CI `ci` | `mise run ci`, with the full git history that `lsg` needs to read page dates. Required. |
 		  | CI `build-plugins` | The build plugin benchmark on a pinned commit of the encode garden, against the `[build_plugins]` budgets. |
+		  | CI `offline-browser` | `mise run offline:browser-test`: offline reading in Chromium, against the browser rows of the `[offline]` budgets. |
 		  | CI `publication-speed` | Cold and warm `lsg publish` builds of a generated Gitpa-sized garden and a pinned encode garden commit, against the recorded publication speed rows. |
 		  | Release | On a pull request and on a version tag: `mise run ci`, then every binary archive and the vendor archive, uploaded as workflow artifacts. On a version tag, it then publishes the GitHub Release. |
 		- `main` requires the `title` and `ci` checks on a branch that is up to date with `main`.
 	- ## Tasks outside mise run ci
 		- `mise run docs:links` requests every web link in `README.md`, including its links to the documentation site, and needs network access.
-		- `mise run plugins:browser-test`, `mise run properties:browser-test`, `mise run readable:browser-test` and `mise run search:browser-test` check the published site in a browser. The properties test needs Google Chrome.
+		- `mise run plugins:browser-test`, `mise run properties:browser-test`, `mise run readable:browser-test` and `mise run search:browser-test` check the published site in a browser. The properties test needs Google Chrome. `mise run offline:browser-test` also runs in its own CI job.
 		- `mise run parser:comparison-check` and `mise run parser:og-check` compare parsers and Logseq relationships, and read pinned source from local ghq checkouts.

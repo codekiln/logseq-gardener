@@ -20,6 +20,7 @@ use crate::garden_config::{self, Form};
 use crate::graph::{ForceSettings, GraphSettings};
 use crate::install::{Icon, InstallError, InstallSettings};
 use crate::journals::{DEFAULT_FILE_NAME_FORMAT, DEFAULT_TITLE_FORMAT, DateFormat};
+use crate::offline::{OfflineError, OfflineSetting};
 use crate::page_names::{PageNameIndex, lookup_key};
 
 /// Logseq features a garden can turn off with `:feature/enable-*?` keys.
@@ -548,6 +549,77 @@ pub fn parse_install(text: &str, root: &Path) -> Result<Option<InstallSettings>,
     InstallSettings::new(&name, short_name.as_deref(), icon).map(Some)
 }
 
+/// The `:lsg/offline` key, which offers readers offline copies of the pages they open.
+pub const OFFLINE_KEY: &str = ":lsg/offline";
+
+/// The offline setting that a garden's `logseq/config.edn` holds under its top-level
+/// `:lsg/offline` key: [`OfflineSetting::Absent`] when it has none.
+///
+/// A garden without `config.edn`, and a config that cannot be read or parsed, have no key;
+/// [`GardenSettings::read`] reports an unreadable config.
+///
+/// # Errors
+///
+/// Returns an error when the value is not `true` or `false`, when the key repeats, or when it
+/// sits inside another entry.
+pub fn read_offline(root: impl AsRef<Path>) -> Result<OfflineSetting, OfflineError> {
+    match garden_config::read_text(root.as_ref()) {
+        Ok(Some(text)) => parse_offline(&text),
+        Ok(None) | Err(_) => Ok(OfflineSetting::Absent),
+    }
+}
+
+/// [`read_offline`] from `config.edn` text.
+///
+/// ```
+/// use logseq_gardener_sdk::garden_settings::parse_offline;
+/// use logseq_gardener_sdk::offline::OfflineSetting;
+///
+/// assert_eq!(parse_offline("{:lsg/offline true}"), Ok(OfflineSetting::On));
+/// assert_eq!(parse_offline("{}"), Ok(OfflineSetting::Absent));
+/// assert!(parse_offline(r#"{:lsg/offline "yes"}"#).is_err());
+/// ```
+///
+/// # Errors
+///
+/// As [`read_offline`].
+pub fn parse_offline(text: &str) -> Result<OfflineSetting, OfflineError> {
+    let Ok(pairs) = garden_config::top_level(text) else {
+        return Ok(OfflineSetting::Absent);
+    };
+    let fail = |problem: String| OfflineError { problem };
+    let is_key = |form: &Form| matches!(form, Form::Atom(k) if k == OFFLINE_KEY);
+    let mut values = Vec::new();
+    for (key, value) in pairs {
+        if is_key(&key) {
+            values.push(value);
+        } else if let Form::Map(inner) = &value
+            && inner.iter().any(|(key, _)| is_key(key))
+        {
+            let owner = match &key {
+                Form::Atom(owner) => owner.clone(),
+                other => describe(other),
+            };
+            return Err(fail(format!(
+                "is a top-level key; it cannot sit inside {owner}"
+            )));
+        }
+    }
+    let value = match values.len() {
+        0 => return Ok(OfflineSetting::Absent),
+        1 => values.remove(0),
+        _ => return Err(fail("appears more than once".into())),
+    };
+    match &value {
+        Form::Atom(atom) if atom == "true" => Ok(OfflineSetting::On),
+        Form::Atom(atom) if atom == "false" => Ok(OfflineSetting::Off),
+        other => Err(fail(format!(
+            "must be true or false, not {}",
+            describe(other)
+        ))),
+    }
+}
+
 /// `:a`, `:a and :b` or `:a, :b and :c`.
 fn shipped_names() -> String {
     let names: Vec<String> = FirstParty::ALL
@@ -1023,6 +1095,60 @@ mod tests {
             if let Some(keys) = keys {
                 assert!(error.contains(keys), "{error}");
             }
+        }
+    }
+
+    #[test]
+    fn offline_key_reads_true_false_and_absent() {
+        assert_eq!(parse_offline("{:lsg/offline true}"), Ok(OfflineSetting::On));
+        assert_eq!(
+            parse_offline("{:lsg/offline false}"),
+            Ok(OfflineSetting::Off)
+        );
+        for text in ["{}", r#"{:favorites ["a"]}"#, "not edn {"] {
+            assert_eq!(parse_offline(text), Ok(OfflineSetting::Absent), "{text}");
+        }
+        assert_eq!(read_offline(install_garden()), Ok(OfflineSetting::Absent));
+        // The key is independent of :lsg/install.
+        assert_eq!(
+            parse_offline(r#"{:lsg/install {:name "N" :icon "i.png"} :lsg/offline true}"#),
+            Ok(OfflineSetting::On)
+        );
+    }
+
+    #[test]
+    fn offline_key_errors_name_the_file_the_key_and_the_problem() {
+        let cases = [
+            (
+                r#"{:lsg/offline "yes"}"#,
+                r#"must be true or false, not "yes""#,
+            ),
+            ("{:lsg/offline 1}", "must be true or false, not 1"),
+            ("{:lsg/offline nil}", "must be true or false, not nil"),
+            (
+                "{:lsg/offline {:on true}}",
+                "must be true or false, not a map",
+            ),
+            (
+                "{:lsg/offline [true]}",
+                "must be true or false, not a vector",
+            ),
+            (
+                "{:default-home {:lsg/offline true}}",
+                "is a top-level key; it cannot sit inside :default-home",
+            ),
+            (
+                "{:lsg/offline true :lsg/offline false}",
+                "appears more than once",
+            ),
+        ];
+        for (text, problem) in cases {
+            let error = parse_offline(text).unwrap_err().to_string();
+            assert_eq!(
+                error,
+                format!("logseq/config.edn: :lsg/offline {problem}"),
+                "{text}"
+            );
         }
     }
 }

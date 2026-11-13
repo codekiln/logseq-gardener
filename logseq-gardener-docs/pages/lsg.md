@@ -12,6 +12,7 @@ tags:: [[Diataxis/Explanation]]
 		- [[lsg/How To/Customize a Published Site]]
 		- [[lsg/How To/Publish a Garden to GitHub Pages]]
 		- [[lsg/How To/Install a Published Garden as an App]]
+		- [[lsg/How To/Read a Published Garden Offline]]
 		- [[lsg/How To/Add a Site Plugin]]
 		- [[lsg/Static Publishing]] explains what `lsg publish` does with a garden.
 	- ## Look something up
@@ -19,6 +20,7 @@ tags:: [[Diataxis/Explanation]]
 		- [[lsg/How To/Look Up a Page File]] finds the file that holds a page, by the page's title, alias or journal date.
 		- [[lsg/Ref/Publish Options]] lists the options of `lsg publish`.
 		- [[lsg/Ref/Install Options]] describes the key that makes a published garden installable as an app.
+		- [[lsg/Ref/Offline Options]] describes the key that lets readers keep pages for offline reading.
 		- [[lsg/Ref/Published Pages]] and [[lsg/Ref/Site Navigation]] describe what a published site shows.
 		- [[lsg/Ref/Logseq Compatibility]] says what `lsg` publishes as Logseq does and where it differs.
 	- ## Contribute

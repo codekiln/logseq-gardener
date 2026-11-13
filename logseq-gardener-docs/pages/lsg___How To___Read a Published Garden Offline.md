@@ -1,0 +1,33 @@
+tags:: [[Diataxis/How To]]
+see-also:: [[lsg/Ref/Offline Options]], [[lsg/How To/Install a Published Garden as an App]]
+
+- # How To Read a Published Garden Offline
+	- ## Overview
+		- Keep copies of the pages you read in a garden that `lsg` published, so that they open again when you have no network, such as on a train or a plane. Only the pages you open after you turn saving on are kept, and only on the device and in the browser where you turned it on.
+		- The garden's author decides whether a garden offers this. A garden that does has a Save pages for offline reading item in its More menu, the three dots at the top right of a page.
+	- ## What is kept, and for how long
+		- Each page you open while saving is on, with the small files it needs to display. Large images, audio, video and search are not kept, so search and those files need a network.
+		- At most 250 files and 32 MB for one garden. When the garden reaches either limit, the copy you used longest ago is deleted first.
+		- A copy is deleted 30 days after it was saved, and sooner when the author removes the page from the site.
+		- When you are online, you always see the current page, and its copy is replaced. A copy appears only when the network fails or takes more than 4 seconds, with a line above the page such as "Saved copy from 3 November".
+		- Safari can delete a website's stored data, including these copies, after seven days of Safari use in which you have not opened the site. A garden added to the Home Screen has its own count, which starts again each time you open the app. [[lsg/How To/Install a Published Garden as an App]] shows how to add one.
+	- ## Prerequisites
+		- A garden whose address starts with `https://` and is in a folder of its site, such as `https://codekiln.github.io/logseq-gardener/`. A garden at the root of a site, such as `https://example.github.io/`, does not offer saving.
+		- A current version of Chrome, Edge, Safari or Firefox.
+	- ## Steps
+		- 1. Open the garden while you have a network connection.
+		- 2. Open the More menu and choose Save pages for offline reading. A line at the top of the page says that saving is on.
+		- 3. Open the pages you want to read later. Each one is kept as you open it.
+		- 4. Without a network, open the garden and the pages again from your history, a bookmark or the Home Screen. A page you never opened shows the browser's own offline page.
+	- ## Stop saving and remove the copies
+		- Open the More menu and choose Remove offline copies. The garden's copies are deleted, and new pages are no longer kept.
+		- To remove everything the browser stores for the site, use the browser's settings:
+			- Chrome and Edge: open the lock icon or site information in the address bar, then Site settings, then Delete data.
+			- Safari on a Mac: Settings, then Privacy, then Manage Website Data. On an iPhone or iPad: Settings, then Apps, then Safari, then Advanced, then Website Data.
+			- Firefox: open the lock icon in the address bar, then Clear cookies and site data.
+		- Gardens on the same site address, such as several gardens under `codekiln.github.io`, share these settings, so clearing the site removes the copies of all of them.
+	- ## Troubleshooting
+		- If the menu has no Save item, the author has not turned the feature on, the address does not start with `https://`, or the garden is at the root of its site.
+		- If a page you saved does not open offline, it may be more than 30 days old, it may have been removed from the site, or the browser may have deleted the site's data to free space.
+		- If you are online but the site's server fails, you can see a saved copy without the line that names the saved date.
+		- [[lsg/Ref/Offline Options]] describes how an author turns the feature on and off.

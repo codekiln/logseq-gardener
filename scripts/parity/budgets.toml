@@ -324,6 +324,32 @@ manifest_kb = 1
 icon_kb = 256
 build_ms = 1000
 
+# Offline reading (offline-reading). A site without :lsg/offline is the same as before, so no other
+# table changes. parity:budgets builds copies of the fixture garden with and without :lsg/offline
+# true, once as is and once with 2,000 more pages, and checks sw_kb and sw_gzip_kb (lsg-sw.js),
+# script_kb and script_gzip_kb (lsg-offline.js), page_growth_kb and page_growth_gzip_kb (the largest
+# growth of any page), every page's first paint against [desktop] and [phone], that the growth of
+# each page does not change when the garden gains pages, and that the search files match the build
+# without the key. offline:browser-test measures, in Chromium, nav_overhead_ms (the median online
+# navigation through an active worker less the median without one), memory_growth_mb (a page's
+# JavaScript heap after Save less without it), and cache_pages and cache_mb (the most copies and
+# megabytes the worker keeps after 300 pages of 100 KB and 200 pages of 200 KB). parity:build-bench
+# checks build_ms: the key may add this many milliseconds to the whole encode garden's build. The
+# design's 50 ms is below the run-to-run noise of that build (see [install]), so the row uses the
+# same 1000 ms.
+[offline]
+sw_kb = 5
+sw_gzip_kb = 2
+script_kb = 2
+script_gzip_kb = 1
+page_growth_kb = 0.6
+page_growth_gzip_kb = 0.3
+nav_overhead_ms = 50
+memory_growth_mb = 2
+cache_pages = 250
+cache_mb = 32
+build_ms = 1000
+
 # Build plugins (build-time-contributions). parity:budgets builds the fixture garden with the
 # episode-list fixture build plugin (tests/fixtures/plugins/episode-list) and checks the derived
 # rows on each page (gzip of their markup), every page's first paint against [desktop] and [phone],
