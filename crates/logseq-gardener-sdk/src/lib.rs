@@ -120,6 +120,9 @@ pub mod entity_types;
 /// A podcast episode page's recording and title.
 pub mod podcast;
 
+/// An Ableton Live Set written as pages: the Set, its groups and its tracks.
+pub mod ableton_set;
+
 /// The previous and next pages a page names with `prev::` and `next::`.
 pub mod page_sequence;
 

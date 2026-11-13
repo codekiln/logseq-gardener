@@ -744,7 +744,7 @@ mod tests {
         assert_eq!(
             unknown,
             format!(
-                "logseq/config.edn: :lsg/plugins names :podcast-epsiode, which {version} does not ship. It ships :podcast-episode and :sequence-header."
+                "logseq/config.edn: :lsg/plugins names :podcast-epsiode, which {version} does not ship. It ships :ableton-set, :podcast-episode and :sequence-header."
             )
         );
         let string = error(r#"{:lsg/plugins ["podcast-episode"]}"#);
@@ -752,7 +752,7 @@ mod tests {
             string.starts_with(
                 "logseq/config.edn: :lsg/plugins entry \"podcast-episode\" must be a keyword"
             ) && string.contains(&version)
-                && string.contains(":podcast-episode."),
+                && string.contains("such as :ableton-set."),
             "{string}"
         );
         let symbol = error("{:lsg/plugins [podcast-episode]}");

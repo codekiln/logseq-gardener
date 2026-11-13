@@ -875,6 +875,7 @@ fn cli_first_party_plugins_come_from_config_edn_and_key_errors_fail_without_outp
     let help = String::from_utf8_lossy(&help.stdout);
     for part in [
         ":lsg/plugins [:podcast-episode :sequence-header]",
+        ":ableton-set shows",
         ":podcast-episode keeps",
         ":sequence-header shows",
         "lsg/Ref/First-Party Plugins (https://codekiln.github.io/logseq-gardener/lsg/Ref/First-Party%20Plugins/)",

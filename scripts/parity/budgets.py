@@ -59,8 +59,10 @@ FIRST_PARTY_OVERHEAD_PAGE = 'Tools/Queries'
 # GitP/A episode has timestamps, so page_growth_gzip_kb measures the largest entry.
 LONG_EPISODE = 'Tools/Plugins/Show/Long Episode'
 LONG_EPISODE_CHAPTERS = 120
-# The fixture pages that get each first-party plugin's entry; the two episodes also form a sequence.
-FIRST_PARTY_ENTRIES = {'podcast-episode': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two',
+# The fixture pages that get each first-party plugin's entry; the two episodes also form a sequence,
+# and the Set embeds a group, a track inside it and a track outside any group.
+FIRST_PARTY_ENTRIES = {'ableton-set': ['Tools/Plugins/Live Set'],
+                       'podcast-episode': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two',
                                            'Tools/Plugins/Show/Hidden Type', LONG_EPISODE],
                        'sequence-header': ['Tools/Plugins/Show/Episode One', 'Tools/Plugins/Show/Episode Two']}
 FIRST_PARTY_HIDDEN_PAGE = 'Tools/Plugins/Show/Hidden Type'
