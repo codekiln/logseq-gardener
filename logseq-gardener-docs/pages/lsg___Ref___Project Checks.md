@@ -13,6 +13,7 @@ see-also:: [[lsg/How To/Contribute a Change]], [[lsg/Releases]]
 		  | `mise run test` | The workspace tests of the CLI and the SDK, including an SDK example compiled as a library consumer; the SDK's documentation tests; the tests of the hierarchical-help checker and the parity scripts; and the JavaScript tests in `tests/*.test.cjs`. |
 		  | `mise run pr:title-test` | The pull request title check accepts valid Conventional Emoji titles and rejects invalid ones. |
 		  | `mise run build:release` | The workspace builds as optimized release binaries. |
+		  | `mise run lsp:nvim-check` | The Neovim configuration on [[lsg/How To/Edit a Garden in Neovim]] starts `lsg lsp` in headless Neovim, and the client attaches to a page of the fixture garden `tests/fixtures/lsp-garden`. |
 		  | `mise run parity:budgets` | The sizes of `lsg` pages on the fixture garden stay within the parity budgets. |
 		  | `mise run openspec:validate` | Every OpenSpec change and spec validates strictly. |
 		  | `mise run parser:baseline-check` | The mldoc parser comparison baseline. |

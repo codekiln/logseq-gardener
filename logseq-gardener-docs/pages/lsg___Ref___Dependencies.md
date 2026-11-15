@@ -3,7 +3,7 @@ see-also:: [[lsg/How To/Update Dependencies]], [[lsg/Licensing]], [[lsg/Architec
 
 - # Dependencies Reference
 	- ## Overview
-		- The direct Cargo dependencies of the `lsg` CLI and the SDK, and what each one does. Each manifest, [Cargo.toml](https://github.com/codekiln/logseq-gardener/blob/main/Cargo.toml) for the CLI and [crates/logseq-gardener-sdk/Cargo.toml](https://github.com/codekiln/logseq-gardener/blob/main/crates/logseq-gardener-sdk/Cargo.toml) for the SDK, repeats the reason in a comment beside each dependency.
+		- The direct Cargo dependencies of the `lsg` CLI, the language server and the SDK, and what each one does. Each manifest, [Cargo.toml](https://github.com/codekiln/logseq-gardener/blob/main/Cargo.toml) for the CLI and [crates/logseq-gardener-sdk/Cargo.toml](https://github.com/codekiln/logseq-gardener/blob/main/crates/logseq-gardener-sdk/Cargo.toml) for the SDK, repeats the reason in a comment beside each dependency.
 	- ## CLI
 		- | Package | Use |
 		  | --- | --- |
@@ -11,6 +11,17 @@ see-also:: [[lsg/How To/Update Dependencies]], [[lsg/Licensing]], [[lsg/Architec
 		  | Serde | Serializes the help sections. |
 		  | serde_json | Produces the JSON help and version responses. |
 		  | `logseq-gardener-sdk` | The local SDK package. It does the work of `lsg lookup` and `lsg publish`, and the CLI reports the version of the SDK it contains. |
+		  | `logseq-gardener-lsp` | The local language server package, which `lsg lsp` runs. |
+	- ## Language server
+		- The `logseq-gardener-lsp` package holds the protocol code behind `lsg lsp`. Its manifest is [crates/logseq-gardener-lsp/Cargo.toml](https://github.com/codekiln/logseq-gardener/blob/main/crates/logseq-gardener-lsp/Cargo.toml). The SDK builds without these packages.
+		- | Package | Use |
+		  | --- | --- |
+		  | [lsp-server](https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server) | Reads and writes Language Server Protocol messages on standard input and output. It is the synchronous library rust-analyzer uses, so `lsg` needs no async runtime. |
+		  | [lsp-types](https://github.com/gluon-lang/lsp-types) | Typed requests, notifications and capabilities of the protocol. |
+		  | [crossbeam-channel](https://github.com/crossbeam-rs/crossbeam) | Waits on the editor's messages and on file events in one loop. lsp-server already uses it. |
+		  | [notify](https://github.com/notify-rs/notify) | Watches the garden's folders for changes made outside the editor, for editors that do not watch files for the server. Its default macOS backend is turned off, because the Apple framework bindings that backend needs publish no license text; on macOS the server compares modification times every two seconds. |
+		  | Serde and serde_json | Read request parameters and write results. They reuse the serialization packages the CLI already locks. |
+		  | `logseq-gardener-sdk` | The local SDK package, which answers every garden query. |
 	- ## SDK
 		- | Package | Use |
 		  | --- | --- |

@@ -18,6 +18,7 @@ tags:: [[Diataxis/Explanation]]
 	- ## Look something up
 		- [[lsg/Ref/Command Line]] lists the commands, their JSON output and their exit codes.
 		- [[lsg/How To/Look Up a Page File]] finds the file that holds a page, by the page's title, alias or journal date.
+		- [[lsg/How To/Edit a Garden in Neovim]] starts the `lsg lsp` language server from Neovim.
 		- [[lsg/Ref/Publish Options]] lists the options of `lsg publish`.
 		- [[lsg/Ref/Install Options]] describes the key that makes a published garden installable as an app.
 		- [[lsg/Ref/Offline Options]] describes the key that lets readers keep pages for offline reading.
