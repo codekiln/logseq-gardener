@@ -71,6 +71,20 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 			- A name resolves as Logseq resolves it: by title, then by alias, then by the journal date it spells in any format Logseq accepts, ignoring letter case. A name that several pages answer to gives one definition location for each page.
 			- A page that has no file gets the location `pages/<file name>.md`, where the file name follows Logseq's rules for the garden's `:file/name-format`: `Fruit/Quince` gives `Fruit___Quince` under `:triple-lowbar` and `Fruit%2FQuince` under the legacy format. A journal that has no file gets `journals/<date>.md` with the date in `:journal/file-name-format`. The server creates neither file.
 			- References count a page's aliases as the page. With `includeDeclaration`, the list starts with the start of the page's file and each name in its own `alias::` property, or with the `id::` value of the block. A page without a file has no declaration. On a property key, references list every line that writes the key.
+		- ### Completion
+			- The server answers `textDocument/completion` and advertises the trigger characters `[`, `#`, `(` and `:`. It reads the text of the cursor's line to decide what is being typed:
+			- | Text before the cursor | Items | Text an item inserts |
+			  | --- | --- | --- |
+			  | `[[`, also in `{{embed [[` and `#[[` | Page titles, aliases, namespace pages and journal titles | The name and `]]` |
+			  | `#` | The same names | The name, or `[[name]]` when Logseq would end the tag before the end of the name |
+			  | `((`, also in `{{embed ((` | Blocks that write an `id::`, matched by every word typed | The block's id and `))` |
+			  | The start of a property line | Property keys written in the garden | The key, `::` and a space |
+			  | `key::` | Values written for that key; page names for `tags::`, `alias::` and `aliases::` | The value |
+			- Page names are ordered with an exact match ahead of names that start with the typed text, and those ahead of other fuzzy matches. After a `/`, the pages one level beneath the typed namespace come before the rest. Typed text that spells a date in a format Logseq accepts, such as `2026-01-04`, offers that day's journal title in `:journal/page-title-format`, whether or not the journal has a file.
+			- An alias item names its page in `labelDetails.description` and inserts the alias. A block item shows the block's text and names its page.
+			- Property key items leave out Logseq's card scheduling properties and the keys in `:block-hidden-properties`.
+			- Each item's `textEdit` replaces the typed text and a closing `]]` or `))` that already follows the cursor. `filterText` holds the text the typed characters match and `sortText` holds the server's order.
+			- One answer holds at most 100 items. `isIncomplete` is `true` for every list of page names and for any list the limit cut, so the editor asks again as you type.
 		- ### Diagnostics
 			- The server sends `textDocument/publishDiagnostics` for a document when the editor opens it, and again whenever an edit or a file change alters the list. For a file that is not open, it sends the list when the file changes on disk and has a problem, and keeps that list current until it is empty. Closing a document or deleting its file clears its diagnostics.
 			- | Code | Severity | Reported for |

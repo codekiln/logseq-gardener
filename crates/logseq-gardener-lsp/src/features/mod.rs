@@ -1,5 +1,6 @@
 //! One module per feature area. Each handler is registered in [`crate::dispatch`].
 
+pub(crate) mod completion;
 pub(crate) mod definition;
 pub(crate) mod diagnostics;
 pub(crate) mod hover;

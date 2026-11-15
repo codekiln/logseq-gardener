@@ -5,6 +5,7 @@ use lsp_types::{
     TextDocumentSyncKind, TextDocumentSyncOptions,
 };
 
+use crate::features::completion;
 use crate::positions::Encoding;
 
 /// The capabilities in the `initialize` response. A feature adds its provider here.
@@ -24,6 +25,7 @@ pub(crate) fn server_capabilities(encoding: Encoding) -> ServerCapabilities {
         definition_provider: Some(OneOf::Left(true)),
         references_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
+        completion_provider: Some(completion::options()),
         ..ServerCapabilities::default()
     }
 }
