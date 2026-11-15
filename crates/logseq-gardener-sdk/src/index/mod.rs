@@ -33,6 +33,7 @@
 //! std::fs::remove_dir_all(root).unwrap();
 //! ```
 
+mod completion;
 mod definition;
 mod hover;
 mod lines;
@@ -57,6 +58,9 @@ use crate::page_names::{
 };
 use crate::page_titles::page_title;
 
+pub use completion::{
+    Candidate, CandidateKind, CompletionContext, CompletionKind, Completions, completion_context,
+};
 pub use definition::Destination;
 pub use hover::{BlockSummary, PageSummary, SUMMARY_LINES, Summary};
 pub use lines::{LineIndex, LinePosition};

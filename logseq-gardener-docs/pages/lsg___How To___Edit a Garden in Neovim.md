@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 - # How To Edit a Garden in Neovim
 	- ## Overview
 		- `lsg lsp` is a language server for Logseq Markdown gardens. Neovim starts it when you open a page or journal, and the server reads the whole garden so it can tell the editor where each page link, tag, block reference and property leads.
-		- With the server attached you can jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. The server keeps its index of the garden current while you edit. Completion, rename and diagnostics arrive in later releases and need no change to the configuration on this page.
+		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. The server keeps its index of the garden current while you edit. Rename and diagnostics arrive in later releases and need no change to the configuration on this page.
 	- ## Prerequisites
 		- Neovim 0.11 or later.
 		- `lsg` on your `PATH`, installed as [[lsg/How To/Install with mise]] shows.
@@ -75,6 +75,18 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 			- Go to definition opens the page's file, and puts the cursor on the block for a block reference. A link to a page or journal that has no file opens a new buffer at the path Logseq would create, such as `pages/Fruit___Quince.md` or `journals/2026_01_04.md`. The file appears when you save the buffer.
 			- References from a link list every place that names the same page by its title or by one of its aliases. With the cursor in ordinary text, references list the places that link to the page you are in. On a block reference or an `id::` value they list the references and embeds of that block.
 			- Hover on a page link shows the page's title, its aliases, how many places name it and its first lines. Hover on a block reference shows the block's text below its page and parent blocks.
+		- ### 6. Complete links, tags, block references and properties
+			- Completion works with Neovim's built-in completion and with a completion plugin such as `blink.cmp`. Type one of these and pick an item from the menu:
+			- | You type | The menu offers |
+			  | --- | --- |
+			  | `[[` | Page titles, aliases, namespace pages and journal titles. After `[[Fruit/` the pages one level beneath `Fruit` come first. `[[2026-01-04` offers that day's journal title in your garden's format. |
+			  | `#` | The same names. A name with a space is written as `#[[multi word]]`. |
+			  | `((` | Blocks that have an `id::`. Type words from the block's text; the item inserts the block's id. |
+			  | The first letters of a key on a property line | Property keys used in the garden. |
+			  | `key::` | Values already written for that key. `tags::` and `alias::` offer page names. |
+			- An alias shows the page it belongs to and inserts the alias as its page writes it.
+			- When a pairing plugin such as `mini.pairs` has already written `]]` or `))` after the cursor, the chosen item replaces that pair, so the line ends with one pair.
+			- A block without an `id::` is left out of the `((` menu. Give the block an id in Logseq, or write an `id::` line beneath it, to reference it.
 	- ## What the server reads
 		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress.
 		- The text in an open buffer takes the place of its file until you close the buffer, so the server sees edits you have not saved.
