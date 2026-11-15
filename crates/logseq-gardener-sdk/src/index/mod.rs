@@ -37,6 +37,7 @@ mod definition;
 mod hover;
 mod lines;
 mod occurrences;
+mod problems;
 mod references;
 
 use std::cmp::Ordering;
@@ -61,6 +62,7 @@ pub use definition::Destination;
 pub use hover::{BlockSummary, PageSummary, SUMMARY_LINES, Summary};
 pub use lines::{LineIndex, LinePosition};
 pub use occurrences::{BlockIdSite, Occurrence, OccurrenceKind, PropertyLine, SourceRange, Target};
+pub use problems::{Problem, ProblemKind, RelatedLocation, Severity};
 pub use references::{NamedBy, PageReference, Reference, Subject};
 
 /// The folders whose Markdown files the index holds.

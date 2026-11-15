@@ -71,6 +71,15 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 			- A name resolves as Logseq resolves it: by title, then by alias, then by the journal date it spells in any format Logseq accepts, ignoring letter case. A name that several pages answer to gives one definition location for each page.
 			- A page that has no file gets the location `pages/<file name>.md`, where the file name follows Logseq's rules for the garden's `:file/name-format`: `Fruit/Quince` gives `Fruit___Quince` under `:triple-lowbar` and `Fruit%2FQuince` under the legacy format. A journal that has no file gets `journals/<date>.md` with the date in `:journal/file-name-format`. The server creates neither file.
 			- References count a page's aliases as the page. With `includeDeclaration`, the list starts with the start of the page's file and each name in its own `alias::` property, or with the `id::` value of the block. A page without a file has no declaration. On a property key, references list every line that writes the key.
+		- ### Diagnostics
+			- The server sends `textDocument/publishDiagnostics` for a document when the editor opens it, and again whenever an edit or a file change alters the list. For a file that is not open, it sends the list when the file changes on disk and has a problem, and keeps that list current until it is empty. Closing a document or deleting its file clears its diagnostics.
+			- | Code | Severity | Reported for |
+			  | --- | --- | --- |
+			  | `missing-block` | Error | A `((uuid))` or `{{embed ((uuid))}}` whose id no block in the garden has |
+			  | `duplicate-block-id` | Error | An `id::` value that more than one block writes, on each of those blocks |
+			  | `missing-embedded-page` | Warning | A `{{embed [[page]]}}` whose page has no file |
+			- Every diagnostic has the source `lsg`. A `duplicate-block-id` lists the other blocks in `relatedInformation` when the editor supports it, and names their files and lines in the message otherwise.
+			- A page link, a tag or a property value that names a page without a file gets no diagnostic. In Logseq, linking a page is how you create it.
 		- ### Requests
 			- | Request | Parameters | Result |
 			  | --- | --- | --- |
