@@ -11,6 +11,7 @@
 - Return at most 100 items for one request and mark a longer list as incomplete, so the editor asks again as the person types.
 - Document completion on the docs page `lsg/How To/Edit a Garden in Neovim`, in `lsg lsp help` and in the command-line reference.
 - Record the completion response time measured on the encode garden.
+- Fix shutdown: the server exits with status 0 when a response or notification arrives between `shutdown` and `exit`. Before this change it exited with status 1, which happened when an editor sent `shutdown` while its answer to the server's file watching request was still on the way.
 
 ## Capabilities
 
@@ -21,7 +22,7 @@ None.
 ### Modified Capabilities
 
 - `garden-index`: gains the completion context and completion candidate queries.
-- `language-server`: gains the `textDocument/completion` request and its advertised trigger characters.
+- `language-server`: gains the `textDocument/completion` request and its advertised trigger characters, and a requirement for messages that arrive between `shutdown` and `exit`.
 
 ## Impact
 

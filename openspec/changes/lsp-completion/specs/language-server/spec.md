@@ -47,3 +47,18 @@ The server SHALL return at most 100 items for one request and SHALL set `isIncom
 
 - **WHEN** a client asks for completion at the end of `- An apple is red`
 - **THEN** the answer holds no items
+
+
+### Requirement: Shut down while other messages arrive
+
+After the server answers `shutdown`, it SHALL wait for `exit` and then exit with status 0. Until `exit` arrives it SHALL ignore responses and notifications, such as the client's answer to the server's `client/registerCapability` request, and SHALL answer a request with the `InvalidRequest` error. When the client closes the connection after `shutdown` without `exit`, the server SHALL exit with status 1.
+
+#### Scenario: Shutdown right after initialized
+
+- **WHEN** a client that watches files sends `initialized`, then `shutdown`, then its answer to the server's `client/registerCapability` request, then `exit`
+- **THEN** the server exits with status 0
+
+#### Scenario: A request after shutdown
+
+- **WHEN** a client sends `shutdown` and then `lsg/status`
+- **THEN** the server answers `lsg/status` with the `InvalidRequest` error, and exits with status 0 after `exit`

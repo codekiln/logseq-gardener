@@ -87,13 +87,11 @@ fn item<'a>(answer: &'a Value, label: &str) -> &'a Value {
 #[test]
 fn the_server_advertises_completion_and_its_trigger_characters() {
     let garden = Garden::copy();
-    let mut client = Client::start(&garden, Options::default());
+    let client = Client::start(&garden, Options::default());
     assert_eq!(
         client.initialize_result["capabilities"]["completionProvider"]["triggerCharacters"],
         json!(["[", "#", "(", ":"])
     );
-    // Wait for the garden to load before leaving.
-    client.request("lsg/status", Value::Null);
     assert_eq!(client.shutdown().code(), Some(0));
 }
 

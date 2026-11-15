@@ -75,17 +75,21 @@ The server asks for 100 candidates, the number Logseq's own search returns for e
 
 `features/completion.rs` takes the text of the open buffer, or the indexed file's text for a document that is not open, converts the position with `positions::Encoding`, asks the SDK for the context and the candidates, and converts the replaced range back. A buffer the garden has no file for still completes, because the context needs only the text. A document with no text known to the server gets an empty list.
 
+### Shutdown waits for `exit` itself
+
+`lsp-server`'s `Connection::handle_shutdown` answers `shutdown` and then fails unless the next message is `exit`. A client that sends `shutdown` soon after `initialized` still has its answers to the server's `client/registerCapability` and progress token requests on the way, so the server exited with status 1. The main loop now answers `shutdown` and reads messages until `exit`: it ignores responses and notifications and answers a request with `InvalidRequest`, as the protocol describes.
+
 ### Measured response time
 
-On the encode garden at commit `fcfefe0b524`, 9,855 documents, a release build on an Apple M2 Pro answered 1,050 completion requests with a median of 20.8 ms and a 95th percentile of 25.3 ms; the slowest took 71.6 ms. A script started `target/release/lsg lsp`, declared `utf-8` positions and file watching by the client as Neovim does, opened one unsaved buffer, and sent each of 21 typed texts 50 times, timing each request from write to answer.
+On the encode garden at commit `fcfefe0b524`, 9,855 documents, a release build on an Apple M2 Pro answered 1,050 completion requests with a median of 20.2 ms and a 95th percentile of 23.1 ms; the slowest took 67.7 ms. A script started `target/release/lsg lsp`, declared `utf-8` positions and file watching by the client as Neovim does, opened one unsaved buffer, and sent each of 21 typed texts 50 times, timing each request from write to answer.
 
 | Typed text | Requests | Median | 95th percentile |
 | --- | --- | --- | --- |
-| After `[[` (8 texts, such as `[[`, `[[lo`, `[[Person/`, `[[2026-01-04`) | 400 | 21.9 ms | 36.2 ms |
-| After `#` (4 texts) | 200 | 21.9 ms | 23.9 ms |
-| After `((` (3 texts) | 150 | 3.4 ms | 3.8 ms |
-| Property key (3 texts) | 150 | 0.4 ms | 0.6 ms |
-| After `key::` (3 texts, one of them `tags::`) | 150 | 0.1 ms | 22.3 ms |
+| After `[[` (8 texts, such as `[[`, `[[lo`, `[[Person/`, `[[2026-01-04`) | 400 | 21.8 ms | 23.4 ms |
+| After `#` (4 texts) | 200 | 21.0 ms | 23.5 ms |
+| After `((` (3 texts) | 150 | 3.3 ms | 4.1 ms |
+| Property key (3 texts) | 150 | 0.4 ms | 0.5 ms |
+| After `key::` (3 texts, one of them `tags::`) | 150 | 0.1 ms | 22.2 ms |
 
 ## Risks / Trade-offs
 
@@ -135,6 +139,10 @@ An exact name and then a name that starts with the typed text come ahead of othe
 ### 10 - Does this step add a completion check to the Neovim task?
 
 No. The end-to-end tests cover the protocol answers, and `mise run lsp:nvim-check` runs the documented snippet with `--clean`, which loads no completion plugin.
+
+### 11 - Why does a completion change fix shutdown?
+
+The end-to-end test that only reads the advertised capabilities shuts down right after `initialized`, and the server exited with status 1. The cause is in the main loop from [PR #645 — start lsg lsp](https://github.com/codekiln/logseq-gardener/pull/645). The coordinator of Issue #638 asked for the fix in this change because the workers on other steps reported the same failure.
 
 ## Open Questions
 

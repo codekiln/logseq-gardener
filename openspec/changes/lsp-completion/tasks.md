@@ -19,6 +19,7 @@
 
 - [x] 3.1 Add `features/completion.rs`, which converts the position, asks the SDK and builds items with `textEdit`, `filterText`, `sortText`, `kind`, `detail` and `labelDetails`
 - [x] 3.2 Register `textDocument/completion` in `dispatch.rs` and advertise the provider and its trigger characters in `capabilities.rs`
+- [x] 3.3 Answer `shutdown` in the main loop and wait for `exit`, ignoring responses and notifications and refusing requests, with `tests/lsp_shutdown.rs`
 
 ## 4. End-to-end tests
 
@@ -29,4 +30,4 @@
 
 - [x] 5.1 Describe completion in `lsg lsp help`, `lsg/Ref/Command Line` and `lsg/How To/Edit a Garden in Neovim`
 - [x] 5.2 Measure completion response time on the encode garden on a release build and record the numbers and method in `design.md` and the PR
-- [ ] 5.3 Run `mise run ci`
+- [x] 5.3 Run `mise run ci`
