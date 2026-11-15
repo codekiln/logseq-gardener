@@ -22,6 +22,7 @@ use crate::install::{Icon, InstallError, InstallSettings};
 use crate::journals::{DEFAULT_FILE_NAME_FORMAT, DEFAULT_TITLE_FORMAT, DateFormat};
 use crate::offline::{OfflineError, OfflineSetting};
 use crate::page_names::{PageNameIndex, lookup_key};
+use crate::page_titles::FilenameFormat;
 
 /// Logseq features a garden can turn off with `:feature/enable-*?` keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +73,9 @@ pub struct GardenSettings {
     /// `:block-hidden-properties`, lower-cased: properties no published block shows. A name
     /// written only in their values makes no reference-only page.
     pub hidden_properties: Vec<String>,
+    /// `:file/name-format`: how a page's file name spells its title. Logseq reads
+    /// `:triple-lowbar` as the triple-lowbar format and anything else, or no key, as legacy.
+    pub filename_format: FilenameFormat,
 }
 
 impl Default for GardenSettings {
@@ -88,6 +92,7 @@ impl Default for GardenSettings {
             graph_shortcut: true,
             all_pages_public: false,
             hidden_properties: Vec::new(),
+            filename_format: FilenameFormat::Legacy,
         }
     }
 }
@@ -162,6 +167,13 @@ impl GardenSettings {
                             "Publishing setting {key} is not a boolean; using false"
                         )),
                     }
+                    continue;
+                }
+                ":file/name-format" => {
+                    settings.filename_format = match value {
+                        Form::Atom(ref v) if v == ":triple-lowbar" => FilenameFormat::TripleLowbar,
+                        _ => FilenameFormat::Legacy,
+                    };
                     continue;
                 }
                 ":feature/enable-journals?" => &mut settings.features.journals,
@@ -716,6 +728,20 @@ pub fn resolve_sidebar<T: Clone + Ord>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_the_filename_format() {
+        let format = |text: &str| GardenSettings::parse(text).0.filename_format;
+        assert_eq!(
+            format("{:file/name-format :triple-lowbar}"),
+            FilenameFormat::TripleLowbar
+        );
+        assert_eq!(
+            format("{:file/name-format :legacy}"),
+            FilenameFormat::Legacy
+        );
+        assert_eq!(format("{}"), FilenameFormat::Legacy);
+    }
 
     #[test]
     fn plugins_key_turns_on_first_party_plugins() {

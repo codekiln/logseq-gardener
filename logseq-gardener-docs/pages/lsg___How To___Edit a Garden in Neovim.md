@@ -1,0 +1,121 @@
+tags:: [[Diataxis/How To]]
+see-also:: [[lsg/Ref/Command Line]], [[lsg/Ref/Language Server/Performance]], [[lsg/How To/Look Up a Page File]]
+
+- # How To Edit a Garden in Neovim
+	- ## Overview
+		- `lsg lsp` is a language server for Logseq Markdown gardens. Neovim starts it when you open a page or journal, and the server reads the whole garden so it can tell the editor where each page link, tag, block reference and property leads.
+		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. You can rename a page or tag and have every link, namespace child and file name follow, and rename a property key on every line that writes it. The server reports broken block references and repeated block ids as diagnostics, and keeps its index of the garden current while you edit.
+	- ## Prerequisites
+		- Neovim 0.11 or later.
+		- `lsg` on your `PATH`, installed as [[lsg/How To/Install with mise]] shows.
+		- A Logseq Markdown garden: a folder that holds `logseq/config.edn`.
+	- ## Steps
+		- ### 1. Add the server to your Neovim configuration
+			- Put these lines in `init.lua`, or in any Lua file your configuration loads:
+				- ```lua
+				  vim.lsp.config("logseq_gardener", {
+				    cmd = { "lsg", "lsp" },
+				    filetypes = { "markdown" },
+				    root_dir = function(bufnr, on_dir)
+				      local root = vim.fs.root(bufnr, function(name, path)
+				        return name == "logseq" and vim.uv.fs_stat(path .. "/logseq/config.edn") ~= nil
+				      end)
+				      if root then
+				        on_dir(root)
+				      end
+				    end,
+				  })
+				  vim.lsp.enable("logseq_gardener")
+				  ```
+			- `root_dir` starts the server only for a Markdown buffer inside a folder that holds `logseq/config.edn`, and passes that folder to the server as the garden. Markdown files anywhere else keep the servers you already use.
+		- ### 2. Use the LazyVim form
+			- With LazyVim, add the server to `nvim-lspconfig` in a plugin file such as `lua/plugins/logseq-gardener.lua`. `mason = false` tells LazyVim that you install `lsg` yourself:
+				- ```lua
+				  return {
+				    "neovim/nvim-lspconfig",
+				    opts = {
+				      servers = {
+				        logseq_gardener = {
+				          mason = false,
+				          cmd = { "lsg", "lsp" },
+				          filetypes = { "markdown" },
+				          root_dir = function(bufnr, on_dir)
+				            local root = vim.fs.root(bufnr, function(name, path)
+				              return name == "logseq" and vim.uv.fs_stat(path .. "/logseq/config.edn") ~= nil
+				            end)
+				            if root then
+				              on_dir(root)
+				            end
+				          end,
+				        },
+				      },
+				    },
+				  }
+				  ```
+		- ### 3. Check that the server attached
+			- Open a page of your garden and run `:checkhealth vim.lsp`. The report lists `logseq_gardener` under the active clients, with your garden folder as its root directory.
+			- Ask the server what it loaded:
+				- ```vim
+				  :lua vim.print(vim.lsp.get_clients({ name = "logseq_gardener" })[1]:request_sync("lsg/status", vim.NIL, 5000, 0).result)
+				  ```
+			- The answer gives the garden root, the filename format and journal formats from `logseq/config.edn`, and the number of pages and journals.
+		- ### 4. Ask what the cursor is on
+			- Put the cursor on a page link, tag, block reference or property and run:
+				- ```vim
+				  :lua vim.print(vim.lsp.get_clients({ name = "logseq_gardener" })[1]:request_sync("lsg/occurrence", vim.lsp.util.make_position_params(0, "utf-8"), 5000, 0).result)
+				  ```
+			- The answer names what is under the cursor and the page or block it leads to. An alias gives the page that declares it, a journal date in any format Logseq accepts gives the journal, and a link to a page with no file says so.
+		- ### 5. Follow a link, list references and read a hover
+			- Put the cursor on a page link, a tag, an alias, a journal date, a `((block reference))`, an `{{embed}}` or a page name in a property such as `tags::`, then use one of these:
+				- | Action | Neovim | LazyVim |
+				  | --- | --- | --- |
+				  | Go to the page or block | `CTRL-]` or `:lua vim.lsp.buf.definition()` | `gd` |
+				  | List the places that name it | `grr` | `gr` |
+				  | Show it in a hover window | `K` | `K` |
+			- Go to definition opens the page's file, and puts the cursor on the block for a block reference. A link to a page or journal that has no file opens a new buffer at the path Logseq would create, such as `pages/Fruit___Quince.md` or `journals/2026_01_04.md`. The file appears when you save the buffer.
+			- References from a link list every place that names the same page by its title or by one of its aliases. With the cursor in ordinary text, references list the places that link to the page you are in. On a block reference or an `id::` value they list the references and embeds of that block.
+			- Hover on a page link shows the page's title, its aliases, how many places name it and its first lines. Hover on a block reference shows the block's text below its page and parent blocks.
+		- ### 6. Complete links, tags, block references and properties
+			- Completion works with Neovim's built-in completion and with a completion plugin such as `blink.cmp`. Type one of these and pick an item from the menu:
+			- | You type | The menu offers |
+			  | --- | --- |
+			  | `[[` | Page titles, aliases, namespace pages and journal titles. After `[[Fruit/` the pages one level beneath `Fruit` come first. `[[2026-01-04` offers that day's journal title in your garden's format. |
+			  | `#` | The same names. A name with a space is written as `#[[multi word]]`. |
+			  | `((` | Blocks that have an `id::`. Type words from the block's text; the item inserts the block's id. |
+			  | The first letters of a key on a property line | Property keys used in the garden. |
+			  | `key::` | Values already written for that key. `tags::` and `alias::` offer page names. |
+			- An alias shows the page it belongs to and inserts the alias as its page writes it.
+			- When a pairing plugin such as `mini.pairs` has already written `]]` or `))` after the cursor, the chosen item replaces that pair, so the line ends with one pair.
+			- A block without an `id::` is left out of the `((` menu. Give the block an id in Logseq, or write an `id::` line beneath it, to reference it.
+		- ### 7. Rename a page or a tag
+			- Put the cursor on a page link, a tag or a page name in a property such as `tags::`, or anywhere in the ordinary text of the page you want to rename. Then press `grn`, or `<leader>cr` in LazyVim, or run `:lua vim.lsp.buf.rename()`. Neovim shows the page's current title; type the new one and press Enter.
+			- The rename rewrites every `[[link]]`, `#tag`, `{{embed}}` and property value that names the page, renames its namespace children, so `Fruit/Apple` follows `Fruit`, and renames each page file as Logseq would name it. A link written with one of the page's aliases stays as written, because it still leads to the page. The cursor on an alias renames the page the alias belongs to.
+			- Neovim writes the renamed files at once and leaves the other changed files as unsaved buffers. Run `:wall` to write them.
+			- A tag is a page, so renaming `#todo` works the same way, also when the page has no file. When the new name has a space, `#todo` becomes `#[[new name]]`.
+			- The server refuses a name that already belongs to another page and shows the reason. To merge two pages, use Logseq.
+			- A journal keeps its file name. Renaming a journal writes the new title to a `title::` property at the top of its file.
+		- ### 8. Rename a property key
+			- Put the cursor on the key of a property line, such as `type` in `type:: book`, and press `grn`, or `<leader>cr` in LazyVim, or run `:lua vim.lsp.buf.rename()`. Neovim shows the key as that line writes it; type the new key and press Enter.
+			- The rename replaces the key on every `key::` line of the garden, in the properties at the top of a page and in the properties of a block, and leaves the values as they are. Neovim leaves the changed files as unsaved buffers. Run `:wall` to write them.
+			- Keys match as Logseq reads them: `Type::` and `TYPE::` are the key `type`, and `due_date::` is the key `due-date`. The new key is written as you type it.
+			- When other blocks already write the new key, the rename goes ahead and the two keys become one. When one block writes both keys, the server refuses and names the file and line, because Logseq reads one value for a key on a block. Remove one of the two lines and rename again.
+			- The server refuses to rename a key that Logseq uses itself, such as `id`, `title`, `alias`, `tags` or `collapsed`, and refuses such a key as the new name. It also refuses a new key with a space, a colon, a quote or a bracket, which Logseq would not read as a key.
+			- A query such as `{{query (property type book)}}`, a `query-properties::` value and a setting in `logseq/config.edn` that names the key keep the old name. Change those by hand. The page named like the key, and the links to it, stay as they are. To rename that page too, rename it from a link to it.
+		- ### 9. Read the diagnostics
+			- The server marks three problems in a page:
+				- a `((uuid))` or `{{embed ((uuid))}}` whose id no block in the garden has, as an error;
+				- an `id::` value that more than one block writes, as an error on each of those blocks. Logseq keeps the id on one block and gives the others a new id, so references to them stop working;
+				- a `{{embed [[page]]}}` whose page has no file, as a warning.
+			- `:lua vim.diagnostic.setqflist()` lists the problems the server has reported, and `]d` and `[d` move between the ones in the current buffer. If your configuration turns diagnostics off, `:lua vim.diagnostic.enable(true)` shows them.
+			- The marks follow your edits, saved or not. Giving a block the missing id in another buffer clears the error on the reference, and changing one of two equal ids clears both errors.
+			- A link or tag to a page without a file gets no mark, because linking a page is how Logseq creates it.
+	- ## What the server reads
+		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress. [[lsg/Ref/Language Server/Performance]] records how long the server takes to load that garden and to answer each request.
+		- The text in an open buffer takes the place of its file until you close the buffer, so the server sees edits you have not saved.
+		- When the Logseq app, git or another program changes a file, the server reads it again. A change to `logseq/config.edn` reads the whole garden again.
+		- The server writes no file and offers no formatting. A rename changes only the names it replaces, so the tab indentation of your outline stays as you wrote it.
+	- ## Troubleshooting
+		- If no client attaches, check that the buffer's filetype is `markdown` and that a folder at or above the file holds `logseq/config.edn`.
+		- If Neovim reports that `lsg` is not executable, run `command -v lsg` in the shell you start Neovim from. [[lsg/How To/Install with mise]] shows how to put `lsg` on your `PATH`.
+		- If another Markdown server reports every link to a page without a file as an error, turn that server off for folders that hold `logseq/config.edn`. In Logseq, linking a page is how you create it.
+		- `:lua vim.cmd.edit(vim.lsp.log.get_filename())` opens the log that holds the server's messages.

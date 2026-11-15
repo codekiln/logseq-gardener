@@ -1,0 +1,5 @@
+{:file/name-format :triple-lowbar
+ :journal/page-title-format "MMM do, yyyy"
+ :journal/file-name-format "yyyy_MM_dd"
+ ;; The page Logseq opens first.
+ :default-home {:page "Sweet Produce"}}

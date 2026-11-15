@@ -1,0 +1,29 @@
+[package]
+name = "logseq-gardener-lsp"
+version = "0.0.53"
+edition = "2024"
+rust-version = "1.97"
+description = "Language server for Logseq Gardener"
+license = "AGPL-3.0-only"
+repository = "https://github.com/codekiln/logseq-gardener"
+publish = false
+
+[dependencies]
+# Every garden query the server answers.
+logseq-gardener-sdk = { path = "../logseq-gardener-sdk", version = "0.0.53" }
+# Read and write Language Server Protocol messages over standard input and output.
+lsp-server = "0.10.0"
+# Typed Language Server Protocol requests, notifications and capabilities.
+lsp-types = "0.97.0"
+# Wait on client messages and file events together; the channel type lsp-server uses.
+crossbeam-channel = "0.5.17"
+# Watch the garden's files when the editor does not report changes made outside it. The
+# default macOS backend needs Apple framework bindings that publish no license text, so the
+# build selects notify's other macOS backend and the server checks the files on a timer there.
+notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
+# Read request parameters and write results.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[package.metadata.dist]
+dist = false

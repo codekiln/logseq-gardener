@@ -41,6 +41,7 @@ enum Command {
     Version(VersionArgs),
     Publish(PublishArgs),
     Lookup(LookupArgs),
+    Lsp(LspArgs),
 }
 
 #[derive(Args, Default)]
@@ -133,6 +134,18 @@ enum LookupCommand {
     Help(HelpArgs),
 }
 
+#[derive(Args)]
+#[command(disable_help_flag = true, disable_help_subcommand = true)]
+struct LspArgs {
+    #[command(subcommand)]
+    command: Option<LspCommand>,
+}
+
+#[derive(Subcommand)]
+enum LspCommand {
+    Help(HelpArgs),
+}
+
 #[derive(Clone, Copy, ValueEnum)]
 enum PublishFilenameFormat {
     Legacy,
@@ -178,6 +191,7 @@ pub fn run() -> Result<Response, Failure> {
         Some(Command::Version(_)) => &["version"],
         Some(Command::Publish(_)) => &["publish"],
         Some(Command::Lookup(_)) => &["lookup"],
+        Some(Command::Lsp(_)) => &["lsp"],
         _ => &[],
     };
     if cli.help {
@@ -202,6 +216,10 @@ pub fn run() -> Result<Response, Failure> {
             ..
         })) => help::render(path, &args, cli.format, cli.programmatic),
         Some(Command::Lookup(args)) => return lookup(args, cli.format),
+        Some(Command::Lsp(LspArgs {
+            command: Some(LspCommand::Help(args)),
+        })) => help::render(path, &args, cli.format, cli.programmatic),
+        Some(Command::Lsp(LspArgs { command: None })) => return lsp(),
         None => help::render(path, &HelpArgs::default(), cli.format, cli.programmatic),
     }?;
     Ok(text.into())
@@ -222,6 +240,19 @@ fn filename_format(format: PublishFilenameFormat) -> FilenameFormat {
     match format {
         PublishFilenameFormat::Legacy => FilenameFormat::Legacy,
         PublishFilenameFormat::TripleLowbar => FilenameFormat::TripleLowbar,
+    }
+}
+
+/// Serve the Language Server Protocol on standard input and output. Standard output carries
+/// only protocol messages, so the response prints nothing there.
+fn lsp() -> Result<Response, Failure> {
+    match logseq_gardener_lsp::run_stdio() {
+        logseq_gardener_lsp::Exit::Clean => Ok(String::new().into()),
+        logseq_gardener_lsp::Exit::Failed(message) => Err(Failure {
+            message: format!("{message}; use 'lsg lsp help'"),
+            code: 1,
+            diagnostics: String::new(),
+        }),
     }
 }
 

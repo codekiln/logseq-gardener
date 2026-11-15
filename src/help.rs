@@ -16,38 +16,45 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
     let version = path == ["version"];
     let publish = path == ["publish"];
     let lookup = path == ["lookup"];
+    let lsp = path == ["lsp"];
     let command = if version {
         "lsg version"
     } else if publish {
         "lsg publish"
     } else if lookup {
         "lsg lookup"
+    } else if lsp {
+        "lsg lsp"
     } else {
         "lsg"
     };
     let mut sections = vec![
         Section { level: 1, title: "Purpose", section: "purpose", content: if lookup {
             "Print the source file of a Logseq page named by its title, an alias or a journal date, for opening in an editor or reading by an agent.".into()
+        } else if lsp {
+            "Serve the Language Server Protocol (LSP) for a Logseq garden over standard input and output, so an editor such as Neovim can ask where a page link, tag, block reference or property leads.".into()
         } else if publish {
             "Generate local HTML pages and referenced assets from selected Logseq namespaces through the shared Rust SDK.".into()
         } else if version {
             "Report the installed Logseq Gardener version. Use this when reporting a bug or identifying a build.".into()
         } else {
-            "Logseq Gardener provides a terminal interface for people and coding agents working with Logseq Markdown gardens. Use lookup to find a page's source file, publish to generate selected local HTML pages, or version to identify the installed build.".into()
+            "Logseq Gardener provides a terminal interface for people and coding agents working with Logseq Markdown gardens. Use lookup to find a page's source file, lsp to serve an editor, publish to generate selected local HTML pages, or version to identify the installed build.".into()
         }},
         Section { level: 2, title: "Usage", section: "usage", content: format!(
             "Usage: {command}{}\n       {command} help [outline | section <section> [--recursive]]\n       {command} --help\n\nOptions:\n  -h, --help          Show this documentation\n  -V, --version       Report the installed version\n  --format human|json Select output format (default: human)\n  --programmatic     Add guidance for scripts and agents\n  --no-input         Explicit noninteractive mode (the default)\n\nOutline options: --level N or --max-level N (1 through 6).\nSection option: --recursive includes descendant sections.",
-            if lookup { " NAME --graph PATH --filename-format legacy|triple-lowbar" } else if publish { " --graph PATH --output PATH --filename-format legacy|triple-lowbar [--include NAMESPACE]... [--include-all] [--exclude NAMESPACE]... [--stylesheet PATH] [--homepage TITLE] [--search] [--journals] [--readable-urls] [--redirect-old-urls] [--plugin PATH]... [--timings]" } else if version { " [--format human|json]" } else { " [lookup | publish | version]" }
+            if lookup { " NAME --graph PATH --filename-format legacy|triple-lowbar" } else if publish { " --graph PATH --output PATH --filename-format legacy|triple-lowbar [--include NAMESPACE]... [--include-all] [--exclude NAMESPACE]... [--stylesheet PATH] [--homepage TITLE] [--search] [--journals] [--readable-urls] [--redirect-old-urls] [--plugin PATH]... [--timings]" } else if version { " [--format human|json]" } else if lsp { "" } else { " [lookup | lsp | publish | version]" }
         )},
-        Section { level: 2, title: "Commands", section: "commands", content: if version || publish || lookup {
+        Section { level: 2, title: "Commands", section: "commands", content: if version || publish || lookup || lsp {
             "No child commands. Use help to read this document, help outline to list headings, or help section <section> to retrieve a heading.".into()
         } else {
-            "lookup   Print the source file of a named page.\npublish  Generate selected local HTML pages.\nversion  Report the installed version.\n\nUse lsg lookup help, lsg publish help or lsg version help for each command's documentation. Use lsg help outline to discover headings and lsg help section <section> to read a section.".into()
+            "lookup   Print the source file of a named page.\nlsp      Serve an editor over the Language Server Protocol.\npublish  Generate selected local HTML pages.\nversion  Report the installed version.\n\nUse lsg lookup help, lsg lsp help, lsg publish help or lsg version help for each command's documentation. Use lsg help outline to discover headings and lsg help section <section> to read a section.".into()
         }},
         Section { level: 2, title: "Behavior", section: "behavior", content: "Help displays documentation included in lsg; version reports the installed build. Both work offline and finish without prompts, a pager, or reading standard input. They leave garden files unchanged.".into() },
         Section { level: 3, title: "Permissions", section: "permissions", content: "You only need permission to run lsg.".into() },
         Section { level: 2, title: "Examples", section: "examples", content: if lookup {
             "nvim \"$(lsg lookup nvim --graph ~/garden --filename-format triple-lowbar)\"\n\nOpens the page titled or aliased nvim in Neovim; the command prints its path, such as ~/garden/pages/nvim.md. With --format json the result also gives the title, the path relative to the garden, page or journal, and whether the name matched the title, an alias or a journal date.".into()
+        } else if lsp {
+            format!("vim.lsp.config(\"logseq_gardener\", {{ cmd = {{ \"lsg\", \"lsp\" }}, filetypes = {{ \"markdown\" }}, root_markers = {{ \"logseq\" }} }})\nvim.lsp.enable(\"logseq_gardener\")\n\nThese two lines of Neovim 0.11 Lua start lsg lsp for a Markdown buffer inside a folder that holds a logseq folder. {} gives a configuration that checks for logseq/config.edn, a LazyVim variant and a way to check that the server attached.", docs::page_link("lsg/How To/Edit a Garden in Neovim"))
         } else if publish {
             "lsg publish --graph /path/to/garden --output /tmp/new-site --filename-format triple-lowbar --include My/AI --exclude My/AI/Agent\n\nPublishes My/AI and descendants, except My/AI/Agent and descendants. Open /tmp/new-site/index.html. Choose a fresh output directory with an existing parent outside the garden.".into()
         } else if version {
@@ -58,8 +65,8 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
         Section { level: 2, title: "Output and exits", section: "output", content: "Results go to stdout and diagnostics go to stderr. JSON responses include format_version 1 and command_path. Invalid commands leave stdout empty. Exit 0 means success (including a closed downstream pipe), 2 means invalid arguments or an unknown section, and 1 means output could not be written. Redirected output contains no terminal control sequences.".into() },
     ];
     if path.is_empty() {
-        sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "Help and version work offline without prompts, a pager, or reading stdin. Lookup reads a garden and prints a page's source path. Publish reads a garden and creates a fresh HTML directory outside it, leaving source files unchanged; use lsg publish help for selectors, destination protection and rendering limitations.".into();
-        sections.iter_mut().find(|s| s.section == "permissions").unwrap().content = "Help and version only require permission to run lsg. Lookup requires read access to the garden. Publishing requires read access to the garden, referenced assets and any selected stylesheet, plus write access to the destination parent.".into();
+        sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "Help and version work offline without prompts, a pager, or reading stdin. Lookup reads a garden and prints a page's source path. Lsp reads a garden and answers an editor's requests on stdin and stdout until the editor ends the session. Publish reads a garden and creates a fresh HTML directory outside it, leaving source files unchanged; use lsg publish help for selectors, destination protection and rendering limitations.".into();
+        sections.iter_mut().find(|s| s.section == "permissions").unwrap().content = "Help and version only require permission to run lsg. Lookup and lsp require read access to the garden. Publishing requires read access to the garden, referenced assets and any selected stylesheet, plus write access to the destination parent.".into();
     }
     if publish {
         sections
@@ -82,6 +89,16 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
         sections.push(Section { level: 2, title: "Offline reading", section: "offline-reading", content: format!("A garden offers readers offline copies of the pages they open with one top-level key in its own logseq/config.edn, :lsg/offline true; there is no command-line flag. Logseq ignores the key. The site then holds lsg-sw.js and lsg-offline.js at its root, and every full page loads lsg-offline.js with defer and adds two hidden items to the More menu: Save pages for offline reading and Remove offline copies. Nothing is registered or stored until a reader chooses Save. The service worker keeps at most 250 responses and 32 MB per garden, at most 256 KB each, for 30 days, answers from the network first, and works only for a site served from a folder over HTTPS or localhost, never at the root of an origin. :lsg/offline false writes an lsg-sw.js that deletes readers' copies and unregisters itself; publish it before removing the key. Any other value fails with exit 1, empty stdout, a message naming logseq/config.edn, the key and the problem, and no output. An absent key builds the same site as before. See {}.", docs::page_link("lsg/Ref/Offline Options")) });
         sections.push(Section { level: 2, title: "Limitations", section: "limitations", content: format!("Any parsed public:: false property withholds the whole page; excessive nesting also withholds pages. Without --journals, journals are skipped and counted in skipped_journals; with it, a journal whose file name is not a date in the journal file-name format is skipped with a diagnostic. Unique selected titles and aliases resolve page links. Unique explicit outline UUID references link to selected targets. Supported HTTPS raster images and audio render directly; browsers load remote media when viewed. Selected visible page and block embeds expand with cycle, depth and total-expansion limits. Markdown page-filename links, unavailable embeds, unresolved references, queries, raw HTML and Hiccup receive visible fallbacks and local diagnostics. Only supported referenced assets beneath assets/ are copied; unsafe asset paths are refused. See {rendering} for supported types and rendering limits.", rendering = docs::page_link("lsg/Ref/Rendering and Assets")) });
     }
+    if lsp {
+        sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "An editor starts lsg lsp and exchanges LSP messages with it on stdin and stdout; run by hand it waits for a client. The garden root is the nearest folder, at or above the workspace folder or root URI the editor sends, that holds logseq/config.edn. The server reads :file/name-format, the journal formats and :hidden from that file, then every Markdown file beneath pages/ and journals/, skipping names that start with a dot, node_modules and :hidden entries, and reports progress while it reads. It keeps the pages in memory: the text of an open editor buffer takes the place of its file until the buffer closes, and a file that the Logseq app, git or another program changes is read again. A change to logseq/config.edn reads the whole garden again. Positions use UTF-8 when the editor offers it and UTF-16 otherwise. Go to definition on a page link, tag, alias, journal date, block reference, embed or page name in a property value answers with the page's file or the block's line; a page or journal that has no file gets the path Logseq would create, pages/<file name>.md or journals/<date>.md. Find references on any of those lists every place that names the same page, including by an alias, or the same block; elsewhere in a page it lists the links to that page. Hover shows a page's title, aliases, reference count and first lines, or a block's text below its page and parent blocks. Rename on a page link, tag, alias or page name in a property value renames that page, and elsewhere in a page it renames the page itself: the answer is one workspace edit that rewrites every [[link]], #tag, embed and property value that names the page by its title, renames its namespace children with their links, and renames each page file as Logseq names it. Links written with an alias stay. The server refuses a new name that is empty, belongs to another page or spells a journal date. Rename on a property key renames that key on every key:: line of the garden, in page properties and block properties, and leaves the values as written. Keys match as Logseq stores them, without regard to letter case and with _ counting as -, and the new key is written as typed. The server refuses a key with a built-in meaning in Logseq, such as id, title, alias, tags or collapsed, as the old or the new key, a new key that Logseq would not read as a property key, and a rename that would leave a block that writes both keys with two lines of one key. Completion offers page titles, aliases, namespace pages and journal titles after [[ and #, blocks that write an id:: after ((, property keys at the start of a property line and the values already written for a key after key::, at most 100 items for one request. It writes no file itself; the editor applies the edit of a rename. It offers no formatting. It answers two requests of its own: lsg/status returns the garden root, the settings in use and the number of pages and journals, and lsg/occurrence returns the link, tag, block reference or property at a position and the page or block it leads to. It publishes diagnostics for each open document and for each file that changes on disk: an error for a block reference or block embed whose id no block has, an error for an id:: value that more than one block writes, and a warning for an embed of a page without a file. A page link or tag to a page without a file gets no diagnostic, because linking a page is how Logseq creates it. Works offline with no prompts.".into();
+        sections
+            .iter_mut()
+            .find(|s| s.section == "permissions")
+            .unwrap()
+            .content = "Requires read access to the garden.".into();
+        sections.iter_mut().find(|s| s.section == "output").unwrap().content = "Stdout carries only LSP messages, each a JSON-RPC document after a Content-Length header; --format changes nothing there. Help goes to stdout as for every command. Exit 0 means the editor sent shutdown and then exit. Exit 1 means the session ended another way, with the reason on stderr: the editor closed the connection without shutdown, or no folder at or above the editor's folder holds logseq/config.edn, in which case the editor also receives the reason as the error of its initialize request. Exit 2 means invalid arguments or an unknown section.".into();
+        sections.push(Section { level: 2, title: "Limitations", section: "limitations", content: "Renaming a property key changes key:: lines only: a query, a query-properties:: value or a setting in logseq/config.edn that names the key keeps the old name, and so do keys written in front matter. A page rename leaves a property key of the same name as written. A rename that gives a file a new name needs an editor that advertises the rename resource operation, as Neovim does. Renaming a page onto the name of another page, which merges them in Logseq, is refused. Markdown files outside pages/ and journals/ are left out. A pages/ or journals/ folder created after the server starts is read when the editor restarts the server.".into() });
+    }
     if lookup {
         sections.iter_mut().find(|s| s.section == "behavior").unwrap().content = "Reads logseq/config.edn and every Markdown file Logseq reads: pages/, journals/ and the garden's other visible folders, less :hidden entries and, outside pages/ and journals/, files git ignores. It then prints the absolute or relative path, as --graph spells it, of each page the name reaches; files stay unchanged. NAME matches a page title (from the file name or a leading title:: property), a leading alias:: name, or a journal's date in its title format, yyyy-MM-dd, yyyy_MM_dd or MMM do, yyyy. Matching ignores case and surrounding spaces. Every page counts, including pages marked public:: false. --graph and --filename-format are required; use triple-lowbar for :file/name-format :triple-lowbar in logseq/config.edn, otherwise legacy. When NAME starts with a dash or is the word help, put the options first and -- just before NAME. Works offline with no prompts or stdin.".into();
         sections
@@ -91,7 +108,7 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
             .content = "Requires read access to the garden.".into();
         sections.iter_mut().find(|s| s.section == "output").unwrap().content = "Prints one path per line on stdout. When several pages share the name, all of them print in source-path order and stderr says how many matched. JSON reports format_version 1, command_path [lookup], query, diagnostic_count and pages, each with title, path, relative_path, kind (page or journal) and matched_by (title, alias or journal-date). Files left out because their title or journal date cannot be read are listed on stderr. Exit 0 means at least one page matched, 1 means no page matched or the garden could not be read (stdout empty), and 2 means invalid arguments or an unknown section. A closed downstream pipe exits 0. Redirected output contains no terminal control sequences.".into();
         sections.push(Section { level: 2, title: "Limitations", section: "limitations", content: "Each call reads and parses the whole garden; on a garden of about 9,000 pages that takes under a second. Names are not matched by prefix or fuzzily. Namespace pages that exist only through child pages have no file and are not found.".into() });
-    } else if !version {
+    } else if !version && !lsp {
         sections.iter_mut().find(|s| s.section == "output").unwrap().content = "Results go to stdout and diagnostics go to stderr. JSON responses include format_version 1 and command_path. Publish reports pages, journals, assets, withheld_pages, skipped_journals, diagnostic_count, output_directory and index_path (paths are display strings). With --timings, publish also reports how long each phase took: one stderr line in milliseconds, or timings (a list of phase and ms) and total_ms in JSON. Unsupported content with a completed site exits 0. Fatal generation failures leave stdout empty and exit 1. Exit 2 means invalid arguments or an unknown section. Output write failure exits 1; a closed downstream pipe exits 0. Redirected output contains no terminal control sequences.".into();
     }
     if path.is_empty() {
@@ -99,7 +116,7 @@ fn document(path: &[&str], programmatic: bool) -> Vec<Section> {
             .iter_mut()
             .find(|s| s.section == "output")
             .unwrap()
-            .content += " A lookup that matches no page also exits 1 with empty stdout; lsg lookup help lists its JSON fields.";
+            .content += " A lookup that matches no page also exits 1 with empty stdout; lsg lookup help lists its JSON fields. Lsp writes only Language Server Protocol messages to stdout; lsg lsp help lists its exits.";
     }
     if programmatic {
         sections.push(Section { level: 2, title: "Programmatic use", section: "programmatic", content: format!(
@@ -172,6 +189,7 @@ pub fn render(
             let children = if path.is_empty() {
                 vec![
                     json!({"name": "lookup"}),
+                    json!({"name": "lsp"}),
                     json!({"name": "publish"}),
                     json!({"name": "version"}),
                 ]

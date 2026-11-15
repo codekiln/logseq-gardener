@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+#MISE description="Run the Neovim configuration from the docs page in headless Neovim and check that lsg lsp attaches to a fixture page, that go to definition opens the linked file and that a rename rewrites links and file names"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+page="$root/logseq-gardener-docs/pages/lsg___How To___Edit a Garden in Neovim.md"
+fixture="$root/tests/fixtures/lsp-garden"
+
+cargo build --locked --release --bin lsg
+export PATH="$root/target/release:$PATH"
+
+tmp="${TMPDIR:-/tmp}"
+work=$(mktemp -d "${tmp%/}/lsg-nvim-check.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+cp -R "$fixture" "$work/garden"
+
+# The page's configuration: its first lua code block, without the outline indentation.
+python3 - "$page" "$work/init.lua" <<'PY'
+import sys
+
+page, target = sys.argv[1:]
+lines = open(page, encoding="utf-8").read().split("\n")
+start = next((i for i, line in enumerate(lines) if line.strip() in ("- ```lua", "```lua")), None)
+if start is None:
+    sys.exit(f"error: {page} has no lua code block")
+end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == "```")
+# A code block inside a bullet is indented by the bullet's tabs and two spaces.
+indent = len(lines[end]) - len(lines[end].lstrip())
+code = [line[indent:] for line in lines[start + 1 : end]]
+if "vim.lsp.enable" not in "\n".join(code):
+    sys.exit(f"error: the first lua code block of {page} does not enable a server")
+open(target, "w", encoding="utf-8").write("\n".join(code) + "\n")
+PY
+
+cat >"$work/check.lua" <<'LUA'
+local function fail(message)
+  io.stderr:write("error: " .. message .. "\n")
+  vim.cmd("cquit 1")
+end
+
+local attached = vim.wait(20000, function()
+  return #vim.lsp.get_clients({ name = "logseq_gardener", bufnr = 0 }) > 0
+end, 50)
+if not attached then
+  fail("no logseq_gardener client attached to " .. vim.api.nvim_buf_get_name(0))
+end
+
+local client = vim.lsp.get_clients({ name = "logseq_gardener", bufnr = 0 })[1]
+local response, problem = client:request_sync("lsg/status", vim.NIL, 20000, 0)
+if not response or response.err or not response.result then
+  fail("lsg/status gave no result: " .. vim.inspect(problem or response))
+end
+local status = response.result
+local garden = vim.uv.fs_realpath(vim.fn.getcwd())
+if vim.uv.fs_realpath(status.root) ~= garden then
+  fail("the server's garden root is " .. status.root .. ", expected " .. garden)
+end
+if status.documents ~= 7 or status.filenameFormat ~= "triple-lowbar" then
+  fail("unexpected status: " .. vim.inspect(status))
+end
+if client.server_capabilities.documentFormattingProvider then
+  fail("the server offers formatting")
+end
+io.stdout:write(
+  ("logseq_gardener attached: %d pages and journals, %s positions\n"):format(
+    status.documents,
+    status.positionEncoding
+  )
+)
+
+-- Go to definition from a link in pages/Recipes.md opens the file the link leads to.
+local recipes = vim.api.nvim_get_current_buf()
+local function follow(link, expected)
+  vim.api.nvim_set_current_buf(recipes)
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  local line = vim.fn.search("\\V" .. link, "cw")
+  if line == 0 then
+    fail("pages/Recipes.md has no " .. link)
+  end
+  vim.cmd("normal! 3l")
+  vim.lsp.buf.definition()
+  local target = garden .. "/" .. expected
+  local function current()
+    local name = vim.api.nvim_buf_get_name(0)
+    return vim.uv.fs_realpath(name) or name
+  end
+  local opened = vim.wait(20000, function()
+    return current() == target
+  end, 50)
+  if not opened then
+    fail(("definition on %s opened %s, expected %s"):format(link, current(), target))
+  end
+  io.stdout:write(("definition on %s opened %s\n"):format(link, expected))
+end
+if not client.server_capabilities.definitionProvider then
+  fail("the server offers no go to definition")
+end
+-- An alias of a page, and a page that has no file yet.
+follow("[[Malus]]", "pages/Fruit___Apple.md")
+follow("[[Fruit/Quince]]", "pages/Fruit___Quince.md")
+if vim.uv.fs_stat(garden .. "/pages/Fruit___Quince.md") then
+  fail("go to definition created pages/Fruit___Quince.md")
+end
+
+-- Rename the page of pages/Fruit.md from ordinary text in it. The namespace children, their
+-- links and their files follow, and :wall writes the links in the other files.
+if not client.server_capabilities.renameProvider then
+  fail("the server offers no rename")
+end
+local function page_files()
+  local names = {}
+  for name in vim.fs.dir(garden .. "/pages") do
+    if name:match("%.md$") then
+      names[#names + 1] = name
+    end
+  end
+  table.sort(names)
+  return table.concat(names, " ")
+end
+local function rename(file, new_name, expected)
+  vim.cmd("edit " .. vim.fn.fnameescape(file))
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  if vim.fn.search("\\Vgrows on trees", "cw") == 0 then
+    fail(file .. " has no ordinary text to rename from")
+  end
+  local ready = vim.wait(20000, function()
+    return #vim.lsp.get_clients({ name = "logseq_gardener", bufnr = 0 }) > 0
+  end, 50)
+  if not ready then
+    fail("no logseq_gardener client attached to " .. file)
+  end
+  vim.lsp.buf.rename(new_name)
+  local renamed = vim.wait(20000, function()
+    return page_files() == expected
+  end, 50)
+  if not renamed then
+    fail(("rename to %s left the page files %s, expected %s"):format(new_name, page_files(), expected))
+  end
+  vim.cmd("silent wall")
+  io.stdout:write(("rename to %s gave the page files %s\n"):format(new_name, page_files()))
+end
+local function expect_text(file, text)
+  local content = table.concat(vim.fn.readfile(garden .. "/" .. file), "\n")
+  if not content:find(text, 1, true) then
+    fail(("%s does not hold %s after the rename:\n%s"):format(file, text, content))
+  end
+end
+rename("pages/Fruit.md", "Orchard", "Orchard.md Orchard___Apple.md Orchard___Pear.md Recipes.md multi word.md")
+expect_text("pages/Recipes.md", "see [[Orchard/Apple]] and [the pear page]([[Orchard/Pear]])")
+expect_text("pages/Recipes.md", "\t- Peel four [[Malus]] from the cellar.")
+expect_text("pages/Orchard___Pear.md", "tags:: [[Orchard]]")
+expect_text("journals/2026_01_02.md", "- TODO buy more [[Orchard/apple]]")
+-- A rename that changes only letter case, which a file system that ignores case treats as
+-- one file name.
+rename("pages/Orchard.md", "orchard", "Recipes.md multi word.md orchard.md orchard___Apple.md orchard___Pear.md")
+expect_text("pages/Recipes.md", "{{embed [[orchard/Pear]]}}")
+vim.cmd("qall!")
+LUA
+
+cd "$work/garden"
+nvim --headless --clean -u "$work/init.lua" "pages/Recipes.md" -c "luafile $work/check.lua"

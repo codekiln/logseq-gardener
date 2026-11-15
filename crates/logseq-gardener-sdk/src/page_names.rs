@@ -242,7 +242,7 @@ fn reference_name(inline: &Inline) -> Option<String> {
 /// second layer that only [`Self::link`] reads, so page references, tags and page-valued
 /// properties reach them while alias, embed, block reference and homepage lookups, which use
 /// [`Self::candidates`], keep to pages with a file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PageNameIndex<T> {
     titles: BTreeMap<String, Vec<T>>,
     aliases: BTreeMap<String, Vec<T>>,
@@ -430,7 +430,7 @@ impl<T: Ord + Clone> PageNameIndex<T> {
 
 /// Whether a page holds no text, as Logseq's `page-empty-or-dummy?` decides: its file is
 /// empty, or holds one bullet with nothing after the dash.
-fn is_empty_page(document: &GardenDocument) -> bool {
+pub(crate) fn is_empty_page(document: &GardenDocument) -> bool {
     let mut lines = document
         .source
         .lines()

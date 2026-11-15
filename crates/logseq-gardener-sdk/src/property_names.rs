@@ -41,6 +41,88 @@ pub fn valid_property_name(name: &str) -> bool {
         && rest.chars().all(edn_whitespace)
 }
 
+/// A property key as Logseq stores it: trimmed, in lower case, with each space and `_`
+/// written as `-` (`extract-properties` in
+/// `deps/graph-parser/src/logseq/graph_parser/block.cljs`). Two keys with the same stored
+/// form are one property in Logseq.
+///
+/// ```
+/// use logseq_gardener_sdk::property_names::logseq_property_key;
+///
+/// assert_eq!(logseq_property_key("Due_Date"), "due-date");
+/// ```
+pub fn logseq_property_key(key: &str) -> String {
+    key.trim().to_lowercase().replace([' ', '_'], "-")
+}
+
+/// The stored forms of the keys Logseq uses for its own features:
+/// `editable-built-in-properties` and `hidden-built-in-properties` in
+/// `deps/graph-parser/src/logseq/graph_parser/property.cljs`, and the card scheduling keys
+/// that `src/main/frontend/extensions/srs.cljs` registers. The keys that start with
+/// `logseq.` are left out; [`is_built_in_property`] takes the whole prefix.
+const BUILT_IN: [&str; 40] = [
+    // Editable.
+    "title",
+    "icon",
+    "template",
+    "template-including-parent",
+    "public",
+    "filters",
+    "exclude-from-graph-view",
+    "macro",
+    "filetags",
+    "alias",
+    "aliases",
+    "tags",
+    // Hidden.
+    "id",
+    "custom-id",
+    "background-color",
+    "heading",
+    "collapsed",
+    "created-at",
+    "updated-at",
+    "last-modified-at",
+    "query-table",
+    "query-properties",
+    "query-sort-by",
+    "query-sort-desc",
+    "ls-type",
+    "hl-type",
+    "hl-page",
+    "hl-stamp",
+    "hl-color",
+    "todo",
+    "doing",
+    "now",
+    "later",
+    "done",
+    // Card scheduling.
+    "card-last-interval",
+    "card-repeats",
+    "card-ease-factor",
+    "card-next-schedule",
+    "card-last-reviewed",
+    "card-last-score",
+];
+
+/// Whether Logseq gives a property key a meaning of its own, such as `id`, `title`,
+/// `alias`, `tags` or `collapsed`. The key is compared in its stored form
+/// ([`logseq_property_key`]), and every key that starts with `logseq.` counts, since that
+/// prefix is Logseq's namespace for its properties.
+///
+/// ```
+/// use logseq_gardener_sdk::property_names::is_built_in_property;
+///
+/// assert!(is_built_in_property("Custom_ID"));
+/// assert!(is_built_in_property("logseq.order-list-type"));
+/// assert!(!is_built_in_property("type"));
+/// ```
+pub fn is_built_in_property(key: &str) -> bool {
+    let key = logseq_property_key(key);
+    key.starts_with("logseq.") || BUILT_IN.contains(&key.as_str())
+}
+
 /// The property names Logseq rejects in a properties block, as Logseq's warning
 /// "Invalid property names" lists them.
 ///
@@ -230,6 +312,87 @@ mod tests {
             .flat_map(|block| rejected_property_names(source, block))
             .collect();
         assert_eq!(names, ["`logseq-entity", "`owner"]);
+    }
+
+    #[test]
+    fn knows_the_keys_logseq_uses_itself() {
+        // Each key of `editable-built-in-properties` and `hidden-built-in-properties`, as
+        // Logseq lists them, and the card scheduling keys.
+        for key in [
+            "title",
+            "icon",
+            "template",
+            "template-including-parent",
+            "public",
+            "filters",
+            "exclude-from-graph-view",
+            "logseq.query/nlp-date",
+            "macro",
+            "filetags",
+            "alias",
+            "aliases",
+            "tags",
+            "logseq.color",
+            "logseq.table.version",
+            "logseq.table.max-width",
+            "id",
+            "custom-id",
+            "background-color",
+            "background_color",
+            "heading",
+            "collapsed",
+            "created-at",
+            "updated-at",
+            "last-modified-at",
+            "created_at",
+            "last_modified_at",
+            "query-table",
+            "query-properties",
+            "query-sort-by",
+            "query-sort-desc",
+            "ls-type",
+            "hl-type",
+            "hl-page",
+            "hl-stamp",
+            "hl-color",
+            "logseq.macro-name",
+            "logseq.macro-arguments",
+            "logseq.order-list-type",
+            "logseq.tldraw.page",
+            "logseq.tldraw.shape",
+            "todo",
+            "doing",
+            "now",
+            "later",
+            "done",
+            "card-last-interval",
+            "card-repeats",
+            "card-ease-factor",
+            "card-next-schedule",
+            "card-last-reviewed",
+            "card-last-score",
+            // Other spellings of the same stored key.
+            "ID",
+            " Title ",
+            "Custom_ID",
+            "Card_Last_Score",
+        ] {
+            assert!(is_built_in_property(key), "{key}");
+        }
+        for key in [
+            "type", "status", "due-date", "identity", "tag", "logseq", "idea",
+        ] {
+            assert!(!is_built_in_property(key), "{key}");
+        }
+        for key in crate::cards::HIDDEN_PROPERTIES {
+            assert!(is_built_in_property(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn stores_a_key_as_logseq_does() {
+        assert_eq!(logseq_property_key(" Due_Date "), "due-date");
+        assert_eq!(logseq_property_key("ÜBER"), "über");
     }
 
     #[test]

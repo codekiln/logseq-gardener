@@ -23,6 +23,9 @@ pub use lsdoc::ast;
 /// Display titles for loaded Markdown page documents.
 pub mod page_titles;
 
+/// The file Logseq writes a page or journal to.
+pub mod file_names;
+
 /// Video macros, YouTube timestamps, and which video each timestamp seeks.
 pub mod media;
 
@@ -134,6 +137,9 @@ pub mod page_urls;
 
 /// Build plugins and their contributions: checking them and resolving their links.
 pub mod contributions;
+
+/// An in-memory index of a garden for editors: what each document writes and where.
+pub mod index;
 
 /// Wall-clock time per phase of an operation, shared by every SDK caller.
 pub mod timing;
