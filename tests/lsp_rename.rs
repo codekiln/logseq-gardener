@@ -429,3 +429,68 @@ fn help_describes_rename() {
         assert!(help.contains(phrase), "{phrase} is missing from {help}");
     }
 }
+
+/// The last list of diagnostics the server published for `uri`, once it has handled every
+/// message sent so far.
+fn last_diagnostics(client: &mut Client, uri: &str) -> Option<Value> {
+    client.request("lsg/status", Value::Null);
+    let mut last = None;
+    client.notifications.retain(|notification| {
+        let ours = notification["method"] == "textDocument/publishDiagnostics"
+            && notification["params"]["uri"] == uri;
+        if ours {
+            last = Some(notification["params"]["diagnostics"].clone());
+        }
+        !ours
+    });
+    last
+}
+
+#[test]
+fn diagnostics_follow_the_edits_and_file_events_of_a_rename() {
+    let garden = before();
+    let mut client = Client::start(&garden, Options::default());
+    let recipes = garden.uri(RECIPES);
+    client.open(&recipes, &garden.read(RECIPES));
+    assert_eq!(last_diagnostics(&mut client, &recipes), Some(json!([])));
+
+    let edit = rename(
+        &mut client,
+        &garden,
+        RECIPES,
+        "[[Fruit]] dishes",
+        "Sweet Produce",
+    )
+    .unwrap();
+    client.apply_edit(&edit);
+    // The editor reports the buffer's new text ahead of the renamed files, so the embed
+    // names a page with no file for a moment.
+    client.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": {"uri": recipes, "version": 2},
+            "contentChanges": [{"text": garden.read(RECIPES)}],
+        }),
+    );
+    let between = last_diagnostics(&mut client, &recipes).unwrap();
+    assert_eq!(
+        between[0]["code"],
+        json!("missing-embedded-page"),
+        "{between}"
+    );
+
+    let mut events = Vec::new();
+    for change in edit["documentChanges"].as_array().unwrap() {
+        if change["kind"] == "rename" {
+            events.push((change["oldUri"].as_str().unwrap().to_owned(), 3));
+            events.push((change["newUri"].as_str().unwrap().to_owned(), 1));
+        }
+    }
+    let events: Vec<(&str, u8)> = events
+        .iter()
+        .map(|(uri, kind)| (uri.as_str(), *kind))
+        .collect();
+    client.files_changed(&events);
+    assert_eq!(last_diagnostics(&mut client, &recipes), Some(json!([])));
+    assert!(client.shutdown().success());
+}

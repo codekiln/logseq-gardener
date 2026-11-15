@@ -10,13 +10,13 @@ use lsp_types::notification::{
     Notification,
 };
 use lsp_types::request::{
-    GotoDefinition, HoverRequest, PrepareRenameRequest, References, Rename, Request,
+    Completion, GotoDefinition, HoverRequest, PrepareRenameRequest, References, Rename, Request,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::features::{definition, hover, references, rename, status, sync, watch};
+use crate::features::{completion, definition, hover, references, rename, status, sync, watch};
 use crate::server::Server;
 
 /// What a request handler returns.
@@ -25,6 +25,7 @@ pub(crate) type Answer<T> = Result<T, ResponseError>;
 /// Answer a request, or `None` when no handler takes the method.
 pub(crate) fn request(server: &mut Server, method: &str, params: Value) -> Option<Answer<Value>> {
     Some(match method {
+        Completion::METHOD => run(server, params, completion::completion),
         GotoDefinition::METHOD => run(server, params, definition::definition),
         References::METHOD => run(server, params, references::references),
         HoverRequest::METHOD => run(server, params, hover::hover),

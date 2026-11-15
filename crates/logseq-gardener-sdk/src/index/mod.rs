@@ -33,10 +33,12 @@
 //! std::fs::remove_dir_all(root).unwrap();
 //! ```
 
+mod completion;
 mod definition;
 mod hover;
 mod lines;
 mod occurrences;
+mod problems;
 mod references;
 mod rename;
 
@@ -58,10 +60,14 @@ use crate::page_names::{
 };
 use crate::page_titles::page_title;
 
+pub use completion::{
+    Candidate, CandidateKind, CompletionContext, CompletionKind, Completions, completion_context,
+};
 pub use definition::Destination;
 pub use hover::{BlockSummary, PageSummary, SUMMARY_LINES, Summary};
 pub use lines::{LineIndex, LinePosition};
 pub use occurrences::{BlockIdSite, Occurrence, OccurrenceKind, PropertyLine, SourceRange, Target};
+pub use problems::{Problem, ProblemKind, RelatedLocation, Severity};
 pub use references::{NamedBy, PageReference, Reference, Subject};
 pub use rename::{
     DocumentChange, FileMove, PageRename, RenamePlan, RenameRefusal, RenameTarget, Replacement,

@@ -5,6 +5,7 @@ use lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
 };
 
+use crate::features::diagnostics;
 use crate::server::Server;
 
 pub(crate) fn did_open(server: &mut Server, params: DidOpenTextDocumentParams) {
@@ -15,6 +16,7 @@ pub(crate) fn did_open(server: &mut Server, params: DidOpenTextDocumentParams) {
     server
         .buffers
         .insert(uri.clone(), params.text_document.text);
+    diagnostics::opened(server, &uri);
     index_buffer(server, &uri);
 }
 
@@ -46,16 +48,20 @@ pub(crate) fn did_close(server: &mut Server, params: DidCloseTextDocumentParams)
     let uri = params.text_document.uri.as_str();
     server.buffers.remove(uri);
     server.versions.remove(uri);
-    if let Some(path) = server.paths.relative_uri(uri)
-        && let Err(error) = server.index.close_buffer(&path)
-    {
+    let Some(path) = server.paths.relative_uri(uri) else {
+        return;
+    };
+    if let Err(error) = server.index.close_buffer(&path) {
         server.log(&format!("cannot read {error}"));
     }
+    diagnostics::closed(server, uri, &path);
 }
 
-/// Give the index the buffer's current text when the document is one the garden holds.
+/// Give the index the buffer's current text when the document is one the garden holds, and
+/// publish the diagnostics the text changed.
 fn index_buffer(server: &mut Server, uri: &str) {
     if let (Some(path), Some(text)) = (server.paths.relative_uri(uri), server.buffers.get(uri)) {
         server.index.set_buffer(&path, text.clone());
+        diagnostics::refresh(server, &[path]);
     }
 }

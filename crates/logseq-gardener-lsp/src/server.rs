@@ -1,6 +1,6 @@
 //! Startup, the main loop and shutdown.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -8,9 +8,10 @@ use crossbeam_channel::{Receiver, never, select};
 use logseq_gardener_sdk::index::{CONFIG_PATH, GardenIndex, IndexedDocument};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::notification::{LogMessage, Notification as _, ShowMessage};
+use lsp_types::request::{Request as _, Shutdown};
 use lsp_types::{
-    ClientCapabilities, InitializeParams, InitializeResult, LogMessageParams, MessageType,
-    ServerInfo, ShowMessageParams,
+    ClientCapabilities, Diagnostic, InitializeParams, InitializeResult, LogMessageParams,
+    MessageType, ServerInfo, ShowMessageParams,
 };
 
 use crate::capabilities::server_capabilities;
@@ -39,6 +40,9 @@ pub(crate) struct Server {
     pub(crate) buffers: HashMap<String, String>,
     /// The version the client last gave each open document, by URI.
     pub(crate) versions: HashMap<String, i32>,
+    /// The diagnostics last published for each open document and for each document with a
+    /// published problem, by path relative to the garden root.
+    pub(crate) published: BTreeMap<PathBuf, Vec<Diagnostic>>,
     pub(crate) watching: Watching,
     pub(crate) load_milliseconds: f64,
     next_request: i32,
@@ -58,7 +62,7 @@ impl Server {
         });
     }
 
-    fn notify<N: lsp_types::notification::Notification>(&self, params: N::Params) {
+    pub(crate) fn notify<N: lsp_types::notification::Notification>(&self, params: N::Params) {
         let notification = Notification::new(N::METHOD.to_owned(), params);
         let _ = self.connection.sender.send(notification.into());
     }
@@ -218,6 +222,7 @@ pub fn serve(connection: Connection) -> Exit {
         encoding,
         buffers: HashMap::new(),
         versions: HashMap::new(),
+        published: BTreeMap::new(),
         watching: Watching::Nobody,
         load_milliseconds: milliseconds(started),
         next_request: 0,
@@ -266,6 +271,29 @@ fn wait_for_the_client_to_leave(connection: &Connection) {
     }
 }
 
+/// After `shutdown`: wait for `exit`. The client's answers to the server's own requests and
+/// its late notifications can still arrive first, and they need no reply. A request gets an
+/// error, as the protocol asks.
+fn wait_for_exit(connection: &Connection) -> Exit {
+    for message in &connection.receiver {
+        match message {
+            Message::Notification(notification) if notification.method == "exit" => {
+                return Exit::Clean;
+            }
+            Message::Request(request) => {
+                let response = Response::new_err(
+                    request.id,
+                    ErrorCode::InvalidRequest as i32,
+                    "the server is shutting down".to_owned(),
+                );
+                let _ = connection.sender.send(response.into());
+            }
+            _ => {}
+        }
+    }
+    Exit::Failed("the client closed the connection after shutdown without exit".to_owned())
+}
+
 fn main_loop(server: &mut Server) -> Exit {
     loop {
         let events: Receiver<notify::Result<notify::Event>> = match &server.watching {
@@ -286,10 +314,10 @@ fn main_loop(server: &mut Server) -> Exit {
         };
         match message {
             Message::Request(request) => {
-                match server.connection.handle_shutdown(&request) {
-                    Ok(true) => return Exit::Clean,
-                    Ok(false) => {}
-                    Err(error) => return Exit::Failed(format!("shutdown did not finish: {error}")),
+                if request.method == Shutdown::METHOD {
+                    let answer = Response::new_ok(request.id, serde_json::Value::Null);
+                    let _ = server.connection.sender.send(answer.into());
+                    return wait_for_exit(&server.connection);
                 }
                 let Request { id, method, params } = request;
                 let response = match dispatch::request(server, &method, params) {

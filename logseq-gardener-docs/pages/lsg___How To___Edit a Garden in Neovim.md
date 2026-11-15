@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 - # How To Edit a Garden in Neovim
 	- ## Overview
 		- `lsg lsp` is a language server for Logseq Markdown gardens. Neovim starts it when you open a page or journal, and the server reads the whole garden so it can tell the editor where each page link, tag, block reference and property leads.
-		- With the server attached you can jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. You can also rename a page or tag and have every link, namespace child and file name follow. The server keeps its index of the garden current while you edit. Completion and diagnostics arrive in later releases and need no change to the configuration on this page.
+		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. You can rename a page or tag and have every link, namespace child and file name follow. The server reports broken block references and repeated block ids as diagnostics, and keeps its index of the garden current while you edit.
 	- ## Prerequisites
 		- Neovim 0.11 or later.
 		- `lsg` on your `PATH`, installed as [[lsg/How To/Install with mise]] shows.
@@ -75,13 +75,33 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 			- Go to definition opens the page's file, and puts the cursor on the block for a block reference. A link to a page or journal that has no file opens a new buffer at the path Logseq would create, such as `pages/Fruit___Quince.md` or `journals/2026_01_04.md`. The file appears when you save the buffer.
 			- References from a link list every place that names the same page by its title or by one of its aliases. With the cursor in ordinary text, references list the places that link to the page you are in. On a block reference or an `id::` value they list the references and embeds of that block.
 			- Hover on a page link shows the page's title, its aliases, how many places name it and its first lines. Hover on a block reference shows the block's text below its page and parent blocks.
-		- ### 6. Rename a page or a tag
+		- ### 6. Complete links, tags, block references and properties
+			- Completion works with Neovim's built-in completion and with a completion plugin such as `blink.cmp`. Type one of these and pick an item from the menu:
+			- | You type | The menu offers |
+			  | --- | --- |
+			  | `[[` | Page titles, aliases, namespace pages and journal titles. After `[[Fruit/` the pages one level beneath `Fruit` come first. `[[2026-01-04` offers that day's journal title in your garden's format. |
+			  | `#` | The same names. A name with a space is written as `#[[multi word]]`. |
+			  | `((` | Blocks that have an `id::`. Type words from the block's text; the item inserts the block's id. |
+			  | The first letters of a key on a property line | Property keys used in the garden. |
+			  | `key::` | Values already written for that key. `tags::` and `alias::` offer page names. |
+			- An alias shows the page it belongs to and inserts the alias as its page writes it.
+			- When a pairing plugin such as `mini.pairs` has already written `]]` or `))` after the cursor, the chosen item replaces that pair, so the line ends with one pair.
+			- A block without an `id::` is left out of the `((` menu. Give the block an id in Logseq, or write an `id::` line beneath it, to reference it.
+		- ### 7. Rename a page or a tag
 			- Put the cursor on a page link, a tag or a page name in a property such as `tags::`, or anywhere in the ordinary text of the page you want to rename. Then press `grn`, or `<leader>cr` in LazyVim, or run `:lua vim.lsp.buf.rename()`. Neovim shows the page's current title; type the new one and press Enter.
 			- The rename rewrites every `[[link]]`, `#tag`, `{{embed}}` and property value that names the page, renames its namespace children, so `Fruit/Apple` follows `Fruit`, and renames each page file as Logseq would name it. A link written with one of the page's aliases stays as written, because it still leads to the page. The cursor on an alias renames the page the alias belongs to.
 			- Neovim writes the renamed files at once and leaves the other changed files as unsaved buffers. Run `:wall` to write them.
 			- A tag is a page, so renaming `#todo` works the same way, also when the page has no file. When the new name has a space, `#todo` becomes `#[[new name]]`.
 			- The server refuses a name that already belongs to another page and shows the reason. To merge two pages, use Logseq.
 			- A journal keeps its file name. Renaming a journal writes the new title to a `title::` property at the top of its file.
+		- ### 8. Read the diagnostics
+			- The server marks three problems in a page:
+				- a `((uuid))` or `{{embed ((uuid))}}` whose id no block in the garden has, as an error;
+				- an `id::` value that more than one block writes, as an error on each of those blocks. Logseq keeps the id on one block and gives the others a new id, so references to them stop working;
+				- a `{{embed [[page]]}}` whose page has no file, as a warning.
+			- `:lua vim.diagnostic.setqflist()` lists the problems the server has reported, and `]d` and `[d` move between the ones in the current buffer. If your configuration turns diagnostics off, `:lua vim.diagnostic.enable(true)` shows them.
+			- The marks follow your edits, saved or not. Giving a block the missing id in another buffer clears the error on the reference, and changing one of two equal ids clears both errors.
+			- A link or tag to a page without a file gets no mark, because linking a page is how Logseq creates it.
 	- ## What the server reads
 		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress.
 		- The text in an open buffer takes the place of its file until you close the buffer, so the server sees edits you have not saved.
