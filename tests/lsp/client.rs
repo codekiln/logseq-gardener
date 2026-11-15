@@ -198,6 +198,8 @@ pub struct Options {
     pub client_watches: bool,
     /// Support work done progress.
     pub progress: bool,
+    /// Support related information on a diagnostic.
+    pub related_information: bool,
 }
 
 impl Default for Options {
@@ -206,6 +208,7 @@ impl Default for Options {
             utf8: true,
             client_watches: true,
             progress: true,
+            related_information: true,
         }
     }
 }
@@ -334,6 +337,11 @@ impl Client {
                 "capabilities": {
                     "general": {"positionEncodings": encodings},
                     "window": {"workDoneProgress": options.progress},
+                    "textDocument": {
+                        "publishDiagnostics": {
+                            "relatedInformation": options.related_information,
+                        },
+                    },
                     "workspace": {
                         "didChangeWatchedFiles": {
                             "dynamicRegistration": options.client_watches,

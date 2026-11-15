@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crossbeam_channel::{Receiver, unbounded};
-use logseq_gardener_sdk::index::{CONFIG_PATH, NOTE_DIRECTORIES};
+use logseq_gardener_sdk::index::{CONFIG_PATH, IndexedDocument, NOTE_DIRECTORIES};
 use lsp_server::{Request, RequestId};
 use lsp_types::request::{RegisterCapability, Request as _};
 use lsp_types::{
@@ -29,6 +29,7 @@ type GardenWatcher = notify::PollWatcher;
 #[cfg(not(target_os = "macos"))]
 type GardenWatcher = notify::RecommendedWatcher;
 
+use crate::features::diagnostics;
 use crate::positions::{Paths, path_to_uri, uri_to_path};
 use crate::server::Server;
 
@@ -165,7 +166,8 @@ pub(crate) fn server_event(server: &mut Server, first: notify::Result<notify::Ev
     changed(server, paths);
 }
 
-/// Bring the index up to date with absolute paths that were created, changed or deleted.
+/// Bring the index and the published diagnostics up to date with absolute paths that were
+/// created, changed or deleted.
 fn changed(server: &mut Server, paths: BTreeSet<PathBuf>) {
     let paths: BTreeSet<PathBuf> = paths
         .iter()
@@ -174,18 +176,29 @@ fn changed(server: &mut Server, paths: BTreeSet<PathBuf>) {
     if paths.contains(Path::new(CONFIG_PATH)) {
         // New settings can change every title, so everything is read again.
         server.load("Reading the garden again");
+        diagnostics::refresh(server, &[]);
         return;
     }
-    for path in paths {
-        let result = if server.index.holds(&path) {
-            server.index.refresh_file(&path)
+    // The documents whose text may have changed.
+    let mut documents = Vec::new();
+    for path in &paths {
+        let result = if server.index.holds(path) {
+            documents.push(path.clone());
+            server.index.refresh_file(path)
         } else if path.extension().is_none_or(|extension| extension != "md")
             && path.components().count() > 1
         {
             // A folder beneath `pages/` or `journals/` that was created, renamed or deleted,
             // or a file that is no page. An event for `pages/` or `journals/` itself says
             // only that an entry was added or removed, and that entry has its own event.
-            server.index.refresh_folder(&path)
+            let result = server.index.refresh_folder(path);
+            let beneath = server.index.documents().map(IndexedDocument::path);
+            documents.extend(
+                beneath
+                    .filter(|document| document.starts_with(path))
+                    .map(Path::to_path_buf),
+            );
+            result
         } else {
             Ok(())
         };
@@ -193,4 +206,5 @@ fn changed(server: &mut Server, paths: BTreeSet<PathBuf>) {
             server.log(&format!("cannot read {error}"));
         }
     }
+    diagnostics::refresh(server, &documents);
 }
