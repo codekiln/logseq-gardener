@@ -33,8 +33,11 @@
 //! std::fs::remove_dir_all(root).unwrap();
 //! ```
 
+mod definition;
+mod hover;
 mod lines;
 mod occurrences;
+mod references;
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
@@ -54,8 +57,11 @@ use crate::page_names::{
 };
 use crate::page_titles::page_title;
 
+pub use definition::Destination;
+pub use hover::{BlockSummary, PageSummary, SUMMARY_LINES, Summary};
 pub use lines::{LineIndex, LinePosition};
 pub use occurrences::{BlockIdSite, Occurrence, OccurrenceKind, PropertyLine, SourceRange, Target};
+pub use references::{NamedBy, PageReference, Reference, Subject};
 
 /// The folders whose Markdown files the index holds.
 pub const NOTE_DIRECTORIES: [&str; 2] = ["pages", "journals"];

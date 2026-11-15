@@ -362,3 +362,291 @@ fn an_open_buffer_takes_the_place_of_the_file() {
     assert!(!index.set_buffer(path("README.md"), "- text\n".into()));
     assert!(index == garden.load(), "differs from a fresh load");
 }
+
+/// The path and written text of each place.
+fn places(index: &GardenIndex, found: &[Reference]) -> Vec<(String, String)> {
+    found
+        .iter()
+        .map(|reference| {
+            let document = index.document(&reference.path).unwrap();
+            (
+                slashes(&reference.path),
+                reference.range.text(document.source()).to_owned(),
+            )
+        })
+        .collect()
+}
+
+fn offset_of(index: &GardenIndex, file: &str, needle: &str) -> usize {
+    let source = index.document(path(file)).unwrap().source();
+    source.find(needle).unwrap() + 2
+}
+
+#[test]
+fn a_target_leads_to_a_file_and_a_range() {
+    let garden = sample();
+    let index = garden.load();
+    let start = |file: &str, exists| Destination {
+        path: file.into(),
+        range: SourceRange::new(0, 0),
+        exists,
+    };
+    let page = |name: &str| index.destinations(&Target::Page(name.into()));
+    assert_eq!(page("fruit/apple"), [start("pages/Fruit___Apple.md", true)]);
+    assert_eq!(page("MALUS"), [start("pages/Fruit___Apple.md", true)]);
+    assert_eq!(page("2026-01-02"), [start("journals/2026_01_02.md", true)]);
+    // A page and a journal without a file lead to the file Logseq would create.
+    assert_eq!(
+        page("Fruit/Not Yet: Written?"),
+        [start("pages/Fruit___Not Yet%3A Written%3F.md", false)]
+    );
+    assert_eq!(
+        page("Jan 3rd, 2026"),
+        [start("journals/2026_01_03.md", false)]
+    );
+    assert_eq!(page("/"), []);
+    assert_eq!(
+        index.new_page_path("Fruit/Quince"),
+        Some("pages/Fruit___Quince.md".into())
+    );
+
+    // A block id leads to the first line of the block Logseq gives the id, from its dash.
+    let journal = index.document(path("journals/2026_01_02.md")).unwrap();
+    let found = index.destinations(&Target::Block(SHARED.into()));
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, path("journals/2026_01_02.md"));
+    assert_eq!(
+        found[0].range.text(journal.source()),
+        "- Ate an [[fruit/apple]]"
+    );
+    assert_eq!(index.destinations(&Target::Block("no-such-id".into())), []);
+    assert_eq!(index.destinations(&Target::Property("type".into())), []);
+
+    let at = offset_of(&index, "pages/Notes.md", "[[malus]]");
+    let (occurrence, found) = index.definition_at(path("pages/Notes.md"), at).unwrap();
+    assert_eq!(occurrence.kind, OccurrenceKind::PageLink);
+    assert_eq!(found, [start("pages/Fruit___Apple.md", true)]);
+    assert!(index.definition_at(path("pages/Notes.md"), 9).is_none());
+}
+
+#[test]
+fn a_name_several_pages_answer_to_leads_to_each_of_them() {
+    let garden = Garden::new(&[
+        ("pages/A.md", "alias:: shared\n\n- a\n"),
+        ("pages/B.md", "alias:: shared\n\n- b [[Shared]]\n"),
+    ]);
+    let index = garden.load();
+    let found = index.destinations(&Target::Page("Shared".into()));
+    let paths: Vec<_> = found.iter().map(|found| slashes(&found.path)).collect();
+    assert_eq!(paths, ["pages/A.md", "pages/B.md"]);
+    match index.page_summary("shared") {
+        Summary::Ambiguous(pages) => assert_eq!(pages.len(), 2),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn the_legacy_format_and_the_journal_file_format_name_new_files() {
+    let garden = Garden::new(&[("pages/Notes.md", "- [[Fruit/Quince]]\n")]);
+    garden.write(CONFIG_PATH, "{:journal/file-name-format \"yyyy-MM-dd\"}\n");
+    let index = garden.load();
+    assert_eq!(
+        index.new_page_path("Fruit/Quince"),
+        Some("pages/Fruit%2FQuince.md".into())
+    );
+    assert_eq!(
+        index.new_page_path("Jan 4th, 2026"),
+        Some("journals/2026-01-04.md".into())
+    );
+}
+
+#[test]
+fn page_references_say_which_name_each_place_writes() {
+    let garden = sample();
+    let index = garden.load();
+    let apple = document("pages/Fruit___Apple.md");
+    let found: Vec<_> = index
+        .page_references(&apple)
+        .into_iter()
+        .map(|reference| {
+            (
+                reference.occurrence.range.text(reference.document.source()),
+                reference.named_by,
+                reference.declaration,
+            )
+        })
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("[[fruit/apple]]", NamedBy::Title, false),
+            ("[[Fruit/Apple]]", NamedBy::Title, false),
+            ("Malus", NamedBy::Alias, true),
+            ("[[malus]]", NamedBy::Alias, false),
+        ]
+    );
+
+    // A journal: its title, its date in another format, and a date with no file.
+    let garden = Garden::new(&[
+        ("journals/2026_01_02.md", "- a day\n"),
+        (
+            "pages/Notes.md",
+            "- [[Jan 2nd, 2026]] [[2026-01-02]] [[2026-01-03]]\n",
+        ),
+    ]);
+    let index = garden.load();
+    let named = |name: &str| -> Vec<_> {
+        index
+            .page_references(&index.page_id(name))
+            .into_iter()
+            .map(|reference| {
+                (
+                    reference
+                        .occurrence
+                        .name_range
+                        .text(reference.document.source()),
+                    reference.named_by,
+                )
+            })
+            .collect()
+    };
+    assert_eq!(
+        named("2026_01_02"),
+        [
+            ("Jan 2nd, 2026", NamedBy::Title),
+            ("2026-01-02", NamedBy::Date),
+        ]
+    );
+    assert_eq!(named("Jan 3rd, 2026"), [("2026-01-03", NamedBy::Date)]);
+}
+
+#[test]
+fn references_follow_the_subject_at_an_offset() {
+    let garden = sample();
+    let index = garden.load();
+    let notes = path("pages/Notes.md");
+    let apple = Subject::Page(document("pages/Fruit___Apple.md"));
+    let linked = [
+        (
+            "journals/2026_01_02.md".to_owned(),
+            "[[fruit/apple]]".to_owned(),
+        ),
+        ("pages/Fruit.md".to_owned(), "[[Fruit/Apple]]".to_owned()),
+        ("pages/Notes.md".to_owned(), "[[malus]]".to_owned()),
+    ];
+
+    // On a link, and in the plain text of the page itself.
+    let at = offset_of(&index, "pages/Notes.md", "[[malus]]");
+    assert_eq!(index.subject_at(notes, at), Some(apple.clone()));
+    let own = offset_of(&index, "pages/Fruit___Apple.md", "Red and round");
+    assert_eq!(
+        index.subject_at(path("pages/Fruit___Apple.md"), own),
+        Some(apple.clone())
+    );
+    assert_eq!(index.subject_at(path("pages/Missing.md"), 0), None);
+    assert_eq!(places(&index, &index.references(&apple, false)), linked);
+
+    // The declaration: the start of the page's file and the alias it gives itself.
+    let mut declared = vec![
+        ("pages/Fruit___Apple.md".to_owned(), String::new()),
+        ("pages/Fruit___Apple.md".to_owned(), "Malus".to_owned()),
+    ];
+    declared.extend(linked);
+    assert_eq!(places(&index, &index.references(&apple, true)), declared);
+
+    // A page without a file has no declaration.
+    let missing = Subject::Page(index.page_id("not yet written"));
+    assert_eq!(
+        places(&index, &index.references(&missing, true)),
+        [(
+            "pages/Notes.md".to_owned(),
+            "#[[Not Yet Written]]".to_owned()
+        )]
+    );
+
+    // A block: its references and embeds, and the `id::` value of the block Logseq gives
+    // the id as the declaration.
+    let block = Subject::Block(SHARED.into());
+    let embed = format!("{{{{embed (({SHARED}))}}}}");
+    assert_eq!(
+        index.subject_at(notes, offset_of(&index, "pages/Notes.md", &embed)),
+        Some(block.clone())
+    );
+    assert_eq!(
+        places(&index, &index.references(&block, true)),
+        [
+            ("journals/2026_01_02.md".to_owned(), SHARED.to_owned()),
+            ("pages/Notes.md".to_owned(), embed),
+        ]
+    );
+
+    // A property key: every line that writes it.
+    let key = Subject::Property("type".into());
+    assert_eq!(index.subject_at(notes, 1), Some(key.clone()));
+    assert_eq!(index.references(&key, true).len(), 3);
+    assert!(index.occurrences_of_property("no such key").is_empty());
+}
+
+#[test]
+fn summaries_show_a_page_and_a_block() {
+    let garden = sample();
+    let index = garden.load();
+    assert_eq!(
+        index.page_summary("malus"),
+        Summary::Page(PageSummary {
+            title: "Fruit/Apple".into(),
+            path: Some("pages/Fruit___Apple.md".into()),
+            exists: true,
+            aliases: vec!["Malus".into()],
+            first_lines: vec!["- Red and round".into(), "- Shared".into()],
+            references: 3,
+        })
+    );
+    let missing = index.page_summary("Fruit/Quince");
+    assert_eq!(
+        missing.markdown(),
+        "**Fruit/Quince**\n\nThis page has no file. Go to definition opens `pages/Fruit___Quince.md`.\n\nNo references"
+    );
+    assert_eq!(
+        index.block_summary(SHARED),
+        Summary::Block(BlockSummary {
+            path: "journals/2026_01_02.md".into(),
+            page: Some("Jan 2nd, 2026".into()),
+            parents: Vec::new(),
+            text: vec!["Ate an [[fruit/apple]]".into(), "type:: meal".into()],
+            references: 1,
+        })
+    );
+    assert_eq!(index.block_summary("no-such-id"), Summary::MissingBlock);
+
+    let notes = path("pages/Notes.md");
+    let at = offset_of(&index, "pages/Notes.md", &format!("(({FIRST}))"));
+    let (range, summary) = index.summary_at(notes, at).unwrap();
+    assert_eq!(
+        range.text(index.document(notes).unwrap().source()),
+        format!("(({FIRST}))")
+    );
+    assert_eq!(
+        summary.markdown(),
+        "**Fruit/Apple**\n\nRed and round\n\n1 reference"
+    );
+    assert!(index.summary_at(notes, 1).is_none());
+}
+
+#[test]
+fn a_block_summary_names_its_parents_and_shortens_a_long_block() {
+    let garden = Garden::new(&[(
+        "pages/Outline.md",
+        &format!(
+            "- Top\n\t- Middle\n\t\t- one\n\t\t  id:: {FIRST}\n\t\t  two\n\t\t  three\n\t\t  four\n\t\t  five\n\t\t  six\n\t\t  seven\n- Next\n"
+        ),
+    )]);
+    let index = garden.load();
+    match index.block_summary(FIRST) {
+        Summary::Block(block) => {
+            assert_eq!(block.parents, ["Top", "Middle"]);
+            assert_eq!(block.text, ["one", "two", "three", "four", "five", "…"]);
+        }
+        other => panic!("{other:?}"),
+    }
+}

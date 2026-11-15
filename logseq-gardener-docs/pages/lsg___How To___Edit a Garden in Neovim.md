@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 - # How To Edit a Garden in Neovim
 	- ## Overview
 		- `lsg lsp` is a language server for Logseq Markdown gardens. Neovim starts it when you open a page or journal, and the server reads the whole garden so it can tell the editor where each page link, tag, block reference and property leads.
-		- This release starts the server and keeps its index of the garden current while you edit. Go to definition, references, hover, completion, rename and diagnostics arrive in later releases and need no change to the configuration on this page.
+		- With the server attached you can jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. The server keeps its index of the garden current while you edit. Completion, rename and diagnostics arrive in later releases and need no change to the configuration on this page.
 	- ## Prerequisites
 		- Neovim 0.11 or later.
 		- `lsg` on your `PATH`, installed as [[lsg/How To/Install with mise]] shows.
@@ -65,6 +65,16 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 				  :lua vim.print(vim.lsp.get_clients({ name = "logseq_gardener" })[1]:request_sync("lsg/occurrence", vim.lsp.util.make_position_params(0, "utf-8"), 5000, 0).result)
 				  ```
 			- The answer names what is under the cursor and the page or block it leads to. An alias gives the page that declares it, a journal date in any format Logseq accepts gives the journal, and a link to a page with no file says so.
+		- ### 5. Follow a link, list references and read a hover
+			- Put the cursor on a page link, a tag, an alias, a journal date, a `((block reference))`, an `{{embed}}` or a page name in a property such as `tags::`, then use one of these:
+				- | Action | Neovim | LazyVim |
+				  | --- | --- | --- |
+				  | Go to the page or block | `CTRL-]` or `:lua vim.lsp.buf.definition()` | `gd` |
+				  | List the places that name it | `grr` | `gr` |
+				  | Show it in a hover window | `K` | `K` |
+			- Go to definition opens the page's file, and puts the cursor on the block for a block reference. A link to a page or journal that has no file opens a new buffer at the path Logseq would create, such as `pages/Fruit___Quince.md` or `journals/2026_01_04.md`. The file appears when you save the buffer.
+			- References from a link list every place that names the same page by its title or by one of its aliases. With the cursor in ordinary text, references list the places that link to the page you are in. On a block reference or an `id::` value they list the references and embeds of that block.
+			- Hover on a page link shows the page's title, its aliases, how many places name it and its first lines. Hover on a block reference shows the block's text below its page and parent blocks.
 	- ## What the server reads
 		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress.
 		- The text in an open buffer takes the place of its file until you close the buffer, so the server sees edits you have not saved.

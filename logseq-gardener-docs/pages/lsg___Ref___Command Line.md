@@ -62,6 +62,15 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 		- For changes made outside the editor, the server registers `workspace/didChangeWatchedFiles` for `pages/**/*.md`, `journals/**/*.md` and `logseq/config.edn` when the editor supports dynamic registration, and watches those folders itself otherwise: through the operating system's file events on Linux and Windows, and by comparing modification times every two seconds on macOS. A change to `logseq/config.edn` reads the whole garden again.
 		- Positions use `utf-8` when the editor lists it in `general.positionEncodings`, and `utf-16` otherwise.
 		- The server advertises no formatting and changes no file.
+		- ### Navigation
+			- | Request | Answer |
+			  | --- | --- |
+			  | `textDocument/definition` | The start of the page's file for a page link, tag, page embed or page name in a property value, and the first line of the block for a block reference, block embed or `id::` value. `null` in ordinary text |
+			  | `textDocument/references` | Every range that names the page or block under the cursor. In ordinary text, every range that names the page of the document |
+			  | `textDocument/hover` | Markdown: a page's title, aliases, reference count and first five lines, or a block's first five lines below its page title and parent blocks. `null` in ordinary text and on a property key |
+			- A name resolves as Logseq resolves it: by title, then by alias, then by the journal date it spells in any format Logseq accepts, ignoring letter case. A name that several pages answer to gives one definition location for each page.
+			- A page that has no file gets the location `pages/<file name>.md`, where the file name follows Logseq's rules for the garden's `:file/name-format`: `Fruit/Quince` gives `Fruit___Quince` under `:triple-lowbar` and `Fruit%2FQuince` under the legacy format. A journal that has no file gets `journals/<date>.md` with the date in `:journal/file-name-format`. The server creates neither file.
+			- References count a page's aliases as the page. With `includeDeclaration`, the list starts with the start of the page's file and each name in its own `alias::` property, or with the `id::` value of the block. A page without a file has no declaration. On a property key, references list every line that writes the key.
 		- ### Requests
 			- | Request | Parameters | Result |
 			  | --- | --- | --- |

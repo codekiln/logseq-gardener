@@ -9,11 +9,12 @@ use lsp_types::notification::{
     DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument, DidOpenTextDocument,
     Notification,
 };
+use lsp_types::request::{GotoDefinition, HoverRequest, References, Request};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::features::{status, sync, watch};
+use crate::features::{definition, hover, references, status, sync, watch};
 use crate::server::Server;
 
 /// What a request handler returns.
@@ -22,6 +23,9 @@ pub(crate) type Answer<T> = Result<T, ResponseError>;
 /// Answer a request, or `None` when no handler takes the method.
 pub(crate) fn request(server: &mut Server, method: &str, params: Value) -> Option<Answer<Value>> {
     Some(match method {
+        GotoDefinition::METHOD => run(server, params, definition::definition),
+        References::METHOD => run(server, params, references::references),
+        HoverRequest::METHOD => run(server, params, hover::hover),
         status::STATUS => run(server, params, status::status),
         status::OCCURRENCE => run(server, params, status::occurrence),
         _ => return None,

@@ -1,7 +1,8 @@
 //! What the server tells the client it can do.
 
 use lsp_types::{
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    HoverProviderCapability, OneOf, ServerCapabilities, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions,
 };
 
 use crate::positions::Encoding;
@@ -20,6 +21,9 @@ pub(crate) fn server_capabilities(encoding: Encoding) -> ServerCapabilities {
                 ..TextDocumentSyncOptions::default()
             },
         )),
+        definition_provider: Some(OneOf::Left(true)),
+        references_provider: Some(OneOf::Left(true)),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
     }
 }
