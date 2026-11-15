@@ -2,6 +2,7 @@
 
 pub(crate) mod completion;
 pub(crate) mod definition;
+pub(crate) mod diagnostics;
 pub(crate) mod hover;
 pub(crate) mod references;
 pub(crate) mod status;

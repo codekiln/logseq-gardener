@@ -1,6 +1,6 @@
 //! Startup, the main loop and shutdown.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -10,8 +10,8 @@ use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestI
 use lsp_types::notification::{LogMessage, Notification as _, ShowMessage};
 use lsp_types::request::{Request as _, Shutdown};
 use lsp_types::{
-    ClientCapabilities, InitializeParams, InitializeResult, LogMessageParams, MessageType,
-    ServerInfo, ShowMessageParams,
+    ClientCapabilities, Diagnostic, InitializeParams, InitializeResult, LogMessageParams,
+    MessageType, ServerInfo, ShowMessageParams,
 };
 
 use crate::capabilities::server_capabilities;
@@ -32,12 +32,15 @@ pub enum Exit {
 /// One running session: the connection, the index and what the client and server agreed on.
 pub(crate) struct Server {
     connection: Connection,
-    client: ClientCapabilities,
+    pub(crate) client: ClientCapabilities,
     pub(crate) index: GardenIndex,
     pub(crate) paths: Paths,
     pub(crate) encoding: Encoding,
     /// The text of each open document, by URI, including documents the garden does not hold.
     pub(crate) buffers: HashMap<String, String>,
+    /// The diagnostics last published for each open document and for each document with a
+    /// published problem, by path relative to the garden root.
+    pub(crate) published: BTreeMap<PathBuf, Vec<Diagnostic>>,
     pub(crate) watching: Watching,
     pub(crate) load_milliseconds: f64,
     next_request: i32,
@@ -57,7 +60,7 @@ impl Server {
         });
     }
 
-    fn notify<N: lsp_types::notification::Notification>(&self, params: N::Params) {
+    pub(crate) fn notify<N: lsp_types::notification::Notification>(&self, params: N::Params) {
         let notification = Notification::new(N::METHOD.to_owned(), params);
         let _ = self.connection.sender.send(notification.into());
     }
@@ -216,6 +219,7 @@ pub fn serve(connection: Connection) -> Exit {
         paths,
         encoding,
         buffers: HashMap::new(),
+        published: BTreeMap::new(),
         watching: Watching::Nobody,
         load_milliseconds: milliseconds(started),
         next_request: 0,

@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 - # How To Edit a Garden in Neovim
 	- ## Overview
 		- `lsg lsp` is a language server for Logseq Markdown gardens. Neovim starts it when you open a page or journal, and the server reads the whole garden so it can tell the editor where each page link, tag, block reference and property leads.
-		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. The server keeps its index of the garden current while you edit. Rename and diagnostics arrive in later releases and need no change to the configuration on this page.
+		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. The server reports broken block references and repeated block ids as diagnostics, and keeps its index of the garden current while you edit. Rename arrives in a later release and needs no change to the configuration on this page.
 	- ## Prerequisites
 		- Neovim 0.11 or later.
 		- `lsg` on your `PATH`, installed as [[lsg/How To/Install with mise]] shows.
@@ -87,6 +87,14 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 			- An alias shows the page it belongs to and inserts the alias as its page writes it.
 			- When a pairing plugin such as `mini.pairs` has already written `]]` or `))` after the cursor, the chosen item replaces that pair, so the line ends with one pair.
 			- A block without an `id::` is left out of the `((` menu. Give the block an id in Logseq, or write an `id::` line beneath it, to reference it.
+		- ### 7. Read the diagnostics
+			- The server marks three problems in a page:
+				- a `((uuid))` or `{{embed ((uuid))}}` whose id no block in the garden has, as an error;
+				- an `id::` value that more than one block writes, as an error on each of those blocks. Logseq keeps the id on one block and gives the others a new id, so references to them stop working;
+				- a `{{embed [[page]]}}` whose page has no file, as a warning.
+			- `:lua vim.diagnostic.setqflist()` lists the problems the server has reported, and `]d` and `[d` move between the ones in the current buffer. If your configuration turns diagnostics off, `:lua vim.diagnostic.enable(true)` shows them.
+			- The marks follow your edits, saved or not. Giving a block the missing id in another buffer clears the error on the reference, and changing one of two equal ids clears both errors.
+			- A link or tag to a page without a file gets no mark, because linking a page is how Logseq creates it.
 	- ## What the server reads
 		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress.
 		- The text in an open buffer takes the place of its file until you close the buffer, so the server sees edits you have not saved.

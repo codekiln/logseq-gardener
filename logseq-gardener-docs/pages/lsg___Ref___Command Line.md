@@ -85,6 +85,15 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 			- Property key items leave out Logseq's card scheduling properties and the keys in `:block-hidden-properties`.
 			- Each item's `textEdit` replaces the typed text and a closing `]]` or `))` that already follows the cursor. `filterText` holds the text the typed characters match and `sortText` holds the server's order.
 			- One answer holds at most 100 items. `isIncomplete` is `true` for every list of page names and for any list the limit cut, so the editor asks again as you type.
+		- ### Diagnostics
+			- The server sends `textDocument/publishDiagnostics` for a document when the editor opens it, and again whenever an edit or a file change alters the list. For a file that is not open, it sends the list when the file changes on disk and has a problem, and keeps that list current until it is empty. Closing a document or deleting its file clears its diagnostics.
+			- | Code | Severity | Reported for |
+			  | --- | --- | --- |
+			  | `missing-block` | Error | A `((uuid))` or `{{embed ((uuid))}}` whose id no block in the garden has |
+			  | `duplicate-block-id` | Error | An `id::` value that more than one block writes, on each of those blocks |
+			  | `missing-embedded-page` | Warning | A `{{embed [[page]]}}` whose page has no file |
+			- Every diagnostic has the source `lsg`. A `duplicate-block-id` lists the other blocks in `relatedInformation` when the editor supports it, and names their files and lines in the message otherwise.
+			- A page link, a tag or a property value that names a page without a file gets no diagnostic. In Logseq, linking a page is how you create it.
 		- ### Requests
 			- | Request | Parameters | Result |
 			  | --- | --- | --- |
