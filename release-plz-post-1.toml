@@ -34,3 +34,8 @@ version_group = "logseq-gardener"
 name = "logseq-gardener-sdk"
 version_group = "logseq-gardener"
 git_tag_enable = false
+
+[[package]]
+name = "logseq-gardener-lsp"
+version_group = "logseq-gardener"
+git_tag_enable = false

@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/logseq-gardener-sdk"]
+members = [".", "crates/logseq-gardener-sdk", "crates/logseq-gardener-lsp"]
 resolver = "3"
 
 [package]
@@ -18,6 +18,8 @@ path = "src/main.rs"
 [dependencies]
 # Reusable Rust API; the CLI reports the SDK version alongside its own.
 logseq-gardener-sdk = { path = "crates/logseq-gardener-sdk", version = "0.0.53" }
+# The language server behind `lsg lsp`.
+logseq-gardener-lsp = { path = "crates/logseq-gardener-lsp", version = "0.0.53" }
 # Validate arguments and provide usage errors. Terminal styling is not needed.
 clap = { version = "4.5", default-features = false, features = ["derive", "std", "help", "usage", "error-context", "suggestions"] }
 # Serialize the help document's sections.
