@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run the Neovim configuration from the docs page in headless Neovim and check that lsg lsp attaches to a fixture page"
+#MISE description="Run the Neovim configuration from the docs page in headless Neovim and check that lsg lsp attaches to a fixture page and that go to definition opens the linked file"
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
 
@@ -68,6 +68,40 @@ io.stdout:write(
     status.positionEncoding
   )
 )
+
+-- Go to definition from a link in pages/Recipes.md opens the file the link leads to.
+local recipes = vim.api.nvim_get_current_buf()
+local function follow(link, expected)
+  vim.api.nvim_set_current_buf(recipes)
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  local line = vim.fn.search("\\V" .. link, "cw")
+  if line == 0 then
+    fail("pages/Recipes.md has no " .. link)
+  end
+  vim.cmd("normal! 3l")
+  vim.lsp.buf.definition()
+  local target = garden .. "/" .. expected
+  local function current()
+    local name = vim.api.nvim_buf_get_name(0)
+    return vim.uv.fs_realpath(name) or name
+  end
+  local opened = vim.wait(20000, function()
+    return current() == target
+  end, 50)
+  if not opened then
+    fail(("definition on %s opened %s, expected %s"):format(link, current(), target))
+  end
+  io.stdout:write(("definition on %s opened %s\n"):format(link, expected))
+end
+if not client.server_capabilities.definitionProvider then
+  fail("the server offers no go to definition")
+end
+-- An alias of a page, and a page that has no file yet.
+follow("[[Malus]]", "pages/Fruit___Apple.md")
+follow("[[Fruit/Quince]]", "pages/Fruit___Quince.md")
+if vim.uv.fs_stat(garden .. "/pages/Fruit___Quince.md") then
+  fail("go to definition created pages/Fruit___Quince.md")
+end
 vim.cmd("qall!")
 LUA
 

@@ -23,6 +23,9 @@ pub use lsdoc::ast;
 /// Display titles for loaded Markdown page documents.
 pub mod page_titles;
 
+/// The file Logseq writes a page or journal to.
+pub mod file_names;
+
 /// Video macros, YouTube timestamps, and which video each timestamp seeks.
 pub mod media;
 
