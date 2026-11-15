@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#MISE description="Measure lsg lsp on a garden with a release build: loading, completion, definition, hover, references, reindexing after an edit and renames. Reads the garden and changes none of its files"
+#USAGE arg "<garden>" help="Garden root, the folder that holds logseq/config.edn"
+#USAGE flag "--record" help="Rewrite the lsg/Ref/Language Server/Performance page in logseq-gardener-docs/pages with the results"
+#USAGE flag "--repeats <count>" help="Requests per completion text and edits per page (default: 20)"
+#USAGE flag "--samples <count>" help="Places per kind for definition, hover and references (default: 200)"
+#USAGE flag "--loads <count>" help="Times to start the server (default: 5)"
+#USAGE flag "--json <path>" help="Also write the results as JSON"
+#USAGE flag "-h --help" help="Show task help"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+garden=$(cd "${usage_garden:?garden path is required}" && pwd)
+cd "$root"
+
+cargo build --locked --release --bin lsg
+
+args=(--lsg "$root/target/release/lsg")
+if [ -n "${usage_repeats:-}" ]; then args+=(--repeats "$usage_repeats"); fi
+if [ -n "${usage_samples:-}" ]; then args+=(--samples "$usage_samples"); fi
+if [ -n "${usage_loads:-}" ]; then args+=(--loads "$usage_loads"); fi
+if [ -n "${usage_json:-}" ]; then args+=(--json "$usage_json"); fi
+if [ "${usage_record:-false}" = "true" ]; then
+  args+=(--record "$root/logseq-gardener-docs/pages/lsg___Ref___Language Server___Performance.md")
+fi
+python3 scripts/lsp/perf.py "${args[@]}" "$garden"

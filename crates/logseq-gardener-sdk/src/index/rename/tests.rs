@@ -388,7 +388,7 @@ fn refuses_names_that_cannot_be_given() {
 fn the_rename_target_follows_what_is_under_the_cursor() {
     let id = "66f1a2b0-0000-4000-8000-000000000001";
     let text = format!(
-        "title:: Shown\nalias:: Other\n\n- plain [[malus]] #[[Fruit/Apple]] (({id})) [[Jan 9th, 2026]]\n  key:: v\n"
+        "title:: Shown\nalias:: Other\n\n- plain [[malus]] #[[Fruit/Apple]] (({id})) [[Jan 9th, 2026]]\n  Key:: v\n"
     );
     let garden = Garden::new(&[
         ("pages/Fruit___Apple.md", "alias:: Malus\n\n- red\n"),
@@ -427,9 +427,20 @@ fn the_rename_target_follows_what_is_under_the_cursor() {
     let target = at("Shown", 2).unwrap();
     assert_eq!((target.subject, target.range.text(&text)), (own, "Shown"));
     assert_eq!(at(id, 2), Err(RenameRefusal::Block));
+    let target = at("Key::", 1).unwrap();
     assert_eq!(
-        at("key::", 1),
-        Err(RenameRefusal::PropertyKey { key: "key".into() })
+        (
+            target.subject,
+            target.range.text(&text),
+            target.name.as_str()
+        ),
+        (Subject::Property("key".into()), "Key", "Key")
+    );
+    assert_eq!(
+        at("alias::", 1),
+        Err(RenameRefusal::BuiltInKey {
+            key: "alias".into()
+        })
     );
     assert!(matches!(
         at("Jan 9th", 2),
@@ -439,4 +450,128 @@ fn the_rename_target_follows_what_is_under_the_cursor() {
         index.rename_target_at("pages/none.md".as_ref(), 0),
         Err(RenameRefusal::NoDocument { .. })
     ));
+}
+
+#[test]
+fn a_property_key_is_renamed_on_every_line_that_writes_it() {
+    let garden = Garden::new(&[
+        (
+            "pages/A.md",
+            "Type:: book\ntags:: type\n\n- A block about type:: and `type:: in code`\n\ttype:: type\n\tstatus:: [[type]]\n",
+        ),
+        (
+            "pages/B.md",
+            "- parent\n\t- child #type\n\t  type:: film\n\t  typeface:: serif\n",
+        ),
+        (
+            "journals/2026_01_02.md",
+            "- note\n  TYPE::   note\n  type::\n",
+        ),
+        ("pages/C.md", "kind:: other\n\n- [[type]]\n"),
+    ]);
+    let index = garden.load();
+    let plan = index.rename_property("type", " Kind:: ").unwrap();
+    assert_eq!(
+        outcome(&plan),
+        files(&[
+            (
+                "pages/A.md",
+                "Kind:: book\ntags:: type\n\n- A block about type:: and `type:: in code`\n\tKind:: type\n\tstatus:: [[type]]\n",
+            ),
+            (
+                "pages/B.md",
+                "- parent\n\t- child #type\n\t  Kind:: film\n\t  typeface:: serif\n",
+            ),
+            (
+                "journals/2026_01_02.md",
+                "- note\n  Kind::   note\n  Kind::\n"
+            ),
+        ])
+    );
+    assert!(plan.pages.is_empty());
+    assert_eq!(plan.renamed_file_count(), 0);
+    assert_eq!(plan.replacement_count(), 5);
+    // A key no line writes.
+    assert!(index.rename_property("absent", "kind").unwrap().is_empty());
+}
+
+#[test]
+fn a_property_key_matches_as_logseq_stores_it() {
+    let garden = Garden::new(&[(
+        "pages/A.md",
+        "due_date:: 1\n\n- a\n  Due-Date:: 2\n- b\n  duedate:: 3\n- c\n  DUE_DATE:: 4\n",
+    )]);
+    let index = garden.load();
+    let renamed = |key: &str, new: &str| outcome(&index.rename_property(key, new).unwrap());
+    assert_eq!(
+        renamed("Due-Date", "deadline"),
+        files(&[(
+            "pages/A.md",
+            "deadline:: 1\n\n- a\n  deadline:: 2\n- b\n  duedate:: 3\n- c\n  deadline:: 4\n",
+        )])
+    );
+    // A rename to another spelling of the same key rewrites the lines that differ.
+    assert_eq!(
+        renamed("due_date", "due-date"),
+        files(&[(
+            "pages/A.md",
+            "due-date:: 1\n\n- a\n  due-date:: 2\n- b\n  duedate:: 3\n- c\n  due-date:: 4\n",
+        )])
+    );
+    let plan = index.rename_property("due-date", "Due-Date").unwrap();
+    assert_eq!(plan.replacement_count(), 2);
+}
+
+#[test]
+fn refuses_property_keys_that_cannot_be_renamed() {
+    let garden = Garden::new(&[
+        (
+            "pages/A.md",
+            "type:: page\n\n- one\n  collapsed:: true\n- two\n  type:: book\n  note:: x\n  Kind:: novel\n",
+        ),
+        ("pages/B.md", "kind:: other\n\n- three\n  type:: film\n"),
+    ]);
+    let index = garden.load();
+    let refused = |key: &str, new: &str| index.rename_property(key, new).unwrap_err();
+    let built_in = |key: &str| RenameRefusal::BuiltInKey { key: key.into() };
+    assert_eq!(refused("collapsed", "folded"), built_in("collapsed"));
+    assert_eq!(refused("type", "Tags"), built_in("Tags"));
+    assert_eq!(refused("type", "custom_id"), built_in("custom_id"));
+    assert_eq!(refused("type", "id::"), built_in("id"));
+    assert_eq!(refused("type", "logseq.color"), built_in("logseq.color"));
+    for new in [
+        "", "  ", "::", "my key", "a:b", "#kind", "kind(x)", "a\nb", "`kind",
+    ] {
+        assert!(
+            matches!(refused("type", new), RenameRefusal::InvalidKey { .. }),
+            "{new:?}"
+        );
+    }
+    assert_eq!(refused("type", " ").to_string(), "the new key is empty");
+    // The block of `two` starts on line 5.
+    let both = refused("type", "kind");
+    assert_eq!(
+        both,
+        RenameRefusal::KeyOnSameBlock {
+            key: "type".into(),
+            new_key: "kind".into(),
+            path: "pages/A.md".into(),
+            line: 5,
+        }
+    );
+    assert!(both.to_string().contains("line 5 of pages/A.md"), "{both}");
+    // The page properties of one file and a block of the same file are separate blocks, and
+    // other blocks may write the new key.
+    let plan = index.rename_property("note", "kind").unwrap_err();
+    assert!(matches!(
+        plan,
+        RenameRefusal::KeyOnSameBlock { line: 5, .. }
+    ));
+    let plan = index.rename_property("note", "type").unwrap_err();
+    assert!(matches!(
+        plan,
+        RenameRefusal::KeyOnSameBlock { line: 5, .. }
+    ));
+    let plan = index.rename_property("note", "remark").unwrap();
+    assert_eq!(plan.replacement_count(), 1);
 }
