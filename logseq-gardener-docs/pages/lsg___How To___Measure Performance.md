@@ -1,9 +1,9 @@
 tags:: [[Diataxis/How To]]
-see-also:: [[lsg/Ref/Logseq Compatibility/Performance]], [[lsg/Ref/Publication Speed]], [[lsg/Ref/Logseq Compatibility/Search Performance]], [[lsg/Ref/Parity Tasks]]
+see-also:: [[lsg/Ref/Logseq Compatibility/Performance]], [[lsg/Ref/Publication Speed]], [[lsg/Ref/Logseq Compatibility/Search Performance]], [[lsg/Ref/Language Server/Performance]], [[lsg/Ref/Parity Tasks]]
 
 - # How To Measure Performance
 	- ## Overview
-		- Measure how fast `lsg` builds a garden, how fast its pages and search respond next to Logseq's build, and record the results that later changes compare against. The page loads, feature timings and search go to [[lsg/Ref/Logseq Compatibility/Performance]]; build times go to [[lsg/Ref/Publication Speed]].
+		- Measure how fast `lsg` builds a garden, how fast its pages and search respond next to Logseq's build, and record the results that later changes compare against. The page loads, feature timings and search go to [[lsg/Ref/Logseq Compatibility/Performance]]; build times go to [[lsg/Ref/Publication Speed]]; the language server's times go to [[lsg/Ref/Language Server/Performance]].
 	- ## Prerequisites
 		- A run directory from `mise run parity:build` and `mise run parity:compare`, as [[lsg/How To/Compare a Build with Logseq]] shows. `parity:compare` extracts Logseq's build beside the `lsg` build.
 		- Playwright's Chromium, which the tasks install through `uv` on first use.
@@ -34,9 +34,18 @@ see-also:: [[lsg/Ref/Logseq Compatibility/Performance]], [[lsg/Ref/Publication S
 			  uv run --script experiments/pagefind/measure.py
 			  ```
 			- `parity:perf --search-site` fails while any `lsg` value is over its budget and names it. The last command measures Pagefind on the same build, for the comparison on [[lsg/Ref/Logseq Compatibility/Search Performance]].
-		- ### 5. Record the results
+		- ### 5. Measure the language server
+			- Measure `lsg lsp` on a garden. This step needs no run directory and no browser:
+			- ```sh
+			  mise run lsp:perf "$(ghq list --full-path --exact github.com/codekiln/logseq-encode-garden)"
+			  ```
+			- The task builds the release binary, starts the server on the garden and prints the time to load it, the response times of completion, definition, hover and references, the time to reindex after an edit, and the time and edit count of renaming the most-linked pages and the most-written property key. It says whether each target is met.
+			- The task reads the garden and writes none of its files. Typed text reaches the server as an unsaved buffer, and the task counts the answer to each rename without applying it.
+			- `--loads`, `--repeats` and `--samples` set how often the task starts the server, repeats a request and how many places it asks at. `--json <file>` also writes the results as JSON.
+		- ### 6. Record the results
 			- Add `--record` to `parity:perf`. A full run rewrites the head and the sections it measures of [[lsg/Ref/Logseq Compatibility/Performance]], the committed results that compatibility pull requests compare against, and keeps the sections that feature flags record. A run with a feature flag replaces only that feature's section, and `--search-site` replaces the search sections and `docs/parity/search-performance.json`.
 			- Add `--record` to `parity:publish-bench` to append its rows to `docs/parity/publication-speed.json`. [[lsg/Ref/Publication Speed]] says when the CI check needs new rows.
+			- Add `--record` to `lsp:perf` to rewrite [[lsg/Ref/Language Server/Performance]].
 			- Commit the changed files with the change they measure.
 	- ## Troubleshooting
 		- If `parity:perf` stops with `Logseq build missing`, run `mise run parity:compare` for the run first.

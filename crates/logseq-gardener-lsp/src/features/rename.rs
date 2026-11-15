@@ -1,5 +1,5 @@
-//! `textDocument/prepareRename` and `textDocument/rename`: rename the page under the cursor
-//! across the garden.
+//! `textDocument/prepareRename` and `textDocument/rename`: rename the page or the property
+//! key under the cursor across the garden.
 //!
 //! The index plans the rename; [`workspace_edit`] turns any [`RenamePlan`] into the edit the
 //! client applies, so a rename of another kind of name reuses it.
@@ -84,9 +84,10 @@ pub(crate) fn rename(server: &mut Server, params: RenameParams) -> Answer<Option
             .map_err(refused)?
         }
         Subject::Block(_) => return Err(refused(RenameRefusal::Block)),
-        Subject::Property(key) => {
-            return Err(refused(RenameRefusal::PropertyKey { key: key.clone() }));
-        }
+        Subject::Property(key) => server
+            .index
+            .rename_property(key, &params.new_name)
+            .map_err(refused)?,
     };
     workspace_edit(server, &plan).map(Some)
 }

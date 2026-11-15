@@ -1,10 +1,10 @@
 tags:: [[Diataxis/How To]]
-see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
+see-also:: [[lsg/Ref/Command Line]], [[lsg/Ref/Language Server/Performance]], [[lsg/How To/Look Up a Page File]]
 
 - # How To Edit a Garden in Neovim
 	- ## Overview
 		- `lsg lsp` is a language server for Logseq Markdown gardens. Neovim starts it when you open a page or journal, and the server reads the whole garden so it can tell the editor where each page link, tag, block reference and property leads.
-		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. You can rename a page or tag and have every link, namespace child and file name follow. The server reports broken block references and repeated block ids as diagnostics, and keeps its index of the garden current while you edit.
+		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. You can rename a page or tag and have every link, namespace child and file name follow, and rename a property key on every line that writes it. The server reports broken block references and repeated block ids as diagnostics, and keeps its index of the garden current while you edit.
 	- ## Prerequisites
 		- Neovim 0.11 or later.
 		- `lsg` on your `PATH`, installed as [[lsg/How To/Install with mise]] shows.
@@ -94,7 +94,14 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 			- A tag is a page, so renaming `#todo` works the same way, also when the page has no file. When the new name has a space, `#todo` becomes `#[[new name]]`.
 			- The server refuses a name that already belongs to another page and shows the reason. To merge two pages, use Logseq.
 			- A journal keeps its file name. Renaming a journal writes the new title to a `title::` property at the top of its file.
-		- ### 8. Read the diagnostics
+		- ### 8. Rename a property key
+			- Put the cursor on the key of a property line, such as `type` in `type:: book`, and press `grn`, or `<leader>cr` in LazyVim, or run `:lua vim.lsp.buf.rename()`. Neovim shows the key as that line writes it; type the new key and press Enter.
+			- The rename replaces the key on every `key::` line of the garden, in the properties at the top of a page and in the properties of a block, and leaves the values as they are. Neovim leaves the changed files as unsaved buffers. Run `:wall` to write them.
+			- Keys match as Logseq reads them: `Type::` and `TYPE::` are the key `type`, and `due_date::` is the key `due-date`. The new key is written as you type it.
+			- When other blocks already write the new key, the rename goes ahead and the two keys become one. When one block writes both keys, the server refuses and names the file and line, because Logseq reads one value for a key on a block. Remove one of the two lines and rename again.
+			- The server refuses to rename a key that Logseq uses itself, such as `id`, `title`, `alias`, `tags` or `collapsed`, and refuses such a key as the new name. It also refuses a new key with a space, a colon, a quote or a bracket, which Logseq would not read as a key.
+			- A query such as `{{query (property type book)}}`, a `query-properties::` value and a setting in `logseq/config.edn` that names the key keep the old name. Change those by hand. The page named like the key, and the links to it, stay as they are. To rename that page too, rename it from a link to it.
+		- ### 9. Read the diagnostics
 			- The server marks three problems in a page:
 				- a `((uuid))` or `{{embed ((uuid))}}` whose id no block in the garden has, as an error;
 				- an `id::` value that more than one block writes, as an error on each of those blocks. Logseq keeps the id on one block and gives the others a new id, so references to them stop working;
@@ -103,7 +110,7 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 			- The marks follow your edits, saved or not. Giving a block the missing id in another buffer clears the error on the reference, and changing one of two equal ids clears both errors.
 			- A link or tag to a page without a file gets no mark, because linking a page is how Logseq creates it.
 	- ## What the server reads
-		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress.
+		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress. [[lsg/Ref/Language Server/Performance]] records how long the server takes to load that garden and to answer each request.
 		- The text in an open buffer takes the place of its file until you close the buffer, so the server sees edits you have not saved.
 		- When the Logseq app, git or another program changes a file, the server reads it again. A change to `logseq/config.edn` reads the whole garden again.
 		- The server writes no file and offers no formatting. A rename changes only the names it replaces, so the tab indentation of your outline stays as you wrote it.

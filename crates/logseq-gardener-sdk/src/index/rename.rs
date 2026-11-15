@@ -1,8 +1,11 @@
-//! Renaming a page across the garden: which text to replace and which files to rename.
+//! Renaming a page or a property key across the garden: which text to replace and which
+//! files to rename.
 //!
 //! [`GardenIndex::rename_page`] follows Logseq's `rename!` in
-//! `src/main/frontend/handler/page.cljs`. It returns a [`RenamePlan`] and changes nothing;
-//! the caller applies the plan, as an editor does with a workspace edit.
+//! `src/main/frontend/handler/page.cljs`. [`GardenIndex::rename_property`] renames a key on
+//! every `key::` line, matching keys as Logseq stores them. Each returns a [`RenamePlan`]
+//! and changes nothing; the caller applies the plan, as an editor does with a workspace
+//! edit.
 
 use std::borrow::Cow;
 use std::collections::BTreeSet;
@@ -23,6 +26,7 @@ use crate::inline_references::tag_page_name;
 use crate::journals::parse_journal_reference;
 use crate::page_names::{has_outer_space, lookup_key, reference_key, remove_boundary_slashes};
 use crate::page_titles::title_property;
+use crate::property_names::{is_built_in_property, logseq_property_key, valid_property_name};
 
 /// One range of a file's text and the text that takes its place.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,12 +125,13 @@ impl RenamePlan<'_> {
 /// What a rename at a place in a document is about.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenameTarget {
-    /// The page to rename. A later rename of a block or property key adds its subject here.
+    /// The page or the property key to rename.
     pub subject: Subject,
     /// The name under the cursor, or an empty range at the cursor when the rename is about
     /// the document's own page.
     pub range: SourceRange,
-    /// The current name: the page's title, or the name as written for a page with no file.
+    /// The current name: the page's title, the name as written for a page with no file, or
+    /// the property key as written.
     pub name: String,
 }
 
@@ -139,8 +144,17 @@ pub enum RenameRefusal {
     NoTitle { path: PathBuf },
     /// The cursor is on a block reference or a block id.
     Block,
-    /// The cursor is on a property key.
-    PropertyKey { key: String },
+    /// The property key has a built-in meaning in Logseq.
+    BuiltInKey { key: String },
+    /// Logseq would not read the new property key as a key.
+    InvalidKey { key: String },
+    /// A block writes both the old and the new property key. `line` counts from 1.
+    KeyOnSameBlock {
+        key: String,
+        new_key: String,
+        path: PathBuf,
+        line: usize,
+    },
     /// Several files answer to the name to rename.
     Ambiguous { name: String },
     /// The name is a journal date and the journal has no file.
@@ -173,9 +187,24 @@ impl fmt::Display for RenameRefusal {
             }
             Self::NoTitle { path } => write!(f, "{} has no page title", slashes(path)),
             Self::Block => f.write_str("a block reference has no name to rename"),
-            Self::PropertyKey { key } => {
-                write!(f, "cannot rename the property key {key}")
+            Self::BuiltInKey { key } => {
+                write!(f, "the property key {key} has a built-in meaning in Logseq")
             }
+            Self::InvalidKey { key } if key.is_empty() => f.write_str("the new key is empty"),
+            Self::InvalidKey { key } => write!(
+                f,
+                "Logseq would not read {key} as a property key; use a name without spaces, colons, quotes or brackets that does not start with #"
+            ),
+            Self::KeyOnSameBlock {
+                key,
+                new_key,
+                path,
+                line,
+            } => write!(
+                f,
+                "the block at line {line} of {} writes both {key} and {new_key}, and Logseq reads one value for a key on a block; remove one of the two lines first",
+                slashes(path)
+            ),
             Self::Ambiguous { name } => write!(
                 f,
                 "several files answer to the name {name}; rename one of them from inside its file after giving the others another title"
@@ -332,8 +361,8 @@ fn has_leading_properties(document: &IndexedDocument) -> bool {
 
 impl GardenIndex {
     /// What a rename at an offset of a document is about: the page that the link, tag, embed
-    /// or page name in a property value there leads to, following an alias to its page, and
-    /// the document's own page anywhere else.
+    /// or page name in a property value there leads to, following an alias to its page, the
+    /// property key of a `key::` line, and the document's own page anywhere else.
     pub fn rename_target_at(
         &self,
         path: &Path,
@@ -364,7 +393,19 @@ impl GardenIndex {
         let written = match &occurrence.target {
             Target::Page(name) => name,
             Target::Block(_) => return Err(RenameRefusal::Block),
-            Target::Property(key) => return Err(RenameRefusal::PropertyKey { key: key.clone() }),
+            Target::Property(key) => {
+                let written = occurrence.name_range.text(document.source());
+                if is_built_in_property(key) {
+                    return Err(RenameRefusal::BuiltInKey {
+                        key: written.to_owned(),
+                    });
+                }
+                return Ok(RenameTarget {
+                    subject: Subject::Property(key.clone()),
+                    range: occurrence.name_range,
+                    name: written.to_owned(),
+                });
+            }
         };
         let page = self.page_id(written);
         let shown = || remove_boundary_slashes(written.trim()).to_owned();
@@ -686,6 +727,90 @@ impl GardenIndex {
         }
         documents.sort_by(|a, b| a.path.cmp(&b.path));
         Ok(RenamePlan { pages, documents })
+    }
+
+    /// Plan the rename of a property key to `new_key` on every `key::` line of the garden.
+    ///
+    /// A line is renamed when its key equals `key` as Logseq stores keys
+    /// ([`logseq_property_key`]): in any letter case, with `_` counting as `-`. The new key
+    /// is written as typed, without the spaces around it and without one `::` at its end.
+    /// Values and all other text stay, and so does the page of the same name with the links
+    /// to it. Blocks that already write the new key keep their line, so the two keys become
+    /// one.
+    ///
+    /// The rename is refused when either key has a built-in meaning in Logseq, when Logseq
+    /// would not read the new key as a key, and when a block writes both keys, since Logseq
+    /// reads one value for a key on a block. A key no line writes gives an empty plan.
+    pub fn rename_property(
+        &self,
+        key: &str,
+        new_key: &str,
+    ) -> Result<RenamePlan<'_>, RenameRefusal> {
+        let new = new_key.trim();
+        let new = new.strip_suffix("::").unwrap_or(new).trim_end();
+        if new.is_empty()
+            || new.contains(char::is_whitespace)
+            || new.contains(':')
+            || !valid_property_name(new)
+        {
+            return Err(RenameRefusal::InvalidKey {
+                key: new.to_owned(),
+            });
+        }
+        for name in [key.trim(), new] {
+            if is_built_in_property(name) {
+                return Err(RenameRefusal::BuiltInKey {
+                    key: name.to_owned(),
+                });
+            }
+        }
+        let old_stored = logseq_property_key(key);
+        let new_stored = logseq_property_key(new);
+        let mut documents = Vec::new();
+        for (path, document) in &self.documents {
+            let source = document.source();
+            let lines = || {
+                document
+                    .properties
+                    .iter()
+                    .filter(|line| logseq_property_key(&line.key) == old_stored)
+            };
+            if new_stored != old_stored
+                && let Some(line) = lines().find(|line| {
+                    document.properties.iter().any(|other| {
+                        other.block_start == line.block_start
+                            && logseq_property_key(&other.key) == new_stored
+                    })
+                })
+            {
+                let before = source.get(..line.block_start).unwrap_or_default();
+                return Err(RenameRefusal::KeyOnSameBlock {
+                    key: line.key_range.text(source).to_owned(),
+                    new_key: new.to_owned(),
+                    path: path.clone(),
+                    line: before.matches('\n').count() + 1,
+                });
+            }
+            let replacements: Vec<Replacement> = lines()
+                .filter(|line| line.key_range.text(source) != new)
+                .map(|line| Replacement {
+                    range: line.key_range,
+                    text: new.to_owned(),
+                })
+                .collect();
+            if !replacements.is_empty() {
+                documents.push(DocumentChange {
+                    path: path.clone(),
+                    source: Cow::Borrowed(source),
+                    replacements,
+                    moves: Vec::new(),
+                });
+            }
+        }
+        Ok(RenamePlan {
+            pages: Vec::new(),
+            documents,
+        })
     }
 }
 

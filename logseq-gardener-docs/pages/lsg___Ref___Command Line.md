@@ -1,5 +1,5 @@
 tags:: [[Diataxis/Reference]]
-see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neovim]], [[lsg/Ref/Publish Options]]
+see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neovim]], [[lsg/Ref/Language Server/Performance]], [[lsg/Ref/Publish Options]]
 
 - # Command Line Reference
 	- ## Overview
@@ -62,6 +62,7 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 		- For changes made outside the editor, the server registers `workspace/didChangeWatchedFiles` for `pages/**/*.md`, `journals/**/*.md` and `logseq/config.edn` when the editor supports dynamic registration, and watches those folders itself otherwise: through the operating system's file events on Linux and Windows, and by comparing modification times every two seconds on macOS. A change to `logseq/config.edn` reads the whole garden again.
 		- Positions use `utf-8` when the editor lists it in `general.positionEncodings`, and `utf-16` otherwise.
 		- The server advertises no formatting and writes no file. A rename answers with an edit that the editor applies.
+		- [[lsg/Ref/Language Server/Performance]] records the time to load the encode garden and the response time of each request, and `mise run lsp:perf <garden>` measures them again.
 		- ### Navigation
 			- | Request | Answer |
 			  | --- | --- |
@@ -88,14 +89,25 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 		- ### Rename
 			- | Request | Answer |
 			  | --- | --- |
-			  | `textDocument/prepareRename` | The range of the page name under the cursor and, as `placeholder`, the title of the page it leads to. In ordinary text, an empty range at the cursor and the title of the document's page. An error on a block reference, a property key, a name several files answer to and a journal date with no file |
+			  | `textDocument/prepareRename` | The range of the page name under the cursor and, as `placeholder`, the title of the page it leads to. On the key of a `key::` line, the range of the key and the key as written. In ordinary text, an empty range at the cursor and the title of the document's page. An error on a block reference, a property key with a built-in meaning, a name several files answer to and a journal date with no file |
 			  | `textDocument/rename` | One `WorkspaceEdit`. An error with code `-32803` and the reason when the rename is refused |
+			- #### A page or a tag
 			- The edit rewrites every page link, tag, page embed and page name in a property value that names the page by its title, in any letter case, with the new name as typed. A name written with an alias of the page, or as a journal date in another format, stays as written. `#old` becomes `#new` when the new name reads as a tag without brackets and `#[[new name]]` otherwise.
 			- Namespace children follow the page: renaming `Fruit` to `Crop` renames `Fruit/Apple` to `Crop/Apple` in titles, links and file names. A page whose title holds `[[Fruit]]` follows too.
 			- Each page file gets the name Logseq's rules give the new title for the garden's `:file/name-format`, in the folder the file is in. A journal keeps its file name and gets the new title in a `title::` property. A page keeps a `title::` property it has, with the new title, and gets one when its file name cannot carry the title, such as `Node.js` under the legacy format. `:default-home {:page "…"}` in `logseq/config.edn` follows the rename.
 			- `documentChanges` lists each file's text edits ahead of its `RenameFile` operation, under the file's current name. The edits to an open buffer carry the buffer's version; other edits carry `null`. A rename that changes only letter case renames the file twice, to `.lsg-rename-<n>.tmp` in the same folder and from there to the new name, because a file system that ignores letter case treats both names as one file.
 			- The server refuses a new name that is empty, holds a line break, belongs to another page by title or alias, or spells a journal date, and a rename whose new file path already exists. A new name equal to the title gives an empty edit.
 			- A rename that gives a file a new name needs `workspace.workspaceEdit.resourceOperations` with `rename` in the editor's capabilities; the answer is an error that says so otherwise. An editor that advertises neither resource operations nor `documentChanges` gets the text edits of a rename without file renames as `changes`.
+			- #### A property key
+			- A rename on the key of a `key::` line replaces that key on every `key::` line of every page and journal, in a page's leading properties and in block properties, with the new key as typed. Spaces around the new key and one `::` at its end are dropped. Values and all other text stay as written, and the edit renames no file, so every editor that applies text edits can apply it.
+			- Keys match as Logseq stores them: in any letter case, with `_` counting as `-`. Renaming `due-date` also rewrites `Due_Date::`. A rename to another spelling of the same key, such as `type` to `Type`, rewrites the lines that differ.
+			- Blocks that already write the new key keep their lines, so the two keys become one.
+			- The server refuses, with the same error code:
+				- a key with a built-in meaning in Logseq as the old or the new key: `title`, `alias`, `aliases`, `tags`, `icon`, `template`, `template-including-parent`, `public`, `filters`, `exclude-from-graph-view`, `macro`, `filetags`, `id`, `custom-id`, `collapsed`, `heading`, `background-color`, `created-at`, `updated-at`, `last-modified-at`, `query-table`, `query-properties`, `query-sort-by`, `query-sort-desc`, `ls-type`, `hl-type`, `hl-page`, `hl-stamp`, `hl-color`, `todo`, `doing`, `now`, `later`, `done`, the six `card-*` scheduling keys and every key that starts with `logseq.`;
+				- a new key that is empty, holds a space or a colon, holds `"`, `|`, `^`, a bracket or a brace, or starts with `#`, which Logseq would not read as a property key;
+				- a rename when one block writes both the old and the new key. Logseq reads one value for a key on a block, so one of the two values would disappear. The error names the file and the line where the block starts.
+			- The rename covers `key::` lines. A `(property key value)` query, a `query-properties::` value, `:block-hidden-properties` and other settings in `logseq/config.edn`, and keys written in YAML front matter keep the old name.
+			- Page renames and property key renames are separate. Renaming a page leaves a property key of the same name as written, and renaming a key leaves the page of that name and the links to it as written.
 		- ### Diagnostics
 			- The server sends `textDocument/publishDiagnostics` for a document when the editor opens it, and again whenever an edit or a file change alters the list. For a file that is not open, it sends the list when the file changes on disk and has a problem, and keeps that list current until it is empty. Closing a document or deleting its file clears its diagnostics.
 			- | Code | Severity | Reported for |
