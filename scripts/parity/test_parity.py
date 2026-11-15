@@ -189,11 +189,12 @@ class FirstPartyBudgetTest(unittest.TestCase):
         row = {'page': 'GitP/A', 'profile': 'phone', 'build': 'lsg', 'title_ms': 2000, 'data_before_title': 40_000,
                'script_before_title': 2_000, 'peak_heap': 3_000_000}
         report = {'measured': '2026-11-08', 'garden_commit': 'abcdef1', 'lsg': '1234567',
-                  'plugins': ['podcast-episode', 'sequence-header'],
+                  'plugins': ['ableton-set', 'podcast-episode', 'sequence-header'],
                   'loads': 3, 'pages': [row, {**row, 'build': 'logseq', 'title_ms': 9000}],
-                  'heap': {'all_mb': 5.6, 'without_episode_mb': 5.1, 'host_mb': 5.0,
-                           'growth_mb': {'podcast-episode': 0.5, 'sequence-header': 0.1}, 'playing': True},
-                  'sizes': {'script_styles_gzip': {'podcast-episode': 2936, 'sequence-header': 1400},
+                  'heap': {'all_mb': 5.6, 'without_episode_mb': 5.1, 'host_mb': 5.0, 'set_mb': 5.3, 'without_set_mb': 5.1,
+                           'growth_mb': {'ableton-set': 0.2, 'podcast-episode': 0.5, 'sequence-header': 0.1},
+                           'playing': True, 'set_view': True},
+                  'sizes': {'script_styles_gzip': {'ableton-set': 3100, 'podcast-episode': 2936, 'sequence-header': 1400},
                             'plugin_script_before_title': 0}}
         text = '\n'.join(perf.first_party_markdown(report, loaded))
         self.assertIn('## First-party plugins', text)
@@ -201,9 +202,14 @@ class FirstPartyBudgetTest(unittest.TestCase):
         self.assertIn('| GitP/A | phone | logseq | 9000 |', text)
         self.assertIn('| `podcast-episode` | 0.50 | 1 | 2,936 | 8,000 |', text)
         self.assertIn('| `sequence-header` | 0.10 | 0.2 | 1,400 | 1,500 |', text)
+        self.assertIn('| `ableton-set` | 0.20 | 0.5 | 3,100 | 4,000 |', text)
+        self.assertIn('5.30 MB with every plugin on and 5.10 MB with `ableton-set` blocked', text)
         self.assertEqual(perf.first_party_failures(report, loaded), ['GitP/A (phone): title_ms 2,000.0 over 1500'])
-        report['heap']['growth_mb'] = {'podcast-episode': 1.5, 'sequence-header': 0.3}
+        report['heap']['growth_mb'] = {'ableton-set': 0.6, 'podcast-episode': 1.5, 'sequence-header': 0.3}
+        report['heap']['set_view'] = False
         failures = perf.first_party_failures(report, loaded)
+        self.assertIn('ableton-set: phone heap grows 0.60 MB, over 0.5', failures)
+        self.assertIn(f'ableton-set: no track view on {perf.FIRST_PARTY_SET} after the navigations', failures)
         self.assertIn('podcast-episode: phone heap grows 1.50 MB, over 1', failures)
         self.assertIn('sequence-header: phone heap grows 0.30 MB, over 0.2', failures)
         self.assertIn('| `sequence-header` | **0.30** |', '\n'.join(perf.first_party_markdown(report, loaded)))
@@ -216,6 +222,16 @@ class FirstPartyBudgetTest(unittest.TestCase):
             budgets.with_plugins_key(garden, ['podcast-episode', 'sequence-header'], ':x true')
             self.assertEqual((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'),
                              '{:a 1\n :b #{:c} :lsg/plugins [:podcast-episode :sequence-header] :x true}\n')
+
+    def test_plugins_key_replaces_the_garden_own(self):
+        with tempfile.TemporaryDirectory() as temp:
+            garden = Path(temp)
+            (garden / 'logseq').mkdir()
+            (garden / 'logseq' / 'config.edn').write_text(
+                '{:a 1\n ;; :lsg/plugins [:old]\n :lsg/plugins [:podcast-episode]\n :b 2}\n', encoding='utf-8')
+            budgets.with_plugins_key(garden, ['ableton-set'])
+            self.assertEqual((garden / 'logseq' / 'config.edn').read_text(encoding='utf-8'),
+                             '{:a 1\n ;; :lsg/plugins [:old]\n \n :b 2 :lsg/plugins [:ableton-set] }\n')
 
 
 class InstallBudgetTest(unittest.TestCase):

@@ -293,8 +293,6 @@ garden_growth_kb = 0
 # the same visit without the plugin.
 [plugins.ableton-set]
 # A Set of 23 tracks adds about 1 KB gzip to its own page.
-# parity:perf --first-party visits no Set page yet, so phone_heap_growth_mb is not measured for
-# this plugin.
 script_styles_gzip_kb = 4
 page_growth_gzip_kb = 2
 phone_heap_growth_mb = 0.5
