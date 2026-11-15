@@ -90,7 +90,7 @@ pub struct Hierarchy {
     pub rows: Vec<Row>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 struct Name {
     /// Keys of the entries whose title is this name.
     pages: BTreeSet<String>,
@@ -99,7 +99,7 @@ struct Name {
 }
 
 /// Namespace names from page titles, kept one entry at a time.
-#[derive(Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct NamespaceIndex {
     entries: BTreeMap<String, NamespaceEntry>,
     names: BTreeMap<String, Name>,

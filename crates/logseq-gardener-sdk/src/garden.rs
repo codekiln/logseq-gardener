@@ -328,6 +328,20 @@ impl Checkout {
     }
 }
 
+/// Logseq's `hidden?`: with a leading `/` on both, the path starts with an entry of `:hidden`.
+/// `relative` is a path from the garden root with `/` separators; a folder ends with `/`.
+pub(crate) fn hidden_path(patterns: &[String], relative: &str) -> bool {
+    let path = format!("/{relative}");
+    patterns.iter().any(|pattern| {
+        if pattern.starts_with('/') {
+            path.starts_with(pattern.as_str())
+        } else {
+            path.strip_prefix('/')
+                .is_some_and(|rest| rest.starts_with(pattern.as_str()))
+        }
+    })
+}
+
 struct Walk<'a> {
     root: &'a Path,
     hidden: Vec<String>,
@@ -335,17 +349,8 @@ struct Walk<'a> {
 }
 
 impl Walk<'_> {
-    /// Logseq's `hidden?`: with a leading `/` on both, the path starts with the entry.
     fn hidden(&self, relative: &str) -> bool {
-        let path = format!("/{relative}");
-        self.hidden.iter().any(|pattern| {
-            if pattern.starts_with('/') {
-                path.starts_with(pattern.as_str())
-            } else {
-                path.strip_prefix('/')
-                    .is_some_and(|rest| rest.starts_with(pattern.as_str()))
-            }
-        })
+        hidden_path(&self.hidden, relative)
     }
 
     fn directory(

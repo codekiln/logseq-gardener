@@ -1,9 +1,9 @@
 tags:: [[Diataxis/Reference]]
-see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/Ref/Publish Options]]
+see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neovim]], [[lsg/Ref/Publish Options]]
 
 - # Command Line Reference
 	- ## Overview
-		- `lsg` has three commands, `lookup`, `publish` and `version`, and embedded help for each of them.
+		- `lsg` has four commands, `lookup`, `lsp`, `publish` and `version`, and embedded help for each of them.
 		- Help works offline with closed standard input, without a pager or prompts. `--no-input` makes that default explicit.
 	- ## Commands
 		- ### help
@@ -11,6 +11,9 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/Ref/Publish Options]]
 		- ### lookup
 			- `lsg lookup NAME --graph PATH --filename-format legacy|triple-lowbar` prints the source file of the page that `NAME` names, so an editor or agent can open it. [[lsg/How To/Look Up a Page File]] shows how to use it, and Lookup matching below gives its rules.
 			- `lsg lookup help`, `lsg lookup --help` and `lsg lookup -h` show its documentation.
+		- ### lsp
+			- `lsg lsp` serves the Language Server Protocol (LSP) for a garden on standard input and output. An editor starts it; [[lsg/How To/Edit a Garden in Neovim]] gives the Neovim configuration. Language server below describes what it reads and answers.
+			- `lsg lsp help`, `lsg lsp --help` and `lsg lsp -h` show its documentation without starting a server.
 		- ### publish
 			- `lsg publish` generates a static site from selected namespaces of a garden. [[lsg/Ref/Publish Options]] lists its options and its JSON report, and [[lsg/How To/Publish Selected Namespaces]] walks through a first site.
 			- `lsg publish help`, `lsg publish --help` and `lsg publish -h` show its documentation without garden arguments.
@@ -18,7 +21,7 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/Ref/Publish Options]]
 			- `lsg version` identifies the build. `lsg version help`, `lsg version --help` and `lsg version -h` show its documentation.
 			- `lsg --version` and `lsg -V` report the same version as `lsg version`.
 	- ## Help navigation
-		- These forms work after `lsg`, `lsg lookup`, `lsg publish` and `lsg version`:
+		- These forms work after `lsg`, `lsg lookup`, `lsg lsp`, `lsg publish` and `lsg version`:
 			- | Form | Shows |
 			  | --- | --- |
 			  | `help --format json` | the help document as JSON, with the immediate `child_commands` |
@@ -52,13 +55,29 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/Ref/Publish Options]]
 		- Each printed path is joined to `--graph` as you spelled it, one path per line. When several pages share the name, every path prints in source-path order and stderr says how many matched.
 		- No match exits 1 with empty stdout. Files whose title or journal date cannot be read are left out and listed on stderr.
 		- Each call reads and parses the whole garden. On the 8,569-page encode garden that takes about 0.8 s and 263 MB of memory on an Apple silicon Mac.
+	- ## Language server
+		- `lsg lsp` takes no options. The garden root is the nearest folder, at or above the workspace folder or root URI the editor sends, that holds `logseq/config.edn`. When there is none, the server answers `initialize` with an error that names the folder, and exits with status 1 when the editor closes the connection.
+		- The server reads `:file/name-format`, the journal formats and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`, skipping names that start with a dot, `node_modules`, symlinks and `:hidden` entries. It reports the reading as work done progress. Markdown files in other folders are left out.
+		- The server asks for incremental text synchronization. The text of an open buffer takes the place of its file until the buffer closes.
+		- For changes made outside the editor, the server registers `workspace/didChangeWatchedFiles` for `pages/**/*.md`, `journals/**/*.md` and `logseq/config.edn` when the editor supports dynamic registration, and watches those folders itself otherwise: through the operating system's file events on Linux and Windows, and by comparing modification times every two seconds on macOS. A change to `logseq/config.edn` reads the whole garden again.
+		- Positions use `utf-8` when the editor lists it in `general.positionEncodings`, and `utf-16` otherwise.
+		- The server advertises no formatting and changes no file.
+		- ### Requests
+			- | Request | Parameters | Result |
+			  | --- | --- | --- |
+			  | `lsg/status` | none | `root`, `filenameFormat` (`triple-lowbar` or `legacy`), `journalTitleFormat`, `journalFileNameFormat`, `positionEncoding`, `fileWatching` (`client`, `server` or `none`), `documents`, `pages`, `journals`, `openDocuments` and `loadMilliseconds` |
+			  | `lsg/occurrence` | `textDocument` and `position` | `null` when nothing is at the position, otherwise `kind`, `range`, `nameRange`, `target` and `resolved` |
+			- `kind` is `pageLink`, `tag`, `blockReference`, `pageEmbed`, `blockEmbed`, `propertyKey`, `propertyValue` or `blockId`. `range` covers the whole syntax, such as `[[Page]]`, and `nameRange` the name inside it.
+			- `target` has a `type` of `page` with the `name` as written, `block` with the `id`, or `property` with the `key`.
+			- `resolved` has a `type` of `document` with the page's `uri` and `title`; `journalWithoutFile` with the `date`; `pageWithoutFile` with the `name`; `ambiguous` with the `uris` of the pages that share the name; `block` with the `uri` and `range` of the block's first line; `blockNotFound`; or `property` with the `count` of lines that write the key.
+			- A block id that several blocks write resolves to the block Logseq keeps: the one in the file Logseq reads first.
 	- ## Streams and exit codes
 		- | Code | Meaning |
 		  | --- | --- |
 		  | 0 | Success, including early termination when a downstream pipe closes |
-		  | 1 | Generation failed, a lookup matched no page or could not read the garden, or output could not be written |
+		  | 1 | Generation failed, a lookup matched no page or could not read the garden, output could not be written, or an `lsg lsp` session ended without `shutdown` |
 		  | 2 | Invalid arguments, an unknown command, or an unknown section |
-		- Successful results go to stdout and diagnostics go to stderr. Invalid invocations leave stdout empty, including with `--format json`, and an error writes no JSON document.
+		- Successful results go to stdout and diagnostics go to stderr. `lsg lsp` writes only LSP messages to stdout. Invalid invocations leave stdout empty, including with `--format json`, and an error writes no JSON document.
 		- Output contains no terminal control sequences and never depends on a TTY.
 		- Help and version never read stdin, garden files, configuration files or network resources.
 		- Paths in arguments accept the operating system's native form. Paths in JSON output are display strings.

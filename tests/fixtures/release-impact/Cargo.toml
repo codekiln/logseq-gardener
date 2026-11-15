@@ -5,7 +5,8 @@ edition = "2024"
 publish = false
 
 [workspace]
-members = ["sdk"]
+members = ["sdk", "lsp"]
 
 [dependencies]
 logseq-gardener-sdk = { path = "sdk", version = "0.0.0" }
+logseq-gardener-lsp = { path = "lsp", version = "0.0.0" }

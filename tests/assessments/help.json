@@ -1,6 +1,6 @@
 {
-  "request_id": "sha256:c081dab38006d47f8de54516b4128fc891ecdd9c1efc335811a6c9bd7ef4d35a",
-  "evidence_digest": "sha256:e7a5920465dd3cb0c0ede55e2f034289e212fe85e066659e4e4a39faa9580644",
+  "request_id": "sha256:a5db65093b09c7ccbab95d5091667b186cb2142bfa368a2c597e27822d0c2f78",
+  "evidence_digest": "sha256:0de69454c78beecaf8e81a5ede2a29eeccf9577223daf6f6c1285e000067d032",
   "skill": {
     "name": "assess-cli-help",
     "version": "1.0.0"
@@ -9,6 +9,6 @@
   "check": "clilint/help/useful-example",
   "score": 4.0,
   "messages": [],
-  "explanation": "The captured root help identifies the Markdown garden audience and its lookup, publishing and version commands, then provides concrete outline and recursive-section invocations. Adjacent text explains the headings and permissions those commands return and directs readers to each command's help. The output section names the lookup exit for an unmatched page. The examples teach an offline documentation task with an explicit result.",
+  "explanation": "The captured root help identifies the Markdown garden audience and its lookup, language server, publishing and version commands, then provides concrete outline and recursive-section invocations. Adjacent text explains the headings and permissions those commands return and directs readers to each command's help, including lsg lsp help for the server an editor starts. The output section names the lookup exit for an unmatched page and says where the language server's exits are listed. The examples teach an offline documentation task with an explicit result.",
   "assessor": "Claude"
 }

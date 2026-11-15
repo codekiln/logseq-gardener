@@ -17,7 +17,7 @@ use crate::outline::uuid;
 
 /// The property names Logseq reads as a block's id. Logseq lower-cases a name and turns
 /// spaces and underscores into hyphens, then reads `custom-id` as `id`.
-fn id_property(name: &str) -> bool {
+pub(crate) fn id_property(name: &str) -> bool {
     let name = name.trim().to_ascii_lowercase().replace([' ', '_'], "-");
     name == "id" || name == "custom-id"
 }
@@ -34,6 +34,14 @@ pub(crate) fn parse_order_of<'d>(
     let paths: Vec<String> = documents
         .map(|document| document.relative_path.to_string_lossy().replace('\\', "/"))
         .collect();
+    let mut order: Vec<usize> = (0..paths.len()).collect();
+    order.sort_by(|a, b| read_order(&paths[*a], &paths[*b]));
+    order
+}
+
+/// Whether Logseq parses the file at `a` before, with or after the file at `b`. Both are
+/// paths from the garden root with `/` separators.
+pub(crate) fn read_order(a: &str, b: &str) -> std::cmp::Ordering {
     let group = |path: &str| {
         if path.contains("journals/") {
             0
@@ -43,14 +51,9 @@ pub(crate) fn parse_order_of<'d>(
             2
         }
     };
-    let mut order: Vec<usize> = (0..paths.len()).collect();
-    order.sort_by(|a, b| {
-        let (a, b) = (&paths[*a], &paths[*b]);
-        group(a)
-            .cmp(&group(b))
-            .then_with(|| if group(a) == 0 { b.cmp(a) } else { a.cmp(b) })
-    });
-    order
+    group(a)
+        .cmp(&group(b))
+        .then_with(|| if group(a) == 0 { b.cmp(a) } else { a.cmp(b) })
 }
 
 /// Remove the id properties from every block whose id an earlier block in Logseq's parse

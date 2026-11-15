@@ -1,0 +1,1 @@
+- A tag whose name has a space, written #[[multi word]].
