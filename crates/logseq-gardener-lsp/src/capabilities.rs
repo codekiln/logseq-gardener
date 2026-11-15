@@ -1,8 +1,8 @@
 //! What the server tells the client it can do.
 
 use lsp_types::{
-    HoverProviderCapability, OneOf, ServerCapabilities, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions,
+    HoverProviderCapability, OneOf, RenameOptions, ServerCapabilities, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
 };
 
 use crate::features::completion;
@@ -26,6 +26,10 @@ pub(crate) fn server_capabilities(encoding: Encoding) -> ServerCapabilities {
         references_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         completion_provider: Some(completion::options()),
+        rename_provider: Some(OneOf::Right(RenameOptions {
+            prepare_provider: Some(true),
+            work_done_progress_options: WorkDoneProgressOptions::default(),
+        })),
         ..ServerCapabilities::default()
     }
 }

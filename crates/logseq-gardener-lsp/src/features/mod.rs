@@ -5,6 +5,7 @@ pub(crate) mod definition;
 pub(crate) mod diagnostics;
 pub(crate) mod hover;
 pub(crate) mod references;
+pub(crate) mod rename;
 pub(crate) mod status;
 pub(crate) mod sync;
 pub(crate) mod watch;

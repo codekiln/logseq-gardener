@@ -38,6 +38,8 @@ pub(crate) struct Server {
     pub(crate) encoding: Encoding,
     /// The text of each open document, by URI, including documents the garden does not hold.
     pub(crate) buffers: HashMap<String, String>,
+    /// The version the client last gave each open document, by URI.
+    pub(crate) versions: HashMap<String, i32>,
     /// The diagnostics last published for each open document and for each document with a
     /// published problem, by path relative to the garden root.
     pub(crate) published: BTreeMap<PathBuf, Vec<Diagnostic>>,
@@ -219,6 +221,7 @@ pub fn serve(connection: Connection) -> Exit {
         paths,
         encoding,
         buffers: HashMap::new(),
+        versions: HashMap::new(),
         published: BTreeMap::new(),
         watching: Watching::Nobody,
         load_milliseconds: milliseconds(started),

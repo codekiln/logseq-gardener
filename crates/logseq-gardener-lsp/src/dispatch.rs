@@ -9,12 +9,14 @@ use lsp_types::notification::{
     DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument, DidOpenTextDocument,
     Notification,
 };
-use lsp_types::request::{Completion, GotoDefinition, HoverRequest, References, Request};
+use lsp_types::request::{
+    Completion, GotoDefinition, HoverRequest, PrepareRenameRequest, References, Rename, Request,
+};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::features::{completion, definition, hover, references, status, sync, watch};
+use crate::features::{completion, definition, hover, references, rename, status, sync, watch};
 use crate::server::Server;
 
 /// What a request handler returns.
@@ -27,6 +29,8 @@ pub(crate) fn request(server: &mut Server, method: &str, params: Value) -> Optio
         GotoDefinition::METHOD => run(server, params, definition::definition),
         References::METHOD => run(server, params, references::references),
         HoverRequest::METHOD => run(server, params, hover::hover),
+        PrepareRenameRequest::METHOD => run(server, params, rename::prepare_rename),
+        Rename::METHOD => run(server, params, rename::rename),
         status::STATUS => run(server, params, status::status),
         status::OCCURRENCE => run(server, params, status::occurrence),
         _ => return None,
@@ -43,6 +47,16 @@ pub(crate) fn notification(server: &mut Server, method: &str, params: Value) -> 
         _ => return false,
     }
     true
+}
+
+/// An error response for a request the server understood and cannot carry out; the client
+/// shows the message to the person.
+pub(crate) fn failed(message: impl Into<String>) -> ResponseError {
+    ResponseError {
+        code: ErrorCode::RequestFailed as i32,
+        message: message.into(),
+        data: None,
+    }
 }
 
 /// An error response for parameters or state the server cannot use.

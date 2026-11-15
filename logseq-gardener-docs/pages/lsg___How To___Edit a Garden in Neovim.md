@@ -4,7 +4,7 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 - # How To Edit a Garden in Neovim
 	- ## Overview
 		- `lsg lsp` is a language server for Logseq Markdown gardens. Neovim starts it when you open a page or journal, and the server reads the whole garden so it can tell the editor where each page link, tag, block reference and property leads.
-		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. The server reports broken block references and repeated block ids as diagnostics, and keeps its index of the garden current while you edit. Rename arrives in a later release and needs no change to the configuration on this page.
+		- With the server attached you can complete page links, tags, block references and properties as you type, jump from a link to its page or block, list every place that links to a page or a block, and read a page or block in a hover window. You can rename a page or tag and have every link, namespace child and file name follow. The server reports broken block references and repeated block ids as diagnostics, and keeps its index of the garden current while you edit.
 	- ## Prerequisites
 		- Neovim 0.11 or later.
 		- `lsg` on your `PATH`, installed as [[lsg/How To/Install with mise]] shows.
@@ -87,7 +87,14 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 			- An alias shows the page it belongs to and inserts the alias as its page writes it.
 			- When a pairing plugin such as `mini.pairs` has already written `]]` or `))` after the cursor, the chosen item replaces that pair, so the line ends with one pair.
 			- A block without an `id::` is left out of the `((` menu. Give the block an id in Logseq, or write an `id::` line beneath it, to reference it.
-		- ### 7. Read the diagnostics
+		- ### 7. Rename a page or a tag
+			- Put the cursor on a page link, a tag or a page name in a property such as `tags::`, or anywhere in the ordinary text of the page you want to rename. Then press `grn`, or `<leader>cr` in LazyVim, or run `:lua vim.lsp.buf.rename()`. Neovim shows the page's current title; type the new one and press Enter.
+			- The rename rewrites every `[[link]]`, `#tag`, `{{embed}}` and property value that names the page, renames its namespace children, so `Fruit/Apple` follows `Fruit`, and renames each page file as Logseq would name it. A link written with one of the page's aliases stays as written, because it still leads to the page. The cursor on an alias renames the page the alias belongs to.
+			- Neovim writes the renamed files at once and leaves the other changed files as unsaved buffers. Run `:wall` to write them.
+			- A tag is a page, so renaming `#todo` works the same way, also when the page has no file. When the new name has a space, `#todo` becomes `#[[new name]]`.
+			- The server refuses a name that already belongs to another page and shows the reason. To merge two pages, use Logseq.
+			- A journal keeps its file name. Renaming a journal writes the new title to a `title::` property at the top of its file.
+		- ### 8. Read the diagnostics
 			- The server marks three problems in a page:
 				- a `((uuid))` or `{{embed ((uuid))}}` whose id no block in the garden has, as an error;
 				- an `id::` value that more than one block writes, as an error on each of those blocks. Logseq keeps the id on one block and gives the others a new id, so references to them stop working;
@@ -99,7 +106,7 @@ see-also:: [[lsg/Ref/Command Line]], [[lsg/How To/Look Up a Page File]]
 		- The server reads `:file/name-format`, `:journal/page-title-format`, `:journal/file-name-format` and `:hidden` from `logseq/config.edn`, then every Markdown file beneath `pages/` and `journals/`. It skips names that start with a dot, `node_modules` and the paths `:hidden` lists. On the encode garden, about 9,300 pages and 525 journals, reading takes a little over a second, and Neovim shows the progress.
 		- The text in an open buffer takes the place of its file until you close the buffer, so the server sees edits you have not saved.
 		- When the Logseq app, git or another program changes a file, the server reads it again. A change to `logseq/config.edn` reads the whole garden again.
-		- The server changes no file and offers no formatting, so the tab indentation of your outline stays as you wrote it.
+		- The server writes no file and offers no formatting. A rename changes only the names it replaces, so the tab indentation of your outline stays as you wrote it.
 	- ## Troubleshooting
 		- If no client attaches, check that the buffer's filetype is `markdown` and that a folder at or above the file holds `logseq/config.edn`.
 		- If Neovim reports that `lsg` is not executable, run `command -v lsg` in the shell you start Neovim from. [[lsg/How To/Install with mise]] shows how to put `lsg` on your `PATH`.

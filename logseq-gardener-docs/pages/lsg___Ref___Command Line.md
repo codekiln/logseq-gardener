@@ -61,7 +61,7 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 		- The server asks for incremental text synchronization. The text of an open buffer takes the place of its file until the buffer closes.
 		- For changes made outside the editor, the server registers `workspace/didChangeWatchedFiles` for `pages/**/*.md`, `journals/**/*.md` and `logseq/config.edn` when the editor supports dynamic registration, and watches those folders itself otherwise: through the operating system's file events on Linux and Windows, and by comparing modification times every two seconds on macOS. A change to `logseq/config.edn` reads the whole garden again.
 		- Positions use `utf-8` when the editor lists it in `general.positionEncodings`, and `utf-16` otherwise.
-		- The server advertises no formatting and changes no file.
+		- The server advertises no formatting and writes no file. A rename answers with an edit that the editor applies.
 		- ### Navigation
 			- | Request | Answer |
 			  | --- | --- |
@@ -85,6 +85,17 @@ see-also:: [[lsg/How To/Look Up a Page File]], [[lsg/How To/Edit a Garden in Neo
 			- Property key items leave out Logseq's card scheduling properties and the keys in `:block-hidden-properties`.
 			- Each item's `textEdit` replaces the typed text and a closing `]]` or `))` that already follows the cursor. `filterText` holds the text the typed characters match and `sortText` holds the server's order.
 			- One answer holds at most 100 items. `isIncomplete` is `true` for every list of page names and for any list the limit cut, so the editor asks again as you type.
+		- ### Rename
+			- | Request | Answer |
+			  | --- | --- |
+			  | `textDocument/prepareRename` | The range of the page name under the cursor and, as `placeholder`, the title of the page it leads to. In ordinary text, an empty range at the cursor and the title of the document's page. An error on a block reference, a property key, a name several files answer to and a journal date with no file |
+			  | `textDocument/rename` | One `WorkspaceEdit`. An error with code `-32803` and the reason when the rename is refused |
+			- The edit rewrites every page link, tag, page embed and page name in a property value that names the page by its title, in any letter case, with the new name as typed. A name written with an alias of the page, or as a journal date in another format, stays as written. `#old` becomes `#new` when the new name reads as a tag without brackets and `#[[new name]]` otherwise.
+			- Namespace children follow the page: renaming `Fruit` to `Crop` renames `Fruit/Apple` to `Crop/Apple` in titles, links and file names. A page whose title holds `[[Fruit]]` follows too.
+			- Each page file gets the name Logseq's rules give the new title for the garden's `:file/name-format`, in the folder the file is in. A journal keeps its file name and gets the new title in a `title::` property. A page keeps a `title::` property it has, with the new title, and gets one when its file name cannot carry the title, such as `Node.js` under the legacy format. `:default-home {:page "…"}` in `logseq/config.edn` follows the rename.
+			- `documentChanges` lists each file's text edits ahead of its `RenameFile` operation, under the file's current name. The edits to an open buffer carry the buffer's version; other edits carry `null`. A rename that changes only letter case renames the file twice, to `.lsg-rename-<n>.tmp` in the same folder and from there to the new name, because a file system that ignores letter case treats both names as one file.
+			- The server refuses a new name that is empty, holds a line break, belongs to another page by title or alias, or spells a journal date, and a rename whose new file path already exists. A new name equal to the title gives an empty edit.
+			- A rename that gives a file a new name needs `workspace.workspaceEdit.resourceOperations` with `rename` in the editor's capabilities; the answer is an error that says so otherwise. An editor that advertises neither resource operations nor `documentChanges` gets the text edits of a rename without file renames as `changes`.
 		- ### Diagnostics
 			- The server sends `textDocument/publishDiagnostics` for a document when the editor opens it, and again whenever an edit or a file change alters the list. For a file that is not open, it sends the list when the file changes on disk and has a problem, and keeps that list current until it is empty. Closing a document or deleting its file clears its diagnostics.
 			- | Code | Severity | Reported for |
