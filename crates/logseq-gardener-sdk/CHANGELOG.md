@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.54](https://github.com/codekiln/logseq-gardener/compare/v0.0.53...v0.0.54) - 2026-11-15
+
+### Added
+
+- rename a property key across the garden from lsg lsp (#660)
+- rename a page or tag across the garden from lsg lsp (#655)
+- complete page links, tags, block references and properties in lsg lsp (#653)
+- report broken block references and duplicate block ids from lsg lsp (#648)
+- follow links, list references and hover in lsg lsp (#650)
+- start lsg lsp, a language server with an in-memory garden index and a Neovim setup page (#645)
+
 ## [0.0.53](https://github.com/codekiln/logseq-gardener/compare/v0.0.52...v0.0.53) - 2026-11-13
 
 ### Added

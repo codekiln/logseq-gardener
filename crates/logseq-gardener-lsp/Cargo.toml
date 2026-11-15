@@ -1,6 +1,6 @@
 [package]
 name = "logseq-gardener-lsp"
-version = "0.0.53"
+version = "0.0.54"
 edition = "2024"
 rust-version = "1.97"
 description = "Language server for Logseq Gardener"
@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 # Every garden query the server answers.
-logseq-gardener-sdk = { path = "../logseq-gardener-sdk", version = "0.0.53" }
+logseq-gardener-sdk = { path = "../logseq-gardener-sdk", version = "0.0.54" }
 # Read and write Language Server Protocol messages over standard input and output.
 lsp-server = "0.10.0"
 # Typed Language Server Protocol requests, notifications and capabilities.

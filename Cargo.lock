@@ -231,7 +231,7 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "logseq-gardener"
-version = "0.0.53"
+version = "0.0.54"
 dependencies = [
  "clap",
  "logseq-gardener-lsp",
@@ -242,7 +242,7 @@ dependencies = [
 
 [[package]]
 name = "logseq-gardener-lsp"
-version = "0.0.53"
+version = "0.0.54"
 dependencies = [
  "crossbeam-channel",
  "logseq-gardener-sdk",
@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "logseq-gardener-sdk"
-version = "0.0.53"
+version = "0.0.54"
 dependencies = [
  "aho-corasick",
  "flate2",
