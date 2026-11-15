@@ -875,9 +875,11 @@ def shipped_first_party():
 
 
 def with_plugins_key(garden, ids, extra=''):
-    """Add `:lsg/plugins [...]` and `extra` to the top-level map of a garden copy's config.edn."""
+    """Add `:lsg/plugins [...]` and `extra` to the top-level map of a garden copy's config.edn, in place
+    of any `:lsg/plugins` the garden sets itself: Logseq's export refuses a map with a key twice."""
     config = garden / 'logseq' / 'config.edn'
-    text = config.read_text(encoding='utf-8').rstrip()
+    text = re.sub(r'^([^;\n]*?):lsg/plugins\s*\[[^\]]*\]', r'\1', config.read_text(encoding='utf-8'),
+                  flags=re.MULTILINE).rstrip()
     assert text.endswith('}'), config
     keywords = ' '.join(f':{plugin}' for plugin in ids)
     config.write_text(f'{text[:-1]} :lsg/plugins [{keywords}] {extra}}}\n', encoding='utf-8')

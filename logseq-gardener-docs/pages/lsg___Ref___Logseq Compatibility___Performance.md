@@ -379,12 +379,14 @@ see-also:: [[lsg/Ref/Logseq Compatibility]], [[lsg/How To/Measure Performance]],
 		  | Home | desktop | lsg | 21 | 16.8 | 11.7 | 1.9 |
 		  | Home | phone | logseq | 201995 | 23,690.9 | 246,852.4 | 2,099.7 |
 		  | Home | phone | lsg | 417 | 16.8 | 11.7 | 1.9 |
-		- Phone heap after starting `GitP/A/Session/26/10/24-Sat` and following 20 links in place, the median of 3 visits each. A plugin's growth is the heap with its module against the heap with its module blocked. Recordings were served as a local tone. **Bold** marks a value over its budget.
-		- Heap: 1.55 MB with every plugin on and the recording playing, 1.41 MB with `podcast-episode` blocked and nothing playing, 1.39 MB with every plugin blocked.
+		- Phone heap measured 2026-11-15 on encode garden commit `fcfefe0`, built by `lsg` `fdea4da` with `:lsg/plugins [:ableton-set :podcast-episode :sequence-header]`, after starting `GitP/A/Session/26/10/24-Sat` and following 20 links in place, the median of 3 visits each. A plugin's growth is the heap with its module against the heap with its module blocked. Recordings were served as a local tone. **Bold** marks a value over its budget.
+		- `ableton-set` draws only on Live Set pages, so its visit opens `GitP/A/Session/26/11/06-Fri/Set` instead and returns to it every other navigation, ending on it with the track view drawn; its growth is that visit against the same visit with `ableton-set` blocked.
+		- Heap: 1.56 MB with every plugin on and the recording playing, 1.42 MB with `podcast-episode` blocked and nothing playing, 1.40 MB with every plugin blocked. On the Set visit, 1.61 MB with every plugin on and 1.56 MB with `ableton-set` blocked.
 		- | Plugin | Phone heap growth (MB) | Budget (MB) | Module and stylesheet (gzip bytes) | Budget (bytes) |
 		  | --- | --- | --- | --- | --- |
-		  | `podcast-episode` | 0.14 | 1 | 4,906 | 8,000 |
-		  | `sequence-header` | 0.03 | 0.2 | 1,465 | 1,500 |
+		  | `ableton-set` | 0.05 | 0.5 | 3,822 | 4,000 |
+		  | `podcast-episode` | 0.14 | 1 | 5,283 | 8,000 |
+		  | `sequence-header` | 0.03 | 0.2 | 1,476 | 1,500 |
 		- Pages that load plugin code before the title: 0.
 	- ## Installable gardens
 		- Measured 2026-11-11 with `mise run parity:budgets` on the fixture garden and `mise run parity:build-bench --install-only --runs 5` on a copy of encode garden commit `d9722ef`. A copy of the garden gains `:lsg/install` and an icon; a second copy has neither. A garden without the key publishes the same files as before: the whole encode garden, 65,774 files, matched byte for byte against the previous release.

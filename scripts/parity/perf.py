@@ -2341,17 +2341,21 @@ def measure_plugins_run(args, sync_playwright):
 
 # First-party plugins (first-party-plugins): the fixture pages the design names, measured in a
 # build of a copy of the run's garden with every shipped plugin turned on and in Logseq's own
-# export of the same copy, and the phone heap after playing an episode across navigations.
-FIRST_PARTY_PAGES = ['GitP/A/Session/26/11/01-Sun', 'GitP/A/Session/26/10/29-Thu', 'GitP/A/Session/26/10/24-Sat',
+# export of the same copy, the phone heap after playing an episode across navigations, and the phone
+# heap after returning to a Live Set page across navigations.
+FIRST_PARTY_PAGES = ['GitP/A/Session/26/11/06-Fri/Set', 'GitP/A/Session/26/11/01-Sun', 'GitP/A/Session/26/10/29-Thu', 'GitP/A/Session/26/10/24-Sat',
                      'GitP/A/Session/26/10/20-Tue', 'GitP/A/Session/26/10/18-Sun', 'GitP/A/Session/26/09/24-Thu',
                      'GitP/A', 'GitP/A/Session',
                      'GitP/A/Session/26/10/24-Sat/Asset/Audio/Full/mp3', 'Home']
 FIRST_PARTY_EPISODE = 'GitP/A/Session/26/10/24-Sat'
+# The Set page whose track view ableton-set draws; its heap visit returns to it every other navigation.
+FIRST_PARTY_SET = 'GitP/A/Session/26/11/06-Fri/Set'
 FIRST_PARTY_NAVIGATIONS = 20
 # Heap visits per variant; the median is kept, because one visit's heap after garbage collection can
 # differ from the next by a few hundred KB, which is the size of the sequence-header budget.
 FIRST_PARTY_HEAP_VISITS = 3
 FIRST_PARTY_PLAYER = "document.querySelector('.lsg-episode-player audio')"
+FIRST_PARTY_SET_VIEW = "document.querySelector('main .lsg-ableton-set')"
 
 
 def tone_wav(seconds=60, rate=8000, frequency=330):
@@ -2372,17 +2376,18 @@ def first_party_garden(garden, destination, plugins):
     return copy
 
 
-def measure_first_party_heap(browser, base, start, routes, profile, blocked=()):
-    """The JS heap after garbage collection once the reader has started the recording on `start`
-    and followed FIRST_PARTY_NAVIGATIONS links in place. Each plugin in `blocked` has its files
-    refused; with podcast-episode blocked nothing plays, so blocking every plugin gives the same
-    visit with only the host."""
+def measure_first_party_heap(browser, base, start, routes, profile, blocked=(), play=True):
+    """The JS heap after garbage collection once the reader has opened `start`, started its recording
+    when `play` is true, and followed FIRST_PARTY_NAVIGATIONS links in place. Each plugin in `blocked`
+    has its files refused; with podcast-episode blocked nothing plays, so blocking every plugin gives
+    the same visit with only the host. `view` says whether ableton-set's track view is on the page
+    at the end."""
     context, page, cdp = open_page(browser, profile, serve.TITLE_SELECTORS['lsg'])
     wav = tone_wav()
     page.route('**/*.mp3', lambda request: request.fulfill(status=200, body=wav, content_type='audio/wav'))
     for plugin_id in blocked:
         page.route(f'**/plugins/{plugin_id}/**', lambda request: request.abort())
-    plugin = 'podcast-episode' not in blocked
+    plugin = play and 'podcast-episode' not in blocked
     timeout = PROFILES[profile]['timeout_ms']
     try:
         page.goto(base + start, wait_until='load', timeout=timeout)
@@ -2394,10 +2399,13 @@ def measure_first_party_heap(browser, base, start, routes, profile, blocked=()):
             page.evaluate(f'{FIRST_PARTY_PLAYER}.play()')
             page.wait_for_function(f'!{FIRST_PARTY_PLAYER}.paused && {FIRST_PARTY_PLAYER}.currentTime > 0.2',
                                    timeout=timeout)
+        if not play and 'ableton-set' not in blocked:
+            page.wait_for_function(FIRST_PARTY_SET_VIEW, timeout=timeout)
         for index in range(FIRST_PARTY_NAVIGATIONS):
             page.evaluate(PLUGIN_NAVIGATE, routes[index % len(routes)])
         playing = page.evaluate(f'!!{FIRST_PARTY_PLAYER} && !{FIRST_PARTY_PLAYER}.paused')
-        return {'heap': collect_garbage(cdp), 'playing': playing}
+        view = page.evaluate(f'!!{FIRST_PARTY_SET_VIEW}')
+        return {'heap': collect_garbage(cdp), 'playing': playing, 'view': view}
     except Exception as error:  # Playwright raises its own TimeoutError type.
         return {'error': f'{type(error).__name__}: {str(error).splitlines()[0]}'}
     finally:
@@ -2434,11 +2442,15 @@ def first_party_markdown(report, budgets):
     lines += ['', f"Phone heap after starting `{FIRST_PARTY_EPISODE}` and following {FIRST_PARTY_NAVIGATIONS} links in "
                   f"place, the median of {FIRST_PARTY_HEAP_VISITS} visits each. A plugin's growth is the heap with its "
                   'module against the heap with its module blocked. Recordings were served as a local tone. **Bold** '
-                  'marks a value over its budget.', '']
+                  'marks a value over its budget.', '',
+              f"`ableton-set` draws only on Live Set pages, so its visit opens `{FIRST_PARTY_SET}` instead and "
+              f"returns to it every other navigation, ending on it with the track view drawn; its growth is that "
+              'visit against the same visit with `ableton-set` blocked.', '']
     if 'growth_mb' in heap:
         lines += [f"Heap: {heap['all_mb']:.2f} MB with every plugin on and the recording playing, "
                   f"{heap['without_episode_mb']:.2f} MB with `podcast-episode` blocked and nothing playing, "
-                  f"{heap['host_mb']:.2f} MB with every plugin blocked.", '',
+                  f"{heap['host_mb']:.2f} MB with every plugin blocked. On the Set visit, {heap['set_mb']:.2f} MB "
+                  f"with every plugin on and {heap['without_set_mb']:.2f} MB with `ableton-set` blocked.", '',
                   '| Plugin | Phone heap growth (MB) | Budget (MB) | Module and stylesheet (gzip bytes) | Budget (bytes) |',
                   '| --- | --- | --- | --- | --- |']
     else:
@@ -2479,6 +2491,8 @@ def first_party_failures(report, budgets):
     else:
         if not heap['playing']:
             failures.append('podcast-episode: the recording stopped during the navigations')
+        if not heap['set_view']:
+            failures.append(f'ableton-set: no track view on {FIRST_PARTY_SET} after the navigations')
         for plugin, growth in heap['growth_mb'].items():
             limit = budgets['plugins'][plugin]['phone_heap_growth_mb']
             if growth > limit:
@@ -2493,7 +2507,8 @@ def first_party_failures(report, budgets):
 
 def measure_first_party_run(args, sync_playwright):
     """Measure FIRST_PARTY_PAGES in lsg with every shipped first-party plugin on and in Logseq's
-    export of the same garden copy, and the phone heap after playing across navigations; with
+    export of the same garden copy, and the phone heap after playing across navigations and after
+    returning to a Set page across navigations; with
     --record, replace the First-party plugins section of the Performance page. The copy and both
     builds stay in the run directory under first-party/, and a later run reuses Logseq's export when
     the garden commit has not changed."""
@@ -2546,15 +2561,26 @@ def measure_first_party_run(args, sync_playwright):
                     row.update(metrics.summarize_loads(good) if good else {'error': loads[0]['error']})
                     pages.append(row)
                     print(json.dumps(row, ensure_ascii=False), flush=True)
-        routes = [targets[t]['lsg'] for t in FIRST_PARTY_PAGES if targets[t]['lsg'] and t != FIRST_PARTY_EPISODE]
         start = targets[FIRST_PARTY_EPISODE]['lsg']
-        heap = {'error': f'{FIRST_PARTY_EPISODE} is missing from the lsg build'}
-        if start:
+        set_page = targets[FIRST_PARTY_SET]['lsg']
+        routes = [targets[t]['lsg'] for t in FIRST_PARTY_PAGES
+                  if targets[t]['lsg'] and t not in (FIRST_PARTY_EPISODE, FIRST_PARTY_SET)]
+        # The Set visit alternates another page and the Set, so the view is drawn ten times and is on
+        # the page after the last navigation.
+        set_routes = [route for other in [start, *routes] for route in (other, set_page)]
+        missing = [t for t, target in ((FIRST_PARTY_EPISODE, start), (FIRST_PARTY_SET, set_page)) if not target]
+        heap = {'error': f'{", ".join(missing)} missing from the lsg build'}
+        if not missing:
             # Every plugin on and playing; podcast-episode blocked, so nothing plays; every plugin
-            # blocked, leaving the host. Each plugin's growth is the step its own module adds.
-            variants = {'all': (), 'without_episode': ('podcast-episode',), 'host': tuple(plugins)}
-            visits = {name: [measure_first_party_heap(browser, site.url, start, routes, 'phone', blocked)
-                             for _ in range(FIRST_PARTY_HEAP_VISITS)] for name, blocked in variants.items()}
+            # blocked, leaving the host. Each plugin's growth is the step its own module adds. The Set
+            # visit, with every plugin on and with ableton-set blocked, gives ableton-set's growth.
+            variants = {'all': (start, routes, (), True), 'without_episode': (start, routes, ('podcast-episode',), True),
+                        'host': (start, routes, tuple(plugins), True),
+                        'set': (set_page, set_routes, (), False),
+                        'without_set': (set_page, set_routes, ('ableton-set',), False)}
+            visits = {name: [measure_first_party_heap(browser, site.url, first, visit_routes, 'phone', blocked, play)
+                             for _ in range(FIRST_PARTY_HEAP_VISITS)]
+                      for name, (first, visit_routes, blocked, play) in variants.items()}
             errors = [visit['error'] for runs in visits.values() for visit in runs if 'error' in visit]
             if errors:
                 heap = {'error': errors[0]}
@@ -2562,10 +2588,13 @@ def measure_first_party_run(args, sync_playwright):
                 mb = {name: statistics.median(visit['heap'] for visit in runs) / 1_000_000
                       for name, runs in visits.items()}
                 heap = {'all_mb': mb['all'], 'without_episode_mb': mb['without_episode'], 'host_mb': mb['host'],
-                        'growth_mb': {'podcast-episode': mb['all'] - mb['without_episode'],
+                        'set_mb': mb['set'], 'without_set_mb': mb['without_set'],
+                        'growth_mb': {'ableton-set': mb['set'] - mb['without_set'],
+                                      'podcast-episode': mb['all'] - mb['without_episode'],
                                       'sequence-header': mb['without_episode'] - mb['host']},
                         'visits': {name: [visit['heap'] for visit in runs] for name, runs in visits.items()},
-                        'playing': all(visit['playing'] for visit in visits['all'])}
+                        'playing': all(visit['playing'] for visit in visits['all']),
+                        'set_view': all(visit['view'] for visit in visits['set'])}
         print(json.dumps(heap), flush=True)
         browser.close()
     report = {'measured': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
@@ -2626,8 +2655,9 @@ def main():
                         help="build the run's garden with the recorder fixture plugin and measure same-document "
                              'navigation; with --record, replace its section of the Performance page')
     parser.add_argument('--first-party', action='store_true',
-                        help='Measure the first-party plugins on the GitP/A fixture pages of a copy of the run\'s garden, '
-                             'in lsg and in Logseq\'s own export of the copy (with --record, their section)')
+                        help='Measure the first-party plugins on the GitP/A fixture pages, a Live Set page among them, of a '
+                             'copy of the run\'s garden, in lsg and in Logseq\'s own export of the copy (with --record, '
+                             'their section)')
     parser.add_argument('--baseline-lsg', type=Path,
                         help='also time a whole-garden build with this lsg binary, such as one built before a feature')
     args = parser.parse_args()
