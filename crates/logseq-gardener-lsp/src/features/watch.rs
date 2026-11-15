@@ -179,8 +179,12 @@ fn changed(server: &mut Server, paths: BTreeSet<PathBuf>) {
     for path in paths {
         let result = if server.index.holds(&path) {
             server.index.refresh_file(&path)
-        } else if path.extension().is_none_or(|extension| extension != "md") {
-            // A folder that was created, renamed or deleted, or a file that is no page.
+        } else if path.extension().is_none_or(|extension| extension != "md")
+            && path.components().count() > 1
+        {
+            // A folder beneath `pages/` or `journals/` that was created, renamed or deleted,
+            // or a file that is no page. An event for `pages/` or `journals/` itself says
+            // only that an entry was added or removed, and that entry has its own event.
             server.index.refresh_folder(&path)
         } else {
             Ok(())
