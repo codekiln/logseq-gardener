@@ -3,5 +3,8 @@
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
 
-config=$(mise run release:config)
+# The workflow reads this task's standard output as JSON, so only release-plz writes to it.
+config=$(mktemp)
+trap 'rm -f "$config"' EXIT
+mise run release:prepare-config --output "$config" >&2
 release-plz release-pr --config "$config" --output json

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#MISE description="Write the release-plz config for preparing a release, marking packages added since the latest release tag as first releases"
+#USAGE flag "-h --help" help="Show task help"
+#USAGE flag "--config <path>" help="release-plz config to start from (default: the one release:config prints)"
+#USAGE flag "--output <path>" help="File to write the config to"
+set -euo pipefail
+
+# release-plz looks for each package in a checkout of that package's latest release tag,
+# and stops when the package is not there. Every package shares the `v<version>` tag, so a
+# package added since that tag needs a tag name of its own for its first release: no tag
+# matches the name, and release-plz then treats the package as a first release. The
+# package's own changelog waits for its second release, because release-plz would link the
+# first entry to the tag name that exists only in this config. The root CHANGELOG.md lists
+# the package's changes. After the first release the package is in the shared tag and
+# needs no entry here.
+
+output="${usage_output:?--output is required}"
+config="${usage_config:-$(mise run release:config)}"
+
+cp "$config" "$output"
+
+latest_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+if [ -z "$latest_tag" ]; then
+  exit 0
+fi
+
+# Each line: a workspace package's name, a tab, and its manifest path from the repository root.
+packages=$(cargo metadata --no-deps --offline --format-version 1 \
+  | jq -r '.workspace_root as $root | .packages[] | [.name, (.manifest_path | ltrimstr($root + "/"))] | @tsv')
+
+while IFS=$'\t' read -r name manifest; do
+  if git show "$latest_tag:$manifest" 2>/dev/null | grep -qxF "name = \"$name\""; then
+    continue
+  fi
+  printf 'release:prepare-config: %s is not in %s; preparing its first release\n' "$name" "$latest_tag" >&2
+  awk -v name="$name" '
+    function overrides() {
+      print "git_tag_name = \"first-release-of-" name "-v{{ version }}\""
+      print "git_tag_enable = false"
+      print "changelog_update = false"
+    }
+    /^\[/ { in_package = 0 }
+    $0 == "name = \"" name "\"" { print; overrides(); in_package = 1; found = 1; next }
+    in_package && /^(git_tag_name|git_tag_enable|changelog_update)[ =]/ { next }
+    { print }
+    END {
+      if (!found) {
+        print ""
+        print "[[package]]"
+        print "name = \"" name "\""
+        overrides()
+      }
+    }
+  ' "$output" > "$output.next"
+  mv "$output.next" "$output"
+done <<< "$packages"

@@ -26,7 +26,7 @@ see-also:: [[lsg/How To/Contribute a Change]], [[lsg/Releases]]
 		  | `mise run release:check` | The release configuration: the release impact test and the dist configuration check, both described below. |
 	- ## Release configuration checks
 		- `mise run release:check` runs `mise run release:impact-test` and `mise run dist:check`.
-		- The release impact test runs the pinned release-plz binary against temporary Git repositories. It checks feature, fix, breaking and non-release commits for both `0.x` and `1.x` versions, and checks that a change to the SDK alone raises the shared version.
+		- The release impact test runs the pinned release-plz binary against temporary Git repositories. It checks feature, fix, breaking and non-release commits for both `0.x` and `1.x` versions, checks that a change to the SDK or to the language server alone raises the shared version, and checks that release preparation works for a package added since the latest release tag.
 		- dist generates `.github/workflows/release.yml` from [dist-workspace.toml](https://github.com/codekiln/logseq-gardener/blob/main/dist-workspace.toml). `mise run dist:check` fails when the committed workflow differs from what dist generates, and plans a release. After a change to `dist-workspace.toml` or an upgrade of cargo-dist, `mise run dist:generate` regenerates the workflow, and the workflow changes only that way.
 	- ## GitHub Actions
 		- | Workflow and job | What it runs |
