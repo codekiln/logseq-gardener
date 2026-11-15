@@ -31,12 +31,14 @@ pub enum Exit {
 /// One running session: the connection, the index and what the client and server agreed on.
 pub(crate) struct Server {
     connection: Connection,
-    client: ClientCapabilities,
+    pub(crate) client: ClientCapabilities,
     pub(crate) index: GardenIndex,
     pub(crate) paths: Paths,
     pub(crate) encoding: Encoding,
     /// The text of each open document, by URI, including documents the garden does not hold.
     pub(crate) buffers: HashMap<String, String>,
+    /// The version the client last gave each open document, by URI.
+    pub(crate) versions: HashMap<String, i32>,
     pub(crate) watching: Watching,
     pub(crate) load_milliseconds: f64,
     next_request: i32,
@@ -215,6 +217,7 @@ pub fn serve(connection: Connection) -> Exit {
         paths,
         encoding,
         buffers: HashMap::new(),
+        versions: HashMap::new(),
         watching: Watching::Nobody,
         load_milliseconds: milliseconds(started),
         next_request: 0,

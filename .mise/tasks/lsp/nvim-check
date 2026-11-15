@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run the Neovim configuration from the docs page in headless Neovim and check that lsg lsp attaches to a fixture page and that go to definition opens the linked file"
+#MISE description="Run the Neovim configuration from the docs page in headless Neovim and check that lsg lsp attaches to a fixture page, that go to definition opens the linked file and that a rename rewrites links and file names"
 #USAGE flag "-h --help" help="Show task help"
 set -euo pipefail
 
@@ -102,6 +102,59 @@ follow("[[Fruit/Quince]]", "pages/Fruit___Quince.md")
 if vim.uv.fs_stat(garden .. "/pages/Fruit___Quince.md") then
   fail("go to definition created pages/Fruit___Quince.md")
 end
+
+-- Rename the page of pages/Fruit.md from ordinary text in it. The namespace children, their
+-- links and their files follow, and :wall writes the links in the other files.
+if not client.server_capabilities.renameProvider then
+  fail("the server offers no rename")
+end
+local function page_files()
+  local names = {}
+  for name in vim.fs.dir(garden .. "/pages") do
+    if name:match("%.md$") then
+      names[#names + 1] = name
+    end
+  end
+  table.sort(names)
+  return table.concat(names, " ")
+end
+local function rename(file, new_name, expected)
+  vim.cmd("edit " .. vim.fn.fnameescape(file))
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  if vim.fn.search("\\Vgrows on trees", "cw") == 0 then
+    fail(file .. " has no ordinary text to rename from")
+  end
+  local ready = vim.wait(20000, function()
+    return #vim.lsp.get_clients({ name = "logseq_gardener", bufnr = 0 }) > 0
+  end, 50)
+  if not ready then
+    fail("no logseq_gardener client attached to " .. file)
+  end
+  vim.lsp.buf.rename(new_name)
+  local renamed = vim.wait(20000, function()
+    return page_files() == expected
+  end, 50)
+  if not renamed then
+    fail(("rename to %s left the page files %s, expected %s"):format(new_name, page_files(), expected))
+  end
+  vim.cmd("silent wall")
+  io.stdout:write(("rename to %s gave the page files %s\n"):format(new_name, page_files()))
+end
+local function expect_text(file, text)
+  local content = table.concat(vim.fn.readfile(garden .. "/" .. file), "\n")
+  if not content:find(text, 1, true) then
+    fail(("%s does not hold %s after the rename:\n%s"):format(file, text, content))
+  end
+end
+rename("pages/Fruit.md", "Orchard", "Orchard.md Orchard___Apple.md Orchard___Pear.md Recipes.md multi word.md")
+expect_text("pages/Recipes.md", "see [[Orchard/Apple]] and [the pear page]([[Orchard/Pear]])")
+expect_text("pages/Recipes.md", "\t- Peel four [[Malus]] from the cellar.")
+expect_text("pages/Orchard___Pear.md", "tags:: [[Orchard]]")
+expect_text("journals/2026_01_02.md", "- TODO buy more [[Orchard/apple]]")
+-- A rename that changes only letter case, which a file system that ignores case treats as
+-- one file name.
+rename("pages/Orchard.md", "orchard", "Recipes.md multi word.md orchard.md orchard___Apple.md orchard___Pear.md")
+expect_text("pages/Recipes.md", "{{embed [[orchard/Pear]]}}")
 vim.cmd("qall!")
 LUA
 

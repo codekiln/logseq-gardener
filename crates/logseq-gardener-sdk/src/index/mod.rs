@@ -38,6 +38,7 @@ mod hover;
 mod lines;
 mod occurrences;
 mod references;
+mod rename;
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
@@ -62,6 +63,9 @@ pub use hover::{BlockSummary, PageSummary, SUMMARY_LINES, Summary};
 pub use lines::{LineIndex, LinePosition};
 pub use occurrences::{BlockIdSite, Occurrence, OccurrenceKind, PropertyLine, SourceRange, Target};
 pub use references::{NamedBy, PageReference, Reference, Subject};
+pub use rename::{
+    DocumentChange, FileMove, PageRename, RenamePlan, RenameRefusal, RenameTarget, Replacement,
+};
 
 /// The folders whose Markdown files the index holds.
 pub const NOTE_DIRECTORIES: [&str; 2] = ["pages", "journals"];

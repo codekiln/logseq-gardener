@@ -369,6 +369,62 @@ pub(crate) fn hidden_patterns(root: &Path) -> Vec<String> {
         .collect()
 }
 
+/// The string that `:default-home {:page "…"}` names as the garden's home page, and the
+/// start and end of its literal in `text`, quotes included. `None` when the config does not
+/// parse, has no such string, or writes a discarded form before it.
+pub(crate) fn default_home_page(text: &str) -> Option<(String, usize, usize)> {
+    if text.len() > MAX_BYTES {
+        return None;
+    }
+    let mut reader = Reader {
+        input: text.as_bytes(),
+        pos: 0,
+        work: 0,
+    };
+    reader.whitespace();
+    reader.open_map()?;
+    loop {
+        let key = reader.map_key()?;
+        if !matches!(&key, Form::Atom(key) if key == ":default-home") {
+            reader.form(1).ok()??;
+            continue;
+        }
+        reader.whitespace();
+        reader.open_map()?;
+        loop {
+            let key = reader.map_key()?;
+            reader.whitespace();
+            let start = reader.pos;
+            let value = reader.form(2).ok()??;
+            if matches!(&key, Form::Atom(key) if key == ":page") {
+                return match value {
+                    Form::Str(page) if reader.input.get(start) == Some(&b'"') => {
+                        Some((page, start, reader.pos))
+                    }
+                    _ => None,
+                };
+            }
+        }
+    }
+}
+
+impl Reader<'_> {
+    /// Step over the `{` that opens a map, or `None` when the next character is another.
+    fn open_map(&mut self) -> Option<()> {
+        (self.input.get(self.pos) == Some(&b'{')).then(|| self.pos += 1)
+    }
+
+    /// The next key of the map the reader is in, or `None` at the map's end and for text
+    /// that does not parse.
+    fn map_key(&mut self) -> Option<Form> {
+        self.whitespace();
+        if matches!(self.input.get(self.pos), None | Some(b'}')) {
+            return None;
+        }
+        self.form(1).ok()?
+    }
+}
+
 pub(crate) fn read(root: &Path) -> (ReferenceConfig, Vec<String>) {
     match read_text(root) {
         Ok(None) => (ReferenceConfig::default(), Vec::new()),
@@ -573,5 +629,21 @@ mod tests {
         symlink(root.join("real-logseq"), root.join("logseq")).unwrap();
         assert!(read(&root).1[0].contains("symlink"));
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn finds_the_home_page_string_and_its_range() {
+        let text = "{;; home\n :hidden [\"a\"]\n :default-home {:sidebar [\"x\"] :page \"My \\\"Home\\\"\"}\n :other 1}";
+        let (page, start, end) = default_home_page(text).unwrap();
+        assert_eq!(page, "My \"Home\"");
+        assert_eq!(&text[start..end], "\"My \\\"Home\\\"\"");
+        assert_eq!(default_home_page("{:default-home {:sidebar \"x\"}}"), None);
+        assert_eq!(default_home_page("{:default-home {:page :keyword}}"), None);
+        assert_eq!(
+            default_home_page("{:default-home {:page #_ 1 \"x\"}}"),
+            None
+        );
+        assert_eq!(default_home_page("{:a {:page \"x\"}}"), None);
+        assert_eq!(default_home_page("{:default-home"), None);
     }
 }

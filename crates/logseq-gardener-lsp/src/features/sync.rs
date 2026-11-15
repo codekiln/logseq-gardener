@@ -10,6 +10,9 @@ use crate::server::Server;
 pub(crate) fn did_open(server: &mut Server, params: DidOpenTextDocumentParams) {
     let uri = params.text_document.uri.as_str().to_owned();
     server
+        .versions
+        .insert(uri.clone(), params.text_document.version);
+    server
         .buffers
         .insert(uri.clone(), params.text_document.text);
     index_buffer(server, &uri);
@@ -33,12 +36,16 @@ pub(crate) fn did_change(server: &mut Server, params: DidChangeTextDocumentParam
             None => *text = change.text,
         }
     }
+    server
+        .versions
+        .insert(uri.clone(), params.text_document.version);
     index_buffer(server, &uri);
 }
 
 pub(crate) fn did_close(server: &mut Server, params: DidCloseTextDocumentParams) {
     let uri = params.text_document.uri.as_str();
     server.buffers.remove(uri);
+    server.versions.remove(uri);
     if let Some(path) = server.paths.relative_uri(uri)
         && let Err(error) = server.index.close_buffer(&path)
     {
