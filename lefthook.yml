@@ -4,6 +4,17 @@
 # put it in place.
 #
 # `mise x --` ensures rulesync resolves via mise even in a hook's minimal PATH.
+#
+# Before a commit, rewrite Obsidian-style [[Target|Label]] links in staged graph
+# pages to [[Target]]. Logseq reads `Target|Label` as one page name and creates
+# a stub page. The task comes from codekiln's dotfiles (codekiln/dotfiles#209).
+
+pre-commit:
+  commands:
+    logseq-wikilink-labels:
+      glob: "*.md"
+      run: mise run logseq:fix-wikilink-labels {staged_files}
+      stage_fixed: true
 
 post-merge:
   commands:
